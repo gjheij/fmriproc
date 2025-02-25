@@ -1,0 +1,308 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+echo
+call_loadsetup
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_sinusfrommni
+
+This script takes the registration matrix from MNI to subject space to warp the sagittal sinus mask
+in MNI-space to the subject space. We then multiply this image with the T1w/T2w ratio to get a de-
+cent initial estimate of the sagittal sinus
+
+Usage:
+  spinoza_sinusfrommni [options] <anat folder> <registration folder> <mask folder>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -o|--ow             Overwrite existing output
+  --itk               open itksnap to verify mask procedure
+  <anat directory>    directory containing the T1w and T2w files; should generally be pymp2rage-
+                      folder
+  <registration>      path to directory where registration file is (output from spinoza_registration)
+  <mask directory>    path to output mask directory (to put final 'sinus'-mask)
+
+Eample:
+  spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
+  spinoza_sinusfrommni -s 001 -n 1 DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+# Check for subject & session flags
+OW=0
+open_itk=0
+while getopts :-:os:n:m: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        itk)
+          open_itk=1
+          ;;
+        ow)
+          OW=1
+          ;;
+    *)
+      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
+        exit 1
+      fi
+      ;;
+      esac;;            
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;; 
+    o)  OW=1
+          ;;                      
+  esac
+done
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+ANAT=${@:$OPTIND:1}
+MATRIX=${@:$OPTIND+1:1}
+OUTPUT=${@:$OPTIND+2:1}
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${ANAT}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo "==================================================================================================="
+printf "SAGITTAL SINUS FROM MNI AND T1W/T2W RATIO\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+    sub_id=${subID}
+  else
+    sub_name=$(basename ${subID})
+    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_dir=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_dir=${sub_name}
+    base=${sub_name}
+  fi
+
+  pn_anat=${ANAT}/${base_dir}
+  pn_matrix=${MATRIX}/${base_dir}
+  pn_masks=${OUTPUT}/${base_dir}
+
+  if [[ ! -d ${pn_masks} ]]; then
+    mkdir -p ${pn_masks}
+  fi
+
+  if [[ -d ${pn_anat} ]]; then
+
+    fn_ratio=${pn_anat}/${base}_acq-${DATA^^}_desc-ratio.nii.gz
+    fn_nuisance=${pn_anat}/${base}_acq-${DATA^^}_desc-nuisance.nii.gz
+    fn_mni=${pn_masks}/${base}_acq-${DATA^^}_space-MNI152NLin6Asym_desc-sinus.nii.gz
+    fn_out=${pn_masks}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz
+
+    if [[ ${OW} -eq 1 ]]; then
+      rm ${fn_ratio} ${fn_nuisance} ${fn_out} ${fn_mni} 2>/dev/null
+    fi
+
+    if [[ ! -f ${fn_out} ]]; then
+
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+
+      # calculate T1w/T2w ratio
+      t1=`find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+      t2=`find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T2w.nii.gz" -and -not -name "tmp*" \) 2>/dev/null`
+      mask=`find "${pn_anat}" -type f \( -name "*spm_mask.nii.gz" \) 2>/dev/null`
+      if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
+
+        if [[ ! -z ${t1} && ! -z ${t2} ]]; then
+
+          # if we have a mask-image, we can create a sinus mask directly from the T2-image. Use ratio otherwise
+          if [[ ! -z ${mask} ]]; then
+            echo "Creating sinus mask directly from T2-image"
+
+            # mask t2 with brain mask
+            cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              exit 1
+            fi
+
+            # threshold
+            cmd="""fslmaths $(dirname ${t2})/tmp_$(basename ${t2}) -uthr 10000 -bin ${fn_nuisance}"""
+            echo
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              exit 1
+            fi
+
+            # delete tmp files          
+            rm $(dirname ${t2})/tmp_$(basename ${t2}) 2>/dev/null
+          else
+            echo "Creating T1w/T2w + thresholded image"
+            cmd="""call_t12ratio \
+              --t1 ${t1} \
+              --t2 ${t2} \
+              -o ${pn_anat}/${base}_acq-${DATA^^}"""
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_t12ratio exited with non-zero status"
+              exit 1
+            fi
+          fi
+
+        else
+          echo "${sub_name}: Could not find t1 and-/or t2 file in \"${pn_anat}\""
+          continue
+        fi
+
+      fi
+
+      if [[ ! -f ${fn_mni} ]]; then
+
+        if [[ -f ${fn_nuisance} ]]; then
+
+          # fetch template and warp files created with spinoza_registration in step before
+          mni_mask=${DIR_SCRIPTS}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
+          mat_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null`
+          warp_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null`
+          
+          if [[ ! -z ${mat_file} && ! -z ${warp_file} ]]; then
+            # got SyN registration
+            call_antsapplytransforms -i "1 0" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} "${mat_file} ${warp_file}"
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              exit 1
+            fi
+          elif [[ ! -z ${mat_file} && -z ${warp_file} ]]; then
+            # got affine registration
+            cmd="""call_antsapplytransforms --gen ${fn_nuisance} ${mni_mask} ${fn_mni} ${mat_file}"""
+            echo
+            echo ${cmd}
+            ${cmd}
+
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              exit 1
+            fi          
+          else
+            echo "${sub_name}: missing warp-files for call_antsapplytransforms"
+            continue
+          fi
+
+        else
+          echo "${sub_name}: missing ${fn_nuisance}"
+          continue
+        fi
+
+      fi
+
+      if [[ ! -f ${fn_out} ]]; then
+        if [[ -f ${fn_mni} ]]; then
+          echo
+          echo "Multiplying template mask with nuisance-image"
+          cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
+          echo ${cmd}
+          ${cmd}
+
+          if [[ $? -ne 0 ]]; then
+            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
+            exit 1
+          fi
+
+          rm ${fn_mni} 2>/dev/null
+          echo; echo "Created ${fn_out}"
+          if [[ ! -z ${t1} ]]; then
+            cmd="""itksnap -g ${t1} -s ${fn_out}"""
+            if [[ ${open_itk} -eq 0 ]]; then
+              echo "check with following command:"
+              echo "\"${cmd}\""
+            else
+              echo "Openening ITK-Snap for verification"
+              ${cmd}
+            fi
+          fi
+
+          if [[ $? -ne 0 ]]; then
+            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
+            exit 1
+          fi
+
+        else
+          echo "${sub_name}: Could not find file of MNI-mask in subject space. Check previous step!"
+        fi
+      fi
+
+    else
+      
+      echo "${sub_name}: `basename ${fn_out}` already exists"
+
+    fi
+
+  else
+
+    echo "${sub_name}: Could not find directory \"${pn_anat}\""
+    continue
+
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

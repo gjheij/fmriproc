@@ -1,0 +1,259 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_cortexrecon
+
+cortex reconstruction using nighres. Calls on call_nighrescruise; see that file for more information
+on the required inputs. This script is by default in overwrite mode, meaning that the files created
+earlier will be overwritten when re-ran. To disable, run this module as master -m <module> -o n
+
+Usage:
+  spinoza_cortexrecon [options] <project root dir> <prob seg dir> <region>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -o                  overwrite existing files
+  <prob seg>          directory containing probabilities of tissue segmentation. By default it will 
+                      use the MDGM output, but you can specify your own. E.g., in the case of GdH-
+                      pipeline
+  <project>           output folder for nighres
+  <region>            region you wish to reconstruct. Should be same as spinoza_extractregions
+
+Example:
+  spinoza_cortexrecon PROBSEGS CRUISE cerebrum
+  spinoza_cortexrecon -s 001 -n 1 -o PROBSEGS CRUISE cerebellum
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+if [[ $# -lt 2 ]] ; then
+  echo NOT ENOUGH ARGUMENTS SPECIFIED
+  Usage >&2
+  exit 1
+fi
+
+# Check for subject & session flags
+OW=0
+while getopts os:n: argument
+do
+  case ${argument} in
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;
+    o)  OW=1
+          ;;          
+  esac
+done
+
+if [[ $# -lt 3 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+INPUT=${@:$OPTIND:1}
+OUTPUT=${@:$OPTIND+1:1}
+REGION=${@:$OPTIND+2:1}
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${INPUT}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo
+echo "==================================================================================================="
+printf "NEW CORTEX RECONSTRUCTION WITH NIGHRES\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+  else
+    sub_name=$(basename ${subID})
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+  fi
+
+  input_dir=${INPUT}/${base_path}
+  output_dir=${OUTPUT}/${base_path}
+
+
+  #----------------------------------------------------------------------------------------------------------------------------------------------------------
+  # Running region extraction with nighres
+  if [[ ${input_dir} == *"nighres"* ]]; then
+    # we're dealing with a nighres input, which means we need to add an additional 'region'
+    p=${input_dir}/region
+    declare -a EXRTACT=(xmask_cr-wm xproba_cr-wm xproba_cr-gm xproba_cr-csf)
+  else
+    p=${input_dir}
+    declare -a EXRTACT=(inside wm gm csf)
+  fi
+
+  # check if input folder exists
+  if [[ ! -d ${p} ]]; then
+    echo "${sub_name}: Directory \"${p}\" does not exist"
+    continue
+  fi
+
+  # fetch the input based on input folder
+  declare -a INPUTS=()
+  for r in ${EXRTACT[@]}; do
+    file=`find -L "${p}" -type f \( -name "*acq-${DATA^^}*" -and -iname "*-${r}*" -and -not -name "*manual*" -and -name "*.nii.gz" \) 2>/dev/null`
+    if [[ -f ${file} ]]; then
+      INPUTS+=(${file})
+    else
+      echo "${sub_name}: Could not find \"${r}\" image in \"${p}\""
+      continue 2
+    fi
+  done
+
+  if [[ -z "${INPUTS}" ]]; then
+    echo "${sub_name}: Did not find required inputs"
+    continue
+  fi
+
+  output_root=${output_dir}/cruise/${base}_acq-${DATA^^}_desc
+  output=${output_root}-cruise_cortex.nii.gz
+
+  if [[ ! -d ${output_dir}/cruise ]]; then
+    mkdir -p ${output_dir}/cruise
+  fi
+
+  # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
+  if [[ ${OW} -eq 1 ]]; then
+    if [[ -d ${output_dir}/cruise ]]; then
+      INTRO="Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\""
+      rm -r ${output_dir}/cruise/${base}_acq-${DATA^^}_desc* 2>/dev/null
+    fi
+  else
+    INTRO="Overwrite mode disabled"
+  fi
+
+  if [[ ! -f ${output} ]]; then
+
+    echo
+    echo "**************************************** Processing ${sub_name} ***************************************"
+    echo "${INTRO}"
+
+    if [[ ! -f ${output_root}_cruise_cortex.nii.gz ]]; then
+
+      echo "Inputs are:"
+      echo " -WM : `basename ${INPUTS[1]}`"
+      echo " -GM : `basename ${INPUTS[2]}`"
+      echo " -CSF: `basename ${INPUTS[3]}`"
+
+      if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
+        # run regular cruise
+        echo "Creating `basename ${output}`"
+        call_nighrescruise \
+          -m "${INPUTS[0]}" \
+          -w "${INPUTS[1]}" \
+          -g "${INPUTS[2]}" \
+          -c "${INPUTS[3]}" \
+          -o "$(dirname ${output_root})" \
+          -n "$(basename ${output_root})"
+
+        if [[ $? != 0 ]]; then
+          echo
+          echo "---------------------------------------------------------------------------------------------------"
+          echo "ERROR in `basename ${0}`: call_nighrescruise exited with non-zero status"
+          exit 1
+        fi
+
+        declare -a NIGH_OUT=(cortex gwb cgb avg thick pwm pgm pcsf)
+        for f in ${NIGH_OUT[@]}; do
+          out=`find -L "$(dirname ${output})" -type f \( -name "*acq-${DATA^^}*" -and -name "*${f}*" \) 2>/dev/null`
+
+          if [[ ! -f ${output_root}-cruise_${f}.nii.gz ]]; then
+            if [[ ! -z ${out} ]]; then
+              mv ${out} ${output_root}-cruise_${f}.nii.gz
+            else
+              echo "Could not find file for cruise output: ${f}"
+              continue 2
+            fi
+          else
+            echo "${sub_name}: reconstruction already present"
+          fi
+
+        done
+        fslmaths ${output_root}-cruise_cortex.nii.gz -bin ${input_dir}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz 2>/dev/null
+
+      elif [[ ${COMBINE_SEGMENTATIONS} == "hard" ]]; then
+        # directly creat levelsets from 'probabilities'
+
+        # define output names
+        cgb=${output_root}-cruise_cgb.nii.gz
+        gwb=${output_root}-cruise_gwb.nii.gz
+
+        # create WM/GM levelset from probability
+        echo "Creating `basename ${gwb}`"
+        call_nighresproblevel -p ${INPUTS[1]} -d $(dirname ${output_root}) -n $(basename ${output_root})
+        mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
+
+        # create GM/CSF levelset from probability
+        echo "Creating `basename ${cgb}`"
+        call_nighresproblevel -p ${INPUTS[2]} -d $(dirname ${output_root}) -n $(basename ${output_root})
+        mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null
+
+        # copy cruise image from manual_masks to cruise directory
+        file=`find -L "${p}" -type f \( -name "*acq-${DATA^^}*" -and -name "*cruise_cortex.nii.gz" \) 2>/dev/null`
+        cp ${file} ${output} 2>/dev/null
+      else
+        echo "ERROR in `basename ${0}`: Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in ${DIR_SCRIPTS}/shell/spinoza_setup"
+        exit 1
+      fi 
+    else
+      echo "Skipping nighres. Found something that looks like output"
+    fi
+  else
+    echo "${sub_name}: reconstruction already present"
+  fi
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

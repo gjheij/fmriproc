@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+echo
+call_loadsetup
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_denoising
+
+wrapper for call_pybest that does the denoising of fMRI-data based on the confound file created
+during the preprocessing with fmriprep. By default, it will use FSNative, unless the PYBEST_SPACE
+variable in the setup file says something else, or if the '--fsaverage' flag is specified
+
+Usage:
+  spinoza_denoising [options] <fmriprep directory> <pybest output directory>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_SES1
+                      in the spinoza_setup-file Can also be comma-separated list: task1,task2
+  -j <n_cpus>         number of CPUs to use (default = 1)
+  -c <n_comps>        overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
+                      the PCA (default = 10)
+  -o|--ow             overwrite existing files. Note that this does not delete the full ses-<> folder!
+                      use --full to completely remove a folder
+  --full              Overwrite (i.e., remove) existing output. In case of "-r 'all'", the entire
+                      subject directory is removed
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>         other arguments that should be passed to pybest
+  --sge               submit job to cluster (called with 'master -m <module> --sge')
+  --no_raw            do NOT unzscore the output from pybest (default is to do so)
+  --fsaverage         overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
+                      native)
+  --fsnative          overwrite PYBEST_SPACE-variable and use FSNative (defaults to fsnative)
+  --func              overwrite PYBEST_SPACE-variable and use 'func'-space
+  --anat              overwrite PYBEST_SPACE-variable and use 'T1w'-space
+  --mni_fsl           overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
+  --mni_2009          overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
+  --force             force execution despite existing files
+  <project root>      base directory containing the derivatives and the subject's folders.
+  <derivatives>       path to the derivatives folder
+
+Eample:
+  spinoza_denoising DIR_DATA_HOME DIR_DATA_DERIV
+  spinoza_denoising -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV
+  spinoza_denoising -o DIR_DATA_HOME DIR_DATA_DERIV
+
+Notes:
+  There are multiple flags to change the PYBEST_SPACE-variable. If your desired space is not speci-
+  fied, update the variable in the setup file.
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+# Check for subject & session flags
+OW=0
+n_cpus=""
+task_flag=""
+raw_flag=""
+SGE=0
+FULL_OW=0
+ses_flag=""
+post_only=0
+pre_only=0
+pyb_only=0
+force_exec=0
+kwargs_flags=""
+
+# check if variable is set in setup file
+if [[ -z ${PYBEST_SPACE} ]]; then
+  PYBEST_SPACE="fsnative"
+fi
+
+while getopts :-:os:n:t:q:j:c:x: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        no_raw)
+          raw_flag="--no_raw"
+          ;;
+        ow)
+          OW=1
+          ;;      
+        full)
+          FULL_OW=1
+          ;;                 
+        sge)
+          SGE=1
+          ;;     
+        force_exec)
+          force_exec=1
+          ;;                
+        fsaverage)
+          PYBEST_SPACE="fsaverage"
+          ;; 
+        fsnative)
+          PYBEST_SPACE="fsnative"
+          ;;  
+        func)
+          PYBEST_SPACE="func"
+          ;;
+        anat)
+          PYBEST_SPACE="T1w"
+          ;;      
+        mni_fsl)
+          PYBEST_SPACE="MNI152NLin6Asym_res-1"
+          ;;      
+        mni_2009)
+          PYBEST_SPACE="MNI152NLin2009cAsym_res-1"
+          ;;                            
+        post_only)
+          post_flag="--post_only"
+          ;;
+        pre_only)
+          pre_flag="--pre_only"
+          ;;
+        pyb_only)
+          pyb_flag="--pyb_only"
+          ;;                                   
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;     
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;
+    o)  OW=1
+          ;;         
+    j)  n_cpus=${OPTARG}
+          ;;
+    t)  task_flag="-t ${OPTARG}"
+          ;;
+    q)  SGE_QUEUE=${OPTARG}
+          ;;       
+    c)  PYBEST_N_COMPS=${OPTARG}
+          ;;          
+    x)  kwargs_flags="-x ${OPTARG}"
+          ;;                  
+  esac
+done
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+if [[ ! -z ${ses} ]]; then
+  ses_flag="-n ${ses}"
+fi
+
+# set default nr of components
+if [[ -z ${PYBEST_N_COMPS} ]]; then
+  PYBEST_N_COMPS=10
+fi
+
+if [[ ${SGE} -eq 1 ]]; then
+  if [[ -z ${n_cpus} ]]; then
+    n_cpus=1
+  fi
+
+  if [ ! -d ${DIR_LOGS} ]; then
+    mkdir -p ${DIR_LOGS}
+  fi
+else
+  if [[ -z ${n_cpus} ]]; then
+    n_cpus=1
+  fi
+fi
+
+# fetch positional arguments
+FPREP=${@:$OPTIND:1}
+DENOISE=${@:$OPTIND+1:1}
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${FPREP}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo "==================================================================================================="
+printf "DENOISING DATA WITH FMRIPREP-CONFOUNDS\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+for subID in ${search}; do
+
+  if [[ ${subID} != *"html"* ]]; then
+
+    # collect subject name
+    if [[ ! -z ${sub} ]]; then
+      sub_name=${SUBJECT_PREFIX}${subID}
+      sub_id=${subID}
+    else
+      sub_name=$(basename ${subID})
+      sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+    fi
+
+    if [[ ! -z ${ses} ]]; then
+      nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+      if [[ ${ses} != "all" ]]; then
+        base_path=${sub_name}/ses-${nr}
+        base=${sub_name}_ses-${nr}
+      else
+        nr="all"
+        base_path=${sub_name}
+      fi
+    else
+      base_path=${sub_name}
+      base=${sub_name}
+    fi
+
+    if [[ ${FULL_OW} -eq 1 ]]; then
+      # overwrite mode enabled
+      if [[ -d ${DENOISE}/${base_path} ]]; then
+        rm -r ${DENOISE}/${base_path}
+      fi
+    fi
+
+    if [[ ! -d ${DENOISE} ]]; then
+      mkdir -p ${DENOISE}
+    fi
+    
+    if [[ ${ses} == "all" || -d ${FPREP}/${base_path}/func ]]; then
+
+      # set execution rules
+      execute_cmd=0
+      if [[ ! -d ${DENOISE}/${base_path}/denoising ]]; then
+        execute_cmd=1
+      else
+        # also execute if a new task was specified
+        if [[ ! -z ${task_flag} ]]; then
+          execute_cmd=1
+        fi
+
+        # also check if there's files in the directories
+        searchdir=${DENOISE}/${base_path}/denoising
+        if [[ ${PYBEST_SPACE} == "func" ]]; then
+          func_files=`find ${searchdir} -type f -name "*_desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null`
+        else
+          func_files=`find ${searchdir} -type f -name "*space-${PYBEST_SPACE}*" -and -name "*_desc-denoised_bold.nii.gz" 2>/dev/null`
+        fi
+
+        if [[ -z ${func_files} ]]; then
+          execute_cmd=1
+        fi
+      fi
+
+      # echo $searchdir
+      # echo ${func_files[@]}
+      # echo ${execute_cmd}
+      # exit 1
+
+      # overwrite mode
+      if [[ ${OW} -eq 1 ]]; then
+        execute_cmd=1
+      fi
+
+      # unzscoring options
+      if [[ ! -z ${pre_flag} || ! -z ${post_flag} || ! -z ${pyb_flag} ]]; then
+        execute_cmd=1
+      fi
+
+      # mother of all overwrites
+      if [[ ${force_exec} -eq 1 ]]; then
+        execute_cmd=1
+      fi
+
+      # execute
+      if [[ ${execute_cmd} -eq 1 ]]; then
+
+        # append sub
+        if [[ ${SGE} -eq 1 ]]; then
+          if [[ ! -z ${SGE_QUEUE} ]]; then
+            QUEUE=${SGE_QUEUE}
+          else
+            QUEUE=${SGE_QUEUE_LONG}
+          fi            
+          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpus} -N ${base}_desc-pybest"
+        else
+          echo
+          echo "**************************************** Processing ${sub_name} ***************************************"
+          job="bash"
+        fi
+
+        # full path is needed for qsub
+        cmd="""${job} ${DIR_SCRIPTS}/bin/call_pybest \
+          -s ${sub_id} \
+          ${ses_flag} \
+          -o ${DENOISE} \
+          -r ${PYBEST_SPACE} \
+          -f ${FPREP} \
+          -c ${n_cpus} \
+          -p ${PYBEST_N_COMPS} \
+          ${kwargs_flags} \
+          ${task_flag} \
+          ${pre_flag} \
+          ${post_flag} \
+          ${pyb_flag} \
+          ${raw_flag}"""
+
+        if [[ ${SGE} -eq 0 ]]; then
+          echo ${cmd}
+        fi
+        ${cmd}
+
+        if [[ $? != 0 ]]; then
+          echo
+          echo "---------------------------------------------------------------------------------------------------"
+          echo "ERROR in `basename ${0}`: call_pybest exited with non-zero status"
+          exit 1
+        fi        
+
+      else
+        echo "${sub_name}: data already denoised (use --ow to overwrite)"
+      fi
+
+    else
+      echo "${sub_name}: directory \"${FPREP}/${base_path}/func\" does not exist. Run and/or wait for fMRIprep first.."
+      continue
+    fi
+
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

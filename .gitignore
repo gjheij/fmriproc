@@ -1,0 +1,7 @@
+# Ignore egg files and directories
+*.egg
+*.egg-info/
+lazyplot/__pycache__/
+*.pyc
+*.pyo
+.DS_Store

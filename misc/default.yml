@@ -1,0 +1,31 @@
+package: lsprep
+sections:
+  - name: Summary
+    reportlets:
+    - bids: {datatype: figures, desc: summary, suffix: T1w}
+  - name: Functional
+    ordering: session,task,acquisition,ceagent,reconstruction,direction,run,echo
+    reportlets:
+    - bids: {datatype: figures, desc: summary, suffix: bold}
+    - bids: {datatype: figures, desc: qa}
+      caption: Stability of the line position over time. Any movements will show up as blurring or spiking in the y-direction. Temporal SNR and variance measures (before and after aCompCor, if any) across the line are displayed as well. Generally, tSNR should increase with aCompCor, while variance should decrease. Mean tSNR and variance across the line are denoted by the horizontal lines in the plot, as well as in the square brackets in the legends.
+      subtitle: Basic quality assessment
+    - bids: {datatype: figures, desc: acompcor}
+      caption: Results of the denoising using aCompCor. From the beam (consisting of the 16 voxels centered around the middle), voxels were assigned to either white matter (red) or CSF (blue) [1st panel] if all of those 16 voxels were assigned to that tissue type to avoid mixing of signal across tissue types. The timecourses of these voxels were fed into a PCA (for WM/CSF separately) and components explaining the most variance [2nd panel] were regressed out of from the data. The third panel shows the power spectra of the components used for cleaning, while the 4th panel shows the before (green) and after (orange) aCompCor of the average across GM-voxels.    
+      subtitle: Denoising - aCompCor
+    - bids: {datatype: figures, desc: ica}
+      caption: Effect of denoising using ICA. In the left panel, the power spectra from the ICA components, with the dotted line representing the cut-off frequency for high-pass filtering. In the middle panel, the power spectra of the average ribbon voxels before (green) and after (orange) ICA. On the right, the average timecourse across gray matter before (green) and after (orange) ICA.
+      subtitle: Denoising - ICA
+    - bids: {datatype: figures, desc: melodic}
+      caption: Components of the ICA; on the left, the spatial distribution of the component with the line voxels on the x-axis. In the middle, the corresponding timecourse, and on the right the corresponding power spectrum of the components.
+      subtitle: ICA-components
+    - bids: {datatype: figures, desc: eye, suffix: qa}
+      caption: Heat maps of eye position over time relative to fixation
+      subtitle: Eyetracker
+  - name: Anatomical
+    reportlets:
+    - bids:
+        datatype: figures
+        desc: tissue
+        suffix: classification
+      caption: Averaged tissue probability maps to find a common gray matter patch across runs

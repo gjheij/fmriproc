@@ -1,0 +1,627 @@
+#!/usr/bin/env bash
+#$ -S /bin/bash
+#$ -cwd
+#$ -j Y
+#$ -V
+#$ -pe smp 1
+
+#-----------------------------------------------------------------------------
+# source bash helper functions
+source call_bashhelper
+
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_antsregistration
+
+This scripts makes the call to 'antsRegistration' a little easier, as you'll only have to provide the
+reference image, the moving image, the output-prefix, the type of registration and an initial trans-
+formation file (optional, will be included if specified, otherwise ignored).
+
+Flagged arguments:
+  -v|--verbose  Turn on verbose
+  --<metric>    Flag to use a given metric. Available options are: 'cc' (cross-correlation), 'mi',
+                (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' (glo-
+                bal correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' (jensen-
+                havrda-charvet-tsallis), 'igdm'
+                For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, use 
+                '--bspl5'.
+                For now it's not possible to set the metrics for different stages separately (rigid>
+                affine>SyN). The same metric is used for all stages. By default, 'Cross-correlation'
+                is used for SyN-diffeomorphic registration (the final stage). The rigid-body and af-
+                fine stages before the SyN-registration can be altered.
+  --ofsl        also output the matrix in FSL-compatible format (not available for SyN)
+  --itk         open ITK-Snap to verify how registration went
+  -x <mask>     Image masks to limit voxels considered by the metric
+  -i <initial>  the initial moving transform(s) which get immediately incorporated into the compo-
+                site transform
+  -g <step>     gradient step for transformation (default is 0.1)
+  -s <smooth>   smoothing kernels to use. Must match the number of stages you'd like to perform.
+                With more stages, the moving image can more around more, so reduce the number of 
+                levels if you're interested in finer registrations. Defaults to '4x3x2x1' for a 4
+                stage registration, and reduces with every stage not done. So for 3 stages, it de-
+                faults to '3x2x1', down to '1' for 1 stage. Format must be identical to the examples
+                above, so values separated by 'x', without spaces, with the number of values corres-
+                ponding to the number of stages to perform
+  -c <converg>  convergence values to use. Must match the number of stages you'd like to perform (in
+                concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' flags.
+                Defaults to '1000x500x250x100' for a 4 stage registration, and reduces with every 
+                stage not done. So for 3 stages, it defaults to '500x250x100', down to '100' for 1 
+                stage. Format must be identical to the examples above, so values separated by 'x',
+                without spaces, with the number of values corresponding to the number of stages to
+                perform
+  -r <shrink>   shrink values to use. Must match the number of stages you'd like to perform (in
+                concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' flags.
+                Defaults to '8x4x2x1' for a 4 stage registration, and reduces with every stage not 
+                done. So for 3 stages, it defaults to '4x2x1', down to '1' for 1 stage. Format must 
+                be identical to the examples above, so values separated by 'x', without spaces, 
+                with the number of values corresponding to the number of stages to perform            
+  -j <cores>    number of cores to use; default = 1
+  --<interp>    interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
+                (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
+                (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
+                For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
+                '--gen'
+  -n <levels>   number of levels to use (default = 4)
+  --rigid       use rigid-body registration
+  --affine      use affine registration
+  --syn         use SyN-diffeomorphic registration
+  --as          run affine+SyN registration
+  --ras         run rigid+affine+SyN [default if '--syn' is specified]
+  --histo       maps to '--use-histogram-matching', sets it to True
+  --no_collapse maps to '--collapse-output-transforms', sets it to False (default = True). safest 
+                bet is to keep --collapse-output-transforms to 1 so you always get the same output 
+                regardless of affine or rigid registration (with --no_collapse & rigid body, the
+                output suffix is '0Rigid', rather than '0GenericAffine'). In the latter, all linear
+                transformations are collapsed in the same file, which makes filenaming later on more
+                predictable.
+  --no_winsor   don't winsorize the image prior to registration
+
+Positional arguments (after options):
+  <reference>   Reference image (nii/nii.gz/mgz)
+  <moving>      Moving image (nii/nii.gz/mgz)
+  <output>      Basename (incl path) for output files ('genaff'/'rigid' will be appended)
+
+Usage:
+  call_antsregistration [options] <fixed> <moving> <output prefix>
+
+Example:
+  call_antsregistration -i initial.txt ref.nii.gz mov.nii.gz out_ rigid
+  call_antsregistration -v ref.nii.gz mov.nii.gz out_ syn
+  call_antsregistration -x mask.nii.gz --lws ref.nii.gz mov.nii.gz out_ syn
+  call_antsregistration --fsl ref.nii.gz mov.nii.gz out_
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+#-----------------------------------------------------------------------------
+# Exit if we do not have enough arguments. The initial moving transform is optional, so we need at least 4 arguments
+
+# Check for subject flag
+VERBOSE=""
+VERB=0
+metric="MI"
+INT="Linear"
+TYPE="rigid"
+use_hist=0
+collapse_output=1
+n_levels=4
+winsorize=1
+converg=""
+shrink=""
+smooth=""
+gradient_step=0.1
+fsl_fmt=0
+open_itk=0
+n_cpu=1
+as=0
+ras=1
+while getopts :-:vi:t:x:n:s:c:r:g:j: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        cc)
+          metric="CC"
+          ;;
+        mi)
+          metric="MI"
+          ;;
+        mattes)
+          metric="Mattes"
+          ;;
+        ms)
+          metric="MeanSquares"
+          ;;
+        demons)
+          metric="Demons"
+          ;;
+        gc)
+          metric="GC"
+          ;;
+        icp)
+          metric="ICP"
+          ;;
+        pse)
+          metric="PSE"
+          ;;      
+        jhct)
+          metric="JHCT"
+          ;;   
+        idgm)
+          metric="IDGM"
+          ;;
+        lin)
+          INT="Linear"
+          ;;
+        nn)
+          INT="NearestNeighbor"
+          ;;
+        mul)
+          INT="MultiLabel"
+          ;;         
+        gau)
+          INT="Gaussian"
+          ;;               
+        bspl*)
+          INT="BSpline[$(basename ${OPTARG} | cut -c 5)]"
+          ;;       
+        cws)
+          INT="CosineWindowedSinc"
+          ;;
+        wws)
+          INT="WelchWindowedSinc"
+          ;;
+        hws)
+          INT="HammingWindowedSinc"
+          ;;
+        lws)
+          INT="LanczosWindowedSinc"
+          ;;
+        gen)
+          INT="GenericLabel"
+          ;;          
+        rigid)
+          TYPE="rigid"
+          ;;  
+        affine)
+          TYPE="affine"
+          ;;  
+        syn)
+          TYPE="syn"
+          ;;        
+        histo)
+          use_hist=1
+          ;;
+        verbose)
+          VERBOSE="--verbose 1"
+          VERB=1
+          ;;
+        no_collapse)
+          collapse_output=0
+          ;;        
+        no_winsor)
+          winsorize=0
+          ;;
+        ofsl)
+          fsl_fmt=1
+          ;;   
+        itk)
+          open_itk=1
+          ;;           
+        as)
+          as=1
+          ras=0
+          ;;    
+        ras)
+          ras=1
+          as=0
+          ;;                           
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;      
+    x)  mask=${OPTARG}
+          ;;
+    i)  initial=${OPTARG}
+          ;;
+    n)  n_levels=${OPTARG}
+          ;;   
+    s)  smooth=${OPTARG}
+          ;;   
+    c)  converg=${OPTARG}
+          ;;   
+    r)  shrink=${OPTARG}
+          ;;            
+    g)  gradient_step=${OPTARG}
+          ;;     
+    j)  n_cpu=${OPTARG}
+          ;;                                              
+    v)  VERBOSE="--verbose 1"
+        VERB=1
+          ;;              
+  esac
+done
+
+# set number of cores to use
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
+
+echo "number of threads: ${ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS}"
+
+# function to derive the convergence, smoothing, shrinking parameters.
+function check_stage_inputs {
+  
+  in_type=${1}
+  if [[ ${in_type} == "converge" ]]; then
+    arr=${converg}
+    defaults=1000x500x250x100
+  elif [[ ${in_type} == "shrink" ]]; then
+    arr=${shrink}
+    defaults=8x4x2x1
+  elif [[ ${in_type} == "smooth" ]]; then
+    arr=${smooth}
+    defaults=3x2x1x0
+  else
+    echo "ERROR in `basename ${0}`: unknown input type \"${in_type}\". Must be one of \"converge\", \"shrink\", or \"smooth\""
+    exit 1
+  fi
+  
+  IFS="x"
+  if [[ -z ${arr} ]]; then
+
+    # parse defaults in array
+    read -ra parsed <<< "$defaults"
+
+    # invert indices
+    tmp=`echo ${parsed[@]} | rev`
+    IFS=' ' read -ra parsed_inv <<< "$tmp"
+
+    # get indices
+    par_inv=${parsed_inv[@]:0:${n_levels}}
+
+    # invert indices
+    par=`echo ${par_inv[@]} | rev`
+
+    # combine with 'x'
+    par=`echo ${par[@]} | sed 's/ /x/g'`
+  else
+    read -r -a parsed <<< "$arr"
+    if [[ ${#parsed[@]} -ne ${n_levels} ]]; then
+      echo "  Got more values for \"${in_type}\" (`echo ${arr}`) than levels ($n_levels)"
+      exit 1
+    else
+      par=${arr}
+    fi
+  fi
+
+  unset IFS
+  echo ${par}
+}
+
+function validate_extension {
+
+  in_file=${1}
+  ext_file=`fetch_extension "${in_file}"`
+  if [[ ${ext_file} == "gz" ]] || [[ ${ext_file} == "nii" ]]; then
+    :
+  else
+    # convert mgz to nii.gz
+    if [[ ${ext_file} == "mgz" ]]; then
+      ll=`call_mriconvert ${in_file} 2>/dev/null`
+
+      if [[ $? -ne 0 ]]; then
+        echo "ERROR in `basename ${0}`: call_mriconvert exited with non-zero status"
+        exit 1
+      fi
+
+      in_file=$(dirname ${in_file})/$(basename ${in_file} .${ext_file}).nii.gz
+    else
+      echo "ERROR in `basename ${0}`; Input must be a nii(.gz) or .mgz file, not \"${ext_file}\""
+      exit 1
+    fi
+  fi
+
+  echo ${in_file}
+}
+
+# check if we got custom inputs, whether we should use defaults, and whether specified values match the number of levels specified
+# if check_stage_inputs fails, the returned value will be the error message, so we can conveniently make a traceback
+shrink=`check_stage_inputs shrink`
+if [[ $? -ne 0 ]]; then
+  echo "ERROR in `basename ${0}`: check_stage_inputs exited with non-zero status:"
+  echo ${shrink}
+  exit 1
+fi
+
+converg=`check_stage_inputs converge`
+if [[ $? -ne 0 ]]; then
+  echo "ERROR in `basename ${0}`: check_stage_inputs exited with non-zero status:"
+  echo ${converg}
+  exit 1
+fi
+
+smooth=`check_stage_inputs smooth`
+if [[ $? -ne 0 ]]; then
+  echo "ERROR in `basename ${0}`: check_stage_inputs exited with non-zero status:"
+  echo ${smooth}
+  exit 1
+fi
+
+if [[ $# -lt 3 ]] ; then
+  echo "NOT ENOUGH ARGUMENTS SPECIFIED"
+  Usage >&2
+  exit 1
+fi
+
+REF=${@:$OPTIND:1}
+MOV=${@:$OPTIND+1:1}
+OUT=${@:$OPTIND+2:1}
+
+#-----------------------------------------------------------------------------
+# set flag to extract first volume from 4D image to 0
+extract_fixed=0
+extract_moving=0
+
+#-----------------------------------------------------------------------------
+# append full paths
+REF=`fetch_filepath ${REF}`
+MOV=`fetch_filepath ${MOV}`
+OUT=`fetch_filepath ${OUT}`
+
+#-----------------------------------------------------------------------------
+# Make sure a bunch of stuff surrounding the input images is ok, such as the
+# extensions and dimensionality
+if [[ -f ${REF} && -f ${MOV} ]]; then
+
+  # check extension
+  REF=`validate_extension ${REF}`
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in `basename ${0}`: validate_extension exited with non-zero status:"
+    echo ${REF}
+    exit 1
+  fi
+
+  MOV=`validate_extension ${MOV}`
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in `basename ${0}`: validate_extension exited with non-zero status:"
+    echo ${MOV}
+    exit 1
+  fi
+
+  # check dimensions
+  DIMfixed=`fslval ${REF} dim0`
+  DIMmoving=`fslval ${MOV} dim0`
+  if [[ $DIMfixed != $DIMmoving ]]; then
+
+    # check if we can extract first volume of time-series
+    if [[ $((${DIMmoving})) -eq 4 ]]; then
+    
+      if [ ${VERB} -eq 1 ]; then
+        echo "Taking first volume of 4D-moving image"
+      fi
+      
+      MOVING=$(dirname ${MOV})/example_moving.nii.gz
+      fslroi ${MOV} ${MOVING} 0 1
+      extract_moving=1
+
+    else  
+      DIM=$DIMmoving
+      MOVING=${MOV}
+    fi
+
+    if [[ $((${DIMfixed})) -eq 4 ]]; then
+    
+      if [ ${VERB} -eq 1 ]; then
+        echo "Taking first volume of 4D-fixed image"
+      fi
+      
+      FIXED=$(dirname ${REF})/example_fixed.nii.gz
+      fslroi ${REF} ${FIXED} 0 1
+      extract_fixed=1
+    else  
+      DIM=$DIMmoving
+      FIXED=${REF}
+    fi
+
+    # final check
+    if [[ `fslval ${FIXED} dim0` != `fslval ${MOVING} dim0` ]]; then
+      echo "Input files have different dimensions. Fix this before continuing."
+      echo " Fixed image:   `fslval ${FIXED} dim0`"
+      echo " Moving image:  `fslval ${MOVING} dim0`"
+      exit 1
+    fi
+
+  else
+    FIXED=${REF}
+    MOVING=${MOV}
+  fi
+fi
+
+#-----------------------------------------------------------------------------
+# Deal with initial transform file if the argument is not empty.
+if [[ ! -z ${initial} ]]; then
+
+  if [ ${VERB} -eq 1 ]; then
+    echo "Using `basename ${initial}` as initial moving transform file"
+  fi
+  
+  ext=`fetch_extension ${initial}`
+  if [[ $ext != "txt" ]]; then
+    echo "ERROR in `basename ${0}`: \"${initial}\" is not a text file. It should be if it's an initial moving transform file"
+    exit 1
+  else
+    # If we have an initial moving transform matrix, insert this line in the command
+    INITIAL=$(echo "-r ${initial}")
+  fi
+
+fi
+
+#-----------------------------------------------------------------------------
+# Deal with mask file if the argument is not empty.
+if [[ ! -z ${mask} ]]; then
+  if [ ${VERB} -eq 1 ]; then
+    echo "Using `basename ${mask}` as mask file"
+  fi
+  MASK=$(echo "-x [NULL,${mask}]")
+fi
+
+#-----------------------------------------------------------------------------
+# check for windsorizing
+if [[ ${winsorize} -eq 1 ]]; then
+  winsorize_flag="--winsorize-image-intensities [0.005,0.995]"
+else
+  winsorize_flag=""
+fi
+
+#-----------------------------------------------------------------------------
+# Now we need to start building the command based on the fourth argument.
+if [[ ${metric} == "CC" ]]; then
+  val=2
+elif [[ ${metric} == "MI" ]] || [[ ${metric} == "Mattes" ]]; then
+  val=32
+else
+  val=""
+fi
+
+# starting stuff
+cmd="""antsRegistration ${VERBOSE} \
+-d 3 \
+--float 1 \
+-z 1 ${INITIAL} \
+--interpolation ${INT} \
+${MASK} \
+--output [${OUT}] \
+--use-histogram-matching ${use_hist} \
+${winsorize_flag} \
+--collapse-output-transforms ${collapse_output} """
+
+function rigid_ {
+  cmd=""" --transform Rigid[${gradient_step}] \
+--metric ${metric}[${FIXED},${MOVING},1,${val},Regular,0.25] \
+--convergence [${converg},1e-6,10] \
+--shrink-factors ${shrink} \
+--smoothing-sigmas ${smooth}vox"""
+
+  echo $cmd
+}
+
+function affine_ {
+  cmd=""" --transform Affine[${gradient_step}] \
+--metric ${metric}[${FIXED},${MOVING},1,${val},Regular,0.25] \
+--convergence [${converg},1e-6,10] \
+--shrink-factors ${shrink} \
+--smoothing-sigmas ${smooth}vox"""
+
+  echo $cmd
+}
+
+function syn_ {
+  cmd=""" --transform SyN[${gradient_step},3,0] \
+--metric CC[${FIXED},${MOVING},1,4] \
+--convergence [${converg},1e-6,10] \
+--shrink-factors ${shrink} \
+--smoothing-sigmas ${smooth}vox"""
+
+  echo $cmd
+}
+
+# add individual stages
+if [[ ${TYPE,,} == "rigid" ]]; then
+  cmd+=" `rigid_`"
+elif [[ ${TYPE,,} == "affine" ]]; then
+  cmd+=" `affine_`"
+elif [[ ${TYPE,,} == "syn" ]]; then
+  if [[ ${ras} -eq 1 ]]; then
+    cmd+=" `rigid_`"
+    cmd+=" `affine_`"
+    cmd+=" `syn_`"
+  elif [[ ${as} -eq 1 ]]; then
+    cmd+=" `affine_`"
+    cmd+=" `syn_`"
+  fi
+else
+  echo "Unknown registration type \"${TYPE}\" specified"
+  Usage >&2
+  exit 1
+fi
+
+if [[ ${VERB} -eq 1 ]]; then
+  echo "antsRegistration call:"
+  echo "---------------------------------------------------------------------------------------------------"
+  echo ${cmd}
+  echo
+fi
+
+# echo command to text file
+cmd_f=${OUT}command.txt
+if [ -f ${cmd_f} ]; then
+  rm ${cmd_f} 2>/dev/null
+fi
+echo ${cmd} >> ${OUT}command.txt
+
+# Execute command
+${cmd}
+
+if [[ $? -ne 0 ]]; then
+  echo
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "ERROR in `basename ${0}`: antsRegistration exited with non-zero status.."
+  exit 1
+fi
+
+# rename
+if [[ -f ${OUT}0GenericAffine.mat ]]; then
+  mv ${OUT}0GenericAffine.mat ${OUT}genaff.mat
+
+  # conver to FSL
+  if [[ ${fsl_fmt} -eq 1 ]]; then
+    cmd="call_ras2fsl ${FIXED} ${MOVING} ${OUT}genaff.mat ${OUT}fsl.mat"
+  fi
+fi
+
+# this file is created if --collapse-output-transforms is set to 0 and you did rigid-body registration; safest bet is to keep --collapse-output-transforms to 1 so you always get the same output 
+if [[ -f ${OUT}0Rigid.mat ]]; then
+  mv ${OUT}0Rigid.mat ${OUT}rigid.mat
+  
+  # convert to FSL
+  if [[ ${fsl_fmt} -eq 1 ]]; then
+    cmd="call_ras2fsl ${FIXED} ${MOVING} ${OUT}rigid.mat ${OUT}fsl.mat"
+  fi
+fi
+
+# run ras2fsl
+if [[ ${fsl_fmt} -eq 1 ]]; then
+  if [[ ${VERB} -eq 1 ]]; then
+    echo "ras2fsl call:"
+    echo "---------------------------------------------------------------------------------------------------"
+    echo ${cmd}
+    echo
+  fi
+
+  ${cmd}
+fi
+
+# remove temporary file
+if [[ ${extract_moving} -eq 1 ]]; then
+  rm ${MOVING} 2>/dev/null
+fi
+
+if [[ ${extract_fixed} -eq 1 ]]; then
+  rm ${FIXED} 2>/dev/null
+fi
+
+# open ITK-Snap for verification
+if [[ ${open_itk} -eq 1 ]]; then
+  echo "Opening ITK-Snap. Load \"${OUT}genaff.mat\""
+  itksnap -g ${FIXED} -o ${MOVING}
+fi
+
+# reset threads
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1

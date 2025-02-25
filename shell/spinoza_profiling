@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_profiling
+
+Sample the profile values of a particular image using call_nighresprofsamp. Here, we provide the
+boundaries-image from nighres.layering module and have the program sample values from a particular
+dataset (e.g., T1map) across depth. The first argument specifies where the nighres output is, used
+for both the layering and profile sampling. The second argument is the main directory where we will
+find the file the we want to sample. The last argument specifies a tag to look for the to-be-sampled
+file (e.g., T1map)
+
+Usage:
+  spinoza_profiling [options] <nighres input> <input folder> <extension for to-be-sampled file>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -o                  overwrite existing files
+  <nighres>           parent directory containing the output files of Nighres
+                        -<nighres>/<subject>/<session>/layering/*boundaries*
+                        -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
+  <tag>               tag to use to look for to-be-sampled dataset (e.g., T1map)
+
+Example:
+  spinoza_profiling NIGHRES DIR_DATA_HOME T1map
+  spinoza_profiling -s 01 -n 2 NIGHRES DIR_DATA_HOME T1map
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+if [[ $# -lt 2 ]] ; then
+  echo NOT ENOUGH ARGUMENTS SPECIFIED
+  Usage >&2
+  exit 1
+fi
+
+# Check for subject & session flags
+OW=0
+while getopts s:n: argument
+do
+  case ${argument} in
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;
+    o)  OW=1
+          ;;          
+  esac
+done
+
+if [[ $# -lt 3 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+NIGHRES=${@:$OPTIND:1}
+TOBESAMPLED=${@:$OPTIND+1:1}
+TAG=${@:$OPTIND+2:1}
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${INPUT}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo
+echo "==================================================================================================="
+printf "NEW SUBCORTEX PARCELLATION WITH NIGHRES\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+  else
+    sub_name=$(basename ${subID})
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+  fi
+
+  nighres_dir=${NIGHRES}/${base_path}
+  sampled_dir=${TOBESAMPLED}/${base_path}
+
+  #--------------------------------------------------------------------------------------------------------------------------------------------
+  # Running MASSP with Nighres
+
+  sampled_data=${nighres_dir}/profiling/${base}_acq-${DATA^^}_desc-profile_${TAG}.nii.gz
+  if [[ ! -f ${sampled_data} ]]; then
+
+    echo
+    echo "**************************************** Processing ${sub_name} ***************************************"
+
+    echo "Creating `basename ${sampled_data}`"
+    
+    #-----------------------------------------------------------------------------
+    # Check if we can mask inputs
+    boundaries=`find ${nighres_dir}/layering -type f \( -name "*acq-${DATA^^}*" -and -name "*boundaries.nii.gz" \) 2>/dev/null`
+    tobesampled=`find ${sampled_dir} -maxdepth 2 -type f \( -name "*${TAG}*" \) 2>/dev/null`
+
+    if [[ -z ${boundaries} ]]; then
+      echo "ERROR: could not find boundaries-file. Create it with spinoza_layering"
+      continue
+    fi
+
+    if [[ -z ${tobesampled} ]]; then
+      echo "ERROR: could not find to-be-sampled file."
+      continue
+    fi
+
+    call_nighresprofsamp \
+      -l ${boundaries} \
+      -s ${tobesampled} \
+      -d ${nighres_dir}/profiling \
+      -n ${base}_acq-${DATA^^}_desc-profile_${TAG}
+
+    if [[ $? != 0 ]]; then
+      echo
+      echo "---------------------------------------------------------------------------------------------------"
+      echo "ERROR in `basename ${0}`: call_nighresprofsamp exited with non-zero status"
+      exit 1
+    fi
+
+  else
+
+    echo "${sub_name}: sampled-data file already exists"
+
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

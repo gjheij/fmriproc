@@ -1,0 +1,2393 @@
+#!/usr/bin/env bash
+#$ -cwd
+#$ -j Y
+#$ -V
+#$ -pe smp 1
+#
+# https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
+if [ -z `echo ${BASH}` ]; then
+  echo "Make sure \"bash\" >v4.0 is installed"
+  exit 1
+else
+  if ((BASH_VERSINFO[0] < 4)); then 
+    echo "Sorry, you need at least bash-4.0 to run this script." >&2
+    exit 1
+  fi
+fi
+job="bash"
+
+# Allocate input arguments to variables
+#
+HELP=0
+HEMI_FLAG=""              # spinoza_lineplanning
+IDENT_FLAG=""             # spinoza_lineplanning
+DEBUG=""                  # spinoza_linerecon
+NORDIC=""                 # spinoza_linerecon
+OW=""                     # multiple (overwrite mode)
+verb_flag=""              # multiple (turn on verboses)
+aparc_flag=""             # spinoza_bestvertex
+FREEVIEW=""               # spinoza_bestvertex
+VERT=""                   # spinoza_bestvertex
+SRF_FLAG=""               # spinoza_bestvertex
+SRF_FILE=""               # spinoza_bestvertex
+GALLERY_FLAG=""           # spinoza_bestvertex
+MAN_EPI=""                # spinoza_bestvertex
+EPI_FILE=""               # spinoza_bestvertex
+LS_SES=""                 # spinoza_bestvertex
+skip_prf_info=""          # spinoza_bestvertex
+SELECTION_FLAG=""         # spinoza_bestvertex
+OPEN_WITH_FLAG=""         # spinoza_bestvertex
+PROC=""                   # spinoza_brainextraction
+FS_FLAG=""                # spinoza_brainextraction
+pre_flag=""               # spinoza_denoising
+post_flag=""              # spinoza_denoising
+pyb_flag=""               # spinoza_denoising
+raw_flag=""               # spinoza_denoising
+SGE=""                    # spinoza_denoising/spinoza_nordic/spinoza_linerecon/spinoza_registration
+cmd_flag=""               # spinoza_registration
+COMB_ONLY=""              # spinoza_extractregions
+CLIP=""                   # spinoza_fitprfs
+CLIP_FLAG=""              # spinoza_fitprfs
+TASK_ID=""                # spinoza_fitprfs
+MODEL=""                  # spinoza_fitprfs
+GRID=""                   # spinoza_fitprfs
+MULTIPLE_DESIGNS=""       # spinoza_fitprfs
+FIT_HRF=""                # spinoza_fitprfs
+psc_flag=""               # spinoza_fitprfs
+zscore_flag=""            # spinoza_fitprfs
+raw_flag=""               # spinoza_fitprfs
+use_constr=""             # spinoza_fitprfs
+fit_flag=""               # spinoza_fitprfs
+fprep_input=0             # spinoza_fitprfs
+lbl_flag=""               # spinoza_fitprfs
+save_grid=""              # spinoza_fitprfs
+bouds_flag=""             # spinoza_fitprfs
+merge_flag=""             # spinoza_fitprfs
+jobs_flag=""              # spinoza_fitprfs
+MODEL_FLAG="--gauss"      # spinoza_fitprfs
+REFIT_FLAG=""             # spinoza_fitprfs
+PIXEL_FLAG=""             # spinoza_fitprfs
+BOLD_FLAG=""              # spinoza_fitprfs
+FOLDS_FLAG=""             # spinoza_fitprfs
+SKIP_FLAG=""              # spinoza_fitprfs
+TRANS_FLAG=""             # spinoza_fitprfs
+highres_flag=""           # spinoza_freesurfer
+XOPTS_=""                 # spinoza_freesurfer
+expert_flag=""            # spinoza_freesurfer
+TSNR_FLAG=""              # spinoza_nordic
+mag_flag=""               # spinoza_nordic
+RUNS=""                   # spinoza_nordic
+use_bbr=""                # spinoza_fmriprep
+WARP_ONLY=""              # spinoza_fmriprep
+REMOVE_WF=""              # spinoza_fmriprep
+kwargs_file=""            # spinoza_fmriprep
+boldref_flag=""           # spinoza_fmriprep
+clean_flag=""             # spinoza_fmriprep
+fetch_fsl_flag=""         # spinoza_fmriprep
+fetch_func_flag=""        # spinoza_fmriprep
+mask_flag=""              # spinoza_fmriprep
+fetch_anat_flag=""        # spinoza_fmriprep
+DOCKER_FLAG=""            # spinoza_fmriprep
+WORK_FLAG=""              # spinoza_fmriprep
+CRASH_FLAG=""             # spinoza_fmriprep
+run_local=""              # spinoza_fmriprep/spinoza_fitprfs
+LAYER_FLAG=""             # spinoza_layering
+NR_LAYERS=""              # spinoza_layering
+GDH_FLAG=""               # spinoza_mgdm
+MAN_FLAG=""               # spinoza_masking
+REG_TYPE=""               # spinoza_registration
+FSL_FLAG=""               # spinoza_registration
+DRAW_SAG=""               # spinzoa_sagittalsinus
+SES_TYPE=""               # spinoza_scanner2bids
+ADD_INV=""                # spinoza_scanner2bids
+pe_dir_flag=""            # spinoza_scanner2bids
+reorient_flag=""          # spinoza_scanner2bids
+FULL_OW=""                # spinoza_scanner2bids
+SEARCH_DEPTH=""           # spinoza_scanner2bids
+UPs=""                    # spinoza_qmrimaps
+BIAS_FLAG=""              # spinoza_qmrimaps
+BG_FLAG=""                # spinoza_qmrimaps
+PARS_FILE=""              # spinoza_qmrimaps
+PROT_FLAG=""              # spinoza_scanner2bids
+FS_stage="all"            # spinoza_freesurfer
+FORCE_FLAG=""             # spinoza_freesurfer
+START_STAGE=""            # spinoza_freesurfer
+use_t2_flag=""            # spinoza_freesurfer
+space_flag=""             # spinoza_denoising
+mod_flag=""               # spinoza_mriqc
+fd_flag=""                # spinoza_mriqc
+t_specified=0             # keep track when t-flag is specified or --func is used (alias for -t func)
+ANAT_DEPTH=""             # all anatomical steps
+
+# use long options in bash:
+# https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
+declare -a array=("--no_bbr" "--local" "--ups" "--biascorr" "--remove_wf" "--remove_surf_wf" "--sge" "--no_freeview" "--comb_only" "--grid" "--multi_design" "--hrf" "--rigid" "--syn" "--affine" "--lines" "--gdh" "--nighres" "--surface" "--warp_only" "--no_raw" "--verbose" "--zcore" "--full" "--no_clip" "--tc" "--bgfs" "--inv" "--no_fit" "--fmriprep" "--fprep" "--v1" "--v2" "--save_grid" "--debug" "--no_nordic" "--ow" "--no_bounds" "--no_tsnr" "--mag" "--no_highres" "--xopts-use" "--xopts-clean" "--xopts-overwrite" "--take-avg-tr" "--force_exec" "--no_t2" "--merge_ses" "--fsaverage" "--fsnative" "--ap" "--pa" "--lr" "--rl" "--no_lpi" "--anat_only" "--func_only" "--no_boldref" "--gauss" "--dog" "--css" "--norm" "--no_srf" "--srf_file" "--gallery" "--abc" "--abd" "--manual" "--ctx" "--func" "--help" "--ofsl" "--clean" "--fd" "--fetch_fsl" "--anat" "--no_epi" "--no_manual" "--aparc" "--phys" "--skip_bg" "--docker" "--rh" "--lh" "--identity" "--ident" "--dcm_fix" "--try" "--fetch_anat" "--fetch_func" "--post_only" "--pre_only" "--pyb_only" "--masks" "--mask" "--skip_prf_info" "--refit" "--separate_hrf" "--bold" "--cmd" "--skip_settings" "--mni_fsl" "--mni_2009" "--fs")
+
+# sort options array
+IFS=$'\n' opts=($(sort <<<"${array[*]}"))
+unset IFS
+
+while getopts :-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w: arg
+do
+  case ${arg} in
+    -)
+      case "${OPTARG}" in
+        full)
+          FULL_OW="--full"
+          PROC="--full"
+          ;;       
+        debug)
+          DEBUG="--debug"
+          ;;
+        no_bounds)
+          bounds_flag="--no_bounds"
+          ;;                 
+        no_nordic)
+          NORDIC="--no_nordic"
+          ;;     
+        no_tsnr)
+          TSNR_FLAG="--no_tsnr"
+          ;;                     
+        no_bbr)
+          use_bbr="--no_bbr"
+          ;;
+        local)
+          run_local="--local"
+          ;;
+        ups)
+          UPs="-u"
+          ;;
+        biascorr)
+          BIAS_FLAG="--biascorr"
+          ;;
+        remove_wf)
+          REMOVE_WF="--remove_wf"
+          ;;
+        remove_surf_wf)
+          REMOVE_WF="--remove_surf_wf"
+          ;;    
+        sge)
+          SGE="--sge"
+          ;;       
+        no_freeview)
+          FREEVIEW="--no_freeview"
+          ;;      
+        comb_only)
+          COMB_ONLY="-c"
+          ;;            
+        grid)
+          GRID="--grid"
+          ;;        
+        itk)
+          DRAW_SAG="itk"
+          ;;        
+        fsl)
+          DRAW_SAG="fsl"
+          ;;           
+        freeview)
+          DRAW_SAG="fv"
+          ;;    
+        multi_design)
+          MULTIPLE_DESIGNS="--multi_design"
+          ;;   
+        no_hrf)
+          FIT_HRF="--no_hrf"
+          ;;
+        separate_hrf)
+          FIT_HRF="--separate_hrf"
+          ;;          
+        rigid)
+          REG_TYPE="--rigid"
+          ;;
+        syn)
+          REG_TYPE="--syn"
+          ;;
+        affine)
+          REG_TYPE="--affine"
+          ;;
+        lines)
+          SES_TYPE="--lines"
+          ;;     
+        gdh)
+          GDH_FLAG="--gdh"
+          ;;
+        nighres)
+          LAYER_FLAG="nighres"
+          ;;
+        surface)
+          LAYER_FLAG="surface"
+          ;;       
+        warp_only)
+          WARP_ONLY="--warp_only"
+          ;;                    
+        psc)
+          psc_flag="--psc"
+          ;;      
+        raw)
+          raw_flag="--raw"
+          ;;                 
+        no_raw)
+          raw_flag="--no_raw"
+          ;;        
+        verbose)
+          verb_flag="--verbose"
+          ;;         
+        zscore)
+          zscore_flag="--zscore"
+          ;;            
+        no_clip)
+          CLIP="--no_clip"
+          ;;
+        tc)
+          use_constr="--tc"
+          ;;
+        bgfs)
+          use_constr="--bgfs"
+          ;;          
+        inv)
+          ADD_INV="--inv"
+          ;;        
+        no_fit)
+          fit_flag="--no_fit"
+          ;;         
+        fprep)
+          fprep_input=1
+          ;;
+        fmriprep)
+          fprep_input=1
+          ;;
+        v1)
+          lbl_flag="--v1"
+          ;;
+        v2)
+          lbl_flag="--v2"
+          ;;   
+        save_grid)
+          save_grid="--save_grid"
+          ;;  
+        ow)
+          OW="-o"
+          ;;     
+        no_highres)
+          highres_flag="--no_highres"
+          ;;             
+        xopts-use)
+          XOPTS_="--xopts-use"
+          ;;             
+        xopts-clean)
+          XOPTS_="--xopts-clean"
+          ;;               
+        xopts-overwrite)
+          XOPTS_="--xopts-overwrite"
+          ;;
+        take-avg-tr)
+          PROT_FLAG="--take-avg-tr"
+          ;;
+        force_exec)
+          FORCE_FLAG="--force_exec"
+          ;;           
+        no_t2)
+          use_t2_flag="--no_t2"
+          ;;
+        merge_ses)
+          merge_flag="--merge_ses"
+          ;;    
+        fsaverage)
+          space_flag="--fsaverage"
+          ;;                      
+        fsnative)
+          space_flag="--fsnative"
+          ;;        
+        mni_fsl)
+          space_flag="--mni_fsl"
+          ;;  
+        mni_2009)
+          space_flag="--mni_2009"
+          ;;                      
+        ap)
+          pe_dir_flag="--ap"
+          ;;          
+        pa)
+          pe_dir_flag="--pa"
+          ;;         
+        lr)
+          pe_dir_flag="--lr"
+          ;;         
+        rl)
+          pe_dir_flag="--rl"
+          ;;
+        no_lpi)
+          reorient_flag="--no_lpi"
+          ;;      
+        anat_only)
+          mod_flag="--anat_only"
+          ;;               
+        func_only)
+          mod_flag="--func_only"
+          ;;                    
+        no_boldref)
+          boldref_flag="--no_boldref"
+          ;;   
+        mag)
+          mag_flag="--mag"
+          ;;          
+        gauss)
+          MODEL_FLAG="--gauss"
+          ;;  
+        dog)
+          MODEL_FLAG="--dog"
+          ;;   
+        css)
+          MODEL_FLAG="--css"
+          ;;  
+        norm)
+          MODEL_FLAG="--norm"
+          ;;
+        abc)
+          MODEL_FLAG="--abc"
+          ;;     
+        abd)
+          MODEL_FLAG="--abd"
+          ;;                      
+        no_srf)
+          SRF_FLAG="--no_srf"
+          ;;       
+        srf_file)
+          SRF_FILE="--srf_file"
+          ;;               
+        gallery)
+          GALLERY_FLAG="--gallery"
+          ;;        
+        manual)
+          SELECTION_FLAG="--manual"
+          ;;        
+        ctx)
+          OPEN_WITH_FLAG="--ctx"
+          ;;       
+        func)
+          TYPE="func"
+          space_flag="--func"
+          ;;     
+        anat)
+          space_flag="--anat"
+          ;;               
+        help)
+          HELP=1
+          ;;
+        ofsl)
+          FSL_FLAG="--ofsl"
+          ;;                 
+        clean)
+          clean_flag="--clean"
+          ;;   
+        fd)
+          fd_flag="--fd"
+          ;;          
+        fetch_fsl)
+          fetch_fsl_flag="--fetch_fsl"
+          ;;
+        fetch_anat)
+          fetch_anat_flag="--fetch_anat"
+          ;;
+        fetch_func)
+          fetch_func_flag="--fetch_func"
+          ;;                    
+        no_epi)
+          MAN_EPI="--no_epi"
+          ;;  
+        no_manual)
+          MAN_FLAG="--no_manual"
+          ;;   
+        aparc)
+          aparc_flag="--aparc"
+          ;;       
+        phys)
+          phys_flag="--phys"
+          ;;
+        skip_bg)
+          BG_FLAG="--skip_bg"
+          ;;
+        docker)
+          DOCKER_FLAG="--docker"
+          ;;          
+        lh)
+          HEMI_FLAG="--lh"
+          ;;             
+        rh)
+          HEMI_FLAG="--rh"
+          ;;               
+        ident)
+          IDENT_FLAG="--identity"
+          ;;           
+        identity)
+          IDENT_FLAG="--identity"
+          ;;            
+        try)
+          CRASH_FLAG="--try"
+          ;;    
+        post_only)
+          post_flag="--post_only"
+          ;;
+        pre_only)
+          pre_flag="--pre_only"
+          ;;
+        pyb_only)
+          pyb_flag="--pyb_only"
+          ;;       
+        masks)
+          mask_flag="--masks"
+          ;;                 
+        mask)
+          mask_flag="--masks"
+          ;;   
+        skip_prf_info)
+          skip_prf_info="--skip_prf_info"
+          ;;
+        refit)
+          REFIT_FLAG="--refit"
+          ;;          
+        bold)
+          BOLD_FLAG="--bold"
+          ;;             
+        cmd)
+          cmd_flag="--cmd"
+          ;;     
+        skip_settings)
+          SKIP_FLAG="--skip_settings"
+          ;;    
+        transpose)
+          TRANS_FLAG="--transpose"
+          ;; 
+        fs)
+          FS_FLAG="--fs"
+          ;;                             
+        dcm_fix)
+          echo "This functionality is now default and therefore the flag is deprecated"
+          exit 1
+          ;;                         
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            for ii in ${opts[@]}; do echo " ${ii}"; done
+            echo
+            echo "Unknown option \"--${OPTARG}\", see above for possible option"
+            echo "Enter \"`basename ${0}`\" what these flags do"
+            exit 1
+          fi
+          ;;
+      esac;;  
+    m)  MOD=${OPTARG}
+          ;;
+    d)  SEARCH_DEPTH="-d ${OPTARG}"
+        ANAT_DEPTH=${OPTARG}
+          ;;          
+    s)  SUB=${OPTARG}
+          ;;
+    h)  HEMI=${OPTARG}
+          ;;
+    n)  SES=${OPTARG}
+          ;;
+    o)  OW="-o"
+          ;;
+    t)  TYPE=${OPTARG}
+        t_specified=1
+          ;;
+    l)  WHICH_MOD=${OPTARG}
+        NR_LAYERS="-l ${OPTARG}"
+        LS_SES="-l ${OPTARG}"
+          ;;
+    v)  VERTICES=${OPTARG}
+          ;;
+    p)  PRF_MODEL=${OPTARG}
+        PARS_FILE="-p `readlink -f ${OPTARG}`"
+          ;;
+    c)  C_FLAG=${OPTARG}
+          ;;
+    x)  KWARGS=${OPTARG}
+          ;;
+    u)  CONF=${OPTARG}
+          ;;
+    r)  ROI=${OPTARG}
+        FS_stage=${OPTARG}
+        RUNS="-r ${OPTARG}"
+        SET_TR="-r ${OPTARG}"
+          ;;       
+    e)  n_echoes=${OPTARG}
+        START_STAGE=${OPTARG}
+        EPI_FILE="-e ${OPTARG}"
+        PIXEL_FLAG="-p ${OPTARG}"
+          ;;
+    i)  images=${OPTARG}
+          ;;
+    w)  WORK_FLAG="-w ${OPTARG}"
+          ;;          
+    a)  KEEP_RUNS="-a ${OPTARG}"
+          ;;     
+    q)  SGE_QUEUE="-q ${OPTARG}"
+          ;;          
+    j)  jobs_flag="-j ${OPTARG}"
+          ;;          
+    f)  FOLDS_FLAG="-f ${OPTARG}"
+          ;;          
+    k)  kwargs_file="-k `readlink -f ${OPTARG}`"
+          ;;     
+  esac
+done
+
+# source helper functions
+source ${SETUP_FILE}
+source call_bashhelper
+
+# set the execute flag
+FLAG_executeModule="${MOD}"
+
+start=`date +%s`
+start_date=`date`
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+===================================================================================================
+                            MASTER SCRIPT FOR LINE SCANNING ANALYSIS
+===================================================================================================
+
+Main script governing all (pre-)processing steps for high resolution anatomical data, as well as 
+whole-brain fMRI data analyses (specifically population receptive field [pRF]) and linescanning
+data. All modules can be called with master -m <module>, which in it's bare form with loop through
+the subjects it can find in the specified input directories. You can also include an -s flag to 
+process a single subject. See below for additional settings. Please read through it's module what
+it's default settings are and what you'd need to do to get it running for you.
+
+Have fun!
+
+Arguments:
+  -a <keep runs>    if you're running fMRIprep with MNI152* as output space, you're creating mas-
+                    sive files; oftentimes, you're mostly interested in the registration matrices, 
+                    so by default I'll remove the output nifti's so that the folder is not clogged. 
+                    With this argument you can specify which runs to keep. Again, if not specified, 
+                    all files with space-MNI152*.nii.gz will be removed. The transformation matri-
+                    ces will be left alone. Similarly to '-s', use comma-separated input. e.g., 
+                    '-a 1,2,5'. Use '-a all' to keep all runs (not recommended..)
+  -c <arg>          used for:
+                      - spinoza_fitprfs: list of values used for clipping of design matrix. Format 
+                        must be [<top>,<bottom>,<left>,<right>]. Negative values will be set to 
+                        zero within 'linescanning.prf.get_prfdesign'
+                      - spinoza_denoising: number of components to use for PCA. Overwrites the 
+                        PYBEST_N_COMPS-variable in the setup file
+  -e <echos|stage>  used for:
+                      - spinoza_linerecon: specify the amount of echoes of the acquisition
+                      - spinoza_freesurfer: maps to '-e' from call_freesurfer; sets the stage as of
+                        which to start autorecon. Should be used in concert with '-r', and must be
+                        one of 'pial' (for pial edits), 'wm' (for white matter edits), or 'cp' if
+                        you added control points. See 'call_freesurfer' for more information
+                      - spinoza_bestvertex; specify manual EPI-file
+                      - spinoza_fitprfs: set the number of pixels (default = 100)
+  -d <depth>        used for:
+                      - spinoza_scanner2bids; search depth for dcm2niix for converting to nifti
+                      - all anatomical steps; controls from which anatomical step we should select
+                        for the T1w-file. For example: normally, you arrive at the registration
+                        step to MNI after pymp2rage (combining the INV-images). In this case, it
+                        can only select this T1w-file. However, if you've done further processing
+                        already (e.g., denoising/CAT12/masking), then you could use those T1w-files
+                        for registration instead.
+  -h <hemisphere>   used for lineplanning, denotes which hemisphere to process
+  -f <n_folds>      use for:
+                      - spinoza_linerecon: use a custom suffix for the output BOLD file (overwrites
+                        "bold")
+                      - spinoza_fitprfs: if your pRF experiment contains multiple equal sequences, 
+                        you can use this flag to perform within-run averaging before percent-changing 
+                        in call_prf. This should be in concert with number of volumes removed from 
+                        the beginning of the timeseries
+  -i <image path>   specify custom path to:
+                      - spinoza_fitprfs: PNG's for pRF-fitting. This allows deviation from the stan-
+                        dard path that 'spinoza_fitprfs' will be looking for
+                      - spinoza_denoising: input directory for pybest. By default 'fmriprep', but 
+                        can be something else
+                      - spinoza_lineplanning: file to use for registration with ses-1 (default to 
+                        DIR_DATA_SOURCE/<subject>/ses-<ls_session>/planning)
+  -j <n_jobs>       number of jobs to use when submitting to SoGE. Used in:
+                      - spinoza_mriqc
+                      - spinoza_freesurfer
+                      - spinoza_fmriprep
+                      - spinoza_fitprfs
+  -k <file>         specify a file with additional arguments, similar to FreeSurfer's expert options.
+                    See linescanning/misc/fprep_options for an example. Please make sure you have a 
+                    final empty white space at the end of the file, otherwise the parser gets confu-
+                    sed. For VSCode: https://stackoverflow.com/a/44704969
+  -l <which mod>    look for a module number given a string to search for (e.g., master -l layer); 
+                    can also be used with:
+                    - spinoza_layering: set number of layers (default = 10 for nighres, 5 for Wagstyl's
+                      equivolumetric layering)
+  -m <module>       always required, specifies which module to run. Multiple modules should be com-
+                    ma separated
+  -n <session>      session nr, used to create file structure according to BIDS. Specify '-n none' if 
+                    you don't want to differentiate between sessions. If '-n all' in spinoza_denoising,
+                    all sessions will be processed
+  -o|--ow           turn on overwrite mode; removes subject-specific directories or crucial files so 
+                    that the process is re-ran.
+  -p <input>        Used for:
+                      - spinoza_fitprfs/spinoza_bestvertex: switch to specify what type of model to use 
+                        for the pRF-modeling. Should be either 'gauss', 'dog', 'css', or 'norm'
+                      - spinoza_qmrimaps: specify custom json-file with MP2RAGE(ME) parameters. See 
+                        DIR_SCRIPTS/misc for examples. Format should be like so (for mp2rage):
+                        {
+                            "TR": 5.5,
+                            "inv_times": [0.8,2.7],
+                            "fa": [6,6],
+                            "nZ": 1000,
+                            "FLASH_tr": [0.0062,0.0062]
+                        }
+  -q <sge queue>    send jobs to specific queue other than the default queues specified in the setup
+                    file.
+  -r <roi|stage>    Used for:
+                      - spinoza_bestvertex: set label file (default is 'V1.exvivo_thresh'
+                      - spinoza_extractregions: ROI to extract (default is 'cerebrum')
+                      - spinoza_freesurfer: which stage to use (maps to '-r' from call_freesurfer)
+                      - spinoza_fitprfs: set repetition time
+  -s <subject>      Subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -t <type|task>    used for;
+                      - spinoza_fmriprep: to run either the 'anat' workflow only, or also include func
+                        data ('func') or a direct task-identifier such as '${TASK_SES1[0]}'
+                      - spinoza_fitprfs: limit pRF-fitting to a given task. You can also specify multi-
+                        ple tasks if you want to bypass the setup file completely. In that case, use 
+                        the format '-t <task1>,<task2>,<task3>'. If you use this option, please still 
+                        use '--multi_design' to select the correct log-directory
+                      - spinoza_bestvertex: select pRF-parameters from specific task
+  -u <config>       specify configuration file for fMRIprep (see linescanning/misc for examp-
+                    les). If not specified, no configuration will be used. If ses-1 is specified,
+                    linescanning/misc/fmriprep_config.json is used; above that, fmriprep_con-
+                    fig2.json is used. Enter '-u none' if you have multiple sessions and you want
+                    to process everything without filtering
+  -v <vertices>       - spinoza_bestvertex: manually insert vertices to use as "best_vertex" (module 
+                        18). Should be formatted as -v "lh,rh" (please use two vertices; one for left 
+                        hemi and one for right hemi > makes life easier)
+                      - spinoza_fitprfs: number of volumes to cut from the beginning of the timeseries
+  -w <wagstyl>      Use Wagstyl's equivolumetric layering for layerification. Use Nighres otherwise
+                    accepted options are 'gauss' for Gaussian model, and 'norm' for Normalization
+                    model. Should/can be use for module 17, pRF-fitting
+  -x <kwargs>       Can be used for a variety of options by setting it to ANYTHING other than empty. 
+                    Usages include:
+                      - spinoza_lsprep; Additional commands to be passed to 'call_lsprep'. Format should
+                        be comma-separated flags as follows: 
+                          - if you specify a flag and values | <flag>=<value>
+                          - if you specify a flag only | <flag>
+
+                        combine as:
+                        "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      - spinoza_profiling; specify the type of file to use
+                      - spinoza_fitprfs; specify the constraints to use for fitting. Should be format-
+                        ted as -x "<gaussian>,<extended>". E.g., '-x tc,bgfs'
+                      - spinoza_freesurfer: add expert option file
+  --ap|pa|lr|rl     Specifies the phase-encoding direction for the BOLD run. The phase-encoding for the 
+                    FMAP will be automatically inverted. This flag can be specified to be a bit more 
+                    flexible than using the PE_DIR_BOLD-variable in the setup file                      
+  --affine          use 'affine'-registration (spinoza_registration)
+  --anat            Used for:
+                    - spinoza_denoising: overwrite PYBEST_SPACE to use T1w-space for denoi-
+                      sing
+  --aparc           use ROIs from ?h.aparc.annot atlas. Hit 'master -m 18 --help' to see which ROIs
+                    are included
+  --bgfs            use L-BGFS minimization for both the Gaussian as well as the extended model (e.g.,
+                    DoG, CSS, or DN). By default, we'll use trust-constr minimization for both. It's
+                    recommended to at least to Gaussian fitting with trust-constr, and potential ex-
+                    tended models with L-BGFS. For this, see '-x' flag
+  --biascorr        don't perform bias correction after denoising (spinoza_biassanlm)
+  --bold            re-calculate the BOLD timecourses; otherwise use existing '*hemi-LR_desc-avg_bold.npy'   
+  --clean           remove the single-subject workflow folder completely. This saves storage, but comes
+                    at the price that it re-runs EVERYTHING if you restart the process.                    
+  --comb_only       skip nighres, only do combination of segmentations. Works with '-o' flag.
+  --debug           run debug mode for various modules; prints extra stuff regarding input/output to ve-
+                    rify that paths and arguments are set correctly.
+  --docker          use docker images for fmriprep/mriqc; requires 'fmriprep-docker' and/or 'mriqc-docker'
+                    to be installed. See:
+                              
+  --fd              only get FD-timecourse file without initializing MRIqc
+  --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
+  --fetch_anat      retrieve the nifti-files in T1w-space
+  --fetch_func      retrieve the nifti-files in func-space    
+  --f(mri)prep      use output from fMRIPrep as input for pRF-fitting. Default is the output fro py-
+                    best
+  --full            Usages include:
+                      - spinoza_brainextraction; Do full processing with CAT12, assuming module 8 was 
+                        skipped. This does iterative SANLM-filtering, bias correction, and intensity 
+                        normalization. Can some times be overkill, so generally we use CAT12 for the 
+                        additional segmentations and brain extraction
+                      - spinoza_scanner2bids/-_qmrimaps/spinoza_bestvertex; full overwrite mode. De-
+                        letes the entire output folder (spinoza_qmrimaps), nifti-folder (spinoza_scan-
+                        ner2bids), or 'line_pycortex.csv' file (spinoza_bestvertex). This is more ag-
+                        gressive than '--ow', which only removes specific files.
+  --force_exec      force the execution of FreeSurfer even though directory exists already
+  --fv              use FreeView to draw sinus mask (spinoza_sagittalsinus) 
+  --fsaverage       overwrite PYBEST_SPACE-variable and use FSAverage for denoising/fitting (see your 
+                    setup file)
+  --fsnative        overwrite PYBEST_SPACE-variable and use FSNative for denoising/fitting (see your 
+                    setup file)     
+  --func            Used for:
+                      - spinoza_fmriprep: as alias for '-t func'
+                      - spinoza_denoising: overwrite PYBEST_SPACE to use native func space for denoi-
+                        sing
+  --gallery         save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and SRFs
+                    are included, this will yield in a 4x5 grid with brainmaps of various kinds that 
+                    were used in the selection process of the target vertex.  
+  --gdh             use custom implementation of MGDM (via call_gdhmgdm) that also considers extra
+                    filter files. By default we'll use call_nighresmgdm, which includes the T1w/T1map
+                    files
+  --grid            maps to '-g' in spinoza_fitprfs; runs gridfit only
+  --help            query the usage-information of a given module number: e.g., master -m 00 -q
+                    brings up the help-text from module 00 (spinoza_lineplanning)
+  --hrf             also fit the HRF during pRF-fitting (spinoza_fitprfs)
+  --ident(ity)      used for spinoza_lineplanning to check what the angles would look like without 
+                    executing a registration step
+  --itk             use ITK-Snap to draw sinus mask (spinoza_sagittalsinus) [default]
+  --inv             in case a session contains line-scanning data but also high resolution anatomical
+                    data that you'd like to process as per usual, use this flag to also copy in the
+                    INV1/INV2 images into the 'anat'-folder of the session. This will allow you to 
+                    run spinoza_qmrimaps as usual.
+  --lines           specifies that we're dealing with a line-scanning session (spinoza_scanner2bids). 
+                    Uses a custom pipeline for converting the files in a veeery specific way. If not
+                    specified, we'll assume a regular scan-session of whole-brain data.
+  --local           maps to '-l' in spinoza_fmriprep & spinoza_fitprfs; runs the process locally.
+  --lh              use left hemisphere for spinoza_lineplanning (same as '-h left')
+  --merge_ses       average pRF data from all sessions
+  --mag             use magnitude only for NORDIC denoising (spinoza_nordic)
+  --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
+                    associated with the timeseries files  
+  --multi_design    specifies that for all runs in the dataset have run-/task-specific screenshot di-
+                    rectories. This requires that the directory names you saved must match your naming 
+                    scheme of functional files as we'll match on run-/task-ID (spinoza_fitprfs)
+  --nighres         use nighres-software for cortex reconstruction (spinoza_cortexrecon) or equivolu-
+                    metric layering (spinoza_layering)
+  --no_bbr          maps to '--force-no-bbr' in call_fmriprep
+  --no_bounds       Turn off grid bounds; sometimes parameters fall outside the grid parameter bounds, 
+                    causing 'inf' values. This is especially troublesome when fitting a single time-
+                    course. If you trust your iterative fitter, you can turn off the bounds and let 
+                    the iterative take care of the parameters  
+  --no_clip         spinoza_fitprfs; ensures that the design matrix is NOT clipped, despite the pos-
+                    sible presence of screen delimiter files
+  --no_fit          spinoza_fitprfs; stop right after saving out averaged data. This was useful for 
+                    meto switch to percent-signal change without requiring a re-fit.                    
+  --no_freeview     disable FreeView during vertex selection (spinoza_bestvertex)
+  --no_highres      disable high-res functionality for FreeSurfer
+  --no_lpi          do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's outputs 
+                    on more raw data, I'd advise you to reorient to LPI and to NOT use this flag. 
+                    This flag is mainly here because it can take some time with big files which slows 
+                    down debugging.  
+  --no_manual       Just combine masks and apply (spinoza_masking); will prevent that ITK-Snap is opened
+                    for further manual edits
+  --no_nordic       turn off NORDIC denoising during reconstruction of line-scanning data
+  --no_tsnr         do NOT calculate tSNR before and after NORDIC (spinoza_nordic) and save them as images  
+  --no_t2           do not reuse T2 with autorecon3. Must be used in concert with '-e' and '-r'. By 
+                    default, we'll re-use the T2 if present. Same flag should be used for not re-using 
+                    FLAIR images  
+  --ofsl            Usages include:
+                      - spinoza_registration: output the matrix in FSL-compatible format (not available 
+                        for SyN)
+  --phys            run only physiology part of BIDS-conversion (passed on to call_bids via spinoza-
+                    scanner2bids). Useful for adhoc conversion of physiology data. Files ending with
+                    ".log", and containing "SCANPHYS" and "bold" must be placed somewhere in the DIR-
+                    DATA_SOURCE/<subject>/<ses> folder. 
+  --pre_only        spinoza_denoising; only run the step that saves the standard deviation/mean 
+  --pyb_only        spinoza_denoising; only run the the pybest step; pretty much equivalent to '--no_raw'
+  --post_only       spinoza_denoising; only run the step that performs the unzscoring; assumes pybest 
+                    was already run
+  --remove_wf       remove full single_subject workflow folder. Use \"--remove_surf_wf\"to specifically 
+                    remove the surface reconstruction folder when you have new FreeSurfer output that 
+                    fMRIPrep needs to use, or "--ow" to remove all folders within single_subj workflow
+                    with "run-"
+  --remove_surf_wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
+                    gistration and transformation
+  --rh              use right hemisphere for spinoza_lineplanning (same as '-h right')             
+  --rigid           use 'rigid-body' registration (spinoza_registration)
+  --save_grid       Save out gridsearch parameters (default skips saving grid-parameters)
+  --separate_hrf    Fit the HRF in two stages; can sometimes avoid sending the optimizer into the forrest
+                    but comes at a computational cost
+  --sge             passes '--sge' on to:
+                      -spinoza_scanner2bids
+                      -spinoza_linerecon
+                      -spinoza_denoising
+                      -spinoza_nordic
+                      -spinoza_registration
+                    submits jobs to cluster
+  --skip_prf_info   skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
+                    you want an indication of the pRF-properties, but want to refit yourself. This is 
+                    the case where I use M. Aqil's fitting output, which has been fitted with an out-
+                    dated screen distance.    
+  --srf_file        search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
+                    pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/sub-001_desc-srfs_centered.csv').
+                    Values representing suppression strength will be included when selecting the best 
+                    vertex with 'spinoza_bestvertex'                      
+  --surface         use Wagstyl's equivolumetric layering function
+  --syn             use 'syn'-registration (spinoza_registration)
+  --take-avg-tr     Take the average over all TRs from the par file, rather than the first in the se-
+                    quence of TRs   
+  --tc              use trust-constr minimization for both the Gaussian as well as the extended model 
+                    (e.g., DoG, CSS, or DN). By default, we'll use trust-constr minimization for both. 
+                    It's recommended to at least to Gaussian fitting with trust-constr, and potential 
+                    extended models with L-BGFS. For this, see '-x' flag 
+  --ups             maps to '-u' in spinoza_qmrimaps; turn on Universal Pulses
+  --v1              only fit voxels from ?.V1_exvivo.thresh.label; the original dimensions will be 
+                    maintained, but timecourses outside of the ROI are set to zero
+  --v2              only fit voxels from ?.V2_exvivo.thresh.label; the original dimensions will be 
+                    maintained, but timecourses outside of the ROI are set to zero
+  --verbose         turn on verbose for pRF-fitting (spinoza_fitprfs)
+  --warp_only       spinoza_fmriprep; skip full processing, but make new 'boldref'-images and copy 
+                    bold-to-T1w registration files
+  --xopts-use       maps to '-xopts-use' for existing expert option file; use existing file
+  --xopts-clean     maps to '-xopts-clean' for existing expert option file; delete existing file
+  --xopts-overwrite maps to '-xopts-overwrite' for existing expert option file; use new file
+
+Models for pRF fitting:
+  --gauss           run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
+  --dog             run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
+  --css             run compressive spatial summation model (compression) [Kay, et al. 2013]
+  --norm            run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+
+Usage:
+  master -m <MODULES TO RUN>
+  master -m 01,02,03,04           (comma-separated for running multiple modules in succession)
+  master -m 00 -q                 (print help-text of module 00)
+  master -l mgdm                  (fetch module number mgdm-module)
+  master -m 02 -n 2 --lines       (line-scanning session)
+  master -m 02 -n 2 --lines --inv (line-scanning session + high resolution anatomies)
+  master -m 15 -t func            (run fMRIPrep on available tasks)
+  master -m 15 -t scenes          (run fMRIPrep on scenes-task only)
+  master -m 17 --norm --local     (run pRF-fitting with DN-model and don't submit to cluster)
+
+Additional options:
+  - Specify a subject to run (for certain modules):   master -m <module> -s <subj-ID>
+  - Specify a hemisphere (for certain modules):       master -m <module> -h left
+  - Disable overwrite mode (for certain modules):     master -m <module> -o n
+  - Specify a particular session to use:              master -m <module> -n 1
+  - Specify processing type fMRIprep (anat|func)      master -m <module> -t anat
+
+Available modules:                                     Script                           hh:mm:ss
+  -00:  Register anat ses-1 to ms ses-1 for planning   (spinoza_lineplanning)           00:06:00
+  -01:  Make new session for subject                   (spinoza_bidssession)            00:00:01
+  -02a: Convert raw files to nifti                     (spinoza_scanner2bids)           00:02:00
+  -02b: Quality control with MRIQC                     (spinoza_mriqc)                  00:30:00
+  -03:  Reconstruction of line data                    (spinoza_linerecon)              00:10:00
+  -04:  Estimate T1's from mp2rage and memp2rage       (spinoza_qmrimaps)               00:01:30
+  -05a: Register T1 from memp2rage to T1 from mp2rage  (spinoza_registration)           00:03:00
+  -05b: Register T1 from mp2rage to MNI152             (spinoza_registration)           01:05:00
+  -06:  Average T1w/T1map from MP2RAGE & MP2RAGEME     (spinoza_averageanatomies)       00:02:00
+  -07:  Make sinus mask from T1w/T2w ratio             (spinoza_sinusfrommni)           00:03:00
+  -08:  Bias correction + SANLM denoising              (spinoza_biassanlm)              00:07:00
+  -09:  Brain extract (CAT12 || ANTs || FSL)           (spinoza_brainextraction)        00:10:00
+  -10:  NORDIC denoising of whole-brain data           (spinoza_nordic)                 00:05:00
+  -11:  Dura estimation and skull estimations          (spinoza_dura)                   00:08:00
+  -12:  Create mask of sagittal sinus                  (spinoza_sagittalsinus)          00:03:00
+  -13:  Combine all masks and apply to average         (spinoza_masking)                00:02:30
+  -14:  Surface segmentation with FreeSurfer           (spinoza_freesurfer)             09:30:00
+  -15:  Preprocessing with fMRIprep                    (spinoza_fmriprep)               14:00:00
+  -16:  Data denoising with pybest                     (spinoza_denoising)              00:05:00
+  -17:  pRF-fitting with pRFpy                         (spinoza_fitprfs)                00:07:00
+  -18:  Determine best vertex with pycortex            (spinoza_bestvertex)             00:01:30
+  -19:  Tissue segmentation with FAST                  (spinoza_segmentfast)            00:17:00
+  -20:  Tissue segmentation with MGDM                  (spinoza_mgdm)                   00:11:45
+  -21:  Region extraction with nighres                 (spinoza_extractregions)         00:02:00
+  -22:  Cortex reconstruction with nighres             (spinoza_cortexrecon)            00:05:30
+  -23:  Layering with nighres/surface_tools            (spinoza_layering)               00:07:30
+  -24:  Subcortex parcellation with nighres            (spinoza_segmentsubcortex)       00:10:00
+  -25:  Project line to surface                        (spinoza_line2surface)           00:02:00
+  -26:  Sample a dataset across depth with Nighres     (spinoza_profiling)              00:20:00
+
+--END--
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+
+#---------------------------------------------------------------------------------------------------
+# Error handling
+if [[ $# -lt 2 ]] ; then
+  echo
+  echo "NEED AT LEAST ONE MODULE. echoING HELP AND EXITING"
+  Usage >&2
+  exit 1
+fi
+
+#---------------------------------------------------------------------------------------------------
+# Check for which-module switch 
+if [[ ! -z ${WHICH_MOD} ]] && [[ "${@}" != *"-m"* ]]; then
+  mod_nr=`get_module_nr ${WHICH_MOD}`
+  if [[ ! -z ${mod_nr} ]]; then
+    echo "module ${mod_nr} contain(s) \"${WHICH_MOD}\""
+  else
+    echo "could not find a module associated with \"${WHICH_MOD}\""
+  fi
+fi
+
+#---------------------------------------------------------------------------------------------------
+# Define default session/subject stuff
+if [[ -z ${SES} ]]; then
+  # Going to assume ses-1 here
+  SESSION="-n 1"
+elif [[ ${SES,,} == "none" ]]; then
+  SESSION=""
+else
+  SESSION="-n ${SES}"
+fi
+
+if [[ -z ${SUB} ]]; then
+  SUBJECT=""
+else
+  SUBJECT="-s ${SUB}"
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 00: Optimal line planning procedure with registration of anat ses-1 to ms ses-2
+module=00
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_lineplanning
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Optimal line planning procedure with registration of anat ses-1 to ms ses-X"
+
+  if [[ -z ${SUB} ]]; then
+    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
+    echo "  e.g., ./master -m 00 -s 001"
+    exit 1
+  fi
+
+  if [[ -z ${HEMI} ]] && [[ -z ${HEMI_FLAG} ]]; then
+    echo "ERROR: Need a hemisphere for this module. Specify the subject number with the -h flag in the master script"
+    echo "  e.g., ./master -m 00 -s 001 {--lh|--rh}"
+    exit 1
+  fi
+
+  if [[ -z ${SES} ]]; then
+    read -p "Session number not specified; defaulting to \"ses-2\". Sure you want to continue..? (y/n)? " choice
+    case "${choice}" in
+      y|Y ) c=1;;
+      n|N ) c=0;;
+      * ) c="invalid";;
+    esac
+
+    if [[ ${c} -eq 1 ]]; then
+      ses_nr=2
+    elif [[ ${c} == "invalid" ]]; then
+      echo "Your answer was invalid. Quitting.. Use \"-n X\" to specify your desired session"
+      exit 1
+    else
+      echo "You selected \"no\". Quitting.. Use \"-n X\" to specify your desired session"
+      exit 1
+    fi
+  else
+    ses_nr=${SES}
+  fi
+
+  # check if we got custom file, otherwise default to directory
+  subject=${SUBJECT_PREFIX}${SUB}
+  if [[ ! -z ${images} ]]; then
+    reg_img=${images}
+  else
+    reg_img=${DIR_DATA_SOURCE}/${subject}/ses-${ses_nr}/planning
+  fi
+
+  ${job} spinoza_lineplanning \
+    ${OW} \
+    ${HEMI_FLAG} \
+    ${IDENT_FLAG} \
+    -s ${subject} \
+    -n ${ses_nr} \
+    -i ${reg_img} \
+    -p ${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv
+
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 01: Make new session for subject
+module=01
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_bidssession
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Create folder structure for new session"
+
+  if [[ -z ${SUB} ]]; then
+    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
+    echo "  e.g., ./master -m 01 -s 001"
+    exit 1
+  fi
+
+  if [[ -z ${SES} ]]; then
+    echo "ERROR: Need a session number for this module. Specify the subject number with the -n flag in the master script"
+    echo "  e.g., ./master -m 01 -n 1"
+    exit 1
+  fi
+
+  ${job} spinoza_bidssession ${SUB} ${SES}\
+
+  echo "[${module}] DONE"
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# Deprecation message
+module=02
+
+if [[ ${FLAG_executeModule} == ${module} ]]; then
+  echo "DEPRECATION WARNING: module 02 has been split in 02a (spinoza_scanner2bids) & 02b (spinoza_mriqc)"
+  exit 1
+fi
+
+
+#---------------------------------------------------------------------------------------------------
+# STEP 02a: Convert raw files to nifti
+module=02a
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_scanner2bids
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Convert raw files to nifti"
+
+  ${job} spinoza_scanner2bids \
+    ${SES_TYPE} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${RUNS} \
+    ${OW} \
+    ${FULL_OW} \
+    ${ADD_INV} \
+    ${PROT_FLAG} \
+    ${pe_dir_flag} \
+    ${reorient_flag} \
+    ${SDE_FLAG} \
+    ${DEBUG} \
+    ${SGE} \
+    ${SGE_QUEUE} \
+    ${phys_flag} \
+    ${SEARCH_DEPTH} \
+    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 02b: MRIQC
+module=02b
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_mriqc
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] quality control with MRIQC"
+
+  ${job} spinoza_mriqc \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${REMOVE_WF} \
+    ${mod_flag} \
+    ${fd_flag} \
+    ${run_local} \
+    ${SGE_QUEUE} \
+    ${jobs_flag} \
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/mriqc
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 03a: Reconstruct line-data (scripts Luisa)
+module="03a"
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_linerecon
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Reconstruct line data with MRecon"
+
+  if [[ -z ${n_echoes} ]]; then
+    N_ECHOES=""
+  else
+    N_ECHOES="-m ${n_echoes}"
+  fi    
+
+  # set PCA components
+  NORDIC_COMPS=0
+  if [[ ! -z ${C_FLAG} ]]; then
+    NORDIC_COMPS=${C_FLAG}
+  fi
+
+  ${job} spinoza_linerecon \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${N_ECHOES} \
+    ${DEBUG} \
+    ${OW} \
+    ${SGE} \
+    ${SGE_QUEUE} \
+    ${NORDIC} \
+    ${RUNS} \
+    ${N_COMPS} \
+    ${FOLDS_FLAG} \
+    -c ${NORDIC_COMPS} \
+    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_linerecon exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 03b: LSprep | basic quality control and parsing into h5-file
+module="03b"
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_lsprep
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] LSprep | basic quality control"
+
+  if [[ -z ${SES} ]]; then
+    # Going to assume ses-1 here
+    SESSION="-n 2"
+  fi
+
+  # check for lsprep kwargs
+  KWARGS_FLAG=""
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
+  ${job} spinoza_lsprep \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${SGE} \
+    ${SGE_QUEUE} \
+    ${KWARGS_FLAG} \
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_linerecon exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 04: Estimate T1's from mp2rage and memp2rage and do some multiparametric mapping
+module=04
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_qmrimaps
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Multiparametric mapping"
+
+  ${job} spinoza_qmrimaps \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${UPs} \
+    ${FULL_OW} \
+    ${BG_FLAG} \
+    ${PARS_FILE} \
+    ${FORCE_FLAG} \
+    ${SGE} \
+    ${SGE_QUEUE} \
+    ${jobs_flag} \
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_qmrimaps exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# Deprecation message
+module=05
+
+if [[ ${FLAG_executeModule} == ${module} ]]; then
+  echo "DEPRECATION WARNING: module 05 has been split in 05a (anat > anat) & 05b (anat > FSL MNI)"
+  exit 1
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 05a: Register T1 from memp2rage to T1 from mp2rage
+module=05a
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_registration
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Register ${ACQ[1]} to ${ACQ[0]}"
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=2
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`
+
+  ${job} spinoza_registration \
+    ${REG_TYPE} \
+    ${SUBJECT} \
+    ${OW} \
+    ${SESSION} \
+    ${SGE} \
+    ${verb_flag} \
+    ${SGE_QUEUE} \
+    ${FSL_FLAG} \
+    ${jobs_flag} \
+    ${cmd_flag} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_registration exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 05b: Register T1 from mp2rage to MNI152 for sagittal sinus mask
+module=05b
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_registration
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Register T1 from mp2rage to MNI152 for sagittal sinus mask"
+  
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=2
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+
+  ${job} spinoza_registration \
+    ${REG_TYPE} \
+    ${SUBJECT} \
+    ${OW} \
+    ${SESSION} \
+    ${SGE} \
+    ${verb_flag} \
+    ${SGE_QUEUE} \
+    ${FSL_FLAG} \
+    ${jobs_flag} \
+    ${cmd_flag} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants mni
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_registration exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 06: Calculate averages of UNIT1, INV1, and INV2
+module=06
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    spinoza_averageanatomies
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Calculate averages of the T1-weighted image and T1map"
+
+  if [[ ${DATA^^} == "AVERAGE" ]]; then
+
+    if [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
+      INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+    else
+      INPUT_DIR=${DIR_DATA_HOME}
+    fi  
+
+    spinoza_averageanatomies ${SUBJECT} ${SESSION} ${INPUT_DIR} ${DIR_DATA_DERIV}/pymp2rage
+
+    if [[ $? -ne 0 ]]; then
+      echo "ERROR in master: spinoza_averageanatomies exited with non-zero status"
+      exit 1
+    fi
+
+  else
+    echo "The variable \"DATA\" is \"${DATA}\"; must be \"AVERAGE\" for this module."
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 07: Create sagittal sinus mask using the MNI-mask & T1w/T2w-ratio
+module=07
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_sinusfrommni
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Create sagittal sinus mask using the MNI-mask & T1w/T2w-ratio"
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=2
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`
+
+  if [[ ! -z ${DRAW_SAG} ]]; then
+    DRAW_SAG="--${DRAW_SAG}"
+  fi
+  
+  ${job} spinoza_sinusfrommni \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${DRAW_SAG} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in `basename ${0}`: spinoza_sinusfrommni exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 08: Perform bias field correction with ANTs' N4 algorithm on INV2
+module=08
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_biassanlm
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Perform bias field correction and SANLM-filtering"
+  
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=2
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  
+  ${job} spinoza_biassanlm \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${BIAS_FLAG} \
+    ${OW} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in `basename ${0}`: spinoza_biassanlm exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 09: Brain extraction
+module=09
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_brainextraction
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Brain extract MP2RAGE-INV2 with ANTs|FSL|CAT12"
+
+  DO_STUFF="cat12"
+  if [[ ${DO_STUFF} ==  "inv2" ]]; then
+  
+    ${job} spinoza_brainextraction \
+      ${SUBJECT} \
+      ${SESSION} \
+      ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/manual_masks FSL
+
+  elif [[ ${DO_STUFF} == "cat12" ]]; then
+
+    # check where inputs live
+    if [[ -z ${ANAT_DEPTH} ]]; then
+      ANAT_DEPTH=3
+    fi
+
+    INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+    fprep_flag=""
+    if [[ ${fprep_input} -eq 1 ]]; then
+      fprep_flag="--fprep"
+    fi
+
+    ${job} spinoza_brainextraction \
+      ${SUBJECT} \
+      ${SESSION} \
+      ${fprep_flag} \
+      ${OW} \
+      ${PROC} \
+      ${FS_FLAG} \
+      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12
+  fi
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_brainextraction exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 10: Do noise level estimation with AFNI's automask function
+module=10
+module_name="spinoza_nordic"
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} ${module_name}
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] NORDIC denoising"
+
+  ${job} ${module_name} \
+    ${OW} \
+    ${SGE} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${RUNS} \
+    ${TSNR_FLAG} \
+    ${mag_flag} \
+    ${SGE_QUEUE} \
+    ${DIR_DATA_HOME}
+    
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: ${module_name} exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 11: Use nighres to get skull and dura mask
+module=11
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_dura
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Use nighres to get skull and dura mask"
+  
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=4
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+
+  ${job} spinoza_dura \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${INPUT_DIR} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_dura exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 12: Create mask of the sagittal sinus with manual edits in ITKsnap
+module=12
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_sagittalsinus
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Create sagittal sinus mask from R2*-image"
+
+  # DATA = MP2RAGE    > arg1 = DIR_DATA_DERIV/pymp2rage
+  # DATA = MEMP2RAGE  > arg1 = DIR_DATA_DERIV/pymp2rage
+  # DATA = AVERAGE    > arg1 = DIR_DATA_DERIV/ants
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=4
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  
+  ${job} spinoza_sagittalsinus ${SUBJECT} ${SESSION} ${OW} ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_sagittalsinus exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 13: Combine all masks and apply to average
+module=13
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_masking
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Combine all masks and apply to image"
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=4
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+
+  ${job} spinoza_masking \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${MAN_FLAG} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_masking exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 14: FreeSurfer
+module=14
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_freesurfer
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Run FreeSurfer outside of fMRIprep"
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=5
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+
+  # check for expert file
+  if [ ! -z ${KWARGS} ]; then
+    expert_flag="-x ${KWARGS}"
+  fi
+
+  # check -f we got '-e' flag
+  if [[ ! -z ${START_STAGE} ]]; then
+    START_STAGE="-e ${START_STAGE}"
+  fi   
+  
+  ${job} spinoza_freesurfer \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${highres_flag} \
+    ${expert_flag} \
+    ${XOPTS_} \
+    ${run_local} \
+    ${SGE} \
+    ${OW} \
+    ${START_STAGE} \
+    ${FORCE_FLAG} \
+    ${use_t2_flag} \
+    ${SGE_QUEUE} \
+    ${jobs_flag} \
+    ${INPUT_DIR} ${FS_stage} ${DIR_DATA_HOME}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_freesurfer exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 15: Preprocess data with fMRIprep
+module=15
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_fmriprep
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Preprocess session 1 data with fMRIprep"
+
+  if [[ -z ${TYPE} ]]; then
+    TYPE="anat"
+  else
+    TYPE=${TYPE}
+  fi
+
+  # decide on config file (overwrite earlier defaults)
+  if [[ ! -z ${CONF} ]]; then
+    if [[ ${CONF,,} == "none" ]]; then
+      confFile=""
+    else
+      if [[ -f ${CONF} ]]; then
+        confFile="-u ${CONF}"
+      else
+        echo "ERROR: Could not find config file \"${confFile}\""
+        exit 1
+      fi
+    fi
+  else
+    confFile=""
+  fi
+
+  # check where inputs live
+  if [[ -z ${ANAT_DEPTH} ]]; then
+    ANAT_DEPTH=6
+  fi
+
+  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+
+  ${job} spinoza_fmriprep \
+    ${WARP_ONLY} \
+    ${use_bbr} \
+    ${run_local} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${confFile} \
+    ${REMOVE_WF} \
+    ${kwargs_file} \
+    ${boldref_flag} \
+    ${RUNS} \
+    ${OW} \
+    ${jobs_flag} \
+    ${SGE_QUEUE} \
+    ${KEEP_RUNS} \
+    ${clean_flag} \
+    ${fd_flag} \
+    ${DOCKER_FLAG} \
+    ${fetch_fsl_flag} \
+    ${fetch_func_flag} \
+    ${fetch_anat_flag} \
+    ${mask_flag} \
+    ${WORK_FLAG} \
+    ${CRASH_FLAG} \
+    -f ${DIR_DATA_HOME} \
+    -m ${TYPE} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV} ${DIR_DATA_HOME}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_fmriprep exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 16: fMRI-data denoising with pybest using fmriprep's output
+module=16
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_denoising
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Data denoising with pybest"
+  
+  # --func = alias for -t func, but refers to space, not task. Force actual usage of -t to set task ID, otherwise it'll use "func" for task..
+  if [[ ${t_specified} -eq 1 ]]; then
+    if [[ ! -z ${TYPE} ]]; then
+      TASK_ID="-t ${TYPE}"
+    fi   
+  fi
+
+  if [[ -z ${images} ]]; then
+    INPUT_DIR=${DIR_DATA_DERIV}/fmriprep
+  else
+    INPUT_DIR=${images}
+  fi
+
+  # set PCA components
+  if [[ ! -z ${C_FLAG} ]]; then
+    PCA_COMPS="-c ${C_FLAG}"
+  fi
+
+  # check for expert options
+  if [ ! -z ${KWARGS} ]; then
+    expert_flag="-x ${KWARGS}"
+  fi
+
+  ${job} spinoza_denoising \
+    ${raw_flag} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${SGE} \
+    ${OW} \
+    ${FULL_OW} \
+    ${PCA_COMPS} \
+    ${TASK_ID} \
+    ${space_flag} \
+    ${SGE_QUEUE} \
+    ${jobs_flag} \
+    ${pre_flag} \
+    ${post_flag} \
+    ${pyb_flag} \
+    ${FORCE_FLAG} \
+    ${expert_flag} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/pybest
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_denoising exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 17: pRF-fitting with pRFpy
+module=17
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_fitprfs
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] pRF-fitting with pRFpy"
+
+  # set PNG directory
+  if [[ -z ${images} ]]; then
+    PNG_DIR=${DIR_DATA_SOURCE}
+  else
+    PNG_DIR=${images}
+  fi
+
+  # set input directory depending on the presence of pybest output
+  PRF_INPUT=${DIR_DATA_DERIV}/pybest
+  if [[ ${fprep_input} -eq 1 ]]; then
+    PRF_INPUT=${DIR_DATA_DERIV}/fmriprep
+  fi
+
+  # specify a specific task-ID to be fitted
+  if [[ ! -z ${TYPE} ]]; then
+    TASK_ID="-t ${TYPE}"
+  fi  
+
+  # set design clipper flag
+  if [[ ! -z ${C_FLAG} ]]; then
+    CLIP_FLAG="-c ${C_FLAG}"
+  fi  
+
+  # set constraints flag; note that 'use_constr' can also be set with '--tc' or '--bgfs'
+  if [ ! -z ${KWARGS} ]; then
+    use_constr="-x ${KWARGS}"
+  fi
+
+  if [[ ! -z ${VERTICES} ]]; then
+    CUT_VOLS="-v ${VERTICES}"
+  fi  
+
+  ${job} spinoza_fitprfs \
+    ${use_constr} \
+    ${CLIP} \
+    ${CLIP_FLAG} \
+    ${verb_flag} \
+    ${zscore_flag} \
+    ${raw_flag} \
+    ${fit_flag} \
+    ${TASK_ID} \
+    ${FIT_HRF} \
+    ${run_local} \
+    ${GRID} \
+    ${MULTIPLE_DESIGNS} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${MODEL_FLAG} \
+    ${CUT_VOLS} \
+    ${lbl_flag} \
+    ${save_grid} \
+    ${bouds_flag} \
+    ${merge_flag} \
+    ${jobs_flag} \
+    ${kwargs_file} \
+    ${space_flag} \
+    ${SGE_QUEUE} \
+    ${SET_TR} \
+    ${PIXEL_FLAG} \
+    ${REFIT_FLAG} \
+    ${FOLDS_FLAG} \
+    ${BOLD_FLAG} \
+    ${SKIP_FLAG} \
+    ${TRANS_FLAG} \
+    ${PRF_INPUT} ${DIR_DATA_DERIV}/prf ${PNG_DIR}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_fitprfs exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 18: Determine best vertex with pycortex
+module=18
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_bestvertex
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Determine best vertex with pycortex"
+
+  if [[ ! -z ${VERTICES} ]]; then
+    VERT="-v ${VERTICES}"
+  fi
+
+  if [[ ! -z ${ROI} ]]; then
+    LABEL_FILE=${ROI}
+  else
+    LABEL_FILE="V1_custom"
+  fi
+
+  if [[ ! -z ${TYPE} ]]; then
+    TASK_ID="-t ${TYPE}"
+  fi
+
+  ${job} spinoza_bestvertex \
+    ${MODEL} \
+    ${TASK_ID} \
+    ${GRID} \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${VERT} \
+    ${FREEVIEW} \
+    ${OW} \
+    ${FULL_OW} \
+    ${lbl_flag} \
+    ${MODEL_FLAG} \
+    ${SRF_FLAG} \
+    ${SRF_FILE} \
+    ${EPI_FILE} \
+    ${GALLERY_FLAG} \
+    ${aparc_flag} \
+    ${SELECTION_FLAG} \
+    ${MAN_EPI} \
+    ${EPI_FILE} \
+    ${LS_SES} \
+    ${skip_prf_info} \
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV} ${LABEL_FILE}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_bestvertex exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 19: FAST segmentation with FSL
+module=19
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_segmentfast
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] FAST segmentation with FSL"
+
+  ${job} spinoza_segmentfast ${SUBJECT} ${SESSION} ${OW} ${SKULLSTRIP} ${DIR_DATA_DERIV}/fsl
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_segmentfast exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 20: MGDM segmentation with nighres
+module=20
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_mgdm
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] MGDM segmentation with nighres"
+
+  spinoza_mgdm \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${GDH_FLAG} \
+    ${SGE} \
+    ${SGE_QUEUE} \
+    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_mgdm exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 21: Region extraction with nighres
+module=21
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_extractregions
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Region extraction with nighres"
+
+  if [[ ! -z ${ROI} ]]; then
+    ROI=${ROI}
+  else
+    ROI="cerebrum"
+  fi
+
+  ${job} spinoza_extractregions \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${COMB_ONLY} \
+    -f ${DIR_DATA_DERIV}/fmriprep \
+    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_extractregions exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 22: Cortex reconstruction with nighres
+module=22
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_cortexrecon
+    exit 1
+  fi
+
+  if [[ ! -z ${ROI} ]]; then
+    ROI=${ROI}
+  else
+    ROI="cerebrum"
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Cortex reconstruction with nighres"
+
+  
+  if [[ ${LAYER_FLAG} == "nighres" ]]; then
+    PROBSEG=${DIR_DATA_DERIV}/nighres
+  else
+    PROBSEG=${DIR_DATA_DERIV}/manual_masks
+  fi
+
+  ${job} spinoza_cortexrecon ${SUBJECT} ${SESSION} ${OW} ${PROBSEG} ${DIR_DATA_DERIV}/nighres ${ROI}
+
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_cortexrecon exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 23: Equivolumetric layering with either nighres or Wagstyl's surface_tools
+module=23
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_layering
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Equivolumetric layering"
+
+  if [[ -z ${LAYER_FLAG} || ${LAYER_FLAG} == "nighres" ]]; then
+    INPUT_DIR=${DIR_DATA_DERIV}/nighres
+    SOFTWARE="nighres"
+  elif [[ ${LAYER_FLAG} == "surface" ]]; then
+    SOFTWARE="surface"
+    INPUT_DIR=${FS}
+  else
+    echo "ERROR in `basename ${0}`: Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
+    exit 1
+  fi
+
+  ${job} spinoza_layering \
+     ${SUBJECT} \
+     ${SESSION} \
+     ${OW} \
+     ${NR_LAYERS} \
+     ${INPUT_DIR} ${SOFTWARE}
+  
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_layering exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 24: Subcortex parcellation with MASSP
+module=24
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_segmentsubcortex
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Subcortex parcellation with MASSP"
+
+  ${job} spinoza_segmentsubcortex ${SUBJECT} ${SESSION} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_segmentsubcortex exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 25: Project line to surface with a registration cascade
+module=25
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_line2surface
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Registration cascade to project line to surface"
+
+  if [[ -z ${SUB} ]]; then
+    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
+    echo "  e.g., ./master -m 24 -s 001"
+    exit 1
+  fi
+
+  # input anat as defined in module 00
+  ${job} spinoza_line2surface -s ${subject} -y ${DIR_DATA_HOME}/${subject}/ses-2/anat/${subject}_ses-2_acq-MP2RAGE_T1w.nii.gz -o ${CTX} -i ${NIGHRES}/${subject}/ses-2
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_line2surface exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 26: Project line to surface with a registration cascade
+module=26
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_profiling
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Profile sampling using Nighres"
+
+  if [[ -z ${KWARGS} ]]; then
+    KWARGS="T2starmap"
+  else
+    KWARGS=${KWARGS}
+  fi    
+
+  # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
+  ${job} spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} ${KWARGS}
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_segmentsubcortex exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi
+
+#---------------------------------------------------------------------------------------------------
+# STEP 27: Project line to surface with a registration cascade
+module=27
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    ${job} spinoza_suit
+    exit 1
+  fi
+
+  echo "---------------------------------------------------------------------------------------------------"
+  echo "[${module}] Cerebellum segmentation with SUIT"
+
+  # check where inputs live
+  INPUT_DIR=`find_hierarchical_anatomy 6`
+
+  # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
+  ${job} spinoza_suit \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/suit
+
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in master: spinoza_suit exited with non-zero status"
+    exit 1
+  fi
+
+  echo "[${module}] DONE" && echo
+
+fi

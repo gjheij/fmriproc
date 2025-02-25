@@ -1,0 +1,8 @@
+package: eye
+sections:
+- name: Eyetracker
+  ordering: session,task,run
+  reportlets:
+  - bids: {datatype: figures, desc: eye, suffix: qa}
+    caption: Heat maps of eye position over time relative to fixation
+    subtitle: Basic quality assessment

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fmriproc"
+version = "0.1.0" # Replace this with the value dynamically loaded by `get_version`
+description = "fmriproc: preprocessing routines for functional (fMRI) and anatomical data (MRI)"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Jurjen Heij", email = "jurjenheij@gmail.com" }]
+maintainers = [{ name = "Jurjen Heij", email = "jurjenheij@gmail.com" }]
+keywords = ["neuroimaging", "preprocessing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Scientific/Engineering",
+]
+# requires-python = ">=3.7, <3.11"
+dependencies = [
+    "lazyfmri @ git+https://github.com/gjheij/lazyfmri.git",
+    "pybest @ git+https://github.com/gjheij/pybest.git",
+    "pymp2rage @ git+https://github.com/gjheij/pymp2rage.git",
+    "prfpy @ git+https://github.com/VU-Cog-Sci/prfpy.git",
+    "fmriprep",
+    "nipype",
+    "niworkflows",
+    "pybids",
+    "matplotlib",
+    "nibabel",
+    "scikit-learn",
+    "subprocess",
+    "numpy",
+    "typing",
+    "configparser",
+]
+
+
+[project.optional-dependencies]
+dev = ["pytest", "black", "flake8"]
+
+[tool.setuptools]
+packages = ["fmriproc"]
+package-data = { fmriproc = ["version.py"] }

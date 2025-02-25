@@ -1,0 +1,208 @@
+#!/usr/bin/env python
+
+import ast
+import os
+import sys, getopt
+from linescanning import utils, dataset
+import pandas as pd 
+import shutil
+opj = os.path.join
+
+def main(argv):
+
+    """
+---------------------------------------------------------------------------------------------------
+call_truncate
+
+Given an fmriprep directory, truncate the first X volumes of the gifti-files and possible confound-
+files. If you do not specify the fmriprep-directory, we'll default to the DIR_DATA_DERIV/fmriprep
+variable. If no output directory is specified, we'll default to the the DIR_DATA_DERIV/del<vols> 
+folder, where <vols> is the nr of volumes cut
+
+Args:
+    -s|--subject    subject ID used throughout the pipeline
+    -f|--fprep      fmriprep directory
+    -o|--output     output directory
+    -c|--cut_vols   nr of volumes to cut. Default = 5
+    -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
+    -t|--tr         set TimeStep field in the gifti's metadata (Repetition time in milliseconds!)
+
+Options
+    --no_confounds  skip confounds even if you have them
+    --fsaverage     use only fsaverage (default is to use both)
+    --fsnative      use only fsnative (default is to use both)
+    --verbose       print progress to terminal
+    --ow|--overwrite overwrite existing output files
+    --full_ow       delete output_folder/subject
+    --conf_only     only do the confound files
+
+Example:
+    call_truncate -s sub-001 -c 5
+    call_truncate -s sub-001 -f fmriprep_dir -o output_dir --fsaverage
+---------------------------------------------------------------------------------------------------
+    """
+
+    fprep_dir = None
+    subject = None
+    output = None
+    cut_vols = 5
+    search_list = ["space-"]
+    confounds = True
+    verbose = False
+    overwite = False
+    full_ow = False
+    filters = []
+    conf_only = False
+    overwrite = False
+    tr = None
+
+    try:
+        opts = getopt.getopt(argv,"hf:s:o:c:x:t:",["subject=", "fprep=", "cut_vols=", "fsaverage", "fsnative", "no_confounds", "verbose", "overwrite", "ow", "full_ow", "filters=", "conf_only","tr="])[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--subject"):
+            subject = arg
+        elif opt in ("-f", "--fprep"):
+            fprep_dir = arg
+        elif opt in ("-c", "--cut_vols"):
+            cut_vols = int(arg)
+        elif opt in ("-o", "--output"):
+            output = arg
+        elif opt in ("-o", "--output"):
+            output = arg
+        elif opt in ("--fsaverage"):
+            search_list = ["space-fsaverage"]
+        elif opt in ("--fsnative"):
+            search_list = ["space-fsnative"]
+        elif opt in ("--no_confounds"):
+            confounds = False
+        elif opt in ("--verbose"):
+            verbose = True  
+        elif opt in ("--ow","--overwrite"):
+            overwrite = True
+        elif opt in ("--t","--tr"):
+            tr = float(arg)
+        elif opt in ("--full_ow"):
+            full_ow = True     
+        elif opt in ("--conf_only"):
+            conf_only = True             
+        elif opt in ("-x","--filters"):
+            filters = arg
+            if "," in filters:
+                filters = utils.string2list(filters)
+            else:
+                filters = [filters]
+
+    if len(argv) < 1:
+        print("\nNEED AT LEAST A SUBJECT ID")
+        print(main.__doc__)
+        sys.exit()
+
+    # set default directories
+    if not isinstance(fprep_dir, str):
+        fprep_dir = opj(os.environ.get("DIR_DATA_DERIV"), "fmriprep")
+
+    if not isinstance(output, str):
+        output = opj(os.environ.get("DIR_DATA_DERIV"), f"del{cut_vols}")
+
+    utils.verbose(f"Input directory: {opj(fprep_dir, subject)}", verbose)
+    utils.verbose(f"Output directory: {opj(output, subject)}", verbose)
+    utils.verbose(f"Cutting {cut_vols} volumes", verbose)
+    
+    if isinstance(tr, (str,float,int)):
+        utils.verbose(f"Setting TR to {tr}", verbose)
+
+    if isinstance(filters, list):
+        utils.verbose(f"Extra filters: {filters}", verbose)
+        search_list += filters
+
+    if full_ow:
+        if os.path.exists(opj(output, subject)):
+            utils.verbose(f"Removing old files in '{opj(output, subject)}'", verbose)
+            shutil.rmtree(opj(output, subject))
+
+    if not conf_only:
+        # find all files while excluding the anatomicals
+        all_giftis = utils.FindFiles(opj(fprep_dir, subject), extension="gii", exclude="anat").files
+        if not isinstance(all_giftis, list):
+            raise TypeError(f"Could not find files in '{opj(fprep_dir, subject)}' with extension 'gii'")
+
+        # filter out space
+        filtered_gifti_list = utils.get_file_from_substring(search_list, all_giftis)
+
+        if isinstance(filtered_gifti_list, str):
+            filtered_gifti_list = [filtered_gifti_list]
+
+        utils.verbose(f"Found {len(filtered_gifti_list)} functional files", verbose)
+
+        # loop
+        for ix,gii in enumerate(filtered_gifti_list):
+
+            # find where subject occurs in string
+            sub_ix = gii.split(os.sep).index(subject)
+
+            # get path after that and plop outputdir in front of it
+            out_file = opj(output, os.sep.join(gii.split(os.sep)[sub_ix:]))
+            if not os.path.exists(os.path.dirname(out_file)):
+                os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+            # read original file
+            obj_ = dataset.ParseGiftiFile(gii)
+            
+            if not isinstance(tr, (str,float,int)):
+                tr = obj_.TR_ms
+                
+            # write new one
+            obj_new = dataset.ParseGiftiFile(obj_.data[cut_vols:,:], set_tr=tr)
+
+            # check if we should overwrite or not
+            execute = True
+            if os.path.exists(out_file):
+                if not overwrite:
+                    execute = False 
+
+            if execute:
+                obj_new.write_file(out_file)
+                utils.verbose(f"wrote ({ix+1}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={obj_new.TR_ms}: '{out_file}'", verbose)
+
+    # check confounds
+    if confounds:
+        all_tsv = utils.FindFiles(opj(fprep_dir, subject), extension="tsv", exclude="anat").files
+        if isinstance(all_tsv, str):
+            all_tsv = [all_tsv]
+
+        if len(filters) > 0:
+            all_tsv = utils.get_file_from_substring(filters, all_tsv)
+
+        utils.verbose(f"Found {len(all_tsv)} confound files", verbose)
+        for ix,tsv in enumerate(all_tsv):
+
+            # find where subject occurs in string
+            sub_ix = tsv.split(os.sep).index(subject)
+                    
+            # get path after that and plop outputdir in front of it
+            out_tsv = opj(output, os.sep.join(tsv.split(os.sep)[sub_ix:]))
+            if not os.path.exists(os.path.dirname(out_tsv)):
+                os.makedirs(os.path.dirname(out_tsv), exist_ok=True)
+
+            # check if we should overwrite
+            execute = True
+            if os.path.exists(out_tsv):
+                if not overwrite:
+                    execute = False
+
+            # cut columes, skip index so that "Unnamed" column is not made.
+            # DONT USE SKIP_ROWS, YOU NEED THE COLUMN NAMES
+            if execute:
+                new_csv = pd.read_csv(tsv, delimiter="\t").iloc[cut_vols:,:]
+                new_csv.to_csv(out_tsv, index=False, sep="\t")
+                utils.verbose(f"wrote ({ix+1}/{len(all_tsv)}) confs {new_csv.shape}: '{out_tsv}'", verbose)
+    
+if __name__ == "__main__":
+    main(sys.argv[1:])

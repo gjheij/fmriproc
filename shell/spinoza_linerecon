@@ -1,0 +1,408 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+call_loadsetup
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_linerecon
+
+wrapper for call_linerecon that performs the reconstruction of the line data. Uses MRecon, so we can
+only run it on the spinoza cluster. It calls upon call_linerecon, which internally uses a template
+for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
+
+Usage:
+  spinoza_linerecon [options] <project root directory> <sourcedata>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or n)
+  -m <n_echoes>       number of echoes in the acquisition (e.g., 5); by default we try to read it 
+                      from the PAR-file (field 'number of echoes')
+  -r <runIDs>         specific runs to preproces; can be comma-separated list                      
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -c <comps>          percentage of components to remove using NORDIC (default is to use scree 
+                      plot to remove appropriae number of components)
+  -f <suffix>         add custom suffix; overwrites default of "bold"
+  -o|--ow             overwrite existing files
+  --debug             don't submit job, just print inputs/outputs
+  --no_nordic         turn off NORDIC denoising during reconstruction
+  --sge               submit job to cluster (SGE)
+  <project root>      base directory containing the derivatives and the subject's folders.
+  <sourcedata>        base directory containing the raw data for reconstruction
+
+Eample:
+  spinoza_linerecon DIR_DATA_HOME DIR_DATA_SOURCE
+
+Notes:
+  relies on matlab scripts stored in '/data1/projects/MicroFunc/common'. As it relies on MRecon,
+  we can only run this on the spinoza server
+
+run with master:  
+  "master -m 03a -s 003 -n 4 -e 5" (sub-003, ses-4, multi-echo (5) acquisition)
+  "master -m 03a -s 003 -n 4"      (sub-003, ses-4, single-echo acquisition)
+  "master -m 03a --sge"            (submit to cluster)
+  "master -m 03a -o"               (overwrite existing files)
+  "master -m 03a -o --sge"         (overwrite and submit)
+  "master -m 03a -s 003 --debug"   (debug mode)
+
+Runs by default NORDIC denoising!
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+# Check for subject & session flags
+OW=0
+SGE=0
+NORDIC=""
+runIDs=""
+comps_flag=""
+suffix="bold"
+while getopts :-:os:n:c:m:q:r:f: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        debug)
+          DEBUG="--debug"
+          ;;   
+        no_nordic)
+          NORDIC="--no_nordic"
+          ;;         
+        sge)
+          SGE=1
+          ;;               
+        ow)
+          OW=1
+          ;;                                                                    
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;    
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;
+    m)  n_echoes=${OPTARG}
+          ;;
+    o)  OW=1
+          ;;
+    c)  comps_flag="-c ${OPTARG}"
+          ;;   
+    q)  SGE_QUEUE=${OPTARG}
+          ;;
+    r)  runs=${OPTARG}
+          ;;
+    f)  suffix=${OPTARG}
+          ;;
+
+  esac
+done
+
+OUTPUT=${@:$OPTIND:1}
+INPUT=${@:$OPTIND+1:1}
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${INPUT}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+if [[ ! -z ${ses} ]]; then
+  nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+fi
+
+if [[ ! -z ${n_echoes} ]]; then
+  echo_flag="-m ${n_echoes}"
+else
+  echo_flag=""
+fi
+
+# sort out runs
+if [[ ! -z ${runs} ]]; then
+  # read specified subjects into array
+  IFS=', ' read -r -a n_runs <<< "${runs}"
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo
+echo "==================================================================================================="
+printf "DATA RECONSTRUCTION WITH MRECON [LUISA]\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+    sub_id=${subID}
+  else
+    sub_name=$(basename ${subID})
+    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+  fi
+
+  lab_func=${INPUT}/${base_path}
+  if [[ -d ${lab_func} ]]; then
+
+    bidsfunc=${OUTPUT}/${base_path}/func
+    if [[ ! -d ${bidsfunc} ]]; then
+      mkdir -p ${bidsfunc}
+    fi
+
+    # fetch and sort the lab-files
+    if [[ ! -z ${runs} ]]; then
+      b_files=()
+      for r in ${n_runs[@]}; do
+        run_f=`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" -and -name "*run-${r}*" \) 2>/dev/null`
+        b_files+=(${run_f})
+      done
+
+      # sort array (https://stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash)
+      IFS=$'\n' bold_files=($(sort <<<"${b_files[*]}"))
+      unset IFS
+
+    else
+      bold_files=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" \) | sort 2>/dev/null`)
+    fi
+    
+    # echo "BOLD files"
+    # for i in ${bold_files[@]}; do echo " $i"; done
+    # exit 1
+
+    if [[ -z ${bold_files} ]]; then
+      echo "${sub_name}: Could not find BOLD-data"
+      continue
+    fi
+
+
+    if [[ ${PLACE} == "SGE" ]]; then
+
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+
+      count=0
+      old_lsd=""
+      for bold in ${bold_files[@]}; do
+
+        ((count++))
+
+        # fetch run
+        run=`run_id ${bold}`
+        if [[ ${run} -eq 0 ]]; then
+          run=${count}
+        fi
+
+        # fetch task
+        task=`task_id ${bold}`
+
+        # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
+        par_file=(`find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null`)
+        if [[ -f ${par_file} ]]; then
+          if [[ ${#par_file[@]} -gt 1 ]]; then
+            echo "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
+            for i in ${par_file[@]}; do echo " ${i}"; done
+            exit 1
+          else
+            par_file=${par_file[0]}
+          fi
+          
+          fileparts=`read_par ${par_file} "Protocol name"`
+          task=`task_id ${fileparts}`
+
+          # read echoes from PAR file, verify against specified nr of echoes
+          n_par_echo=`read_par ${par_file} "number of echoes"`
+          if [[ -z ${echo_flag} ]]; then
+            if [[ ! -z ${n_par_echo} ]]; then
+              if [[ ${SGE} -eq 0 ]]; then
+                echo "Reading nr of echoes from PAR-file (${n_par_echo})"
+              fi
+              echo_flag="-m ${n_par_echo}"
+            else
+              if [[ ${n_echoes} -ne ${n_par_echo} ]]; then
+                echo "WARNING: par-file says ${n_par_echo} echoes, but ${n_echoes} were specified. Leave echo-flag empty to use echoes specified in PAR-file"
+                exit 1
+              fi
+            fi
+          fi
+        fi
+
+        # set output name
+        outputbase=${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}
+        if [[ ${OW} -eq 1 ]]; then
+          rm -r ${outputbase}.mat 2>/dev/null
+        fi
+
+        # decide when to execute command
+        execute_cmd=0
+        if [[ ! -f ${outputbase}.mat ]]; then
+          execute_cmd=1
+        fi
+
+        if [[ ! -z ${DEBUG} ]]; then
+          execute_cmd=1
+        fi
+
+        if [[ ${execute_cmd} -eq 1 ]]; then
+
+          # find corresponding LSD-image
+          lsd=`find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`
+          
+          ct=0
+          for ii in ${lsd[@]}; do ((ct++)); done
+          if [[ ${ct} -gt 1 ]]; then
+            echo "Found multiple (${ct}) items in input. Please move irrelevant items out pf the directory:"
+            for ii in ${lsd[@]}; do
+              echo " $ii"
+            done
+            exit 1
+          fi
+
+          # check run-specific LSD?
+          if [[ -z ${lsd} ]]; then
+            # old LSD?
+            if [[ ${old_lsd} != "" ]]; then
+              lsd=${old_lsd}
+            else
+              # try any LSD file..
+              lsd=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`)
+              if [[ -z ${lsd} ]]; then
+                echo
+                echo "---------------------------------------------------------------------------------------------------"
+                echo "ERROR in `basename ${0}`: could not find LSD image.."
+                exit 1
+              else
+                ct=0; for i in ${lsd[@]}; do ((ct++)); done
+                if [[ ${ct} -gt 1 ]]; then
+                  echo "ERROR in `basename ${0}`: Found multiple LSD images.."
+                  for i in ${lsd[@]}; do echo " $i"; done
+                  exit 1
+                fi
+              fi
+            fi
+          fi
+
+          verbose=1
+          log_file=$(dirname ${bidsfunc})/$(basename ${outputbase}).log
+          if [[ ${SGE} -eq 1 ]]; then
+            if [[ ! -z ${SGE_QUEUE} ]]; then
+              QUEUE=${SGE_QUEUE}
+            else
+              QUEUE=${SGE_QUEUE_SHORT}
+            fi             
+            job="qsub -q ${QUEUE} -o ${log_file} -N $(basename ${log_file} .log) ${DIR_SCRIPTS}/bin/call_linerecon"
+            verbose=0
+          else
+            echo "Running recon for run-${run} (task-${task})"
+            job="call_linerecon"
+          fi
+
+          # define cmd
+          cmd="""${job} \
+            -r ${run} \
+            ${comps_flag} \
+            ${echo_flag} \
+            ${NORDIC} \
+            ${DEBUG} \
+            ${bold} \
+            ${lsd} \
+            ${outputbase}"""
+
+          # echo cmd if not on cluster
+          if [[ ${verbose} -eq 1 ]]; then
+            echo ${cmd}
+            echo
+          fi
+
+          if [[ ${SGE} -eq 1 || ${verbose} -eq 1 ]]; then
+            (
+              echo ""
+              echo "### New invocation of call_linerecon @ `date`"
+              echo "`echo ${cmd} | tr '\n' ' '`"
+              echo ""
+            ) >> ${log_file}
+          fi
+
+          # run cmd
+          ${cmd}
+          
+          # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
+          old_lsd=${lsd}
+
+        else
+          echo "${outputbase}.mat exists"
+        fi
+
+      done
+
+    else
+      echo "Sneaky, but I told you in the usage that we can run this on the server only;)"
+      echo "For good measures:"
+      Usage >&2
+      exit 1
+    fi
+
+  else
+    echo "Could not find \"${lab_func}\""
+    continue
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"
