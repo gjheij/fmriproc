@@ -46,4 +46,7 @@ dev = ["pytest", "black", "flake8"]
 
 [tool.setuptools]
 packages = ["fmriproc"]
-package-data = { fmriproc = ["version.py"] }
+include-package-data = true  # ✅ Ensures extra files are included
+
+[tool.setuptools.package-data]
+fmriproc = ["version.py", "examples/*"]
