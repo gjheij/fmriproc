@@ -1,6 +1,6 @@
 # fMRIproc repository
 
-![plot](https://github.com/gjheij/fmriproc/blob/docs/examples/figures/overview.png)
+![plot](https://github.com/gjheij/fmriproc/blob/main/doc/imgs/overview.png)
 
 This repository contains all of the tools used during the acquisition and postprocessing of line scanning data at the Spinoza Centre for Neuroimaging in Amsterdam.
 The main goal of the package is to create the most accurate segmentations (both volumetric and surface) by combining various software packages such as [Nighres](https://github.com/nighres/nighres), [fMRIprep](https://fmriprep.org/en/stable/usage.html), [FreeSurfer](https://surfer.nmr.mgh.harvard.edu/), [CAT12](http://www.neuro.uni-jena.de/cat/index.html#DOWNLOAD), and [SPM](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/). 
