@@ -48,6 +48,7 @@ if [[ $1 == "setup" ]]; then
   fi
 
   # done
+  echo "Your setup file is: \"${SETUP_FILE}\""
   echo "Done. Now enter: \"source ~/.bash_profile\""
 fi
 
