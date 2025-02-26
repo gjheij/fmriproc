@@ -174,7 +174,7 @@ function clean {
 
 function read_vertices {
   PYTHON_CODE=$(cat <<END
-from linescanning import optimal;
+from cxutils import optimal;
 import numpy as np;
 nbr = optimal.Neighbours(
     subject="${SUB}",

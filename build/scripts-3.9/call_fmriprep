@@ -1,0 +1,685 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -cwd
+#$ -j Y
+#$ -V
+#Template provided by Daniel Levitas of Indiana University
+#Edits by Andrew Jahn, University of Michigan, 07.22.2020
+
+call_loadsetup
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_fmriprep
+
+Wrapper for the fmriprep which is either run locally or submitted to a SGE-cluster by specifying the
+last argument as 'SGE' or 'local'. Default is SGE, so if you're on the cluster you can leave it emp-
+ty. Do you want to run it locally, make sure you have all dependencies installed and specify the flag
+'local'.
+
+There's also a bunch of other things you can customize, but to keep it as simple as possible without
+making it similar to the fmriprep call itself, see arguments for customizable options
+
+Arguments:
+  -s <sub number>   number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
+                    enter "001")
+  -m <mode>         run anatomical workflow only ('anat') or run everything (leave empty). Default is
+                    'anat' to get the segmentations right
+  -r <root>         project root directory from which to run fmriprep. Default is DIR_DATA_HOME
+  -d <derivatives>  derivatives directory. Default is DIR_DATA_DERIV
+  -i <simg>         singularity image that can be specified if -c flag is set to SGE
+  -b <binding>      binding point that can be specified if -c flag is set to SGE
+  -c <n_threads>    set number of threads to use. Default = 15
+  -w <work>         working directory to store intermediate files. Default is PATH_HOME/programs/
+                    packages/fmriprep
+  -l <license>      path to freesurfer license. Make sure license is after the path specified with 
+                    the -b flag (binding point) if SGE is specified!
+  -x <config>       specify config file to guide fMRIprep
+  -t <task ID>      limit the preprocessing to a certain task; instead of this flag you can also 
+                    use a configuration file to make the criteria more explicit
+  -k <kwargs>       use a file containing additional arguments for fMRIprep. Make sure file has
+                    has trailing new line. For VSCode: https://stackoverflow.com/a/44704969
+  -a <keep runs>    if you're running fMRIprep with MNI152* as output space, you're creating massive
+                    files; oftentimes, you're mostly interested in the registration matrices, so by
+                    default I'll remove the output nifti's so that the folder is not clogged. With 
+                    this argument you can specify which runs to keep. Again, if not specified, all
+                    nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
+                    ces will be left alone. Use '-a all' to keep all runs (not recommended..)     
+  --docker          use command 'fmriprep-docker' to invoke docker image               
+  --warp_only       skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
+  --no_boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
+  --sge             run fMRIPrep with singularity-configuration. Default singularity image should 
+                    be specified in the setup file (if can with 'spinoza_fmriprep'). Otherwise,
+                    use the '-i' flag to point to a singularity image.
+  --clean           remove the single-subject workflow folder completely. This saves storage, but comes
+                    at the price that it re-runs EVERYTHING if you restart the process.
+  --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
+  --fetch_anat      retrieve the nifti-files in T1w-space
+  --fetch_func      retrieve the nifti-files in func-space
+  --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
+                    associated with the timeseries files  
+  --fd              retrieve the frame-wise displacement files from the workflow folder
+  --try             the default behavior of fmriprep is to crash upon the first error through the
+                    '--stop-on-first-crash' flag. The '--try' flag tells fmriprep to keep trying in 
+                    the face of errors. This can be useful if you know errors might occur that are
+                    not necessarily relevent. E.g., if you're trying to re-run someone elses fmri-
+                    prep, it cannot find TemplateFlow-files that are stored in the other person's
+                    HOME-folder. If you don't care about that, you can keep continuing
+
+Example:
+  call_fmriprep -s 001 (simplest form, runs the entire pipeline)
+  call_fmriprep -s 001 -m anat (runs anatomical workflows only)
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+#-----------------------------------------------------------------------------
+# Deal with arguments
+WARP_ONLY=0
+bbr_flag=""
+mode="anat"
+anat_only_flag="--anat-only"
+derivatives=${DIR_DATA_DERIV}
+license=${DIR_SCRIPTS}/misc/license.txt
+cifti_flag=""
+config_flag=""
+task_flag=""
+syn_flag=""
+init_flag=""
+fprep_container=${FPREP_SIMG}
+project=${DIR_DATA_HOME}
+work=${PATH_HOME}/fmriprep/${PROJECT}
+pref="sub-"
+KWARGS_FILE=""
+BOLDREF=1
+clean_wd=0
+USE_DOCKER=0
+fetch_fsl=0
+fetch_func=0
+fetch_anat=0
+fetch_masks=0
+FD_ONLY=0
+crash_flag="--stop-on-first-crash"
+while getopts :-:us:m:r:d:c:i:b:w:l:x:t:k:a: arg
+do
+  case ${arg} in
+    -)
+      case "${OPTARG}" in
+        no_bbr)
+          bbr_flag="--force-no-bbr"
+          # cannot use no-bbr and header registration so make init variable empty
+          BOLD_T1W_INIT=""
+          ;;
+        warp_only)
+          WARP_ONLY=1
+          ;;  
+        docker)
+          USE_DOCKER=1
+          ;;            
+        no_boldref)
+          BOLDREF=0
+          ;;
+        clean)
+          clean_wd=1
+          ;;            
+        fetch_fsl)
+          fetch_fsl=1
+          ;;  
+        fetch_func)
+          fetch_func=1
+          ;;           
+        fetch_anat)
+          fetch_anat=1
+          ;;  
+        masks)
+          fetch_masks=1
+          ;;      
+        mask)
+          fetch_masks=1
+          ;;                                 
+        fd)
+          FD_ONLY=1
+          ;;     
+        try)
+          crash_flag=""
+          ;;                         
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}" >&2
+          fi
+          ;;
+      esac;;    
+    s)  subj_ID=${OPTARG}
+          ;;
+    m)  MODE=${OPTARG}
+          ;;
+    r)  ROOT=${OPTARG}
+          ;;
+    d)  DERIV=${OPTARG}
+          ;;
+    i)  IMG=${OPTARG}
+          ;;
+    b)  BIND=${OPTARG}
+          ;;
+    w)  WORK=${OPTARG}
+          ;;
+    l)  LIC=${OPTARG}
+          ;;
+    x)  CONFIG=${OPTARG}
+          ;;
+    t)  TASK_ID=${OPTARG}
+          ;;
+    k)  KWARGS_FILE=${OPTARG}
+          ;;
+    c)  n_threads=${OPTARG}
+          ;; 
+    a)  keep_runs=${OPTARG}
+          ;;               
+  esac
+done
+
+if [[ $# -lt 1 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+if [[ ! -z ${keep_runs} ]]; then
+  # read specified subjects into array
+  IFS=', ' read -r -a keep_runs <<< "${keep_runs}"
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+source call_bashhelper # gives access to default fMRIprep container
+
+# check kwargs file
+if [[ ! -z ${KWARGS_FILE} ]]; then
+
+  echo "Including kwargs from \"${KWARGS_FILE}\":"  
+  
+  # exclude these flags; these should be specified in spinoza_setup or command line
+  flags_from_setup=("--cifti-output" "--bids-filter-file" "--task-id" "--use-syn-sdc" "--bold2t1w-init")
+  
+  kwargs=()
+  while read -r line; do
+
+    re="[[:space:]]+"
+    if [[ $line =~ $re ]]; then
+      fl=`echo ${line} | cut -d" " -f1`
+      ar=`echo ${line} | cut -d" " -f2`
+    else
+      fl=${line}
+      ar=""
+    fi
+    
+    if [[ "${flags_from_setup[@]}" =~ "${fl}" ]]; then
+      echo "WARNING: \"${fl}\" flag specified in kwargs-file, but this setting is defined in \"${SETUP_FILE}\". Skipping.."
+    else
+      echo "${line}"
+      kwargs+=(${line})
+    fi
+  done < ${KWARGS_FILE}
+fi
+
+#-----------------------------------------------------------------------------
+if [[ -z ${subj_ID} ]]; then
+  echo "Need at least a subject ID!"
+  Usage >&2
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Set default mode if none specified
+if [[ ! -z ${MODE} ]]; then
+  mode=${MODE}
+fi
+
+#-----------------------------------------------------------------------------
+# Set default project root directory if none specified
+if [[ ! -z ${ROOT} ]]; then
+  project=${ROOT}
+fi
+
+if [[ ! -d ${project} ]]; then
+  mkdir -p ${project}
+fi
+
+#-----------------------------------------------------------------------------
+# Set default derivatives directory if none specified
+if [[ ! -z ${DERIV} ]]; then
+  derivatives=${DERIV}
+fi
+
+if [[ ! -d ${derivatives} ]]; then
+  mkdir -p ${derivatives}
+fi
+
+#-----------------------------------------------------------------------------
+# Set default working directory if none specified
+if [[ ! -z ${WORK} ]]; then
+  work=${WORK}
+fi
+
+if [[ ! -d ${work} ]]; then
+  mkdir -p ${work}
+fi
+
+#-----------------------------------------------------------------------------
+# Set default FS-license if none specified
+if [[ ! -z ${FS_LICENSE} ]]; then
+  license=${FS_LICENSE}
+fi
+
+# make -l flag overwrite environmental variable
+if [[ ! -z ${LIC} ]]; then
+  license=${LIC}
+fi
+
+#-----------------------------------------------------------------------------
+# Check if we need to output CIFTIs
+if [[ ! -z ${CIFTI} ]]; then
+  cifti_flag="--cifti-output ${CIFTI}"
+fi
+
+#-----------------------------------------------------------------------------
+# Check if we received configuration file
+if [[ ! -z ${CONFIG} ]]; then
+  config_flag="--bids-filter-file ${CONFIG}"
+fi
+
+#-----------------------------------------------------------------------------
+# Check if we received task ID
+if [[ ! -z ${TASK_ID} ]]; then
+  task_flag="--task-id ${TASK_ID}"
+fi
+
+#-----------------------------------------------------------------------------
+# Check if we need to output CIFTIs
+if [[ ${DO_SYN} -eq 1 ]]; then
+  syn_flag="--use-syn-sdc"
+fi
+
+#-----------------------------------------------------------------------------
+# Check how to initialize bold-to-T1w registration
+if [[ ${BOLD_T1W_INIT} == "register" ]] || [[ ${BOLD_T1W_INIT} == "header" ]]; then
+  init_flag="--bold2t1w-init ${BOLD_T1W_INIT}"
+fi
+
+#-----------------------------------------------------------------------------
+# Set default container if none specified
+if [[ ! -z ${IMG} ]]; then
+  fprep_container=${IMG}
+fi
+
+# Define command line
+if [[ ${USE_DOCKER} -eq 1 ]]; then
+
+  # read user/group ID in a platform friendly way: https://superuser.com/questions/581989/bash-find-directory-group-owner
+  TARGET_FILE=${project}
+  UID=`\ls -l "$(dirname $TARGET_FILE)" | grep -v '^l' | grep " $(basename $TARGET_FILE)\$" | awk '{ print $3 }'`
+  GID=`\ls -l "$(dirname $TARGET_FILE)" | grep -v '^l' | grep " $(basename $TARGET_FILE)\$" | awk '{ print $4 }'`
+  run_cmd="fmriprep-docker -u ${UID}:${GID}"
+
+else
+  if [[ -f ${fprep_container} ]]; then
+
+    echo "Singularity image: \"${fprep_container}\""
+    #-----------------------------------------------------------------------------
+    # Set default binding point if none specified
+    if [[ -z ${BIND} ]]; then
+      binding=${PATH_HOME}
+    else
+      binding=${BIND}
+    fi
+
+    if [[ ! -f ${fprep_container} ]]; then
+      echo "Could not find singularity image \"${fprep_container}\" for fmriprep.."
+      exit 1
+    fi 
+
+    # check if FS license is within binding point
+    if [[ ${license} != *"${binding}"* ]]; then
+      echo
+      echo "---------------------------------------------------------------------------------------------------"
+      echo "ERROR in call_fmriprep; license file \"${license}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
+      exit 1
+    fi
+
+    # check if project root is within binding point
+    if [[ ${project} != *"${binding}"* ]]; then
+      echo
+      echo "---------------------------------------------------------------------------------------------------"
+      echo "ERROR in `basename ${0}`; your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
+      exit 1
+    fi
+
+    # define SGE command
+    run_cmd="singularity run --cleanenv -B ${binding}:${binding} ${fprep_container}"
+
+  else
+    echo "WARNING: system is setup to use SoGE, but singularity image \"${fprep_container}\" could not be found. Defaulting to \"fmriprep\"-command"
+    run_cmd="fmriprep"
+  fi
+fi
+
+#-----------------------------------------------------------------------------
+# overwrite anat only if 'func' is specified
+if [[ ${mode} != "anat" ]]; then
+  anat_only_flag="" 
+fi
+
+#-----------------------------------------------------------------------------
+# set nthreads
+if [[ -z ${n_threads} ]]; then
+  nthreads=15
+else
+  nthreads=${n_threads}
+fi
+nthread_flag="--nthreads ${nthreads}"
+
+#-----------------------------------------------------------------------------
+# set rules for executing 
+execute_cmd=1
+if [[ ${fetch_fsl} -eq 1 ]]; then
+  execute_cmd=0
+fi
+
+if [[ ${fetch_func} -eq 1 ]]; then
+  execute_cmd=0
+fi
+
+if [[ ${WARP_ONLY} -eq 1 ]]; then
+  execute_cmd=0
+fi
+
+if [[ ${FD_ONLY} -eq 1 ]]; then
+  execute_cmd=0
+fi
+
+#-----------------------------------------------------------------------------
+# run cmd if execute_cmd == 1
+if [[ ${execute_cmd} -eq 1 ]]; then
+
+  # set flags
+  BOLDREF=1
+  WARP_ONLY=1
+
+  # output directory structure has changed after v21: https://github.com/nipreps/fmriprep/releases/tag/21.0.0
+  echo "Checking fMRIPrep's version.."
+  ver_cmd="""${run_cmd} --version"""
+  echo ${ver_cmd}
+  VERSION=`${ver_cmd} | cut -d" " -f2 | cut -d"." -f1`
+  if [[ `echo "${VERSION//[!0-9]/}"` -lt "21" ]]; then
+    output_dir=${derivatives}
+  else
+    output_dir=${derivatives}/fmriprep
+  fi
+
+  # execute the fMRIPrep command
+  cmd="""
+${run_cmd} \
+  ${project} \
+  ${output_dir} \
+  participant \
+  --participant-label ${subj_ID} \
+  --skip-bids-validation \
+  --md-only-boilerplate \
+  --fs-license-file ${license} \
+  --output-spaces ${FPREP_OUT_SPACES} \
+  --fs-subjects-dir ${FS} \
+  ${crash_flag} \
+  ${bbr_flag} \
+  ${cifti_flag} \
+  ${syn_flag} \
+  ${config_flag} \
+  ${task_flag} \
+  ${init_flag} \
+  ${anat_only_flag} \
+  ${nthread_flag} \
+  -w ${work} \
+  ${kwargs[@]}
+"""
+
+  # execute
+  echo ${cmd}
+  ${cmd}
+  
+  if [[ $? != 0 ]]; then
+    echo
+    echo "---------------------------------------------------------------------------------------------------"
+    echo "ERROR in `basename ${0}`: job submission/execution was unsuccessful"
+    exit 1
+  fi    
+
+  # remove large MNI152*-files
+  if [[ ! -z ${keep_runs} ]]; then
+    if [[ ${keep_runs} != "all" ]]; then
+      
+      # find files
+      fprep_=${derivatives}/fmriprep/${base_dir}/func
+      mni_files=(`find -L ${fprep_} -type f \( -name "*MNI152*" -and -name "*_desc-preproc_bold.nii.gz" \) 2>/dev/null`)
+
+      # loop
+      if [[ ! -z ${mni_files} ]]; then
+        for mni in ${mni_files[@]}; do
+          # find run_id and compare against keep_runs
+          run_id=`get_id ${mni} run`
+
+          # remove if run_id not in keep_runs
+          if [[ ! " ${keep_runs[*]} " =~ " ${run_id} " ]]; then
+            echo "removing ${mni} to save storage.."
+            rm -r ${mni} 2>/dev/null
+          fi
+        done
+      fi
+    else
+      echo "Keeping all runs containing MNI152.. Check if this is OK with your storage usage"
+    fi
+  fi
+
+  # check if we should clean working directory
+  if [[ ${clean_wd} -eq 1 ]]; then  
+    wf_folder=`find ${work} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null`
+
+    if [[ ! -z ${wf_folder} ]]; then
+      subj_wf=${wf_folder}/single_subject_${subj_ID}_wf
+
+      if [[ -d ${subj_wf} ]]; then
+        echo "Removing \"${subj_wf}\""
+        rm -r ${subj_wf} 2>/dev/null
+      else
+        echo "Could not find/remove \"${subj_wf}\""
+      fi
+    else
+      echo "Could not find directory containing \"fmriprep\" and \"wf\" in \"${work}\""
+    fi
+  fi
+
+  #-----------------------------------------------------------------------------
+  # fMRIPrep's boldref seems to be messy lately (snow-like noise pattern instead of an image)
+  if [[ ${BOLDREF} -eq 1 ]]; then
+    bold_files=`find ${derivatives}/fmriprep/*${subj_ID}/ -type f -name "*preproc_bold.nii.gz" 2>/dev/null`
+    IFS=$'\n' bold_files=($(sort <<<"${bold_files[*]}"))
+    unset IFS
+
+    if [ ! -z ${bold_files} ]; then
+      echo "Overwriting fMRIPrep's \"boldref\"-files"
+      for bold in ${bold_files[@]}; do
+        boldref=$(dirname ${bold})/$(basename ${bold} _desc-preproc_bold.nii.gz)_boldref.nii.gz
+        fslmaths ${bold} -Tmean ${boldref}
+      done
+    fi
+  fi
+
+else
+  echo "Skipping fMRIPrep.."
+fi
+
+# define subject prefix
+if [ ! -z ${SUBJECT_PREFIX} ]; then
+  pref=${SUBJECT_PREFIX}
+fi
+
+#-----------------------------------------------------------------------------
+# copy the bold-to-T1w warps from the fmriprep_wf
+if [[ ${WARP_ONLY} -eq 1 ]]; then
+  for tt in "fwd" "inv"; do
+    xfms=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null`)
+    if [[ ! -z ${xfms} ]]; then
+
+      if [[ ${tt} == "fwd" ]]; then
+        m="bold_to-T1w"
+      else
+        m="T1w_to-bold"
+      fi
+
+      echo "Copying \"${m}\" tfm-files"
+      for xfm in ${xfms[@]}; do
+        wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${xfm}', '${subj_ID}', prefix='${pref}'))"`
+        
+        # check ses-flag
+        if [[ ${wf_name} == *"ses-"* ]]; then
+          ses_id=`echo ${wf_name} | cut -d'_' -f2`
+          base_dir=${pref}${subj_ID}/${ses_id}
+        else
+          base_dir=${pref}${subj_ID}
+        fi
+
+        out_xfm=${derivatives}/fmriprep/${base_dir}/func/${wf_name}_from-${m}_mode-image_xfm.txt
+        cp ${xfm} ${out_xfm}
+
+      done
+    fi
+  done
+fi
+
+#-----------------------------------------------------------------------------
+# fetch func-space files
+output_space=("func" "fsl" "anat")
+ct=0
+for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
+  if [[ ${space} -eq 1 ]]; then
+
+    if [[ ${output_space[ct]} == "func" ]]; then
+      tag=""
+      msg="space-func"
+      err="bold_bold_trans_wf"
+      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+    elif [[ ${output_space[ct]} == "fsl" ]]; then
+      tag="_space-MNI152NLin6Asym_res-1"
+      msg="space-MNI152NLin6Asym_res-1"
+      err="bold_std_trans_wf/*MNI152NLin6Asym*"
+      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+    elif [[ ${output_space[ct]} == "anat" ]]; then
+      tag="_space-T1w"
+      msg="space-T1w"
+      err="bold_t1_trans_wf"
+      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+    fi
+
+    # fetch time course files
+    if [[ ! -z ${fetch_files} ]]; then
+      echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed files"
+      for ff in ${fetch_files[@]}; do
+        wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+        
+        # check ses-flag
+        if [[ ${wf_name} == *"ses-"* ]]; then
+          ses_id=`echo ${wf_name} | cut -d'_' -f2`
+          base_dir=${pref}${subj_ID}/${ses_id}
+        else
+          base_dir=${pref}${subj_ID}
+        fi
+
+        out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-preproc_bold.nii.gz
+        echo " writing ${out_file}"
+        cp ${ff} ${out_file}
+
+      done   
+      echo "Done" 
+    else
+      echo "Could not find directory \"${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/${err}/merge\""
+    fi
+
+    # fetch masks
+    if [[ ${fetch_masks} -eq 1 ]]; then
+      if [[ ${output_space[ct]} == "func" ]]; then
+        tag=""
+        msg="space-func"
+        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+      elif [[ ${output_space[ct]} == "fsl" ]]; then
+        tag="_space-MNI152NLin6Asym_res-1"
+        msg="space-MNI152NLin6Asym_res-1"
+        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+      elif [[ ${output_space[ct]} == "anat" ]]; then
+        tag="_space-T1w"
+        msg="space-T1w"
+        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+      fi      
+
+      if [[ ! -z ${fetch_files} ]]; then
+        echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed brain masks"
+        for ff in ${fetch_files[@]}; do
+          wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+          
+          # check ses-flag
+          if [[ ${wf_name} == *"ses-"* ]]; then
+            ses_id=`echo ${wf_name} | cut -d'_' -f2`
+            base_dir=${pref}${subj_ID}/${ses_id}
+          else
+            base_dir=${pref}${subj_ID}
+          fi
+
+          out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-brain_mask.nii.gz
+          echo " writing ${out_file}"
+          cp ${ff} ${out_file}
+
+        done
+        echo "Done"
+      fi
+    fi
+
+  fi
+
+  # update counter
+  ((ct++))
+done
+
+#-----------------------------------------------------------------------------
+# Fetch FD files
+if [[ ${FD_ONLY} -eq 1 ]]; then
+  echo "Finding FD-timecourse files"
+  work_dir=${work}/fmriprep*wf/single_subject_${subj_ID}_wf
+  fd_files=(`find -L ${work_dir}/func_preproc*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null`)
+  if [ ! -z ${fd_files} ]; then
+
+    # find # fdvars timecourse for Marco
+    for fd in ${fd_files[@]}; do
+
+      wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${fd}', '${subj_ID}', prefix='${pref}'))"`
+      
+      # check ses-flag
+      if [[ ${wf_name} == *"ses-"* ]]; then
+        ses_id=`echo ${wf_name} | cut -d'_' -f2`
+        base_dir=${pref}${subj_ID}/${ses_id}
+      else
+        base_dir=${pref}${subj_ID}
+      fi
+
+      out_fd=${derivatives}/fmriprep/${base_dir}/func/${wf_name}_desc-fd_bold.txt
+      echo " writing ${out_fd}"
+      cp ${fd} ${out_fd}
+
+    done
+    echo "Done"
+  else
+    echo "Could not find \"fd_power_2012.txt\"-files folder in \"${work_dir}\""
+  fi
+fi

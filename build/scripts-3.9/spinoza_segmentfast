@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+call_loadsetup
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_segmentfast
+
+tissue segmentation with FAST using skullstripped inputs created during spinoza_maskaverages. It is
+important that the range of these images is set correctly, with T1w having a range of 0-4095, and
+the T1map having a range of (0,5050). This should automatically be the case if you have ran the py-
+mp2rage module in combination with the masking module prior to running this. If not, run call_rescale
+on these images.
+
+Usage:
+  spinoza_segmentfast <-s sub> <-n ses> <skullstripped dir> <output dir> <overwrite>
+
+Arguments:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -o                  overwrite existing files
+  <anat folder>       folder containing the files required for FAST. Input must be skullstripped
+  <output>            output folder (<subject>/[<ses->] will be appended!)
+
+Example:
+  spinoza_segmentfast DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
+  spinoza_segmentfast -s 001 -n 1 DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+# Check for subject & session flags
+OW=0
+while getopts os:n: argument
+do
+  case ${argument} in
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;
+    o)  OW=1
+          ;;          
+  esac
+done
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+
+SKULL=${@:$OPTIND:1}
+FSL=${@:$OPTIND+1:1}
+
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${SKULL}/${SUBJECT_PREFIX}*"
+else
+  # do for 1 subject
+  search="${SKULL}/${SUBJECT_PREFIX}${sub}"
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo
+echo "==================================================================================================="
+printf "NEW TISSUE SEGMENTATION WITH FAST\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+    sub_id=${subID}
+  else
+    sub_name=$(basename ${subID})
+    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+  fi
+
+  input_dir=${SKULL}/${base_path}
+  output_dir=${FSL}/${base_path}
+
+  #----------------------------------------------------------------------------------------------------------------------------------------------------------
+  # Running FAST with call_fslfast
+
+  if [[ ! -d ${input_dir} ]]; then
+    echo "${sub_name}: Could not find skullstripped directory. Make sure you run module 12 first"
+    continue
+  fi
+
+  input_t1w=`find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+
+  declare -a OUTPUTS=(mixeltype pve_0 pve_1 pve_2 pveseg seg)
+  outputroot=${output_dir}/${base}_acq-${DATA^^}_desc
+
+  # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
+  if [[ ${OW} -eq 1 ]]; then
+    if [[ -d ${output_dir} ]]; then
+      echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\""
+      rm -r ${output_dir}/${base}_acq-${DATA^^}_desc* 2>/dev/null
+    fi
+  fi
+
+  if [[ -f ${input_t1w} ]]; then
+
+    if [[ ! -f ${outputroot}-seg.nii.gz ]]; then
+
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+
+      if [[ ! -f ${output_dir} ]]; then
+        mkdir -p ${output_dir}
+      fi
+
+      if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
+        echo "Running FAST on `basename ${input_t1w}`"
+        call_fslfast ${input_t1w} ${outputroot}
+      fi
+
+      for o in ${OUTPUTS[@]}; do
+        if [[ ${o} == pve_0 ]]; then
+          t="label-CSF_probseg"
+        elif [[ ${o} == pve_1 ]]; then
+          t="label-GM_probseg"
+        elif [[ ${o} == pve_2 ]]; then
+          t="label-WM_probseg"
+        elif [[ ${o} == seg ]]; then
+          t="seg"
+        elif [[ ${o} == mixeltype ]]; then
+          t="mixtype"
+        elif [[ ${o} == pveseg ]]; then
+          t="pve"
+        fi
+
+        if [[ ! -f ${outputroot}-${t}.nii.gz ]]; then
+          if [[ -f ${outputroot}_${o}.nii.gz ]]; then
+            mv ${outputroot}_${o}.nii.gz ${outputroot}-${t}.nii.gz
+          fi
+        fi
+
+      done
+
+      echo "Done"
+
+    else
+      echo "${sub_name}: segmentations already exist"
+    fi
+
+  else
+    
+    echo "${sub_name}: No skullstripped T1-weighted image found"
+    continue
+
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

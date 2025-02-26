@@ -1,6 +1,7 @@
 # pylint: disable=no-member,E1130,E1137
 from datetime import datetime
-from linescanning import transform, utils, planning
+from fmriproc import transform, planning
+from lazyfmri import utils
 import nibabel as nb
 import numpy as np
 import os
@@ -11,37 +12,53 @@ opj = os.path.join
 class Scanner(object):
     """Scanner
 
-    This object combines the information from the CalcBestVertex and pRFCalc classes to fetch the best vertex and related information from the surfaces. In fact, it runs these classes internally, so you'd only have to specify this class in order to run the others as well. At the minimum, you need to specify the subject ID as defined in the FreeSurfer/pycortex/BIDS-anat directory, the dictionary resulting from CalcBestVertex, the matrix mapping session 1 to session 2 (the 'fs2ses=' flag), the hemisphere you're interested in, and the FreeSurfer directory.
+    This object combines the information from the CalcBestVertex and pRFCalc classes to fetch the best vertex and related
+    information from the surfaces. In fact, it runs these classes internally, so you'd only have to specify this class in
+    order to run the others as well. At the minimum, you need to specify the subject ID as defined in the FreeSurfer/pycortex/
+    BIDS-anat directory, the dictionary resulting from CalcBestVertex, the matrix mapping session 1 to session 2 (the
+    'fs2ses=' flag), the hemisphere you're interested in, and the FreeSurfer directory.
 
     Parameters
     ----------
     subject: str
-        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)
+        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the
+        image has been moved when imported from FreeSurfer to Pycortex)
     df: dict
         output from optimal.target_vertex; a dictionary containing the result from :class:`linescanning.optimal.CalcBestVertex`
     fs2ses: str, numpy.ndarray
-        (4,4) array or path to matrix file mapping FreeSurfer to the new session. It sort of assumes the matrix has been created with ANTs, so make sure the have run `call_antsregistration`. Enter 'identity' to use an identity matrix; this is useful if you want to plan the line in FreeSurfer-space (before session 2)
+        (4,4) array or path to matrix file mapping FreeSurfer to the new session. It sort of assumes the matrix has been
+        created with ANTs, so make sure the have run `call_antsregistration`. Enter 'identity' to use an identity matrix; this
+        is useful if you want to plan the line in FreeSurfer-space (before session 2)
     new_anat: str
-        string pointing to the new anatomy file. Generally this is in `<project>/sourcedata/<subject>/<ses>/planning/nifti`, if you've ran `spinoza_lineplanning`. Should be the **fixed** input for call_antsregistration to create `fs2ses`
+        string pointing to the new anatomy file. Generally this is in `<project>/sourcedata/<subject>/<ses>/planning/nifti`,
+        if you've ran `spinoza_lineplanning`. Should be the **fixed** input for call_antsregistration to create `fs2ses`
     hemisphere: str
-        hemisphere you're interested in. Should be 'right' or 'left'. It will do all operations on both hemispheres anyway, but only print the actual values you need to insert in the MR console for the specified hemisphere
+        hemisphere you're interested in. Should be 'right' or 'left'. It will do all operations on both hemispheres anyway,
+        but only print the actual values you need to insert in the MR console for the specified hemisphere
     fs_dir: str
         path to FreeSurfer directory; will default to SUBJECTS_DIR if left empty.
     ses: int, optional
         session ID of new session. Generally this will be `ses-2`, pointing to a line-scanning session. Should be >1
     print_to_console: bool
-        boolean whether to print the translation/rotations that should be inserted in the console to the terminal. Can be turned off for debugging reasons
+        boolean whether to print the translation/rotations that should be inserted in the console to the terminal. Can be
+        turned off for debugging reasons
     debug: bool
         boolean for debugging mode; if True, we'll print more information about the (converted) angles/normal vectors
 
     Returns
     ----------
     Attr
-        sets attributes in an instantiation of `scanner.Scanner` and will lead to printing of information for the MR-console (if `print_to_console=True`)
+        sets attributes in an instantiation of `:class:fmriproc.scanner.Scanner` and will lead to printing of information for the MR-console
+        (if `print_to_console=True`)
 
     Example
     ----------
-    >>> scan = scanner.Scanner(optimal.target_vertex('sub-001'), fs2ses='genaff.mat', hemi='left', new_anat='path/to/sub-001_ses-2_T1w.nii.gz')
+    >>> scan = scanner.Scanner(
+    >>>     optimal.target_vertex('sub-001'),
+    >>>     fs2ses='genaff.mat',
+    >>>     hemi='left',
+    >>>     new_anat='path/to/sub-001_ses-2_T1w.nii.gz'
+    >>> )
     """
 
     def __init__(
@@ -83,20 +100,9 @@ class Scanner(object):
 
         else:
             # assuming I got entire dataframe from CalcBestVertex
-            self.normals = {
-                "lh": self.pycortex.lh_normal,
-                "rh": self.pycortex.rh_normal
-            }
-
-            self.ctx_coords = {
-                "lh": self.pycortex.lh_best_vertex_coord,
-                "rh": self.pycortex.rh_best_vertex_coord
-            }
-
-            self.vertices   = {
-                "lh": self.pycortex.lh_best_vertex,
-                "rh": self.pycortex.rh_best_vertex
-            }
+            self.normals = {side: getattr(self.pycortex, f"{side}_normal") for side in ["lh", "rh"]}
+            self.ctx_coords = {side: getattr(self.pycortex, f"{side}_best_vertex_coord") for side in ["lh", "rh"]}
+            self.vertices = {side: getattr(self.pycortex, f"{side}_best_vertex") for side in ["lh", "rh"]}
         
         # set default anatomies
         self.fs_orig = self.ref_anat
@@ -119,36 +125,36 @@ class Scanner(object):
         }
 
         # convert FS directly to session 2
-        self.fs_chicken = {
-            'lh': utils.make_chicken_csv(self.fs_coords['lh'], output_file=opj(os.path.dirname(self.fs_raw), f"{self.subject}_space-fs_hemi-L_vert-{self.vertices['lh']}_desc-lps.csv")),
-            'rh': utils.make_chicken_csv(self.fs_coords['rh'], output_file=opj(os.path.dirname(self.fs_raw), f"{self.subject}_space-fs_hemi-R_vert-{self.vertices['rh']}_desc-lps.csv"))
-        }
-        
+        self.fs_chicken = {}
+        for h in ["lh","rh"]:
+            self.fs_chicken[h] = utils.make_chicken_csv(
+                self.fs_coords[h],
+                output_file=opj(
+                    os.path.dirname(self.fs_raw),
+                    f"{self.subject}_space-fs_hemi-{h[0].upper()}_vert-{self.vertices['lh']}_desc-lps.csv")
+                )
+            
         if self.fs2ses != "identity":
             print(f"Convert FreeSurfer straight to session {self.ses}")
-            self.ses2_chicken = {
-                'lh': transform.ants_applytopoints(self.fs_chicken['lh'], utils.replace_string(self.fs_chicken['lh'], "space-fs", f"space-ses{self.ses}"), self.fs2ses),
-                'rh': transform.ants_applytopoints(self.fs_chicken['rh'], utils.replace_string(self.fs_chicken['rh'], "space-fs", f"space-ses{self.ses}"), self.fs2ses)
-            }
+            self.ses2_chicken = {}
+            for h in ["lh","rh"]:
+                self.ses2_chicken[h] = transform.ants_applytopoints(
+                    self.fs_chicken[h],
+                    utils.replace_string(
+                        self.fs_chicken[h],
+                        "space-fs", f"space-ses{self.ses}"
+                    ),
+                    self.fs2ses
+                )
+        
         else:
             print(f"Identity-matrix was specified, using existing chicken files")
             self.ses2_chicken = self.fs_chicken.copy()
 
         # get coordinate in ses-2 (RAS/LPS/VOX convention)
-        self.ses2_ras = {
-            'lh': utils.read_chicken_csv(self.ses2_chicken['lh'], return_type="ras"),
-            'rh': utils.read_chicken_csv(self.ses2_chicken['rh'], return_type="ras")
-        }
-
-        self.ses2_lps = {
-            'lh': utils.read_chicken_csv(self.ses2_chicken['lh']),
-            'rh': utils.read_chicken_csv(self.ses2_chicken['rh'])
-        } 
-
-        self.ses2_vox = {
-            'lh': self.to_vox(self.ses2_ras['lh'], self.new_anat),
-            'rh': self.to_vox(self.ses2_ras['rh'], self.new_anat)
-        }
+        self.ses2_ras = {side: utils.read_chicken_csv(self.ses2_chicken[side], return_type="ras") for side in ["lh", "rh"]}
+        self.ses2_lps = {side: utils.read_chicken_csv(self.ses2_chicken[side]) for side in ["lh", "rh"]}
+        self.ses2_vox = {side: self.to_vox(self.ses2_ras[side], self.new_anat) for side in ["lh", "rh"]}
 
         # warp the normal vector (= IN RAS SPACE!!)
         if self.fs2ses != None:
@@ -161,10 +167,11 @@ class Scanner(object):
         print("Converting normals to angles and correct for scanner-interpretation of angles")
 
         # session 1 angles are relative to RAS-axis ([1,0,0],[0,1,0],[0,0,1])
-        #
-        self.ses1_angles_raw = {
-            'lh': planning.normal2angle(self.normals['lh'], system="RAS", unit="rad"),
-            'rh': planning.normal2angle(self.normals['rh'], system="RAS", unit="rad")
+        self.ses1_angles_raw = {side: planning.normal2angle(
+            self.normals[side],
+            system="RAS",
+            unit="rad")
+            for side in ["lh", "rh"]
         }
 
         if debug:
@@ -185,7 +192,8 @@ class Scanner(object):
             self.ses1_angles_raw[ii][:2] = planning.normal2angle(
                 self.normals[ii][:2]*np.sin(self.normals[ii][-1]), 
                 system="RAS", 
-                return_axis=['x','y'])
+                return_axis=['x','y']
+            )
 
             # convert the z-angle to degrees
             self.ses1_angles_raw[ii][-1] = self.ses1_angles_raw[ii][-1] * (180/np.pi)
@@ -195,23 +203,20 @@ class Scanner(object):
                     print(f"Coplanar angles 1: {self.ses1_angles_raw['lh']}")
 
         if hasattr(self, 'ses1_angles_raw'):
-            self.ses1_angles_corr = {
-                'lh': planning.correct_angle(self.ses1_angles_raw['lh']),
-                'rh': planning.correct_angle(self.ses1_angles_raw['rh'])
-            }
+            self.ses1_angles_corr = {side: planning.correct_angle(self.ses1_angles_raw[side]) for side in ["lh", "rh"]}
 
         if hasattr(self, 'warped_normals'):
 
             # convert the vector to LPS too
-            self.warped_normals_lps = {
-                'lh': transform.ras2lps(self.warped_normals['lh']),
-                'rh': transform.ras2lps(self.warped_normals['rh'])
-            }
+            self.warped_normals_lps = {side: transform.ras2lps(self.warped_normals[side]) for side in ["lh", "rh"]}
 
             # now get the angles for all axes in radians so we can push the vector to the XY-plane with the Z-angle
-            self.ses2_angles_nonCoPlanar = {
-                'lh': planning.normal2angle(self.warped_normals_lps['lh'], system="LPS", unit="rad"),
-                'rh': planning.normal2angle(self.warped_normals_lps['rh'], system="LPS", unit="rad")
+            self.ses2_angles_nonCoPlanar = {side: planning.normal2angle(
+                self.warped_normals_lps[side], 
+                system="LPS", 
+                unit="rad"
+                )
+                for side in ["lh", "rh"]
             }
 
             if debug:
@@ -262,6 +267,7 @@ class Scanner(object):
             # turn on verbose for left hemisphere
             # turn OFF 'only_angles' to also know what z-axis angle means
             print(f"Angles in:  {self.ses2_angles_raw['lh']}")
+            
             self.ses2_angles_corr = {
                 'lh': planning.correct_angle(
                     self.ses2_angles_raw['lh'], 
@@ -278,6 +284,7 @@ class Scanner(object):
 
         if hasattr(self, 'ses2_angles_corr'):
             print("Fetch console settings") 
+            
             self.foldover = {
                 'lh': planning.get_console_settings(
                     self.ses2_angles_corr['lh'][0], 
@@ -317,7 +324,7 @@ class Scanner(object):
     def write_nifti(coord,ref,output=None):
         """create nifti image from voxel coordinate"""
 
-        if isinstance(ref, nb.Nifti1Image) or isinstance(ref, nb.freesurfer.mghformat.MGHImage):
+        if isinstance(ref, (nb.Nifti1Image,nb.freesurfer.mghformat.MGHImage)):
             img = ref
         elif isinstance(ref, str):
             # convert mgz to nifti
@@ -329,7 +336,8 @@ class Scanner(object):
         elif ref == None:
             raise ValueError("'ref' = None..")
         else:
-            raise ValueError("Unknown file-type.. Either use an nibabel.Nifti1Image, .nii.gz, or .mgz image (the latter will be converted to nifti)")
+            raise ValueError("""Unknown file-type.. Either use an nibabel.Nifti1Image, .nii.gz, or .mgz image (the latter will
+                             be converted to nifti)""")
 
         empty_fs = np.zeros_like(img.get_fdata())
         # empty_fs[coord[0]-1,coord[1]-1,coord[2]-1] = 1
@@ -379,14 +387,18 @@ class Scanner(object):
     def warp_normals(self, hemi="both", system="RAS"):
         """warp_normals
     
-        Apply a rigid-body transformation on a vector. Important here is that the coordinate systems used are the same: e.g., only warp an RAS-vector with an RAS-matrix, and a LPS-vector with an LPS-matrix. ANTs outputs per definition an LPS-matrix, so we'd need to convert that with ConvertTransformFile first
+        Apply a rigid-body transformation on a vector. Important here is that the coordinate systems used are the same: e.g.,
+        only warp an RAS-vector with an RAS-matrix, and a LPS-vector with an LPS-matrix. ANTs outputs per definition an
+        LPS-matrix, so we'd need to convert that with ConvertTransformFile first.
 
         Parameters
         ----------
         hemi: str (default = 'both')
-            the dataframe has a normal vector for the left hemisphere and right hemisphere. Easiest to leave this to what it is.
+            the dataframe has a normal vector for the left hemisphere and right hemisphere. Easiest to leave this to what it
+            is.
         system: str (default = 'ras')
-            if we warp an RAS-vector we need an RAS matrix, if we warp an LPS vector we need an LPS matrix. The function totate_normal will actually deal with this problem
+            if we warp an RAS-vector we need an RAS matrix, if we warp an LPS vector we need an LPS matrix. The function
+            totate_normal will actually deal with this problem
 
         Example
         ----------
@@ -398,7 +410,7 @@ class Scanner(object):
                 self.warped_normals = {}
                 for i in ['lh', 'rh']:
                     self.warped_normals[i] = planning.rotate_normal(
-                        self.normals[i], 
+                        self.normals[i],
                         self.fs2ses,
                         system=system
                     )
@@ -428,7 +440,8 @@ class Scanner(object):
         elif hemi.lower() in ["right","rh","r"]:
             tag = "rh"
         else:
-            raise ValueError(f"Unknown input for 'hemi': {hemi}. Must be of the format 'lh','left', or 'l' (same for right hemisphere)")
+            raise ValueError(f"""Unknown input for 'hemi': {hemi}. Must be of the format 'lh','left', or 'l' (same for right
+                             hemisphere)""")
 
         info = self.foldover[tag]
 

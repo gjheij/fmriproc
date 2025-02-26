@@ -1,0 +1,444 @@
+#!/usr/bin/env bash
+
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+source call_bashhelper
+source ${SETUP_FILE}
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_bestvertex
+
+wrapper for call_pycortex to calculate the best vertex and normal vector based on the minimal curva-
+ture given an ROI.
+
+this script requires input from FreeSurfer, so it won't do much if that hasn't run yet. Ideally, you
+should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this thing so
+it can also take in the pRF to locate an even better vertex.
+
+Args:
+  -o|--ow         rename existing file to numerically increasing (e.g., line_pycortex > line_pycor-
+                  tex1.csv) so that a new line_pycortex.csv-file is created. Given that the original
+                  file is NOT deleted, I consider this a soft-overwrite mode. You can always manual-
+                  ly delete unwanted/unused files or use '--full' to remove the file.
+  --aparc         specified ROI is part of the 'aparc.annot' atlas [default = False]. It is wise to 
+                  use this function in combination with '--manual' to select a vertex from this ROI.
+                  Available ROIs in this atlas are:
+                    'caudalanteriorcingulate'
+                    'caudalmiddlefrontal'
+                    'corpuscallosum'
+                    'cuneus'
+                    'entorhinal'
+                    'fusiform'
+                    'inferiorparietal'
+                    'inferiortemporal'
+                    'isthmuscingulate'
+                    'lateraloccipital'
+                    'lateralorbitofrontal'
+                    'lingual'
+                    'medialorbitofrontal'
+                    'middletemporal'
+                    'parahippocampal'
+                    'paracentral'
+                    'parsopercularis'
+                    'parsorbitalis'
+                    'parstriangularis'
+                    'pericalcarine'
+                    'postcentral'
+                    'posteriorcingulate'
+                    'precentral'
+                    'precuneus'
+                    'rostralanteriorcingulate'
+                    'rostralmiddlefrontal'
+                    'superiorfrontal'
+                    'superiorparietal'
+                    'superiortemporal'
+                    'supramarginal'
+                    'frontalpole'
+                    'temporalpole'
+                    'transversetemporal'
+                    'insula'
+  --full          full overwrite mode
+  --no_freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
+                  already know the position. Generally only used for debugging purposes.
+  --no_srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
+  --srf_file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
+                  pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/sub-001_desc-srfs_centered.csv')        
+  --v1|--v2       use the pRF-estimates that you created with spinoza_fitprfs --v1/--v2
+  --grid          use pRF-estimates from grid search; default is 'iter'
+  --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and SRFs
+                  are included, this will yield in a 4x5 grid with brainmaps of various kinds that 
+                  were used in the selection process of the target vertex.
+  --manual        use manual selection for the vertex, rather than minimizing for curvature     
+  --no_epi        do not use EPI-intensities even though you could   
+  --skip_prf_info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
+                  you want an indication of the pRF-properties, but want to refit yourself. This is 
+                  the case where I use M. Aqil's fitting output, which has been fitted with an out-
+                  dated screen distance.      
+  -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
+  -n <session>    session ID used to extract the correct pRF-parameters. Will combined with <deriva-
+                  tives>/prf/ses-<session>
+  -l <line ses>   session ID for new line-scanning session; default = 2
+  -t <task>       select pRF estimates from a particular task; by default the first element of TASK_
+                  SES1 in spinoza_setup
+  -v <vertices>   manually specify two vertices to use instead of having the program look for it. 
+                  The format is important here and should always be: "<vertex in lh>,<vertex in rh>".
+                  Always try to specify two vertices; doesn't matter too much if one is not relevant
+  -e <epi_file>   Specify custom EPI-intensity file rather than looking in DIR_DATA_DERIV/fmriprep. 
+                  Automatically sets --use_epi.
+  <project root>  Path to where the subject-drectories are located; used to loop through subjects, 
+                  unless the -s switch is triggered
+  <derivatives>   Derivatives folder containing the output from pycortex and pRF-fitting. Looks for 
+                  <derivatives>/freesurfer, <derivatives>/pycortex, and <derivatives>/prf for the 
+                  surface reconstruction, pycortex-import, and pRF-data, respectively
+  <ROI>           Region-of-interest to use. Should be a FreeSurfer-named label-file or a custom
+                  file in the format of FreeSurfer label-file: you could for instance draw an ROI
+                  in volume-space in FreeView, convert that to a label ("mri_vol2label") and insert
+                  that to look for a vertex (might be useful for finding a mask representing indi-
+                  vidual fingers when the motor cortex mask from FreeSurfer is to coarse).
+
+                  If pRFs are used, we'll also try to include the mean intensities of the functional
+                  data as criteria, to exclude veins
+
+Models for pRF fitting:
+  --gauss         use standard Gaussian model (default) [Dumoulin & Wandell, 2008]
+  --dog           use difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
+  --css           use compressive spatial summation model (compression) [Kay, et al. 2013]
+  --norm          use divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+
+Usage:
+  spinoza_bestvertex [options] <sourcedata> <derivatives> <ROI>
+
+Example:
+  spinoza_bestvertex DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
+  spinoza_bestvertex -s 001 DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
+  spinoza_bestvertex -s 001 -v "1957,8753" DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+#-----------------------------------------------------------------------------
+# Deal with arguments
+OW=0
+aparc_flag=""
+fv_flag=""
+task="${TASK_SES1[0]}"
+model="gauss"
+stage="iter"
+man_verts=""
+roi="V1_exvivo.thresh"
+OPEN_FV=""
+prf_ext="pkl"
+search_pars=""
+txt=""
+SRF=1
+srf_file=0
+FULL_OW=0
+gallery_flag=""
+selection=""
+open_with=""
+epi=1
+epi_file=""
+ls_ses=2
+skip_prf_info=""
+while getopts :-:fos:v:n:m:t:e:l: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        no_freeview)
+          fv_flag="--no-freeview"
+          ;;     
+        grid)
+          stage="grid"
+          ;;
+        aparc)
+          aparc_flag="--aparc"
+          ;;          
+        npy)
+          prf_ext="npy"
+          ;;       
+        v1)
+          search_pars="roi-V1_"
+          txt=" and \"${search_pars}\""
+          ;;
+        v2)
+          search_pars="roi-V2_"
+          txt=" and \"${search_pars}\""          
+          ;;       
+        gauss)
+          model="gauss"
+          ;;  
+        dog)
+          model="dog"
+          ;;   
+        css)
+          model="css"
+          ;;  
+        norm)
+          model="norm"
+          ;; 
+        ow)
+          OW=1
+          ;; 
+        full)
+          FULL_OW=1
+          ;;                           
+        no_srf)
+          SRF=0
+          ;;  
+        srf_file)
+          srf_file=1
+          ;; 
+        gallery)
+          gallery_flag="--gallery"
+          ;;      
+        manual)
+          selection="--manual"
+          ;;     
+        ctx)
+          open_with="--ctx"
+          ;;     
+        no_epi)
+          epi=0
+          ;;     
+        skip_prf_info)
+          skip_prf_info="--skip_prf_info"
+          ;;                                                                      
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;    
+    s)  sub=${OPTARG}
+          ;;
+    n)  ses=${OPTARG}
+          ;;          
+    l)  ls_ses=${OPTARG}
+          ;;            
+    v)  vert=${OPTARG}
+          ;;         
+    o)  OW=1
+          ;;
+    m)  model=${OPTARG}
+          ;;           
+    t)  task=${OPTARG}
+          ;;          
+    e)  epi_file=${OPTARG}
+          ;;                 
+  esac
+done
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+
+# this deals with the fact that we might have flags before positional arguments
+BASE=${@:$OPTIND:1}
+DERIV=${@:$OPTIND+1:1}
+roi=${@:$OPTIND+2:1}
+
+# check if we should loop through subjects or do it for 1 subject only
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${BASE}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
+
+echo
+echo "==================================================================================================="
+printf "BEST VERTEX AND NORMAL VECTOR USING PYCORTEX\n"
+start=`date +%s`
+start_date=`date`
+
+printf "Started at ${start_date}\n"
+echo "==================================================================================================="
+
+#-----------------------------------------------------------------------------
+# Run it
+
+for subID in ${search}; do
+
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+    sub_id=${subID}
+  else
+    sub_name=$(basename ${subID})
+    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+  fi
+
+  # set the paths
+  fs_dir=${DERIV}/freesurfer
+  cx_dir=${DERIV}/pycortex/${sub_name}/ses-${ls_ses}
+  prf_dir=${DERIV}/prf/${base_path}
+
+  # make the pycortex directory if it doesn't exists; the others should exists already. If not, it will complain about it below
+  if [[ ! -d ${DERIV}/pycortex ]]; then
+    mkdir -p ${DERIV}/pycortex
+  fi
+
+  # never really delete a line_pycortex file, but rename numerically, so that the highest number is the oldest file.
+  # The file without any numbering will be the most recent one and also the one that will be used; unless otherwise
+  # specified in the master script
+  line_orientation_file=${cx_dir}/${sub_name}_ses-${ls_ses}_desc-coords.csv
+  if [[ ${FULL_OW} -eq 1 ]]; then
+    rm -r ${line_orientation_file} 2>/dev/null
+  else
+    if [[ ${OW} -eq 1 ]]; then
+      if [[ -f ${line_orientation_file} ]]; then
+        nr=`find -L $(dirname ${line_orientation_file}) -type f -name "${base}*" -and -name "*desc-coords.csv" | wc -w`
+        fname=$(dirname ${line_orientation_file})/${base}_backup-${nr}_desc-coords.csv
+        mv ${line_orientation_file} ${fname}
+      fi
+    fi
+  fi
+
+  # start process
+  if [[ ! -f ${line_orientation_file} ]]; then
+
+    if [[ ! -d ${fs_dir} ]]; then
+      echo "${sub_name}: No FreeSurfer directory found. Make sure to run that first"
+      continue
+    fi
+
+    echo
+    echo "**************************************** Processing ${sub_name} ***************************************"
+    
+    # set the call_pycortex2 '-v' flag  if we want manually selected vertices
+    if [[ ! -z ${vert} ]]; then
+      man_verts="-v [${vert}]"
+    fi
+
+    epi_flag=""
+    pars_flag=""
+    # use the --use-prf flag if the roi = V1. Otherwise exclude pRFs in the selecting of the vertex
+    if [[ ${roi} != "V1_exvivo.thresh" ]] && [[ ${roi} != "V2_exvivo.thresh" ]] && [[ ${roi} != "V1_custom" ]]; then
+      use_prfs=""
+      srf_file_flag=""
+      srf_flag=""
+    else
+      use_prfs="--use-prf"
+
+      if [[ -z ${epi_file} ]]; then
+        if [[ ${epi} -eq 1 ]]; then
+          epi_flag="--use-epi"
+        fi
+        epi_file_flag=""
+      else
+        epi_file_flag="--epi_file ${epi_file}"
+      fi
+
+      # find prf parameters
+      if [[ ! -z ${search_pars} ]]; then
+        pars=`find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -name "*${search_pars}*" \) 2>/dev/null`
+      else
+        pars=`find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -not -name "*_roi-*" \) 2>/dev/null`        
+      fi
+
+      if [[ -z ${pars} ]]; then
+        echo "Could not find pRF file with \"model-${model}\", \"stage-${stage}\", \"task-${task}\", and \"*prf_params.${prf_ext}\"${txt} in \"${prf_dir}\""
+        continue
+      else
+        pars_flag="-p ${pars}"
+      fi
+
+      if [[ ${srf_file} -eq 1 ]]; then
+        srf_file=`find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null`
+        srf_file_flag="--srf_file ${srf_file}"
+        if [[ -z ${srf_file} ]]; then
+          echo "ERROR in `basename ${0}`: \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
+          exit 1
+        fi
+      else
+        srf_file_flag=""
+      fi
+    fi
+    
+    # set srf flag if model is norm
+    srf_flag=""
+    if [[ ${model} == "norm" ]]; then
+      if [[ ${SRF} -eq 1 ]]; then
+        srf_flag="--srf"
+      fi
+    fi
+
+    cmd="""call_targetvertex \
+      -s ${sub_name} \
+      -d ${DERIV} \
+      -r ${roi} \
+      -o ${line_orientation_file} \
+      ${pars_flag} \
+      ${epi_flag} \
+      ${fv_flag} \
+      ${man_verts} \
+      ${use_prfs} \
+      ${srf_flag} \
+      ${srf_file_flag} \
+      ${gallery_flag} \
+      ${selection} \
+      ${open_with} \
+      ${epi_file_flag} \
+      ${aparc_flag} \
+      ${skip_prf_info}"""
+    
+    echo ${cmd}
+    ${cmd}
+
+    if [[ $? != 0 ]]; then
+      echo
+      echo "---------------------------------------------------------------------------------------------------"
+      echo "ERROR in `basename ${0}`: call_targetvertex exited with non-zero status"
+      exit 1
+    fi
+
+  else
+
+    echo "${sub_name}: ${line_orientation_file} already present"
+
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+echo
+echo "---------------------------------------------------------------------------------------------------"
+end=`date +%s`
+end_date=`date`
+printf "Done at ${end_date}\n"
+
+let deltatime=end-start
+let hours=deltatime/3600
+let minutes=(deltatime/60)%60
+let seconds=deltatime%60
+printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+echo "---------------------------------------------------------------------------------------------------"

@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
-from linescanning.pycortex import get_ctxsurfmove
-import sys, getopt
-import cortex
+import sys
 import nibabel as nb
 import numpy as np
+
+try:
+    from cxutils.pycortex import get_ctxsurfmove
+except ImportError:
+    print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
 
 def main(argv):
 

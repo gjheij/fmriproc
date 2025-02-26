@@ -1,4 +1,3 @@
-from fmriproc import optimal, pycortex
 from lazyfmri import utils
 import os
 import pathlib
@@ -9,7 +8,7 @@ import subprocess
 import sys
 opj = os.path.join
 
-def ants_registration(fixed=None,moving=None,reg_type="rigid",output=None):
+def ants_registration(fixed=None, moving=None, reg_type="rigid", output=None):
     """ants_registration
 
     python wrapper for call_antsregistration to perform registration with ANTs in the python
@@ -324,6 +323,11 @@ def tkr2ctx(subject, coord=None):
         numpy array containing the `coord` in Pycortex convention
     """
 
+    try:
+        from cxutils import pycortex
+    except ImportError:
+        print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
+
     sm = pycortex.get_ctxsurfmove(subject)
 
     if len(coord) != 3:
@@ -397,6 +401,11 @@ def fs2vert(subject, coord=None, hemi="lh"):
         * vert_obj (dict): output from :func:`linescanning.optimal.CalcBestVert.label_to_mask`, consisting of numpy.ndarrays representing a boolean mask of the vertex
     """
 
+    try:
+        from cxutils import optimal
+    except ImportError:
+        print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
+
     pp = optimal.CalcBestVertex(subject)
     tkr = fs2tkr(subject, coord=coord)
     ctx = tkr2ctx(subject, coord=tkr)
@@ -450,6 +459,11 @@ def ctx2tkr(subject, img=None, coord=None, correct=True, hm=True, ret=True, pad_
     >>> corr_coordinates = ctx2tkr('sub-001', coord=[coord1,coord2], ret=True)
     >>> corr_nifti = ctx2trk('sub-001', img=input.nii.gz, correct=True)
     """
+
+    try:
+        from cxutils import pycortex
+    except ImportError:
+        print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
 
     single = False
     offset = pycortex.get_ctxsurfmove(subject)

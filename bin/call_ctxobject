@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 import os, sys, getopt
-from linescanning.pycortex import create_ctx_transform
 import random
-import cortex
 import numpy as np
-import nibabel as nb
+
+try:
+    import cortex
+except ImportError:
+    print("Could not import pycortex; please install with 'pip install pycortex'")
+
 opj = os.path.join
 
 def main(argv):

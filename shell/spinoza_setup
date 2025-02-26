@@ -10,29 +10,16 @@ source ${REPO_DIR}/bin/call_bashhelper
 
 if [[ $1 == "setup" ]]; then
 
-  echo "==================================================================================================="
-  echo "                            SETUP SCRIPT FOR LINE SCANNING REPOSITORY                              "
-  echo "==================================================================================================="
-  echo "Setting up ~/.bash_profile"
-  # ignore permission changes in git
-  git config core.fileMode false 2>/dev/null
-
-  # make scripts executable
-  chmod -R 2775 ${REPO_DIR}/bin 2>/dev/null
-  chmod -R 2775 ${REPO_DIR}/shell 2>/dev/null
-
-  # source call_bashhelper
-  source ${REPO_DIR}/bin/call_bashhelper
-
   if [ -f ~/.bash_profile ]; then
     search_for="source ${SETUP_FILE}"
     case `grep -Fx "${search_for}" ~/.bash_profile >/dev/null; echo $?` in
       0)
         # code if found
-        # echo "Line already present"
+        echo "File '~/.bash_profile' already configured"
         ;;
       1)
         # code if not found
+        echo "Added 'source ${SETUP_FILE}' to '~/.bash_profile'"
         (
         echo 
         echo "# Inserted via the linescanning-repository"
@@ -59,72 +46,6 @@ if [[ $1 == "setup" ]]; then
   else
     echo "Found ITK-Snap installation: `which itksnap`"
   fi
-
-  # activate conda environment
-  ACTIVATE_CONDA=0
-
-  # mamba is faster; check if we can use it
-  check_mamba=`check_function mamba`
-  cmd="conda"
-  if [[ ${check_mamba} -eq 0 ]]; then
-    cmd="mamba"
-  fi
-
-  if [[ ${ACTIVATE_CONDA} -eq 1 ]]; then
-
-    echo
-    echo "---------------------------------------------------------------------------------------------------"
-    echo "Dealing with conda environment"
-
-    env_name="ls"
-    if [[ -z `conda info --envs | grep ${env_name}` ]]; then
-      ${cmd} env create --file ${REPO_DIR}/environment.yml --prefix=~/.conda/envs/${env_name}
-      if [[ $? -ne 0 ]]; then
-        echo "ERROR: conda install from environment.yml file did not complete"
-        exit 1
-      fi
-    else
-      echo "WARNING: conda environment \"${env_name}\" already exists. Edit \"env_name\" in setup file and rerun"
-      exit 1
-    fi
-    conda activate ${env_name}
-  fi
-
-  # setup python packages
-  declare -a INSTALL_PACKAGES=("pRFpy" "Nideconv" "Pymp2rage" "Pybest" "Hedfpy" "Pycortex")
-  echo
-  echo "---------------------------------------------------------------------------------------------------"
-  echo "Checking installation of [${INSTALL_PACKAGES[@]}]"
-  cd ${PATH_HOME}
-  for package in ${INSTALL_PACKAGES[@]}; do
-
-    check=`${cmd} list | grep -F ${package,,}`
-    if [[ -z ${check} ]]; then
-      echo "INSTALLING: ${package}.."        
-      if [ ! -d ${PATH_HOME}/${package,,} ]; then
-        PACKAGE_LINK=`cat ${REPO_DIR}/doc/source/links.rst | grep ${package,,} | cut -d' ' -f3`
-        git clone ${PACKAGE_LINK}
-      fi
-      cd ${PATH_HOME}/${package,,}
-      python setup.py develop
-      cd ..
-    else
-      echo "Found ${package} installation"
-    fi
-  done
-
-  check=`${cmd} list | grep -F linescanning`
-  if [[ -z ${check} ]]; then
-    cd ${REPO_DIR}
-    pip install -e .
-    cd ${OLDPWD}
-  else
-    echo "Found ${package} installation"
-  fi
-
-  # scipy get installed by pip again, so uninstall and let mamba/conda sort it out
-  # pip uninstall scipy -y
-  # ${cmd} install -c conda-forge scipy -y
 
   # done
   echo "Done. Now enter: \"source ~/.bash_profile\""

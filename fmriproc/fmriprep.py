@@ -350,7 +350,8 @@ class bold_confs_wf():
                     try:
                         self.t1_mask = utils.get_file_from_substring(["brainmask.nii.gz"], mask_dir)
                     except:
-                        raise FileNotFoundError(f"Could not find '*brainmask.nii.gz' or '*spm_mask.nii.gz' file in '{mask_dir}")
+                        raise FileNotFoundError(f"""Could not find '*brainmask.nii.gz' or '*spm_mask.nii.gz' file in
+                                                '{mask_dir}""")
                             
         # check if we should fetch already ran McFlirt output
         if not isinstance(self.movpar_file, str):
@@ -358,7 +359,8 @@ class bold_confs_wf():
                 search_dir  = opj(self.workdir, "bold_hmc_wf", "normalize_motion")
                 self.movpar_file = utils.get_file_from_substring(["motion_params.txt"], search_dir)
             except:
-                raise FileNotFoundError(f"Could not find 'motion_params.txt' file in '{search_dir}. Please specify manually or make sure 'call_topup' ran successfully")
+                raise FileNotFoundError(f"""Could not find 'motion_params.txt' file in '{search_dir}. Please specify manually
+                                        or make sure 'call_topup' ran successfully""")
             
         # check if we should fetch already ran McFlirt output
         if not isinstance(self.rmsd_file, str):
@@ -366,7 +368,8 @@ class bold_confs_wf():
                 search_dir  = opj(self.workdir, "bold_hmc_wf", "mcflirt")
                 self.rmsd_file = utils.get_file_from_substring(["rel.rms"], search_dir)
             except:
-                raise FileNotFoundError(f"Could not find '*rel.rms' file in '{search_dir}. Please specify manually or make sure 'call_topup' ran successfully")
+                raise FileNotFoundError(f"""Could not find '*rel.rms' file in '{search_dir}. Please specify manually or make
+                                        sure 'call_topup' ran successfully""")
             
         # check if we should fetch already bbreg
         if not isinstance(self.t1_bold_xform, str):
@@ -374,7 +377,8 @@ class bold_confs_wf():
                 search_dir  = opj(self.workdir, "bold_reg_wf", "bbreg_wf", "concat_xfm")
                 self.rmsd_file = utils.get_file_from_substring(["out_inv.tfm"], search_dir)
             except:
-                raise FileNotFoundError(f"Could not find 'out_inv.tfm' file in '{search_dir}. Please specify a valid T1w>BOLD registration file")            
+                raise FileNotFoundError(f"""Could not find 'out_inv.tfm' file in '{search_dir}. Please specify a valid
+                                        T1w>BOLD registration file""")
 
         # check if we can derive brain mask from input file
         if not isinstance(self.bold_mask, str):
@@ -395,7 +399,8 @@ class bold_confs_wf():
                 interp='mul', 
                 output=self.bold_mask, 
                 return_type="file", 
-                verbose=False)
+                verbose=False
+            )
 
         # set inputs
         self.bold_confounds_wf.inputs.inputnode.bold            = self.bold_file
@@ -424,10 +429,27 @@ class bold_confs_wf():
         self.carpetplot_wf.inputs.inputnode.bold_mask = self.bold_mask
         self.carpetplot_wf.base_dir = self.workdir
         self.carpetplot_wf.inputs.inputnode.t1_bold_xform = self.t1_bold_xform
-        self.carpetplot_wf.inputs.inputnode.confounds_file = self.fetch_output("bold_confounds_wf", "spike_regressors", "confounds_file", graph=self.res)
-        self.carpetplot_wf.inputs.inputnode.crown_mask = self.fetch_output("bold_confounds_wf", "subtract_mask", "out_mask", graph=self.res)
+        self.carpetplot_wf.inputs.inputnode.confounds_file = self.fetch_output(
+            "bold_confounds_wf",
+            "spike_regressors",
+            "confounds_file",
+            graph=self.res
+        )
+        self.carpetplot_wf.inputs.inputnode.crown_mask = self.fetch_output(
+            "bold_confounds_wf",
+            "subtract_mask",
+            "out_mask",
+            graph=self.res
+        )
 
-        self.carpetplot_wf.inputs.inputnode.acompcor_mask = opj(self.workdir, "bold_confounds_wf", "acc_msk_tfm", "mapflow", "_acc_msk_tfm2", "acompcor_wmcsf_trans.nii.gz")
+        self.carpetplot_wf.inputs.inputnode.acompcor_mask = opj(
+            self.workdir,
+            "bold_confounds_wf",
+            "acc_msk_tfm",
+            "mapflow",
+            "_acc_msk_tfm2",
+            "acompcor_wmcsf_trans.nii.gz"
+        )
 
         for node in self.carpetplot_wf.list_node_names():
             if node.split(".")[-1].startswith("ds_report"):
@@ -552,10 +574,34 @@ class bold_confs_wf():
         self.deriv_wf.inputs.inputnode.all_source_files = self.bold_file
         self.deriv_wf.inputs.inputnode.source_file = self.bold_file
         self.deriv_wf.inputs.inputnode.anat2bold_xfm = self.t1_bold_xform
-        self.deriv_wf.inputs.inputnode.confounds = self.fetch_output("bold_confounds_wf", "spike_regressors", "confounds_file", graph=self.res)
-        self.deriv_wf.inputs.inputnode.confounds_metadata = self.fetch_output("bold_confounds_wf", "merge_confound_metadata2", "out_dict", graph=self.res)
-        self.deriv_wf.inputs.inputnode.tcompcor_mask = self.fetch_output("bold_confounds_wf", "tcompcor", "high_variance_masks", graph=self.res)
-        self.deriv_wf.inputs.inputnode.acompcor_masks = self.fetch_output("bold_confounds_wf", "acc_msk_bin", "out_file", graph=self.res)
+        self.deriv_wf.inputs.inputnode.confounds = self.fetch_output(
+            "bold_confounds_wf",
+            "spike_regressors",
+            "confounds_file",
+            graph=self.res
+        )
+        
+        self.deriv_wf.inputs.inputnode.confounds_metadata = self.fetch_output(
+            "bold_confounds_wf",
+            "merge_confound_metadata2",
+            "out_dict",
+            graph=self.res
+        )
+
+        self.deriv_wf.inputs.inputnode.tcompcor_mask = self.fetch_output(
+            "bold_confounds_wf",
+            "tcompcor",
+            "high_variance_masks",
+            graph=self.res
+        )
+
+        self.deriv_wf.inputs.inputnode.acompcor_masks = self.fetch_output(
+            "bold_confounds_wf",
+            "acc_msk_bin",
+            "out_file",
+            graph=self.res
+        )
+
         self.deriv_wf.base_dir = self.workdir
 
         # run wf
@@ -575,18 +621,15 @@ def init_bold_reference_wf(
     """
     Build a workflow that generates reference BOLD images for a series.
 
-    The raw reference image is the target of :abbr:`HMC (head motion correction)`, and a
-    contrast-enhanced reference is the subject of distortion correction, as well as
-    boundary-based registration to T1w and template spaces.
+    The raw reference image is the target of :abbr:`HMC (head motion correction)`, and a contrast-enhanced reference is the
+    subject of distortion correction, as well as boundary-based registration to T1w and template spaces.
 
-    LIMITATION: If one wants to extract the reference from several SBRefs
-    with several echoes each, the first echo should be selected elsewhere
-    and run this interface in ``multiecho = False`` mode. In other words,
-    SBRef inputs are assumed to be single-echo.
+    LIMITATION: If one wants to extract the reference from several SBRefs with several echoes each, the first echo should be
+    selected elsewhere and run this interface in ``multiecho = False`` mode. In other words, SBRef inputs are assumed to be
+    single-echo.
 
-    LIMITATION: If a list of SBRefs is provided, each can be 3D or 4D, but they
-    are assumed to be sampled in the exact same 3D-grid and have the same orientation
-    information in their headers so that they can directly be merged into a 4D volume.
+    LIMITATION: If a list of SBRefs is provided, each can be 3D or 4D, but they are assumed to be sampled in the exact same
+    3D-grid and have the same orientation information in their headers so that they can directly be merged into a 4D volume.
 
     Workflow Graph
         .. workflow::

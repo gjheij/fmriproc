@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 
-from linescanning.utils import color, get_file_from_substring, reverse_sign
-from linescanning import scanner,optimal
+from lazyfmri.utils import color, get_file_from_substring, reverse_sign
+from fmriproc import scanner
 import sys, getopt
 import os
 opj = os.path.join
+
+try:
+    from cxutils import optimal
+except ImportError:
+    print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
 
 def main(argv):
 
@@ -15,7 +20,7 @@ call_createlinefs
 This script allows you to get an idea of where the line will be positioned in the second session. You 
 have to manually fill in the RAS-coordinate and angles in the transform-window, resulting in a tem-
 plate slice being warped to the orientation it needs to get. It does so based on the line_pycortex
-file created with linecanning.optimal.CalcBestVertex. If you're using the left hemisphere, you'll 
+file created with cxutils.optimal.CalcBestVertex. If you're using the left hemisphere, you'll 
 only need to specify a subject name, the rest will be taken care of, assuming a line_pycortex file
 exists.
 

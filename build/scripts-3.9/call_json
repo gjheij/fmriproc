@@ -1,0 +1,129 @@
+#!python
+
+import json
+import os
+import sys
+import ast
+from linescanning import utils
+def main(argv):
+
+    """
+---------------------------------------------------------------------------------------------------
+call_json
+
+Add a key an description to a given json file. 
+
+Parameters
+----------
+    --merge         don't overwrite existing keys/value pairings
+    <json file>     path representing a valid json-file
+    <key>           string of the key that should be added; use double+single quotes (see example) 
+                    for list-like input
+    <messsage>      message that is linked to the key; use double+single quotes (see example) 
+                    for list-like input. Order must match list-like input from <key>
+
+Usage
+----------
+    call_json <file> <key> <message>
+
+Example
+----------
+    call_json sub-001_epi.json PhaseEncodingDirection j
+    call_json sub-001_epi.json Nordic True
+    call_json sub-001_epi.json "'Nordic','PhaseEncodingDirection'" "'True','j'"
+
+---------------------------------------------------------------------------------------------------
+    """
+
+    if len(argv) < 3:
+        print("NOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit(1)
+    
+    merge = False
+    start_ix = 0
+    if len(argv) == 4:
+        if "merge" in argv[0]:
+            merge = True
+            start_ix = 1
+        elif "merge" in argv[-1]:
+            merge = True
+
+    json_file   = argv[start_ix]
+    add_key     = argv[start_ix+1]
+    add_msg     = argv[start_ix+2]
+
+    if not json_file.endswith("json"):
+        raise TypeError(f"Must be json file, not '{json_file}'")
+
+    if "," in add_key:
+        add_key = utils.string2list(add_key)
+    else:
+        add_key = [add_key]
+
+    if "," in add_msg:
+        add_msg = utils.string2list(add_msg)
+    else:
+        add_msg = [add_msg]
+
+    msg_is_list = False
+    if len(add_key) == 1 and len(add_msg) > 1:
+        print(f"add_msg is list of len={len(add_msg)}")
+        msg_is_list = True
+
+    # check if file exists
+    add_dict = {}
+    if os.path.exists(json_file):
+
+        # open json
+        with open(json_file) as f:
+            data = json.load(f)
+
+        # create dictionary of new key
+        for ix,key in enumerate(add_key):
+            # check if message is a number
+            if add_msg[ix].isdigit():
+                add_msg[ix] = int(add_msg[ix])
+            elif add_msg[ix].replace('.','',1).isdigit() and add_msg[ix].count('.') < 2:
+                add_msg[ix] = float(add_msg[ix])
+            
+            if merge:
+                if key not in list(data.keys()):
+                    print(f"Merge is True, but {key} is new")
+                    if msg_is_list:
+                        add_dict[key] = add_msg
+                    else:
+                        add_dict[key] = add_msg[ix]
+                else:
+                    print(f"merge = True, not overwriting {key}")
+            else:
+                if msg_is_list:
+                    add_dict[key] = add_msg
+                else:
+                    add_dict[key] = add_msg[ix]     
+
+        data.update(add_dict)
+        with open(json_file, 'w') as f:
+            json.dump(data, f, indent=4)    
+    else:
+        # create dictionary of new key
+        for ix,key in enumerate(add_key):
+            # check if message is a number
+
+            if add_msg[ix].isdigit():
+                add_msg[ix] = int(add_msg[ix])
+            elif add_msg[ix].replace('.','',1).isdigit() and add_msg[ix].count('.') < 2:
+                add_msg[ix] = float(add_msg[ix])
+
+            add_dict[key] = add_msg[ix]    # write
+            
+        # Serializing json
+        json_object = json.dumps(add_dict, indent=4)
+        
+        # Writing to sample.json
+        with open(json_file, "w") as outfile:
+            outfile.write(json_object)
+            
+if __name__ == "__main__":
+    main(sys.argv[1:])
+

@@ -4,7 +4,7 @@ standard_max_threads = mkl.get_max_threads()
 
 import ast
 from datetime import datetime, timedelta
-from linescanning import (
+from lazyfmri import (
     utils, 
     plotting, 
     dataset, 
@@ -67,7 +67,11 @@ def read_par_file(prf_file, key="pars"):
 
     """read_par_file
 
-    Function to read in files containing pRF-estimates from various sources. Currently, supports the following inputs: `np.ndarray`, `npy`-file, `mat`-file (will read in the data from the last item in `list(prf_file.keys())`), `pkl`-file (assumes has key 'pars' in it). Because we generally save the design matrix as a *.mat*-file, we can use the same function to read in that file and obtain the design matrix in `np.ndarray`-format. Inputs `pd.DataFrame` will be converted to `np.ndarray` with :func:`linescanning.prf.Parameters`, assuming certain column names to be present.
+    Function to read in files containing pRF-estimates from various sources. Currently, supports the following inputs:
+    `np.ndarray`, `npy`-file, `mat`-file (will read in the data from the last item in `list(prf_file.keys())`), `pkl`-file
+    (assumes has key 'pars' in it). Because we generally save the design matrix as a *.mat*-file, we can use the same function
+    to read in that file and obtain the design matrix in `np.ndarray`-format. Inputs `pd.DataFrame` will be converted to
+    `np.ndarray` with :func:`fmriproc.prf.Parameters`, assuming certain column names to be present.
 
     Returns
     ----------
@@ -84,12 +88,12 @@ def read_par_file(prf_file, key="pars"):
     Example
     ----------
     >>> # read in pRF-estimates file
-    >>> from linescanning import prf
+    >>> from fmriproc import prf
     >>> prf_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
     >>> pars = prf.read_par_file(prf_file)
 
     >>> # read design matrix
-    >>> from linescanning import prf
+    >>> from fmriproc import prf
     >>> dm_file = "design_task-2R.mat"
     >>> dm = prf.read_par_file(dm_file)
     """
@@ -108,7 +112,8 @@ def read_par_file(prf_file, key="pars"):
                     try:
                         pars = data[key]
                     except:
-                        raise TypeError(f"Pickle-file did not arise from 'pRFmodelFitting'. I'm looking for '{key}', but got '{data.keys()}'")
+                        raise TypeError(f"""Pickle-file did not arise from 'pRFmodelFitting'. I'm looking for '{key}', but got
+                                        '{data.keys()}'""")
         else:
             raise TypeError(f"Input '{prf_file}' is not a file..")
         
@@ -125,16 +130,22 @@ def get_prfdesign(screenshot_path, n_pix=40, dm_edges_clipping=[0,0,0,0]):
     """
     get_prfdesign
 
-    Basically Marco's gist, but then incorporated in the repo. It takes the directory of screenshots and creates a vis_design.mat file, telling pRFpy at what point are certain stimulus was presented.
+    Basically Marco's gist, but then incorporated in the repo. It takes the directory of screenshots and creates a
+    vis_design.mat file, telling pRFpy at what point are certain stimulus was presented.
 
     Parameters
     ----------
     screenshot_path: str
         string describing the path to the directory with png-files
     n_pix: int
-        size of the design matrix (basically resolution). The larger the number, the more demanding for the CPU. It's best to have some value which can be divided with 1080, as this is easier to downsample. Default is 40, but 270 seems to be a good trade-off between resolution and CPU-demands
+        size of the design matrix (basically resolution). The larger the number, the more demanding for the CPU. It's best to
+        have some value which can be divided with 1080, as this is easier to downsample. Default is 40, but 100 seems to be a
+        good trade-off between resolution and CPU-demands
     dm_edges_clipping: list, dict, optional
-        people don't always see the entirety of the screen so it's important to check what the subject can actually see by showing them the cross of for instance the BOLD-screen (the matlab one, not the linux one) and clip the image accordingly. This is a list of 4 values, which are the number of pixels to clip from the left, right, top and bottom of the image. Default is [0,0,0,0], which means no clipping. Negative values will be set to 0.
+        people don't always see the entirety of the screen so it's important to check what the subject can actually see by
+        showing them the cross of for instance the BOLD-screen (the matlab one, not the linux one) and clip the image
+        accordingly. This is a list of 4 values, which are the number of pixels to clip from the left, right, top and bottom
+        of the image. Default is [0,0,0,0], which means no clipping. Negative values will be set to 0.
 
     Returns
     ----------
@@ -209,7 +220,7 @@ def radius(stim_arr):
     Parameters
     ----------
     stim_arr: numpy.ndarray
-        arrays containing the stimulus as created with :func:`linescanning.prf.make_stims`
+        arrays containing the stimulus as created with :func:`fmriproc.prf.make_stims`
 
     Returns
     ----------
@@ -231,7 +242,8 @@ def create_circular_mask(h, w, center=None, radius=None):
 
     """create_circular_mask
 
-    Creates a circular mask in a numpy meshgrid to create filled stimuli or mask out parts of a circular stimulus to create concentric stimuli.
+    Creates a circular mask in a numpy meshgrid to create filled stimuli or mask out parts of a circular stimulus to create
+    concentric stimuli.
 
     Parameters
     ----------
@@ -286,13 +298,15 @@ def make_stims(
     loc: tuple, optional
         location to center stimuli on. Default is (0,0)
     dt: str
-        Set the type of stimulus that needs to be created. by default 'fill', other options are 'full' [fullscreen stimulus], 'concentric' [circles with holes], 'hole' [fullscreen with growing hole]
+        Set the type of stimulus that needs to be created. by default 'fill', other options are 'full' [fullscreen stimulus],
+        'concentric' [circles with holes], 'hole' [fullscreen with growing hole]
     concentric_size: float
         proportion of stimulus size that needs to be masked out again
     Returns
     ----------
     list
-        list of numpy.ndarrays with meshgrid-size containing the stimuli. Can be plotted with :func:`linescanning.prf.plot_stims`
+        list of numpy.ndarrays with meshgrid-size containing the stimuli. Can be plotted with
+        :func:`fmriproc.prf.plot_stims`
     """
 
     if not isinstance(xy,tuple):
@@ -346,7 +360,10 @@ def make_stims2(n_pix, prf_object, dim_stim=2, degrees=[0,6], concentric=False, 
 
     """make_stims2
 
-    Creates a list of stimuli to create size/response curves. In contrast to the first version, this version uses :func:`linescanning.prf.create_circular_mask` more intensively. This allows for the manual specification of visual degrees to use, as it uses an adaptation of psychopy's `deg2pix` function to translate the visual degree to pixel space to create a numpy mask.
+    Creates a list of stimuli to create size/response curves. In contrast to the first version, this version uses
+    :func:`fmriproc.prf.create_circular_mask` more intensively. This allows for the manual specification of visual degrees to
+    use, as it uses an adaptation of psychopy's `deg2pix` function to translate the visual degree to pixel space to create a
+    numpy mask.
 
     Parameters
     ----------
@@ -366,7 +383,7 @@ def make_stims2(n_pix, prf_object, dim_stim=2, degrees=[0,6], concentric=False, 
     Returns
     ----------
     list
-        list of numpy.ndarrays with meshgrid-size containing the stimuli. Can be plotted with :func:`linescanning.prf.plot_stims`
+        list of numpy.ndarrays with meshgrid-size containing the stimuli. Can be plotted with :func:`fmriproc.prf.plot_stims`
     """
 
     degrees = np.linspace(*degrees, num=33)
@@ -419,7 +436,8 @@ def plot_stims(
 
     """plot_stims
 
-    Plots all stimuli contained in `stims` as created in `prf.make_stims`. Assumesthat about 33 stimuli have been produced, otherwise axes ordering will be messy..
+    Plots all stimuli contained in `stims` as created in `prf.make_stims`. Assumesthat about 33 stimuli have been produced,
+    otherwise axes ordering will be messy..
 
     Parameters
     ----------
@@ -436,15 +454,19 @@ def plot_stims(
     prf_object: np.ndarray, optional
         add a spatial representation of a pRF to the figure
     as_circle: bool, optional
-        plot `prf_object` as a simple circle rather than full on pRF-object. The outline of the circle will denote the size of the pRF as per `prfpy`'s convention
+        plot `prf_object` as a simple circle rather than full on pRF-object. The outline of the circle will denote the size of
+        the pRF as per `prfpy`'s convention
     prf_color: str, optional
-        color of `prf_object`. If `as_circle==True`, the outline will have this color. If not, a binary colormap will be created using :func:`linescanning.utils.make_binary_cm()`
+        color of `prf_object`. If `as_circle==True`, the outline will have this color. If not, a binary colormap will be
+        created using :func:`lazyfmri.utils.make_binary_cm()`
     interval: int, optional
         show the stimuli with a certain interval. This prevents a mega-amount of figures that needs to be created.
     stim_color: str, optional
-        color of `stims`. Binary colormap will be created using :func:`linescanning.utils.make_binary_cm()`. If false, colormap will be `viridis`
+        color of `stims`. Binary colormap will be created using :func:`lazyfmri.utils.make_binary_cm()`. If false, colormap
+        will be `viridis`
     add_fixation: bool, optional
-        add fixation cross add (0,0). If `stim_color` is specified, the color will be black; with viridis, the cross will be white
+        add fixation cross add (0,0). If `stim_color` is specified, the color will be black; with viridis, the cross will be
+        white
 
     Returns
     ----------
@@ -576,12 +598,14 @@ def make_prf(
     size: float
         size of pRF, optional
     resize_pix: int
-        resolution of pRF to resample to. For instance, if you've used a low-resolution design matrix, but you'd like a prettier image, you can set `resize` to something higher than the original (54 >> 270, for example). By default not used.
+        resolution of pRF to resample to. For instance, if you've used a low-resolution design matrix, but you'd like a
+        prettier image, you can set `resize` to something higher than the original (54 >> 270, for example). By default not
+        used.
 
     Returns
     ----------
     numpy.ndarray
-        meshgrid containing Gaussian characteristics of the pRF. Can be plotted with :func:`linescanning.plotting.LazyPRF`
+        meshgrid containing Gaussian characteristics of the pRF. Can be plotted with :func:`lazyfmri.plotting.LazyPRF`
     """
 
     # prf = np.rot90(rf.gauss2D_iso_cart(
@@ -698,30 +722,38 @@ def select_stims(settings_dict, stim_library, frames=225, baseline_frames=15, ra
 
     """select_stims
 
-    Function to create a fictitious design matrix based on the 'lib'-variable containing a library of 4 different types of bar stimuli: 'hori' (horizontal), 'vert' (vertical) 'rot_45' (horizontal bars rotated 45 degrees counterclockwise), and 'rot_135' (horizontal bars rotated 135 degrees counterclockwise). Using a 'settings'-dictionary, you can specify how many and which of each of these stimuli you want.
+    Function to create a fictitious design matrix based on the 'lib'-variable containing a library of 4 different types of bar
+    stimuli: 'hori' (horizontal), 'vert' (vertical) 'rot_45' (horizontal bars rotated 45 degrees counterclockwise), and
+    'rot_135' (horizontal bars rotated 135 degrees counterclockwise). Using a 'settings'-dictionary, you can specify how many
+    and which of each of these stimuli you want.
 
     Parameters
     ----------
     settings_dict: dict
-        dictionary containing the number of stimuli and index of stimuli (as per the library) that you would like to include. An example is:
+        dictionary containing the number of stimuli and index of stimuli (as per the library) that you would like to include.
+        An example is:
 
         >>> use_settings = {'hori': [0, 18],
         >>>                 'vert': [4, 25],
         >>>                 'rot_45': [4, 18],
         >>>                 'rot_135': [0, 5]}
         
-        this selects 0 horizontal stimuli, 4x the 25th vertical stimulus in 'lib', 4x the 18th sti-
-        mulus of the 45 degree rotated stimuli, and 0 of the 135 degree rotated stimuli.
+        this selects 0 horizontal stimuli, 4x the 25th vertical stimulus in 'lib', 4x the 18th stimulus of the 45 degree
+        rotated stimuli, and 0 of the 135 degree rotated stimuli.
     stim_library: dict
-        library containing different types of stimuli. Can be create with :func:`linescanning.prf.create_stim_library`
+        library containing different types of stimuli. Can be create with :func:`fmriproc.prf.create_stim_library`
     frames: int 
-        number of frames your design matrix should have. Should be the same as your functional data in terms of TR (default = 225)!
+        number of frames your design matrix should have. Should be the same as your functional data in terms of TR (default =
+        225)!
     baseline_frames: int 
-        number of baseline frames before stimulus presentation begins. Only needs to be specified if 'randomize' is set to False (default = 15).
+        number of baseline frames before stimulus presentation begins. Only needs to be specified if 'randomize' is set to
+        False (default = 15).
     randomize: bool 
-        boolean whether you want to completely randomize your experiment or not. Generally you'll want to set this to false, to create a regular intervals between stimuli (default = False).
+        boolean whether you want to completely randomize your experiment or not. Generally you'll want to set this to false,
+        to create a regular intervals between stimuli (default = False).
     shuffle: bool 
-        if randomize is turned off, we can still shuffle the order of the stimulus presentations. This you can do by setting shuffle to True (default = True)
+        if randomize is turned off, we can still shuffle the order of the stimulus presentations. This you can do by setting
+        shuffle to True (default = True)
     verbose: bool, optional
         Set to True if you want some messages along the way (default = False)
 
@@ -954,7 +986,8 @@ def prf_neighbouring_vertices(subject, hemi='lh', vertex=None, prf_params=None, 
 
     """prf_neighbouring_vertices
 
-    Function to extract pRF-parameters from vertices neighbouring a particular vertex of interest. Internally uses "call_prfinfo" to extract the parameters, so it assumes a particular kind of data structure (for now..)
+    Function to extract pRF-parameters from vertices neighbouring a particular vertex of interest. Internally uses
+    "call_prfinfo" to extract the parameters, so it assumes a particular kind of data structure (for now..)
 
     Parameters
     ----------
@@ -965,7 +998,8 @@ def prf_neighbouring_vertices(subject, hemi='lh', vertex=None, prf_params=None, 
     vertex: int
         vertex from which to extract neighbouring vertices
     prf_params: str, np.ndarray
-        if you do not want to depend on fixed data structures, you can specify the pRF-parameters directly with a string pointing to a numpy-file or the numpy-array itself
+        if you do not want to depend on fixed data structures, you can specify the pRF-parameters directly with a string
+        pointing to a numpy-file or the numpy-array itself
     compare: bool
         if True, it will compare the parameters of neighbouring vertices with the parameters of <vertex>
     vertices_only: bool
@@ -1047,30 +1081,44 @@ def create_line_prf_matrix(
 
     """create_line_prf_matrix
 
-    Adaptation of get_prfdesign. Uses a similar principle, but rather than having an image per TR, we have images with onset times. With this function we can fill in an empty design matrix with size of n_samples to create the design matrix. This holds for cases where the stimulus duration is modulo the repetition time (e.g., stim duration = 0.315, repetition time = 0.105). In cases where the stimulus duration is incongruent with the repetition time, we can loop through the repetition times and find, in the onsets dataframe, the closest time and select that stimulus for our design matrix. This later case works for the partial pRF experiment that we run with 3D-EPI 1.1s TR acquisition, and should work with the line-scanning acquisition as well.
+    Adaptation of get_prfdesign. Uses a similar principle, but rather than having an image per TR, we have images with onset
+    times. With this function we can fill in an empty design matrix with size of n_samples to create the design matrix. This
+    holds for cases where the stimulus duration is modulo the repetition time (e.g., stim duration = 0.315, repetition time =
+    0.105). In cases where the stimulus duration is incongruent with the repetition time, we can loop through the repetition
+    times and find, in the onsets dataframe, the closest time and select that stimulus for our design matrix. This later case
+    works for the partial pRF experiment that we run with 3D-EPI 1.1s TR acquisition, and should work with the line-scanning
+    acquisition as well.
 
     Parameters
     ----------
     log_dir: str
-        path to the log-directory as per the output of exptools experiments. We should have a "Screenshots"-directory in there and a *.tsv*-file containing the onset times
+        path to the log-directory as per the output of exptools experiments. We should have a "Screenshots"-directory in there
+        and a *.tsv*-file containing the onset times
     nr_trs: int
         number of TRs in an acquisition run; this one is required if the stimulus duration is not modulo the repetition time
     TR: float (default = 0.105s)
         repetition time of scan acquisition. Needed to convert the onset times from seconds to TRs
     stim_at_half_TR: bool
-        set to True if you want the stimulus halfway through the TR. This flag can be used in combination with <nr_trs>, when the stimulus duration is not modulo the repetition time
+        set to True if you want the stimulus halfway through the TR. This flag can be used in combination with <nr_trs>, when
+        the stimulus duration is not modulo the repetition time
     deleted_first_timepoints: int 
-        number of volumes to skip in the beginning; should be the same as used in ParseFunc-file and/or ParseFuncFile (if used in concert) (default = 0)
+        number of volumes to skip in the beginning; should be the same as used in ParseFunc-file and/or ParseFuncFile (if used
+        in concert) (default = 0)
     deleted_last_timepoints: int
-        number of volumes to skip at the end; should be the same as used in ParseFuncFile and/or ParseFuncFile (if used in concert) (default = 0)
+        number of volumes to skip at the end; should be the same as used in ParseFuncFile and/or ParseFuncFile (if used in
+        concert) (default = 0)
     n_pix: int 
-        size determinant of the design matrix. Note, <n_pix> is hardcoded as well in the function itself because I ran stuff on my laptop and that screen has a different size than the stimulus computer @Spinoza (default = 270px)
+        size determinant of the design matrix. Note, <n_pix> is hardcoded as well in the function itself because I ran stuff
+        on my laptop and that screen has a different size than the stimulus computer @Spinoza (default = 270px)
     stim_duration: float
         length of stimulus presentation (in seconds; default = 1s)
     skip_first_img: boolean 
-        depending on how you coded the screenshot capturing, the first empty screen is something also captured. With this flag we can skip that image (default = True).
+        depending on how you coded the screenshot capturing, the first empty screen is something also captured. With this flag
+        we can skip that image (default = True).
     dm_edges_clipping: list, dict, optional
-        people don't always see the entirety of the screen so it's important to check what the subject can actually see by showing them the cross of for instance the BOLD-screen (the matlab one, not the linux one) and clip the image accordingly
+        people don't always see the entirety of the screen so it's important to check what the subject can actually see by
+        showing them the cross of for instance the BOLD-screen (the matlab one, not the linux one) and clip the image
+        accordingly
         
     Returns
     ----------
@@ -1081,7 +1129,8 @@ def create_line_prf_matrix(
     screenshot_path = utils.get_file_from_substring("Screenshot", log_dir)
 
     if isinstance(screenshot_path, list):
-        raise TypeError(f"Found multiple ({len(screenshot_path)}) instances for 'Screenshot'. Maybe hidden directories from MacOS?; \n{screenshot_path}")
+        raise TypeError(f"""Found multiple ({len(screenshot_path)}) instances for 'Screenshot'. Maybe hidden directories from
+                        MacOS?; \n{screenshot_path}""")
 
     image_list = os.listdir(screenshot_path)
     image_list.sort()
@@ -1357,7 +1406,11 @@ def generate_model_params(
 
     """generate_model_params
 
-    Function to generate a yaml-file with parameters to use. Utilizes the [prf_analysis.yml](https://github.com/gjheij/linescanning/blob/main/misc/prf_analysis.yml) as basis, but it's advised to copy the file to the `DIR_DATA_HOME/code`-folder so you have a project-specific template. Depending on the model, we'll add grids and bounds and return a dictionary of settings. This dictionary is saved in the `pkl`-file as per the output of :class:`linescanning.prf.pRFmodelFitting`. 
+    Function to generate a yaml-file with parameters to use. Utilizes the
+    [prf_analysis.yml](https://github.com/gjheij/fmriproc/blob/main/misc/prf_analysis.yml) as basis, but it's advised to copy
+    the file to the `DIR_DATA_HOME/code`-folder so you have a project-specific template. Depending on the model, we'll add
+    grids and bounds and return a dictionary of settings. This dictionary is saved in the `pkl`-file as per the output of
+    :class:`fmriproc.prf.pRFmodelFitting`.
 
     Parameters
     ----------
@@ -1380,15 +1433,22 @@ def generate_model_params(
         pRF stimulus object
     """
     
-    # check if we have project-specific template; otherwise take linescanning-repo template
+    # check if we have project-specific template; otherwise take fmriproc-repo template
     # it's in a try-except loop because sometimes os.environ.get fails, causing a premature error..
     try:
-        yml_file = utils.get_file_from_substring("prf_analysis.yml", opj(os.environ.get("DIR_DATA_HOME"), 'code'), return_msg=None)
+        yml_file = utils.get_file_from_substring(
+            "prf_analysis.yml",
+            opj(os.environ.get("DIR_DATA_HOME"), 'code'),
+            return_msg=None
+        )
     except:
         yml_file = None
 
     if yml_file == None:
-        yml_file = utils.get_file_from_substring("prf_analysis.yml", opj(os.path.dirname(os.path.dirname(utils.__file__)), 'misc'))
+        yml_file = utils.get_file_from_substring(
+            "prf_analysis.yml",
+            opj(os.path.dirname(os.path.dirname(utils.__file__)),'misc')
+        )
 
     if not isinstance(old_settings, dict):
         if isinstance(yml_file, str):
@@ -1537,12 +1597,14 @@ def generate_model_params(
     settings.update({'TR': TR})
 
     # print important settings
-    utils.verbose("\n---------------------------------------------------------------------------------------------------", verbose)
+    utils.verbose("\n---------------------------------------------------------------------------------------------------",
+                  verbose)
     utils.verbose("Check these important settings!", verbose)
     utils.verbose(f" Screen distance: {settings['screen_distance_cm']}cm", verbose)
     utils.verbose(f" Screen size: {settings['screen_size_cm']}cm", verbose)
     utils.verbose(f" TR: {settings['TR']}s", verbose)
-    utils.verbose("---------------------------------------------------------------------------------------------------\n", verbose)
+    utils.verbose("---------------------------------------------------------------------------------------------------\n",
+                  verbose)
 
     # return
     return settings, prf_stim
@@ -1562,7 +1624,8 @@ class GaussianModel():
             
             # check if dimensions make sense
             if self.old_params.shape[0] != self.data.shape[0]:
-                utils.verbose(f"Matching old parameters of shape {self.old_params.shape} to data of shape {self.data.shape[0],self.old_params.shape[-1]}", self.verbose)
+                utils.verbose(f"""Matching old parameters of shape {self.old_params.shape} to data of shape
+                              {self.data.shape[0],self.old_params.shape[-1]}""", self.verbose)
                 self.old_params = np.tile(self.old_params, (self.data.shape[0],1))
 
             # set inserted params as gridsearch_params and iterative_search_params
@@ -1573,11 +1636,13 @@ class GaussianModel():
             # set gaussian_fitter as previous_gaussian_fitter
             self.previous_gaussian_fitter = self.gaussian_fitter
 
-            utils.verbose(f"Inserting parameters from {type(self.old_params)} as 'iterative_search_params' in {self}", self.verbose)         
+            utils.verbose(f"Inserting parameters from {type(self.old_params)} as 'iterative_search_params' in {self}",
+                          self.verbose)         
 
     def gridfit(self):
         ## start grid fit
-        utils.verbose(f"Starting gauss gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}", self.verbose)
+        utils.verbose(f"Starting gauss gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+                      self.verbose)
         
         start = time.time()
         self.gaussian_fitter.grid_fit(
@@ -1598,8 +1663,10 @@ class GaussianModel():
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         nr = np.sum(self.gauss_grid[:, -1]>self.settings['rsq_threshold'])
         total = self.gaussian_fitter.data.shape[0]
-        utils.verbose(f"Completed Gaussian gridfit at {start_time}. Voxels/vertices above {self.settings['rsq_threshold']}: {nr}/{total}", self.verbose)
-        utils.verbose(f"Gridfit took {timedelta(seconds=elapsed)} | Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}", self.verbose)
+        utils.verbose(f"""Completed Gaussian gridfit at {start_time}. Voxels/vertices above {self.settings['rsq_threshold']}:
+                      {nr}/{total}""", self.verbose)
+        utils.verbose(f"""Gridfit took {timedelta(seconds=elapsed)} | Mean rsq>{self.settings['rsq_threshold']}:
+                      {round(mean_rsq,2)}""", self.verbose)
         
         if self.write_files:
             if self.save_grid:
@@ -1608,7 +1675,8 @@ class GaussianModel():
     def iterfit(self):
 
         start = time.time()
-        utils.verbose(f"Starting gauss iterfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}", self.verbose)
+        utils.verbose(f"Starting gauss iterfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+                      self.verbose)
 
         # fetch bounds
         self.gauss_bounds = self.fetch_bounds(model='gauss')
@@ -1645,7 +1713,8 @@ class GaussianModel():
         mean_rsq = np.nanmean(self.gauss_iter[self.gaussian_fitter.rsq_mask, -1])
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
 
-        utils.verbose(f"Completed Gaussian iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}", self.verbose)
+        utils.verbose(f"""Completed Gaussian iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
+                      {round(mean_rsq,2)}""", self.verbose)
         utils.verbose(f"Iterfit took {timedelta(seconds=elapsed)}", self.verbose)
 
         # save intermediate files
@@ -1757,14 +1826,16 @@ class ExtendedModel():
             # verbose stuff
             mean_rsq = np.mean(filtered_[self.tmp_fitter.gridsearch_rsq_mask, -1])
             start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-            utils.verbose(f"Completed {self.model} gridfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}", self.verbose)
+            utils.verbose(f"""Completed {self.model} gridfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
+                          {round(mean_rsq,2)}""", self.verbose)
             utils.verbose(f"Gridfit took {timedelta(seconds=elapsed)}", self.verbose)
 
             if self.write_files:
                 if self.save_grid:
                     self.save_params(model=self.model, stage="grid")
         else:
-            utils.verbose(f"Setting {(type(self.gaussian_fitter.iterative_search_params))} as 'gridsearch_params' in {self.tmp_fitter}", self.verbose)
+            utils.verbose(f"""Setting {(type(self.gaussian_fitter.iterative_search_params))} as 'gridsearch_params' in
+                          {self.tmp_fitter}""", self.verbose)
             self.tmp_fitter.gridsearch_params = self.gaussian_fitter.iterative_search_params
 
         setattr(self, f"{self.model}_fitter", self.tmp_fitter)
@@ -1785,7 +1856,8 @@ class ExtendedModel():
         setattr(self, f"{self.model}_bounds", self.tmp_bounds)        
         
         start = time.time()
-        utils.verbose(f"Starting {self.model} iterfit {self.data.shape}  at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}", self.verbose)
+        utils.verbose(f"Starting {self.model} iterfit {self.data.shape}  at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+                      self.verbose)
 
         # fit
         if self.constraints[1] == "tc":
@@ -1811,7 +1883,8 @@ class ExtendedModel():
         # verbose stuff
         mean_rsq = np.mean(filtered_[self.tmp_fitter.rsq_mask, -1])
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-        utils.verbose(f"Completed {self.model} iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}", self.verbose)
+        utils.verbose(f"""Completed {self.model} iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
+                      {round(mean_rsq,2)}""", self.verbose)
         utils.verbose(f"Iterfit took {timedelta(seconds=elapsed)}", self.verbose)
 
         if self.write_files:
@@ -1822,20 +1895,28 @@ class ExtendedModel():
 class pRFmodelFitting(GaussianModel, ExtendedModel):
     """pRFmodelFitting
 
-    Main class to perform all the pRF-fitting. By default, we'll first look for a `prf_analysis.yml`-file in `DIR_DATA_HOME/code`. If there's no file there, we'll take the file provided with the *linescanning*-repository (https://github.com/gjheij/linescanning/blob/main/misc/prf_analysis.yml). Generally, the input data is expected to be percent-signal changed where the timecourses are shifted such that the median of the timepoints *without* stimulus is set to 0 (see https://github.com/gjheij/linescanning/blob/main/bin/call_prf#L267 how this works). 
+    Main class to perform all the pRF-fitting. By default, we'll first look for a `prf_analysis.yml`-file in 
+    `DIR_DATA_HOME/code`. If there's no file there, we'll take the file provided with the *fmriproc*-repository
+    (https://github.com/gjheij/fmriproc/blob/main/misc/prf_analysis.yml). Generally, the input data is expected to be
+    percent-signal changed where the timecourses are shifted such that the median of the timepoints *without* stimulus is set
+    to 0 (see https://github.com/gjheij/fmriproc/blob/main/bin/call_prf#L267 how this works).
 
     Parameters
     ----------
     data: numpy.ndarray
-        <voxels,time> numpy array | when reading in the data later again, the format must be <time,voxels>. This is highly annoying, but it seems to be required for predictions to work properly.
+        <voxels,time> numpy array | when reading in the data later again, the format must be <time,voxels>. This is highly
+        annoying, but it seems to be required for predictions to work properly.
     design_matrix: numpy.ndarray
         <n_pix, n_pix, time> numpy array containing the paradigm
     TR: float
-        repetition time of acquisition; required for the analysis file. If you're using gifti-input, you can fetch the TR from that file with `gifti = linescanning.utils.ParseGiftiFile(gii_file).TR_sec`. If you're file have been created with `fMRIprep` or `call_vol2fsaverage`, this should work.
+        repetition time of acquisition; required for the analysis file. If you're using gifti-input, you can fetch the TR from
+        that file with `gifti = lazyfmri.dataset.ParseGiftiFile(gii_file).TR_sec`. If you're file have been created with
+        `fMRIprep` or `call_vol2fsaverage`, this should work.
     model: str
         as of now, one of ['gauss','dog','css','norm'] is accepted
     stage: str
-        Can technically be anything. By default, grid-fits are executed, but if `stage` contains `iter` (e.g., `stage="iter"`), an iterative fit is executed as well.
+        Can technically be anything. By default, grid-fits are executed, but if `stage` contains `iter` (e.g.,
+        `stage="iter"`), an iterative fit is executed as well.
     output_dir: str
         directory to store all files in; should be somewhere in <project>/derivatives/prf/<subject>
     output_base: str
@@ -1843,16 +1924,21 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
     write_files: bool
         save files (True) or not (False). Should be used in combination with <output_dir> and <output_base>
     old_params: np.ndarray, str, optional
-        A string pointing to an existing file or a numpy array. Internally, the parameters will be assigned to `Iso2DGaussianFitter.gridsearch_params` and `Iso2DGaussianFitter.iterative_search_params`. This fitter object is then assigned to `Iso2DGaussianFitter.previous_gaussian_fitter`, which is then directly inserted in one of the extended models (e.g., `DN`, `DoG`, or `CSS`).
+        A string pointing to an existing file or a numpy array. Internally, the parameters will be assigned to
+        `Iso2DGaussianFitter.gridsearch_params` and `Iso2DGaussianFitter.iterative_search_params`. This fitter object is then
+        assigned to `Iso2DGaussianFitter.previous_gaussian_fitter`, which is then directly inserted in one of the extended
+        models (e.g., `DN`, `DoG`, or `CSS`).
     hrf: np.ndarray, list, optional
-        <1,time_points> describing the HRF. Can be created with :func:`linescanning.glm.double_gamma`, then add an axis before the timepoints:
+        <1,time_points> describing the HRF. Can be created with :func:`lazyfmri.glm.double_gamma`, then add an axis before the
+        timepoints:
 
         >>> dt = 1
         >>> time_points = np.linspace(0,36,np.rint(float(36)/dt).astype(int))
-        >>> hrf_custom = linescanning.glm.double_gamma(time_points, lag=6)
+        >>> hrf_custom = lazyfmri.glm.double_gamma(time_points, lag=6)
         >>> hrf_custom = hrf_custom[np.newaxis,...]
 
-        Can also be a list of three parameters for the SPM-functions. Defaults to [1,1,0], for the HRF, and the time derivative. 
+        Can also be a list of three parameters for the SPM-functions. Defaults to [1,1,0], for the HRF, and the time
+        derivative. 
     fit_hrf: bool
         fit the HRF with the pRF-parameters as implemented in `prfpy`
     nr_jobs: int, optional
@@ -1860,13 +1946,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
     verbose: bool, optional
         Set to True if you want some messages along the way (default = False)
     constraints: list, str, optional
-        Specify optimizers. Use `tc` for trust-constrained minimization (= slower, but less local. I.e., can move away from the grid), or `bfgs` for L-BFGS-B minimization (lot faster, but more local. I.e., stays closer to the grid). If `tc` or `bgfs`, this minimizer is used for both stages. You can also specify a list where the first element is for *Gaussian*-model and second element is for extended model, e.g., `['tc', 'bgfs']`. Generally, the extended model has more parameters so the fit is slower, while the Gaussian-model runs fine with slow optimization (`tc`). Default = `tc` for both stages as it leads to improved *r2*. 
+        Specify optimizers. Use `tc` for trust-constrained minimization (= slower, but less local. I.e., can move away from
+        the grid), or `bfgs` for L-BFGS-B minimization (lot faster, but more local. I.e., stays closer to the grid). If `tc`
+        or `bgfs`, this minimizer is used for both stages. You can also specify a list where the first element is for
+        *Gaussian*-model and second element is for extended model, e.g., `['tc', 'bgfs']`. Generally, the extended model has
+        more parameters so the fit is slower, while the Gaussian-model runs fine with slow optimization (`tc`). Default = `tc`
+        for both stages as it leads to improved *r2*. 
     save_grid: bool, optional
         Save grid-parameters; can save clogging up of directories. Default = True
     any: optional
-        You can also provide a value for any key/item present in the default settings-file, e.g., `screen_size_cm`, `rsq_threshold`, `TR`, you name it. This will overwrite the default setting, without the requirement of specifying a new file. Allows for quick tests/adaptations to the default settings. This is especially useful in cases where - pls no.. - you have different screen distances in one dataset.
+        You can also provide a value for any key/item present in the default settings-file, e.g., `screen_size_cm`,
+        `rsq_threshold`, `TR`, you name it. This will overwrite the default setting, without the requirement of specifying a
+        new file. Allows for quick tests/adaptations to the default settings. This is especially useful in cases where - pls
+        no.. - you have different screen distances in one dataset.
     skip_settings: bool, optional
-        avoids overwriting of particular settings (e.g., screen_distance_cm), and takes them from the reference analysis file instead
+        avoids overwriting of particular settings (e.g., screen_distance_cm), and takes them from the reference analysis file
+        instead
+
     Returns
     ----------
     pkl-file
@@ -1874,7 +1970,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
     Example
     ----------
-    >>> from linescanning.prf import pRFmodelFitting
+    >>> from fmriproc.prf import pRFmodelFitting
     >>> fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
 
     >>> # we can use this class to read in existing parameter files
@@ -1891,7 +1987,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
     Notes
     ----------
-    See https://linescanning.readthedocs.io/en/latest/examples/prfmodelfitter.html for more elaborate example of fitting, loading, visualization, and HRF-fitting
+    See https://fmriproc.readthedocs.io/en/latest/examples/prfmodelfitter.html for more elaborate example of fitting, loading,
+    visualization, and HRF-fitting
     """
 
     def __init__(
@@ -1975,12 +2072,14 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 # transpose if this value is negative; means shapes are shifted
                 if missed_vols < 0:
                     self.data = self.data.T
-                    utils.verbose(f"Skipped volumes was negative ({missed_vols}), transposing data to {self.data.shape}", self.verbose)
+                    utils.verbose(f"Skipped volumes was negative ({missed_vols}), transposing data to {self.data.shape}",
+                                  self.verbose)
                     missed_vols = self.design_matrix.shape[-1]-self.data.shape[-1]
 
                 self.design_matrix = self.design_matrix[...,missed_vols:]
 
-                utils.verbose(f"Design has {missed_vols} more volumes than timecourses, trimming from beginning of design to {self.design_matrix.shape}", self.verbose)
+                utils.verbose(f"""Design has {missed_vols} more volumes than timecourses, trimming from beginning of design to
+                              {self.design_matrix.shape}""", self.verbose)
 
         #----------------------------------------------------------------------------------------------------------------------------------------------------------
         # Fetch the settings
@@ -2098,7 +2197,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
                     # only update if different
                     if getattr(self, setting) != self.settings[setting]:
-                        utils.verbose(f"Setting '{setting}' to user-defined value: {getattr(self, setting)} (was: {self.settings[setting]})", self.verbose)
+                        utils.verbose(f"""Setting '{setting}' to user-defined value: {getattr(self, setting)}
+                                      (was: {self.settings[setting]})""", self.verbose)
 
                         self.settings[setting] = getattr(self, setting)
 
@@ -2138,7 +2238,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 if self.previous_gaussian_fitter.gridsearch_params.shape[-1] > 6:
 
                     # HRF already fitted, so set to false and update settings
-                    utils.verbose(f"HRF already fitted, setting 'fit_hrf' in '{self.previous_gaussian_fitter}' to False", self.verbose)
+                    utils.verbose(f"HRF already fitted, setting 'fit_hrf' in '{self.previous_gaussian_fitter}' to False",
+                                  self.verbose)
                     self.previous_gaussian_fitter.fit_hrf = False
 
                 GaussianModel.iterfit(self)
@@ -2254,12 +2355,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         """load_params
 
-        Attribute of `self`, with which you can load in an existing file with pRF-estimates. If the input file is a `pkl`-file, you'll get access to all the required information about your analysis: the settings, the input data, the predictions, and the design matrix. To do this, we need the `params_file` as well as information about the origin of the file; which model (e.g., `gauss`) and stage (e.g., 'iter') did the file arise from. We'll then internally set the parameters to the specified model and stage, making it compatible with :func:`linescanning.prf.pRFmodelFitting.plot_vox()`. It can also be a `numpy.ndarray` or `pandas.DataFrame`, but then less information about the analysis is known. 
+        Attribute of `self`, with which you can load in an existing file with pRF-estimates. If the input file is a
+        `pkl`-file, you'll get access to all the required information about your analysis: the settings, the input data, the
+        predictions, and the design matrix. To do this, we need the `params_file` as well as information about the origin of
+        the file; which model (e.g., `gauss`) and stage (e.g., 'iter') did the file arise from. We'll then internally set theparameters to the specified model and stage, making it compatible with 
+        :func:`fmriproc.prf.pRFmodelFitting.plot_vox()`. It can also be a `numpy.ndarray` or `pandas.DataFrame`, but then less
+        information about the analysis is known. 
 
         Parameters
         ----------
         params_file: str, dict, pandas.DataFrame, numpy.ndarray
-            Input to load in. You'll get the most out of it when you use a `pkl`-file created with :class:`linescanning.prf.pRFmodelFitting`, as you'll have access to the predictions, timecourses, parameters, and settings. If you do not have this, you can also enter a `numpy.ndarray` or `pandas.DataFrame`. The later is assumed to be a result from :class:`linescanning.prf.SizeResponse`, in that it's a *Divisive-Normalization* model result, with the following columns: `['x','y','prf_size','A','bold_bsl','B','C','surr_size','D','r2']` and indexed by `hemi` (`L`/`R`). Can also be a dictionary collecting filenames as values, and model names (e.g., 'gauss','norm') as keys. 
+            Input to load in. You'll get the most out of it when you use a `pkl`-file created with 
+            :class:`fmriproc.prf.pRFmodelFitting`, as you'll have access to the predictions, timecourses, parameters, and
+            settings. If you do not have this, you can also enter a `numpy.ndarray` or `pandas.DataFrame`. The latter is
+            assumed to be a result from :class:`fmriproc.prf.SizeResponse`, in that it's a *Divisive-Normalization* model
+            result, with the following columns: `['x','y','prf_size','A','bold_bsl','B','C','surr_size','D','r2']` and indexed
+            by `hemi` (`L`/`R`). Can also be a dictionary collecting filenames as values, and model names (e.g., 'gauss',
+            'norm') as keys. 
         model: str, list optional
             Model from which the pRF-estimates came from, by default 'gauss'
         stage: str, optional
@@ -2267,7 +2379,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         hemi: str, optional
             In case `params_file` is a `pandas.DataFrame` indexed by `hemi` and you want a particular subset of the dataframe
         return_pars: bool, optional
-            Instead of setting the parameters as attributes given `model` and `stage`, just return the parameters as output. This will still update the settings internally if the input was a pickle-file containing the **settings** key.
+            Instead of setting the parameters as attributes given `model` and `stage`, just return the parameters as output.
+            This will still update the settings internally if the input was a pickle-file containing the **settings** key.
 
         Raises
         ----------
@@ -2289,7 +2402,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         Notes
         ----------
-        Also see https://linescanning.readthedocs.io/en/latest/examples/prfmodelfitter.html
+        Also see https://fmriproc.readthedocs.io/en/latest/examples/prfmodelfitter.html
         """
 
         if not isinstance(params_file, list):
@@ -2333,7 +2446,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                             setattr(self, f'{mm}_{stage}_predictions', data['predictions'])
                 
                     if not skip_settings:
-                        utils.verbose(f"Reading settings from '{par_file}' (safest option; overwrites other settings)", self.verbose)
+                        utils.verbose(f"Reading settings from '{par_file}' (safest option; overwrites other settings)",
+                                      self.verbose)
                         self.settings = data['settings']
 
                         # print important settings
@@ -2432,7 +2546,13 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         
         """plot_vox
 
-        Quick function to plot the pRF-location in visual space as well as the raw timecourse + prediction. This is done based on voxel-indexing, `vox_nr`. You'll need to specify the `model` and `stage` flags to select the correct pRF-estimates. If you do not want a figure, but just the outputs, you can set `make_figure=False`. Other flags are customizations, such as adding a power spectrum, font size, and xkcd-style plotting. `axis_type` refers to the nature of the x-axis. Can either be `volumes` or `time` (generally time is more informative). Finally, if you have a slightly lower resolution design matrix, you can upsample your pRF-location with a given pixel size (e.g., `270`). This is only for aesthetics in the figure.
+        Quick function to plot the pRF-location in visual space as well as the raw timecourse + prediction. This is done based
+        on voxel-indexing, `vox_nr`. You'll need to specify the `model` and `stage` flags to select the correct pRF-estimates.
+        If you do not want a figure, but just the outputs, you can set `make_figure=False`. Other flags are customizations,
+        such as adding a power spectrum, font size, and xkcd-style plotting. `axis_type` refers to the nature of the x-axis.
+        Can either be `volumes` or `time` (generally time is more informative). Finally, if you have a slightly lower
+        resolution design matrix, you can upsample your pRF-location with a given pixel size (e.g., `270`). This is only for
+        aesthetics in the figure.
 
         Parameters
         ----------
@@ -2443,19 +2563,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         stage: str, optional
             Which *stage* to select the pRF-estimates from, by default 'iter'
         make_figure: bool, optional
-            Make the figure (`make_figure=True`) and output `params`, the `np.ndarray` representing the pRF in visual space, the BOLD timecourse, and the `prediction`; or `make_figure=False` and only return `params` and `prediction`, by default True
+            Make the figure (`make_figure=True`) and output `params`, the `np.ndarray` representing the pRF in visual space,
+            the BOLD timecourse, and the `prediction`; or `make_figure=False` and only return `params` and `prediction`, by
+            default True
         xkcd: bool, optional
             Make the plot in xkcd-style, by default False
         title: str, optional
-            Title of the timecourse plot. If `title='pars'`, we'll set the parameters as title. This can be useful to quickly check parameters, by default None
+            Title of the timecourse plot. If `title='pars'`, we'll set the parameters as title. This can be useful to quickly
+            check parameters, by default None
         font_size: int, optional
             Fontsize for x/y-labels and title, by default 18
         transpose: bool, optional
-            Depending on how the predictions are loaded, you might need to transpose. Generally, if you've ran the fitting before plotting, this should be fine. Rule of thumb: if you get an indexing error, try `transpose=True`.
+            Depending on how the predictions are loaded, you might need to transpose. Generally, if you've ran the fitting
+            before plotting, this should be fine. Rule of thumb: if you get an indexing error, try `transpose=True`.
         freq_spectrum: bool, optional
             Add a frequency spectrum of the timecourse, by default False
         freq_type: str, optional
-            Which type of frequency sprectrum, by default 'fft' (see also :func:`linescanning.preproc.get_freq` or https://linescanning.readthedocs.io/en/latest/classes/preproc.html#linescanning.preproc.get_freq)
+            Which type of frequency sprectrum, by default 'fft' (see also :func:`lazyfmri.preproc.get_freq`
         clip_power: int, optional
             Clip the power of the spectrum to enhance visualization, by default None
         save_as: str, optional
@@ -2463,9 +2587,11 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         axis_type: str, optional
             Type of x-axis, by default "volumes". Can also be 'time' to use time-dimension, rather than volume-dimension
         resize_pix: int, optional
-            Spatially smooth your pRF if you've used a low-resolution design matrix, by default None. Generally, `resize_pix=270` results in pleasing pRF-depictions
+            Spatially smooth your pRF if you've used a low-resolution design matrix, by default None. Generally,
+            `resize_pix=270` results in pleasing pRF-depictions
         add_tc: dict, np.ndarray, optional
-            Allows an additional timecourse to be plotted with the data and the prediction. Can be either a numpy array or a dictionary with the following keys:
+            Allows an additional timecourse to be plotted with the data and the prediction. Can be either a numpy array or a
+            dictionary with the following keys:
 
             - "tc": the timecourse to add. If `add_tc == np.ndarray`, then "tc" will be set internally
             - "color": any valid `matplotlib`-color (e.g., RGB/Hex). Default = "b"
@@ -2492,7 +2618,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         Example
         ----------
-        >>> from linescanning.prf import pRFmodelFitting
+        >>> from fmriproc.prf import pRFmodelFitting
         >>> #
         >>> # define the model
         >>> fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
@@ -2511,7 +2637,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         ----------
         
         - To silence output, use `_,_,_,_= fitting.plot_vox()`
-        - Also check https://linescanning.readthedocs.io/en/latest/examples/prfmodelfitter.html for more examples
+        - Also check https://fmriproc.readthedocs.io/en/latest/examples/prfmodelfitter.html for more examples
         """
 
         if isinstance(vox_nr, np.ndarray):
@@ -2658,7 +2784,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                     val
                 )
 
-            plotting.LazyPlot(
+            plotting.LazyLine(
                 data_list,
                 xx=x_axis,
                 color=color_list, 
@@ -2684,9 +2810,14 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                     
                     ax3 = axs[2]
 
-                self.freq = preproc.get_freq(tc, TR=self.TR, spectrum_type=freq_type, clip_power=clip_power)
+                self.freq = preproc.get_freq(
+                    tc, 
+                    TR=self.TR, 
+                    spectrum_type=freq_type, 
+                    clip_power=clip_power
+                )
 
-                plotting.LazyPlot(
+                plotting.LazyLine(
                     self.freq[1],
                     xx=self.freq[0],
                     color="#1B9E77", 
@@ -2755,13 +2886,15 @@ def find_most_similar_prf(reference_prf, look_in_params, verbose=False, return_n
     Parameters
     ----------
     reference_prf: numpy.ndarray
-        pRF-parameters from the reference pRF, where `reference_prf[0]` = **x**, `reference_prf[1]` = **y**, and `reference_prf[2]` = **size**
+        pRF-parameters from the reference pRF, where `reference_prf[0]` = **x**, `reference_prf[1]` = **y**, and 
+        `reference_prf[2]` = **size**
     look_in_params: numpy.ndarray
         array of pRF-parameters in which we will be looking for `reference_prf`
     verbose: bool, optional
         Set to True if you want some messages along the way (default = False)
     return_nr: str, int
-        same parameter as in :func:`linescanning.utils.find_nearest`, where we can specify how many matches we want to have returned (default = "all") 
+        same parameter as in :func:`lazyfmri.utils.find_nearest`, where we can specify how many matches we want to have
+        returned (default = "all") 
     r2_thresh: float
         after finding matching pRF, throw away fits below `r2_thresh`
 
@@ -2805,7 +2938,9 @@ def find_most_similar_prf(reference_prf, look_in_params, verbose=False, return_n
 class SizeResponse():
     """SizeResponse
 
-    Perform size-response related operations given a pRF-stimulus/parameters. Simulate the pRF-response using a set of growing stimuli (or growing holes) using :func:`linescanning.prf.make_stims`, create size/hole response functions, and find stimulus sizes that maximize activation and suppression.
+    Perform size-response related operations given a pRF-stimulus/parameters. Simulate the pRF-response using a set of growing
+    stimuli (or growing holes) using :func:`fmriproc.prf.make_stims`, create size/hole response functions, and find stimulus
+    sizes that maximize activation and suppression.
 
     Parameters
     ----------
@@ -2813,26 +2948,31 @@ class SizeResponse():
         Output of a Divisive Normalization fit 
     prf_stim: :class:`prfpy.stimulus.PRFStimulus2D`
         Object describing the nature of the stimulus
-    subject_info: :class:`linescanning.utils.VertexInfo`-object
-        Subject information collected in :class:`linescanning.utils.VertexInfo` that can be used for :func:`linescanning.prf.SizeResponse.save_target_params`
+    subject_info: :class:`fmriproc.prf.VertexInfo`-object
+        Subject information collected in :class:`fmriproc.prf.VertexInfo` that can be used for 
+        :func:`fmriproc.prf.SizeResponse.save_target_params`
     model: str, optional
         Model from which `params` is derived. Default = "norm"
-    subject_info: :class:`linescanning.prf.CollectSubject`, optional
-        Object collection defaults given a subject. Mainly used to generate the `prf_stim` object, which is used to derive information about screen settings, which can also be set with the flags below. Therefore, not mandatory.
+    subject_info: :class:`fmriproc.prf.CollectSubject`, optional
+        Object collection defaults given a subject. Mainly used to generate the `prf_stim` object, which is used to derive
+        information about screen settings, which can also be set with the flags below. Therefore, not mandatory.
     downsample_factor: int, optional
-        The default screen is [1920,1080]. This is rather large and can be complicated CPU wise. This flag downsamples the screen size by selecting every `downsample_factor` along the x and y axis
+        The default screen is [1920,1080]. This is rather large and can be complicated CPU wise. This flag downsamples the
+        screen size by selecting every `downsample_factor` along the x and y axis
     n_pix: int, optional
         Number of pixels in the design matrix to simulate (smaller is faster)
     screen_distance_cm: int, optional
         Distance from viewer to screen. Default is the MRI-scanner value of 196 cm
     screen_size_cm: float, tuple, list, optional
-        Dimensions of the screen in **centimeters**. Default is the BOLD screen: [70,39.3]. Specify a single value to create square stimuli
+        Dimensions of the screen in **centimeters**. Default is the BOLD screen: [70,39.3]. Specify a single value to create
+        square stimuli
     screen_size_px: float, tuple, list, optional
-        Dimensions of the screen in **pixels**. Default is the BOLD screen: [1920,1080]. Specify a single value to create square stimuli
+        Dimensions of the screen in **pixels**. Default is the BOLD screen: [1920,1080]. Specify a single value to create
+        square stimuli
 
     Example
     ----------
-    >>> from linescanning import prf
+    >>> from fmriproc import prf
     >>> # define file with pRF estimates
     >>> in_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
     >>> #
@@ -2847,7 +2987,7 @@ class SizeResponse():
     >>>     screen_size_cm=[70,39.3],
     >>>     screen_size_px=[1920,1080])
 
-    >>> from linescanning import utils
+    >>> from lazyfmri import utils
     >>> # Collect subject-relevant information in class
     >>> subject = "sub-001"
     >>> hemi = "lh"
@@ -2967,7 +3107,7 @@ class SizeResponse():
         *args, 
         **kwargs):
 
-        """create stimuli for Size-Response curve simulation. See :func:`linescanning.prf.make_stims`"""
+        """create stimuli for Size-Response curve simulation. See :func:`fmriproc.prf.make_stims`"""
         # create stimuli
         
         stims, sizes = make_stims(
@@ -3040,7 +3180,8 @@ class SizeResponse():
         max_jobs=20
         ):
 
-        """create Size-Response function. If you want to ignore the actual location of the pRF, set `center_prf=True`. You can also scale the pRF-size with a factor `scale_factor`, for instance if you want to simulate pRF-sizes across depth."""
+        """create Size-Response function. If you want to ignore the actual location of the pRF, set `center_prf=True`. You can
+        also scale the pRF-size with a factor `scale_factor`, for instance if you want to simulate pRF-sizes across depth."""
         
         if not isinstance(params, np.ndarray):
             params = Parameters(params, model="norm").to_df()
@@ -3173,23 +3314,25 @@ class SizeResponse():
         return_ampl=False):
         """find_stim_sizes
 
-        Function to fetch the stimulus sizes that optimally disentangle the responses of two pRFs given the Size-Response curves. Starts by finding the maximum response for each curve, then finds the intersect, then finds the stimulus sizes before and after the intersect where the response difference is largest.
+        Function to fetch the stimulus sizes that optimally disentangle the responses of two pRFs given the Size-Response
+        curves. Starts by finding the maximum response for each curve, then finds the intersect, then finds the stimulus sizes
+        before and after the intersect where the response difference is largest.
 
         Parameters
         ----------
         curve1: numpy.ndarray
-            Array representing the first SR-curve (as per output for :func:`linescanning.prf.SizeResponse.make_sr_function`)
+            Array representing the first SR-curve (as per output for :func:`fmriproc.prf.SizeResponse.make_sr_function`)
         curve2: numpy.ndarray
-            Array representing the second SR-curve (as per output for :func:`linescanning.prf.SizeResponse.make_sr_function`)
+            Array representing the second SR-curve (as per output for :func:`fmriproc.prf.SizeResponse.make_sr_function`)
 
         Returns
         ----------
         numpy.ndarray
-            array containing the optimal stimulus sizes as per :func:`linescanning.prf.SizeResponse.make_stims`
+            array containing the optimal stimulus sizes as per :func:`fmriproc.prf.SizeResponse.make_stims`
 
         Example
         ----------
-        >>> # follows up on example in *linescanning.prf.SizeResponse*
+        >>> # follows up on example in *fmriproc.prf.SizeResponse*
         >>> SR.make_stimuli()
         >>> sr_curve1 = SR.make_sr_function(center_prf=True)
         >>> sr_curve2 = SR.make_sr_function(center_prf=True, scale_factor=0.8) # decrease pRF size of second pRF by 20%
@@ -3210,7 +3353,8 @@ class SizeResponse():
                 curve1 = curve1.squeeze()
 
             if not isinstance(sizes, (list,np.ndarray)):
-                raise ValueError(f"sizes must be a list or array consisting of stimulus sizes, not {sizes} of type ({type(sizes)})")
+                raise ValueError(f"""sizes must be a list or array consisting of stimulus sizes, not {sizes} of type
+                                 ({type(sizes)})""")
             
             # get intersection
             sr_diff = curve1-curve2
@@ -3262,7 +3406,7 @@ class SizeResponse():
         cmap=(8,178,240),
         axis=False):
         
-        """plot output of :func:`linescanning.prf.SizeResponse.find_stim_sizes`"""
+        """plot output of :func:`fmriproc.prf.SizeResponse.find_stim_sizes`"""
 
         import matplotlib as mpl
         if not isinstance(ax, mpl.axes._axes.Axes):
@@ -3295,7 +3439,10 @@ class SizeResponse():
 
         if self.subject_info != None:
             if fname == None:
-                prf_bestvertex = opj(self.subject_info.cx_dir, f'{self.subject_info.subject}_model-norm_desc-best_vertices.csv')
+                prf_bestvertex = opj(
+                    self.subject_info.cx_dir, 
+                    f'{self.subject_info.subject}_model-norm_desc-best_vertices.csv'
+                )
             else:
                 prf_bestvertex = fname
 
@@ -3357,7 +3504,10 @@ class SizeResponse():
 class CollectSubject(pRFmodelFitting):
     """CollectSubject
 
-    Simple class to fetch pRF-related settings given a subject. Collects the design matrix, settings, and target vertex information. The `ses`-flag decides from which session the pRF-parameters to be used. You can either specify an *analysis_yaml* file containing information about a pRF-analysis, or specify *settings='recent'* to fetch the most recent analysis file in the pRF-directory of the subject. The latter is generally fine if you want information about the stimulus.
+    Simple class to fetch pRF-related settings given a subject. Collects the design matrix, settings, and target vertex
+    information. The `ses`-flag decides from which session the pRF-parameters to be used. You can either specify an
+    *analysis_yaml* file containing information about a pRF-analysis, or specify *settings='recent'* to fetch the most recent
+    analysis file in the pRF-directory of the subject. The latter is generally fine if you want information about the stimulus.
 
     Parameters
     ----------
@@ -3374,19 +3524,26 @@ class CollectSubject(pRFmodelFitting):
     hemi: str, optional
         Hemisphere to extract target vertex from, by default "lh"
     model: str, optional
-        By default `gauss`, which reads in the gaussian iterative fit parameters in a :class:`linescanning.prf.pRFmodelFitting`-object. Can be any of the allowed models ('gauss', 'css', 'dog', norm).
+        By default `gauss`, which reads in the gaussian iterative fit parameters in a 
+        :class:`fmriproc.prf.pRFmodelFitting`-object. Can be any of the allowed models ('gauss', 'css', 'dog', norm).
     verbose: bool, optional
         Set to True if you want some messages along the way (default = True)
     resize_pix: int
-        resolution of pRF to resample to. For instance, if you've used a low-resolution design matrix, but you'd like a prettier image, you can set `resize` to something higher than the original (54 >> 270, for example). By default not used.
+        resolution of pRF to resample to. For instance, if you've used a low-resolution design matrix, but you'd like a
+        prettier image, you can set `resize` to something higher than the original (54 >> 270, for example). By default not
+        used.
     best_vertex: bool, optional
-        Signifies that we should load in the parameters of the target vertex used in line-scanning experiments. If *True*, the 'best_vertex'-parameters given `model` will be read in. If *False*, the iterative fit parameters from `model` will be read in.
+        Signifies that we should load in the parameters of the target vertex used in line-scanning experiments. If *True*, the
+        'best_vertex'-parameters given `model` will be read in. If *False*, the iterative fit parameters from `model` will be
+        read in.
     filter_list: list, optional
-        Extra filters to search for particular design matrix. By default, we'll look for a file with ["design", "mat"], but if you have multiple files that correspond to this list you can add extra elements to pick the file you need, e.g., `filter_list=["acq-3DEPI"]`
+        Extra filters to search for particular design matrix. By default, we'll look for a file with ["design", "mat"], but if
+        you have multiple files that correspond to this list you can add extra elements to pick the file you need, e.g.,
+        `filter_list=["acq-3DEPI"]`
 
     Example
     ----------
-    >>> from linescanning import utils
+    >>> from lazyfmri import utils
     >>> subject_info = utils.CollectSubject(subject, derivatives=<path_to_derivatives>, settings='recent', hemi="lh")
     """
 
@@ -3464,7 +3621,9 @@ class CollectSubject(pRFmodelFitting):
                     
             except:
                 try:
-                    self.func_data_lr = np.load(utils.get_file_from_substring(["desc-data.npy"]+self.filter_list, self.prf_dir))
+                    self.func_data_lr = np.load(
+                        utils.get_file_from_substring(["desc-data.npy"]+self.filter_list, self.prf_dir)
+                    )
                 except:
                     print(f"WARNING: could not load all functional data from '{self.prf_dir}'")
 
@@ -3484,13 +3643,27 @@ class CollectSubject(pRFmodelFitting):
 
         utils.verbose(f"Reading full-cortex pRF estimates with {look_for}", self.verbose)
         for model in allowed_models:
-            par_file = utils.get_file_from_substring(look_for+[f"model-{model}"], self.prf_dir, return_msg=None, exclude=exclude)
+            par_file = utils.get_file_from_substring(
+                look_for+[f"model-{model}"],
+                self.prf_dir,
+                return_msg=None,
+                exclude=exclude
+            )
             if isinstance(par_file, str):
                 utils.verbose(f" model: {model}:\t{par_file}", self.verbose)
                 setattr(self, f'{model}_iter_pars_file', par_file)
                 setattr(self, f'{model}_iter_pars', read_par_file(par_file))
-                setattr(self, f'{model}_iter_pars_df', Parameters(getattr(self, f'{model}_iter_pars'), model=model).to_df())
-                setattr(self, f'{model}_iter_pars_arr', Parameters(getattr(self, f'{model}_iter_pars_df'), model=model).to_array())
+                setattr(
+                    self,
+                    f'{model}_iter_pars_df',
+                    Parameters(getattr(self, f'{model}_iter_pars'), model=model).to_df()
+                )
+
+                setattr(
+                    self,
+                    f'{model}_iter_pars_arr',
+                    Parameters(getattr(self, f'{model}_iter_pars_df'), model=model).to_array()
+                )
         
         # set pycortex directory
         if self.cx_dir == None:
@@ -3502,7 +3675,7 @@ class CollectSubject(pRFmodelFitting):
 
             if isinstance(self.vert_fn, str):
                 utils.verbose(f"Reading {self.vert_fn}", self.verbose)
-                self.vert_info = utils.VertexInfo(
+                self.vert_info = VertexInfo(
                     self.vert_fn, 
                     subject=self.subject, 
                     hemi=self.hemi)
@@ -3561,7 +3734,7 @@ class CollectSubject(pRFmodelFitting):
             print("WARNING: could not initiate model due to missing data. Some functions may not work.")
 
     def return_prf_params(self, hemi="lh"):
-        """return pRF parameters from :class:`linescanning.utils.VertexInfo`"""
+        """return pRF parameters from :class:`fmriproc.prf.VertexInfo`"""
         return self.vert_info.get('prf', hemi=hemi)
 
     def return_target_vertex(self, hemi="lh"):
@@ -4038,3 +4211,83 @@ class Profile1D(pRFmodelFitting):
             curve, 
             np.zeros_like(curve)
         )
+
+class VertexInfo:
+
+    """ VertexInfo
+    
+    This object reads a .csv file containing relevant information about the angles, vertex position, and normal vector.
+    
+    Parameters
+    ----------
+    infofile: str
+        path to the information file containing `best_vertices` in the filename
+    subject: str
+        subject ID as used in `SUBJECTS_DIR`
+
+    Returns
+    ----------
+    attr
+        sets attributes in the class    
+    """
+
+    def __init__(self, infofile=None, subject=None, hemi="lh"):
+        
+        self.infofile = infofile
+        self.data = pd.read_csv(self.infofile)
+        
+        # try to set the index to hemi. It will throw an error if you want to set the index while there already is an index.
+        # E.g., initially we will set the index to 'hemi'. If we then later on read in that file again, the index is already 
+        # set
+        try:
+            self.data = self.data.set_index('hemi')
+        except:
+            pass
+            
+        if hemi.lower() in ["lh","l","left"]:
+            self.hemi = "L"
+        elif hemi.lower() in ["rh","r","right"]:
+            self.hemi = "R"
+        else:
+            self.hemi = "both"
+        
+        if self.hemi == "both":
+            # check if arrays are in string format
+            for hemi in ["L", "R"]:
+                self.data['normal'][hemi]   = string2float(self.data['normal'][hemi])
+                self.data['position'][hemi] = string2float(self.data['position'][hemi])
+        else:
+            self.data['normal'][self.hemi]   = string2float(self.data['normal'][self.hemi])
+            self.data['position'][self.hemi] = string2float(self.data['position'][self.hemi])            
+        
+        self.subject = subject
+
+    def get(self, keyword, hemi='both'):
+
+        """return values from dataframe given keyword. Can be any column name or 'prf' for pRF-parameters"""
+
+        keywords = np.array(self.data.columns)
+
+        if keyword == "prf":
+
+            if hemi == "both":
+                return {
+                    "lh": [self.data[ii]['L'] for ii in ['x', 'y', 'size', 'beta', 'baseline', 'r2']],
+                    "rh": [self.data[ii]['R'] for ii in ['x', 'y', 'size', 'beta', 'baseline', 'r2']]}
+            elif hemi.lower() == "right" or hemi.lower() == "r" or hemi.lower() == "rh":
+                return [self.data[ii]['R'] for ii in ['x', 'y', 'size', 'beta', 'baseline', 'r2']]
+            elif hemi.lower() == "left" or hemi.lower() == "l" or hemi.lower() == "lh":
+                return [self.data[ii]['L'] for ii in ['x', 'y', 'size', 'beta', 'baseline', 'r2']]
+
+        else:
+
+            if keyword not in keywords:
+                raise ValueError(f"{keyword} does not exist in {keywords}")
+
+            if hemi == "both":
+                return {"lh": self.data[keyword]['L'],
+                        "rh": self.data[keyword]['R']}
+            elif hemi.lower() == "right" or hemi.lower() == "r" or hemi.lower() == "rh":
+                return self.data[keyword]['R']
+            elif hemi.lower() == "left" or hemi.lower() == "l" or hemi.lower() == "lh":
+                return self.data[keyword]['L']

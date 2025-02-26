@@ -1,9 +1,15 @@
 #!/usr/bin/env python
-from linescanning import scanner,optimal
+from fmriproc import scanner
 import os
 import sys
 import getopt
 opj = os.path.join
+
+try:
+    from cxutils import optimal
+except ImportError:
+    print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
+
 
 def main(argv):
 

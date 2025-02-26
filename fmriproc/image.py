@@ -1,6 +1,6 @@
 # pylint: disable=no-member,E1130,E1137
 import json
-from fmriproc import transform, optimal
+from fmriproc import transform
 from lazyfmri import utils
 import matplotlib.pyplot as plt
 import nibabel as nb
@@ -785,6 +785,11 @@ class ROI():
         
     def surf_mask(self):
 
+        try:
+            from cxutils import optimal
+        except ImportError:
+            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
+
         self.surf_calcs = optimal.SurfaceCalc(subject=self.subject)
 
         # loop through list and merge
@@ -835,6 +840,11 @@ class ROI():
         return self.roi_mask
     
     def read_aparc(self):
+
+        try:
+            from cxutils import optimal
+        except ImportError:
+            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")        
 
         # GET VERICES FOR A SPECIFIC ROI 
         self.parc_data = optimal.SurfaceCalc.read_fs_annot(

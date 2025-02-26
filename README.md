@@ -12,7 +12,14 @@ This package is still in development and its API might change. Documentation for
 ## Installation
 
 ```bash
+# main installation
 pip install git+https://github.com/gjheij/fmriproc
+
+# finalize setup (adds stuff to ~/.bash_profile)
+spinoza_setup setup
+
+# final source
+source ~/.bash_profile
 ```
 
 ## Policy & To Do
