@@ -3,7 +3,7 @@
 export SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SETUP_FILE="${SETUP_DIR}/spinoza_setup"  # copy to some location
 export REPO_DIR=$(dirname ${SETUP_DIR})         # point to linescanning repo (arbitrary)
-export PATH_HOME="/Users/heij/SC/programs/log_dir"         # point to folder for temp/logs files
+export PATH_HOME=${REPO_DIR}/logs               # point to folder for temp/logs files
 
 # source helper functions
 source ${REPO_DIR}/bin/call_bashhelper
