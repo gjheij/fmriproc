@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import ast
-from linescanning import utils
+from fmriproc import utils
 def main(argv):
 
     """

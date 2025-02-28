@@ -2,7 +2,7 @@
 
 import os
 import nibabel as nb
-from linescanning.image import mgz2nii
+from fmriproc.image import mgz2nii
 import numpy as np
 import sys
 opj = os.path.join

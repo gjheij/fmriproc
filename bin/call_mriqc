@@ -273,7 +273,7 @@ if [[ ! -z ${html_files} ]]; then
       if [[ ! -z ${search_for} ]]; then
         
         # find the workflow folder
-        ht_wf=`python -c "from linescanning import utils; ll = utils.get_file_from_substring([${search_for}], \"${func_wf}\"); print(ll)"`
+        ht_wf=`python -c "from fmriproc import utils; ll = utils.get_file_from_substring([${search_for}], \"${func_wf}\"); print(ll)"`
         if [[ ! -z ${ht_wf} ]]; then
           
           # check if there's a file
@@ -339,7 +339,7 @@ if [[ ! -z ${html_files} ]]; then
       if [[ ! -z ${search_for} ]]; then
         
         # find the workflow folder
-        ht_wf=`python -c "from linescanning import utils; ll = utils.get_file_from_substring([${search_for}], \"${func_wf}\"); print(ll)"`
+        ht_wf=`python -c "from fmriproc import utils; ll = utils.get_file_from_substring([${search_for}], \"${func_wf}\"); print(ll)"`
         if [[ ! -z ${ht_wf} ]]; then
           
           # check if there's a file

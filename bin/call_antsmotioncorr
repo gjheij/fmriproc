@@ -7,7 +7,7 @@ import mkl
 mkl.set_num_threads=1
 
 import ants
-from linescanning import utils
+from fmriproc import utils
 from nipype.interfaces import fsl
 import os
 import sys
@@ -68,7 +68,6 @@ Example
     mask_file = None
     ref_file = None
     verbose = False
-    overwrite = False
     output = None
     first_vol = True
     fmt = "SPM"

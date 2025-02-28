@@ -18,9 +18,7 @@ def main(argv):
 call_mrconsole
 
 This script is the new version of call_getscannercoordinates. It utilizes the classes defined in the
-repository to combine the structural and functional information. I like this a lot better because
-it basically encompasses call_pycortex and call_getscannercoordinates in one script. The command is
-also a lot easier.
+repository to combine the structural and functional information.
 
 Args:
     -s <subject>    subject ID as defined in the FreeSurfer/pycortex/other derivatives directories

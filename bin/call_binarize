@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys
-import numpy as np
-import nibabel as nb
-from linescanning import image
+from fmriproc import image
 
 def main(argv):
 

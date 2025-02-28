@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
-import numpy as np
-import ast
-from linescanning.utils import read_chicken_csv
+import sys
+from fmriproc.utils import read_chicken_csv
 
 def main(argv):
 
@@ -45,7 +43,11 @@ Example:
     if in_type.lower() not in ["lps","ras"]:
         raise ValueError(f"in_type is {in_type}; please use 'lps' or 'ras'")
 
-    coord = read_chicken_csv(in_file, return_type=in_type)
+    coord = read_chicken_csv(
+        in_file,
+        return_type=in_type
+    )
+    
     print(coord)
 
 if __name__ == "__main__":

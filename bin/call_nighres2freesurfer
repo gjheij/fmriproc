@@ -4,8 +4,8 @@
 #$ -V
 
 import nighres
-import sys, getopt
-from linescanning.transform import fs2tkr
+import sys
+from fmriproc.transform import fs2tkr
 import os
 import numpy as np
 opj = os.path.join

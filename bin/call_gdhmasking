@@ -5,7 +5,7 @@ import os
 from nilearn import image
 from scipy import ndimage
 import pathlib
-from linescanning import utils
+from fmriproc import utils
 import warnings
 warnings.filterwarnings("ignore")
 opj = os.path.join

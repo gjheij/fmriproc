@@ -5,7 +5,7 @@ import numpy as np
 import warnings
 from nilearn import image
 import nibabel as nb
-from linescanning import utils
+from fmriproc import utils
 import sys, getopt
 opj = os.path.join
 

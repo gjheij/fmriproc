@@ -4,7 +4,7 @@
 #$ -V
 
 from nighres.brain import extract_brain_region
-from linescanning import utils
+from fmriproc import utils
 import sys, getopt
 import os
 opj = os.path.join

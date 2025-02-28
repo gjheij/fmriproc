@@ -3,7 +3,7 @@
 import os, sys
 import numpy as np
 import nibabel as nb
-from linescanning.utils import decode
+from fmriproc.utils import decode
 import subprocess
 opj = os.path.join
 

@@ -77,7 +77,7 @@ def bin_fov(img, thresh=0,out=None, fsl=False):
     
     Example
     ---------
-    >>> from linescanning.image import bin_fov
+    >>> from fmriproc.image import bin_fov
     >>> file = bin_fov("/path/to/image.nii.gz")
     >>> bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
     >>> bin_fov("/path/to/image.nii.gz", thres=2)

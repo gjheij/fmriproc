@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-from linescanning.transform import mri_surf2surf
+from fmriproc.transform import mri_surf2surf
 
 def main(argv):
 

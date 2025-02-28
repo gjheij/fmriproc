@@ -10,9 +10,10 @@ import ast
 import os
 import sys
 import getopt
-from linescanning import (
+from lazyfmri import (
     utils,
-    dataset)
+    dataset
+)
 opj = os.path.join
 
 def main(argv):

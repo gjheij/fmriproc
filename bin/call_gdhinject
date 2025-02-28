@@ -6,7 +6,7 @@ from nilearn import image
 import nibabel as nb
 import sys, getopt
 import shutil
-from linescanning.utils import get_file_from_substring
+from fmriproc.utils import get_file_from_substring
 opj = os.path.join
 
 def main(argv):

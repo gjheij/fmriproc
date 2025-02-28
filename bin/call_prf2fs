@@ -2,7 +2,8 @@
 
 import sys
 import getopt
-from linescanning import prf, utils
+from fmriproc import prf
+from lazyfmri import utils
 import os
 import numpy as np
 from nibabel.freesurfer.io import read_morph_data, write_morph_data

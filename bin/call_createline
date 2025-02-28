@@ -2,8 +2,8 @@
 
 import os, sys
 import getopt
-from linescanning.image import create_line_from_slice
-from linescanning.utils import reverse_sign
+from fmriproc.image import create_line_from_slice
+from fmriproc.utils import reverse_sign
 
 def main(argv):
 

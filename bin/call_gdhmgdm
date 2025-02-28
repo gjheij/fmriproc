@@ -8,8 +8,8 @@ import os
 from nilearn import image
 from nilearn.image.resampling import resample_to_img
 from scipy import ndimage
-from linescanning.utils import get_file_from_substring, decode
-from linescanning.image import reorient_img
+from fmriproc.utils import get_file_from_substring, decode
+from fmriproc.image import reorient_img
 import warnings
 import subprocess
 import glob

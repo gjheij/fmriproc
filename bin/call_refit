@@ -5,21 +5,12 @@
 import mkl
 mkl.set_num_threads=1
 
-import ast
 import getopt
-from linescanning import (
-    prf,
-    utils,
-    dataset
-)
-import numpy as np
-import nibabel as nb
+from fmriproc import prf
+from lazyfmri import utils
 import os
-from scipy import io
 import sys
 import warnings
-import json
-import pickle
 import yaml
 warnings.filterwarnings('ignore')
 opj = os.path.join

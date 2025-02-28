@@ -3,7 +3,6 @@
 import os, sys
 import numpy as np
 import nibabel as nb
-from linescanning.image import create_line_from_slice
 
 def main(argv):
 
@@ -44,7 +43,11 @@ Example:
     if os.path.exists(ref):
         ref_data = nb.load(ref).get_fdata()
         new_data = np.zeros_like(ref_data)
-        nb.Nifti1Image(new_data, affine=nb.load(ref).affine, header=nb.load(ref).header).to_filename(out)
+        nb.Nifti1Image(
+            new_data,
+            affine=nb.load(ref).affine,
+            header=nb.load(ref).header
+        ).to_filename(out)
     else:
         raise FileNotFoundError(f"Could not find specified file: {ref}")
 

@@ -25,7 +25,7 @@ from nilearn import image
 import nibabel as nb
 import platform
 from bids import BIDSLayout
-from linescanning import utils
+from fmriproc import utils
 import shutil
 import json
 from nipype.interfaces import fsl

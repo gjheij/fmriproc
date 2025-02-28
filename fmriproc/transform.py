@@ -193,7 +193,7 @@ def ants_applytopoints(chicken_file, output_file, trafo_file, invert=1):
     Parameters
     ----------
     chicken_file: str
-        output from linescanning.utils.make_chicken_csv containing the coordinate that needs to be warped
+        output from fmriproc.utils.make_chicken_csv containing the coordinate that needs to be warped
     output_file: str
         output csv file containing the warped point in LPS-convention! Swap the first and second dimensions to make the coordinate RAS
     trafo_file: str
@@ -344,7 +344,8 @@ def ctx2vert(surf,coord=None,rtol=0.015):
     Finds the closest vertices given an RAS coordinate as defined by pycortex. It uses np.closeall with a customizable rtol-value. If this function does not return anything, increase the rtol. If the original coordinate is not on the surface, results might differ.
 
     Procedure to view CRS in orig.mgz on the surface in Pycortex (also see fs2vert):
-    >>> from linescanning import *
+    >>> from cxutils import optimal
+    >>> from fmriproc import transform
     >>> pp = optimal.CalcBestVertex(subject)
     >>> fs_coord = np.array([187,177,41])
     >>> fs2tkr = transform.fs2tkr('sub-001', coord=fs_coord)
@@ -963,7 +964,7 @@ def mri_surf2surf(src_file=None, src_subj=None, trg_subj=None, out_file=None, he
 
     Example
     ----------
-    >>> from linescanning.transform import mri_surf2surf
+    >>> from fmriproc.transform import mri_surf2surf
     >>> surf_file = mri_surf2surf(src_file="lh.V1_fsaverage", src_subj="fsaverage", trg_subj="sub-001", out_file="lh.V1_fsnative", hemi="lh")
     """
 

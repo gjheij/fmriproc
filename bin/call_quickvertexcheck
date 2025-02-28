@@ -7,7 +7,7 @@ import cortex
 import sys, getopt
 import random
 from pathlib import Path
-from linescanning.utils import get_base_dir, get_file_from_substring
+from fmriproc.utils import get_base_dir, get_file_from_substring
 
 import warnings
 warnings.filterwarnings('ignore')

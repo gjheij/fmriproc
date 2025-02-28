@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import pandas as pd
-from linescanning import utils
+from fmriproc import utils
 import os
 import sys
 opj = os.path.join

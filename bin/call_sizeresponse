@@ -6,9 +6,8 @@
 import mkl
 mkl.set_num_threads=1
 
-from linescanning import (
-    prf, 
-    utils)
+from fmriproc import prf
+from lazyfmri import utils
 import os
 import sys, getopt
 import pandas as pd

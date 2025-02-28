@@ -5,8 +5,7 @@ from nilearn import image
 import sys, getopt
 import nibabel as nb
 import numpy as np
-from linescanning.utils import get_file_from_substring
-from scipy.ndimage import interpolation
+from fmriproc.utils import get_file_from_substring
 opj = os.path.join
 
 def main(argv):

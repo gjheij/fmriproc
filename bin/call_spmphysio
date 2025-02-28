@@ -257,7 +257,7 @@ if [[ ${RUN_MATLAB} -eq 1 ]]; then
       echo "Formatting output in human-readable csv-file"
       # save final dataframe
       PYTHON_CODE=$(cat <<END
-from linescanning import dataset;
+from lazyfmri import dataset;
 exp = dataset.ParsePhysioFile('${OUTPUT}.tsv', physio_mat='${OUTPUT}.mat', TR=${TR}, use_bids=${USE_BIDS}, verbose=False);
 exp.df_physio.to_csv('${OUTPUT}.csv');
 END

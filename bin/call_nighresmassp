@@ -11,7 +11,7 @@ import os
 import nibabel as nb
 import pathlib
 import linescanning.utils as util
-from linescanning.image import massp_to_table
+from fmriproc.image import massp_to_table
 import warnings
 warnings.filterwarnings("ignore")
 opj = os.path.join

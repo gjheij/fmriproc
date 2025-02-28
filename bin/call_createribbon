@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys
-import getopt
-from linescanning import (
+from fmriproc import (
     image,
     utils
 )

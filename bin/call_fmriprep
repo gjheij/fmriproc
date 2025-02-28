@@ -542,7 +542,7 @@ if [[ ${WARP_ONLY} -eq 1 ]]; then
 
       echo "Copying \"${m}\" tfm-files"
       for xfm in ${xfms[@]}; do
-        wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${xfm}', '${subj_ID}', prefix='${pref}'))"`
+        wf_name=`python -c "from fmriproc.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${xfm}', '${subj_ID}', prefix='${pref}'))"`
         
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
@@ -588,7 +588,7 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
     if [[ ! -z ${fetch_files} ]]; then
       echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed files"
       for ff in ${fetch_files[@]}; do
-        wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+        wf_name=`python -c "from fmriproc.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
         
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
@@ -627,7 +627,7 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       if [[ ! -z ${fetch_files} ]]; then
         echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed brain masks"
         for ff in ${fetch_files[@]}; do
-          wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+          wf_name=`python -c "from fmriproc.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
           
           # check ses-flag
           if [[ ${wf_name} == *"ses-"* ]]; then
@@ -663,7 +663,7 @@ if [[ ${FD_ONLY} -eq 1 ]]; then
     # find # fdvars timecourse for Marco
     for fd in ${fd_files[@]}; do
 
-      wf_name=`python -c "from linescanning.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${fd}', '${subj_ID}', prefix='${pref}'))"`
+      wf_name=`python -c "from fmriproc.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${fd}', '${subj_ID}', prefix='${pref}'))"`
       
       # check ses-flag
       if [[ ${wf_name} == *"ses-"* ]]; then

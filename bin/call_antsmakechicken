@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import os, sys
+import sys
 import numpy as np
 import ast
-from linescanning.utils import make_chicken_csv
+from fmriproc.utils import make_chicken_csv
 
 def main(argv):
 
@@ -58,7 +58,12 @@ Example:
     if in_type.lower() not in ["lps","ras"]:
         raise ValueError(f"in_type is {in_type}; please use 'lps' or 'ras'")
 
-    make_chicken_csv(coord, input=in_type, output_file=out_file, vol=0.343)
+    make_chicken_csv(
+        coord,
+        input=in_type,
+        output_file=out_file,
+        vol=0.343
+    )
 
 if __name__ == "__main__":
     main(sys.argv[1:])
