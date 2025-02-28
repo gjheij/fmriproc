@@ -30,7 +30,10 @@ def slice_timings_to_json(
     # TR from json file is usually more reliable
     if "RepetitionTime" in list(data.keys()):
         if data["RepetitionTime"] != tr:
-            utils.verbose(f"WARNING: specified TR ({tr}) does not match TR in json file ({data['RepetitionTime']}). Taking TR from json file!", True)
+            utils.verbose(
+                f"WARNING: specified TR ({tr}) does not match TR in json file ({data['RepetitionTime']}). Taking TR from json file!",
+                True
+            )
 
             tr = data["RepetitionTime"]
 
@@ -38,7 +41,8 @@ def slice_timings_to_json(
     st = slice_timings(
         nr_slices=nr_slices,
         tr=tr,
-        mb_factor=mb_factor)
+        mb_factor=mb_factor
+    )
 
     # add slicetiming key
     st_dict = {"SliceTiming": st}

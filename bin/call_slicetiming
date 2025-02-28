@@ -52,7 +52,8 @@ Example:
         in_file,
         tr=float(TR),
         nr_slices=int(n_slices),
-        mb_factor=int(MB_factor))
+        mb_factor=int(MB_factor)
+    )
 
 if __name__ == "__main__":
     main(sys.argv[1:])
