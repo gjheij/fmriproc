@@ -1497,7 +1497,7 @@ def generate_model_params(
         
         yml_file = utils.get_file_from_substring(
             "prf_analysis.yml",
-            opj(os.path.dirname(os.path.dirname(fmriproc.__file__)),'misc')
+            opj(os.path.dirname(fmriproc.__file__), 'misc')
         )
 
     if not isinstance(old_settings, dict):
