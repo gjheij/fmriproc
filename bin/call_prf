@@ -487,10 +487,12 @@ Example:
 
             # loop through run IDs and get median into <time,voxels> array
             m_prf_tc_data = np.median(
-                [utils.select_from_df(
-                    prf_tc_data, 
-                    expression=f"run = {ii}").values 
-                for ii in run_ids
+                [
+                    utils.select_from_df(
+                        prf_tc_data, 
+                        expression=f"run = {ii}"
+                    ).values 
+                    for ii in run_ids
                 ], 
                 axis=0
             )
