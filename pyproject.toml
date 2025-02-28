@@ -50,4 +50,4 @@ packages = ["fmriproc"]
 include-package-data = true  # ✅ Ensures extra files are included
 
 [tool.setuptools.package-data]
-fmriproc = ["version.py", "examples/*"]
+fmriproc = ["version.py", "examples/*", "misc/*", "recon/*"]
