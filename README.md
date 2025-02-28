@@ -41,4 +41,6 @@ Please be aware that `pycortex` is NOT supported for Windows!
 - [x] refactor `linescanning`-repository: most fitting procedures are in [lazyfmri](https://github.com/gjheij/lazyfmri), while surface-based processing is done by [cxutils](https://github.com/gjheij/cxutils)
 - [x] Docstrings in numpy format.
 - [x] Examples of applications for package (add notebooks to `doc/source/examples`)
+- [] Port documentation from `linescanning` to `fmriproc`
+- [] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - [] ..
