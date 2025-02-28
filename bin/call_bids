@@ -697,7 +697,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                     tr=`read_json ${json_bids} RepetitionTime`
                     n_slices=`read_par ${par_f} "Max. number of slices/locations"`
                     cmd="call_slicetiming ${json_bids} ${tr} ${n_slices} ${mb_factor}"
-                    R
+                    ${cmd}
 
                     if [[ $? -ne 0 ]]; then
                       echo "ERROR in `basename ${0}`: call_slicetiming exited with non-zero code"
