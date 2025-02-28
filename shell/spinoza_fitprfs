@@ -63,7 +63,8 @@ Options:
                   the '-x'flag if you want different minimizers for both stages
   --bold          re-calculate the BOLD timecourses; otherwise use existing '*hemi-LR_desc-avg_bold.npy'   
   --fsaverage     overwrite PYBEST_SPACE-variable and use FSAverage for fitting (see your setup file)
-  --fsnative      overwrite PYBEST_SPACE-variable and use FSNative for fitting (see your setup file)                  
+  --fsnative      overwrite PYBEST_SPACE-variable and use FSNative for fitting (see your setup file)
+  --fix_hrf       fit the HRF going from Gaussian iterative fit to further fitting
   --grid          only run grid fit, skip iterative fit
   --no_hrf        do NOT fit the HRF during pRF-fitting. See 'call_prf' for more information
   --separate_hrf  fit the HRF in two stages. See 'call_prf' for more information
@@ -72,6 +73,8 @@ Options:
   --multi_design  specifies that for all runs in the dataset have run-/task-specific screenshot di-
                   rectories. This requires that the directory names you saved must match your naming 
                   scheme of functional files as we'll match on run-/task-ID
+  --nelder        Use Nelder-Mead method for minimization.
+                  Use the '-x' flag if you want different minimizers for both stages
   --no_clip       ensures that the design matrix is NOT clipped, despite the possible presence of 
                   screen delimiter files
   --no_fit        Stop the process before fitting, right after saving out averaged data. This was use-
@@ -155,6 +158,7 @@ redo_bold=""
 folds_flag=""
 skip_flag=""
 trans_flag=""
+fix_hrf=""
 while getopts :-:los:n:m:t:x:c:v:j:k:q:r:p:f: argument
 do
   case ${argument} in
@@ -208,6 +212,9 @@ do
         tc)
           use_constr="--tc"
           ;;
+        nelder)
+          use_constr="--nelder"
+          ;;          
         bgfs)
           use_constr="--bgfs"
           ;;    
@@ -247,7 +254,10 @@ do
           ;;     
         transpose)
           trans_flag="--transpose"
-          ;;                                              
+          ;; 
+        fix_hrf)
+          fix_hrf="--fix_hrf"
+          ;;                                                        
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
@@ -640,7 +650,8 @@ for subID in ${search}; do
             ${redo_bold} \
             ${skip_flag} \
             ${trans_flag} \
-            ${par_flag}"""
+            ${par_flag}\
+            ${fix_hrf}"""
 
           if [[ ${run_locally} -eq 1 ]]; then
             echo ${cmd}

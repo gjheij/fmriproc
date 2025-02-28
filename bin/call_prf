@@ -60,8 +60,8 @@ Arguments:
                                     each stage (Gaussian and beyond). By default, we'll use trust-
                                     constr minimization ('tc'), but you can speed up the normaliza-
                                     tion fitting by using L-BGFS ('bgfs'). To specify a list, use 
-                                    the format '-c [tc,bgfs]'. Use --tc or --bgfs to sync the mini-
-                                    mizers across stages
+                                    the format '-c [tc,bgfs]'. Use --tc, --bgfs, or --nelder to sync 
+                                    the minmizers across stages
     --cut_vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
                                     Default is 0, but sometimes it's good to get rid of the initial
                                     transient
@@ -72,8 +72,8 @@ Arguments:
                                     sequences
 
 Options:                                  
-    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. Use 
-                    the -x flag if you want different minimizers for both stages
+    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
+                    Use the -x flag if you want different minimizers for both stages
     --bold          re-calculate BOLD timecourses; otherwise use 'hemi-LR_desc-avg_bold.npy' file
     --clip          clip the edges of design matrix in the space of 'n_pix' (by default = 100). You 
                     will need to calculate how many pixels are to be set to zero given the visual 
@@ -90,11 +90,14 @@ Options:
                     stuff.
     -g|--grid       only run a grid-fit with the specified model
     --no_hrf        Do not fit the HRF during pRF-fitting. 
+    --nelder        Use Nelder-Mead minimization for both the Gaussian and Extended model.
+                    Use the -x flag if you want different minimizers for both stages
     --separate_hrf  If `True`, the fitting will consist of two stages: first, a regular fitting 
                     without HRF estimation. Then, the fitting object of that fit is inserted as 
                     `previous_gaussian_fitter` into a new fitter object with HRF estimation turned 
                     on. Default = False. This will ensure the baseline of periods without stimulus 
                     are set to zero.
+    --fix_hrf       Fix the HRF after Gaussian iterative fit for further fitting.
     --merge_ses     Pool the data across all sessions for averaging. 
     --no_bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
                     bounds, causing 'inf' values. This is especially troublesome when fitting a
@@ -167,9 +170,10 @@ Example:
     overwrite_bold = False
     n_folds = None
     pybest_type = None
+    fix_hrf = False
 
     try:
-        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:f:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no_hrf", "n_pix=", "clip=", "verbose", "file_ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no_fit", "raw", "cut_vols=", "v1", "v2", "save_grid", "merge_ses", "n_jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=","separate_hrf","bold","folds=","pyb_type="])[0]
+        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:f:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no_hrf", "n_pix=", "clip=", "verbose", "file_ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no_fit", "raw", "cut_vols=", "v1", "v2", "save_grid", "merge_ses", "n_jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=","separate_hrf","bold","folds=","pyb_type=","fix_hrf","nelder"])[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)
@@ -237,6 +241,8 @@ Example:
             constraints = "tc"
         elif opt in ("--bgfs"):
             constraints = "bgfs"
+        elif opt in ("--nelder"):
+            constraints = "nelder"        
         elif opt in ("--no_fit"):
             do_fit = False
         elif opt in ("--separate_hrf"):
@@ -254,7 +260,9 @@ Example:
         elif opt in ("--no_bounds"):
             grid_bounds = False  
         elif opt in ("--merge_ses"):
-            merge_sessions = True               
+            merge_sessions = True  
+        elif opt in ("--fix_hrf"):
+            fix_hrf = True                           
         elif opt in ("--no_grid"):
             save_grid = False
             if grid_only:
@@ -615,7 +623,9 @@ Example:
             save_grid=save_grid,
             nr_jobs=n_jobs,
             use_grid_bounds=grid_bounds,
-            **kwargs)
+            fix_hrf=fix_hrf,
+            **kwargs
+        )
 
         stage1.fit()
 
