@@ -212,7 +212,8 @@ for subID in ${search}; do
           else
             QUEUE=${SGE_QUEUE_SHORT}
           fi            
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpus} -N ${output_base}_desc-${a,,} ${DIR_SCRIPTS}/bin/call_${a,,}"
+          call_=`which call_${a,,}`
+          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpus} -N ${output_base}_desc-${a,,} ${call_}"
         else
           job="call_${a,,}"
         fi

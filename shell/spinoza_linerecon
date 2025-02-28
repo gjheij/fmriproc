@@ -333,7 +333,8 @@ for subID in ${search}; do
             else
               QUEUE=${SGE_QUEUE_SHORT}
             fi             
-            job="qsub -q ${QUEUE} -o ${log_file} -N $(basename ${log_file} .log) ${DIR_SCRIPTS}/bin/call_linerecon"
+            call_=`which call_linerecon`
+            job="qsub -q ${QUEUE} -o ${log_file} -N $(basename ${log_file} .log) ${call_}"
             verbose=0
           else
             echo "Running recon for run-${run} (task-${task})"

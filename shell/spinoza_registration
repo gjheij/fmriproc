@@ -225,7 +225,7 @@ for subID in ${search}; do
     suffix=MNI152NLin6Asym
     fixed=${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
     moving=`find -L "${input_dir}" -type f \( -name "${base}*" -iname "*acq-${DATA}_*" -and -name "*T1w.nii.gz" -and -not -name "._*" \) 2>/dev/null`
-    ext="from-${suffix}_to-T1w"
+    ext="from-T1w_to-${suffix}"
     output=$(dirname ${moving})/$(basename ${moving} _T1w.nii.gz)_space-${suffix}_T1w.nii.gz
     write_output=0
   else
@@ -270,7 +270,8 @@ for subID in ${search}; do
             QUEUE=${SGE_QUEUE_LONG}
           fi           
           job_name="$(basename ${moving} T1w.nii.gz)desc_registration"
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpu} -N ${job_name} ${DIR_SCRIPTS}/bin/call_antsregistration --verbose"
+          call_=`which call_antsregistration`
+          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpu} -N ${job_name} ${call_} --verbose"
         else
           job="call_antsregistration"
         fi

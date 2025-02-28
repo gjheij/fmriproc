@@ -153,7 +153,8 @@ for subID in ${search}; do
     echo "Create `basename ${massp}`"
 
     if [[ ${PLACE} == "SGE" ]]; then
-      job="qsub -q ${SGE_QUEUE_LONG} -N massp_${sub_id} -wd ${DIR_LOGS} ${DIR_SCRIPTS}/bin/call_nighresmassp"
+      call_=`which call_nighresmassp`
+      job="qsub -q ${SGE_QUEUE_LONG} -N massp_${sub_id} -wd ${DIR_LOGS} ${call_}"
     else
       job="call_nighresmassp"
     fi

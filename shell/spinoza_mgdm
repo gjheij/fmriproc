@@ -181,7 +181,7 @@ for subID in ${search}; do
 
       run_mode="Running GhD-version of MGDM with call_gdhmgdm"
       if [[ ${SGE} -eq 1 ]]; then
-        run_cmd="${DIR_SCRIPTS}/bin/call_gdhmgdm"
+        run_cmd=`which call_gdhmgdm`
       else
         run_cmd="call_gdhmgdm"
       fi
@@ -237,7 +237,7 @@ for subID in ${search}; do
       fi
 
       if [[ ${SGE} -eq 1 ]]; then
-        run_cmd="${DIR_SCRIPTS}/bin/call_nighresmgdm"
+        run_cmd=`which call_nighresmgdm`
       else
         run_cmd="call_nighresmgdm"
       fi

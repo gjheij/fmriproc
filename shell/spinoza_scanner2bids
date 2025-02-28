@@ -264,7 +264,8 @@ for subID in ${search}; do
         echo " PHYS FLAG   = ${PHYS_FLAG}"
       fi
 
-      cmd="""${job} ${DIR_SCRIPTS}/bin/call_bids \
+      call_=`which call_bids`
+      cmd="""${job} ${call_} \
         ${SES_FLAG} \
         ${ADD_INV} \
         ${ORIENT_FLAG} \

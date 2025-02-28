@@ -299,7 +299,8 @@ for subID in ${search}; do
         # run if basenames of phase and magnitude match
         if [[ $(basename ${ph_img} ${ph_tag}.nii.gz) == $(basename ${mag_img} .nii.gz) ]]; then
           out=${func_folder}/$(basename ${mag_img})
-          ${job} ${DIR_SCRIPTS}/bin/call_nordic \
+          call_=`which call_nordic`
+          ${job} ${call_} \
             ${mag_flag} \
             ${tsnr_flag} \
             ${mag_img} ${ph_img} ${out}

@@ -5,7 +5,7 @@ export SETUP_FILE="${SETUP_DIR}/spinoza_setup"  # copy to some location
 export REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`         # point to linescanning repo (arbitrary)
 
 # source helper functions
-source ${REPO_DIR}/bin/call_bashhelper
+source call_bashhelper
 
 if [[ $1 == "setup" ]]; then
 

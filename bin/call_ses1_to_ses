@@ -149,7 +149,8 @@ fi
 
 # define job execution
 if [[ ${SGE} -eq 1 ]]; then
-  job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N $(basename ${aff}) ${DIR_SCRIPTS}/bin/call_antsregistration"
+  call_=`which call_antsregistration`
+  job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N $(basename ${aff}) ${call_}"
   verbose="--verbose"
 else
   job="call_antsregistration"

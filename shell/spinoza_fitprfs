@@ -612,7 +612,8 @@ for subID in ${search}; do
               QUEUE=${SGE_QUEUE_LONG}
             fi
 
-            job="qsub -q ${QUEUE} -pe smp ${n_jobs} -wd ${prf_dir} -N ${base}_task-${task}_model-${model} ${DIR_SCRIPTS}/bin/${script_name}"
+            call_=`which ${script_name}`
+            job="qsub -q ${QUEUE} -pe smp ${n_jobs} -wd ${prf_dir} -N ${base}_task-${task}_model-${model} ${call_}"
           else
             job=${script_name}
           fi

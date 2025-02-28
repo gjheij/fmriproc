@@ -188,7 +188,8 @@ for subID in ${search}; do
       else
         QUEUE=${SGE_QUEUE_SHORT}
       fi            
-      job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N ${base}_desc-lsprep ${DIR_SCRIPTS}/bin/call_lsprep"
+      call_=`which call_lsprep`
+      job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N ${base}_desc-lsprep ${call_}"
     else
       job="call_lsprep"
     fi
