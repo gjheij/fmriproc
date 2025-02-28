@@ -5,7 +5,7 @@ import numpy as np
 import warnings
 from nilearn import image
 import nibabel as nb
-from fmriproc import utils
+from lazyfmri import utils
 import sys, getopt
 opj = os.path.join
 

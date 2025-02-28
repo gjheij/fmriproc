@@ -3,7 +3,7 @@
 import os, sys
 import numpy as np
 import nibabel as nb
-from fmriproc.utils import decode
+from lazyfmri.utils import decode
 import subprocess
 opj = os.path.join
 

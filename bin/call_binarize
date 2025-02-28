@@ -19,7 +19,7 @@ Outputs
     output file         new volume containing the extracted data from input file
 
 Example:
-    python call_binarize.py input.nii.gz output.nii.gz
+    call_binarize input.nii.gz output.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

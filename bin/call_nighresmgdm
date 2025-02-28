@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.brain import mgdm_segmentation
+try:
+    from nighres.brain import mgdm_segmentation
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 import os
 import nibabel as nb
@@ -140,28 +144,32 @@ Example:
     # Start
     try:
         # also include skull $ dura filters
-        results = mgdm_segmentation(contrast_image1=ras_files["T1w"],
-                                    contrast_type1="Mp2rage7T",
-                                    contrast_image2=ras_files["T1map"],
-                                    contrast_type2="T1map7T",
-                                    contrast_image3=ras_files["dura"],
-                                    contrast_type3="Filters",
-                                    contrast_image4=ras_files["skull"],
-                                    contrast_type4="Filters",
-                                    output_dir=outputdir,
-                                    file_name=outputbase,
-                                    save_data=True)
+        results = mgdm_segmentation(
+            contrast_image1=ras_files["T1w"],
+            contrast_type1="Mp2rage7T",
+            contrast_image2=ras_files["T1map"],
+            contrast_type2="T1map7T",
+            contrast_image3=ras_files["dura"],
+            contrast_type3="Filters",
+            contrast_image4=ras_files["skull"],
+            contrast_type4="Filters",
+            output_dir=outputdir,
+            file_name=outputbase,
+            save_data=True
+        )
 
     except:
         # just use T1-weighted and T1-map
-        results = mgdm_segmentation(contrast_image1=ras_files["T1w"],
-                                    contrast_type1="Mp2rage7T",
-                                    contrast_image2=ras_files["T1map"],
-                                    contrast_type2="T1map7T",
-                                    output_dir=outputdir,
-                                    file_name=outputbase,
-                                    overwrite=True,
-                                    save_data=True)
+        results = mgdm_segmentation(
+            contrast_image1=ras_files["T1w"],
+            contrast_type1="Mp2rage7T",
+            contrast_image2=ras_files["T1map"],
+            contrast_type2="T1map7T",
+            output_dir=outputdir,
+            file_name=outputbase,
+            overwrite=True,
+            save_data=True
+        )
 
     #---------------------------------------------------------------------------------------------------
     # reorient back to original orientation

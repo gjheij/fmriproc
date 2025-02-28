@@ -26,7 +26,7 @@ import platform
 from bids import BIDSLayout
 import numpy as np
 from nipype.interfaces import fsl
-from fmriproc.utils import get_file_from_substring, remove_files, string2float
+from lazyfmri.utils import get_file_from_substring, remove_files, string2float
 warnings.filterwarnings("ignore")
 opj = os.path.join
 osj = os.sep.join

@@ -25,6 +25,7 @@ def main(argv):
     except getopt.GetoptError:
         print('nii2png.py -i <inputfile> -o <outputfile>')
         sys.exit(2)
+
     for opt, arg in opts:
         if opt == '-h':
             print('nii2png.py -i <inputfile> -o <outputfile>')
@@ -33,6 +34,11 @@ def main(argv):
             inputfile = arg
         elif opt in ("-o", "--output"):
             outputfile = arg
+    
+    if len(argv) < 4:
+        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+        print('nii2png.py -i <inputfile> -o <outputfile>')
+        sys.exit()
 
     print('Input file is ', inputfile)
     print('Output folder is ', outputfile)

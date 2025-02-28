@@ -7,7 +7,7 @@
 import os
 import sys, getopt
 from bids import BIDSLayout
-from fmriproc import (
+from lazyfmri import (
     utils,
     dataset
 )

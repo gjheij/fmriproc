@@ -4,7 +4,7 @@ import os
 import numpy as np
 from nilearn import image
 import nibabel as nb
-from fmriproc import utils
+from lazyfmri import utils
 import sys
 opj = os.path.join
 

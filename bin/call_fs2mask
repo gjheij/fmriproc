@@ -2,7 +2,7 @@
 
 import sys
 import os
-from fmriproc import utils
+from lazyfmri import utils
 import nibabel as nb
 import numpy as np
 from nilearn import image

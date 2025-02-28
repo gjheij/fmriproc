@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.surface import probability_to_levelset
+try:
+    from nighres.surface import probability_to_levelset
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 import os
 opj = os.path.join
@@ -64,10 +68,12 @@ Example:
             sys.exit()
 
     # Just plop everything in dir of segmentation
-    probability_to_levelset(probability,
-                            save_data=True,
-                            output_dir=output_dir,
-                            file_name=output_base)
+    probability_to_levelset(
+        probability,
+        save_data=True,
+        output_dir=output_dir,
+        file_name=output_base
+    )
 
     fn_old = opj(output_dir, output_base + "_p2l-surf.nii.gz")
     fn_new = opj(output_dir, output_base + "-p2l_surf.nii.gz")

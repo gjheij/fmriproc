@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.brain import mp2rage_dura_estimation
+try:
+    from nighres.brain import mp2rage_dura_estimation
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 
 def main(argv):
@@ -60,7 +64,7 @@ Example:
         elif opt in ("-b", "--outputbase"):
             outputbase = arg
 
-    if len(argv) < 6:
+    if len(argv) < 4:
             print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
             print(main.__doc__)
             sys.exit()
@@ -70,11 +74,13 @@ Example:
     else:
         base = ""
 
-    mp2rage_dura_estimation(inv2_skull,
-                            inv2_mask,
-                            file_name=base,
-                            output_dir=outputdir,
-                            save_data=True)
+    mp2rage_dura_estimation(
+        inv2_skull,
+        inv2_mask,
+        file_name=base,
+        output_dir=outputdir,
+        save_data=True
+    )
 
 if __name__ == "__main__":
     main(sys.argv[1:])

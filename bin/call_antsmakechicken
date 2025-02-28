@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 import ast
-from fmriproc.utils import make_chicken_csv
+from lazyfmri.utils import make_chicken_csv
 
 def main(argv):
 

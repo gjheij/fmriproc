@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os, sys
-from fmriproc.utils import copy_hdr
+from lazyfmri.utils import copy_hdr
 opj = os.path.join
 
 def main(argv):

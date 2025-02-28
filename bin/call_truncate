@@ -3,7 +3,7 @@
 import ast
 import os
 import sys, getopt
-from fmriproc import utils, dataset
+from lazyfmri import utils, dataset
 import pandas as pd 
 import shutil
 opj = os.path.join

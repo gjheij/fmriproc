@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.laminar import volumetric_layering
+try:
+    from nighres.laminar import volumetric_layering
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 import os
 opj = os.path.join
@@ -76,19 +80,21 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 8:
+    if len(argv) < 5:
             print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
             print(main.__doc__)
             sys.exit()
 
 
     # Just plop everything in dir of segmentation
-    volumetric_layering(inner_levelset=inner,
-                        outer_levelset=outer,
-                        n_layers=int(nr_layers),
-                        save_data=True,
-                        file_name=output_base,
-                        output_dir=output_dir)
+    volumetric_layering(
+        inner_levelset=inner,
+        outer_levelset=outer,
+        n_layers=int(nr_layers),
+        save_data=True,
+        file_name=output_base,
+        output_dir=output_dir
+    )
 
     #---------------------------------------------------------------------------------------------------
     # Nicer formatting

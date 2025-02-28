@@ -4,7 +4,7 @@ import os
 from nilearn import image
 from scipy import ndimage
 import sys, getopt
-from fmriproc.utils import get_file_from_substring, squeeze_generic
+from lazyfmri.utils import get_file_from_substring
 opj = os.path.join
 
 def main(argv):

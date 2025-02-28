@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.surface import levelset_to_probability
+try:
+    from nighres.surface import levelset_to_probability
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 import os
 opj = os.path.join
@@ -59,17 +63,19 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 4:
+    if len(argv) < 3:
             print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
             print(main.__doc__)
             sys.exit()
 
     # Just plop everything in dir of segmentation
-    levelset_to_probability(levelset,
-                            distance_mm=1,
-                            save_data=True,
-                            output_dir=output_dir,
-                            file_name=output_base)
+    levelset_to_probability(
+        levelset,
+        distance_mm=1,
+        save_data=True,
+        output_dir=output_dir,
+        file_name=output_base
+    )
 
     fn_old = opj(output_dir, output_base + "_l2p-proba.nii.gz")
     fn_new = opj(output_dir, output_base + "-l2p_proba.nii.gz")

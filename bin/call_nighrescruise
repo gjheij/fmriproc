@@ -3,7 +3,11 @@
 #$ -j Y
 #$ -V
 
-from nighres.cortex import cruise_cortex_extraction
+try:
+    from nighres.cortex import cruise_cortex_extraction
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys, getopt
 import os
 
@@ -81,7 +85,7 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 10:
+    if len(argv) < 4:
             print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
             print(main.__doc__)
             sys.exit()

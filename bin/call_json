@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import ast
-from fmriproc import utils
+from lazyfmri import utils
 def main(argv):
 
     """

@@ -8,7 +8,7 @@ import os
 from nilearn import image
 from nilearn.image.resampling import resample_to_img
 from scipy import ndimage
-from fmriproc.utils import get_file_from_substring, decode
+from lazyfmri.utils import get_file_from_substring, decode
 from fmriproc.image import reorient_img
 import warnings
 import subprocess

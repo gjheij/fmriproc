@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from fmriproc import utils, dataset
+from lazyfmri import utils, dataset
 import os
 import pickle
 import sys
@@ -7,7 +7,6 @@ import getopt
 import numpy as np
 import nibabel as nb
 import pandas as pd
-import glob
 opj = os.path.join
 
 def fetch_filepath(func, skip_run_id=False):

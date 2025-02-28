@@ -812,7 +812,7 @@ function get_module_nr() {
     echo "get_module_nr"
     echo
     echo "Function to get the module number given an input string. It reads the help-text of the master script"
-    echo "in linescanning/shell/master from line 56 to 100 and looks for the module corresponding to the input"
+    echo "in fmriproc/shell/master from line 56 to 100 and looks for the module corresponding to the input"
     echo "string. I have this because module numbers tend to change and I don't feel like looking that up every"
     echo "time.."
     echo

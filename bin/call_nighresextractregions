@@ -3,8 +3,12 @@
 #$ -j Y
 #$ -V
 
-from nighres.brain import extract_brain_region
-from fmriproc import utils
+try:
+    from nighres.brain import extract_brain_region
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
+from lazyfmri import utils
 import sys, getopt
 import os
 opj = os.path.join
@@ -108,10 +112,10 @@ Notes:
     print("Loading files..")
     if mgdm_dir != None:
         # we got passed an mgdm_dir, fetch files from directory
-        segm    = utils.get_file_from_substring("seg.nii.gz", mgdm_dir)
-        dist    = utils.get_file_from_substring("dist.nii.gz", mgdm_dir)
-        mems    = utils.get_file_from_substring("mems.nii.gz", mgdm_dir)
-        lbls    = utils.get_file_from_substring("lbls.nii.gz", mgdm_dir)
+        segm = utils.get_file_from_substring("seg.nii.gz", mgdm_dir)
+        dist = utils.get_file_from_substring("dist.nii.gz", mgdm_dir)
+        mems = utils.get_file_from_substring("mems.nii.gz", mgdm_dir)
+        lbls = utils.get_file_from_substring("lbls.nii.gz", mgdm_dir)
 
     else:
 
@@ -119,10 +123,10 @@ Notes:
             if not os.path.exists(i):
                 raise FileNotFoundError(f'could not find file {i}')
 
-        segm    = segmentation
-        dist    = boundary_dist
-        mems    = max_probas
-        lbls    = max_labels
+        segm = segmentation
+        dist = boundary_dist
+        mems = max_probas
+        lbls = max_labels
 
     files = {"segm": segm, "dist": dist, "mems": mems, "lbls":lbls}
     [print(f" got {f}") for f in files.values()]

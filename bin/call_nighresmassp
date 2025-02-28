@@ -3,14 +3,17 @@
 #$ -j Y
 #$ -V
 
-from nighres.parcellation import massp
+try:
+    from nighres.parcellation import massp
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 from nighres.registration import embedded_antsreg_multi
 from nighres.data import download_AHEAD_template
 import sys, getopt
 import os
-import nibabel as nb
 import pathlib
-import linescanning.utils as util
+import lazyfmri import utils
 from fmriproc.image import massp_to_table
 import warnings
 warnings.filterwarnings("ignore")
@@ -154,25 +157,27 @@ Example:
 
     #---------------------------------------------------------------------------------------------------
     # Register template to files
-    ants_file = util.get_file_from_substring("invmap.nii.gz", opj(outputdir, 'reg'))
+    ants_file = utils.get_file_from_substring("invmap.nii.gz", opj(outputdir, 'reg'))
     if ants_file == None:
-        ants = embedded_antsreg_multi(source_images=[files['R1'],files['R2s'],files['QSM']],
-                                      target_images=[template['qr1'],template['qr2s'],template['qsm']],
-                                      run_rigid=True,
-                                      run_affine=True,
-                                      run_syn=True,
-                                      rigid_iterations=10000,
-                                      affine_iterations=2000,
-                                      coarse_iterations=180,
-                                      medium_iterations=60,
-                                      fine_iterations=30,
-                                      cost_function='MutualInformation',
-                                      interpolation='NearestNeighbor',
-                                      regularization='High',
-                                      ignore_affine=True,
-                                      save_data=True,
-                                      file_name=base,
-                                      output_dir=opj(outputdir, 'reg'))
+        ants = embedded_antsreg_multi(
+            source_images=[files['R1'],files['R2s'],files['QSM']],
+            target_images=[template['qr1'],template['qr2s'],template['qsm']],
+            run_rigid=True,
+            run_affine=True,
+            run_syn=True,
+            rigid_iterations=10000,
+            affine_iterations=2000,
+            coarse_iterations=180,
+            medium_iterations=60,
+            fine_iterations=30,
+            cost_function='MutualInformation',
+            interpolation='NearestNeighbor',
+            regularization='High',
+            ignore_affine=True,
+            save_data=True,
+            file_name=base,
+            output_dir=opj(outputdir, 'reg')
+        )
 
         ants_file = ants['inverse']
 
