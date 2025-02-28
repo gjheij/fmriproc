@@ -806,12 +806,12 @@ Below the help information for each module, which can also be called with:
     ---------------------------------------------------------------------------------------------------
     spinoza_bestvertex
 
-    wrapper for call_pycortex to calculate the best vertex and normal vector based on the minimal curva-
-    ture given an ROI.
+    wrapper for call_targetvertex to calculate the best vertex and normal vector based on the minimal
+    curvature given an ROI.
 
     this script requires input from FreeSurfer, so it won't do much if that hasn't run yet. Ideally, you
-    should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this thing so
-    it can also take in the pRF to locate an even better vertex.
+    should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this thing
+    so it can also take in the pRF to locate an even better vertex.
 
     (need to update this so it takes in variable areas, now it's just set to V1)
 
