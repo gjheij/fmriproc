@@ -2,8 +2,7 @@
 
 export SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SETUP_FILE="${SETUP_DIR}/spinoza_setup"  # copy to some location
-export REPO_DIR=$(dirname ${SETUP_DIR})         # point to linescanning repo (arbitrary)
-export PATH_HOME=${REPO_DIR}/logs               # point to folder for temp/logs files
+export REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`         # point to linescanning repo (arbitrary)
 
 # source helper functions
 source ${REPO_DIR}/bin/call_bashhelper
@@ -56,6 +55,33 @@ fi
 # VARIABLES
 #===================================================================================================
 
+# MRI
+export MRI_SYSTEM="philips"
+
+# Project stuff
+export DIR_PROJECTS="/data1/projects/MicroFunc/Luisa/Line_scan/AGEING_paper"
+export PROJECT="ciao"
+export TASK_SES1=("scenes")
+export TASK_SES2="LR"
+export SUBJECT_PREFIX="sub-"
+export COMBINE_SEGMENTATIONS="weighted"
+export PATH_HOME=${DIR_PROJECTS}/logs
+
+export PYBEST_SPACE="fsnative"
+export PYBEST_N_COMPS=10
+
+# PROJECT
+# export DIR_PROJECTS="/data1/projects/MicroFunc/Jurjen/projects"
+# export PROJECT="VE-pRF"
+# export TASK_SES1=("pRF")
+
+# DATA TYPE(S)
+export ACQ=("MP2RAGE")  # or ("MP2RAGE" "MP2RAGEME")
+export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
+
+# phase encoding direction for BOLD; assume inverse for FMAP
+export PE_DIR_BOLD="AP"
+
 # If you have access to SGE, leave to SGE; otherwise change to e.g., LOCAL
 export PLACE="SGE"
 export SGE_QUEUE_LONG="long.q@jupiter"
@@ -81,27 +107,6 @@ export BOLD_T1W_INIT="register"                                                 
 export FS_LICENSE=${REPO_DIR}/misc/license.txt                                  # this thing needs to be along the FPREP_BINDING path!
 
 # PYBEST
-export PYBEST_SPACE="fsnative"
-export PYBEST_N_COMPS=10
-
-# PROJECT
-# export DIR_PROJECTS="/data1/projects/MicroFunc/Jurjen/projects"
-# export PROJECT="VE-pRF"
-# export TASK_SES1=("pRF")
-
-export DIR_PROJECTS="/data1/projects/MicroFunc/Luisa/Line_scan/AGEING_paper"
-export PROJECT="ciao"
-export TASK_SES1=("scenes")
-export TASK_SES2="LR"
-export SUBJECT_PREFIX="sub-"
-export COMBINE_SEGMENTATIONS="weighted"
-
-# DATA TYPE(S)
-export ACQ=("MP2RAGE")  # or ("MP2RAGE" "MP2RAGEME")
-export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
-
-# phase encoding direction for BOLD; assume inverse for FMAP
-export PE_DIR_BOLD="AP"
 
 # For DATA == AVERAGE we'll need multiple acquisitions
 if [[ ${DATA} == "AVERAGE" ]]; then
