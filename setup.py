@@ -12,10 +12,11 @@ setup(
     install_requires=[],
     include_package_data=True,
     scripts=bin_scripts+shell_scripts,
-    package_data=[
-        "fmriproc": [
-            "examples/*",
-            "recon/*",
-            "misc/*"]
-    ]
+    package_data={
+        'fmriproc': [
+            'misc/*',
+            'recon/*',
+            'examples/*'
+        ]
+    }
 )
