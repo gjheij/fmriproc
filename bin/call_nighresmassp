@@ -160,8 +160,16 @@ Example:
     ants_file = utils.get_file_from_substring("invmap.nii.gz", opj(outputdir, 'reg'))
     if ants_file == None:
         ants = embedded_antsreg_multi(
-            source_images=[files['R1'],files['R2s'],files['QSM']],
-            target_images=[template['qr1'],template['qr2s'],template['qsm']],
+            source_images=[
+                files['R1'],
+                files['R2s'],
+                files['QSM']
+            ],
+            target_images=[
+                template['qr1'],
+                template['qr2s'],
+                template['qsm']
+            ],
             run_rigid=True,
             run_affine=True,
             run_syn=True,
@@ -187,18 +195,29 @@ Example:
     #---------------------------------------------------------------------------------------------------
     # Do the actual parcellation
     print("Running subcortex parcellation")
-    massp_results = massp(target_images=[files['R1'],files['R2s'],files['QSM']],
-                          map_to_target=ants_file,
-                          max_iterations=120,
-                          max_difference=0.1,
-                          save_data=True,
-                          file_name=base,
-                          output_dir=outputdir,
-                          overwrite=False)
+    massp_results = massp(
+        target_images=[
+            files['R1'],
+            files['R2s'],
+            files['QSM']
+        ],
+        map_to_target=ants_file,
+        max_iterations=120,
+        max_difference=0.1,
+        save_data=True,
+        file_name=base,
+        output_dir=outputdir,
+        overwrite=False
+    )
 
     #---------------------------------------------------------------------------------------------------
     # Convert label to volume table
-    vol_file = massp_to_table(massp_results['max_label'], out=opj(outputdir, f'{base}_desc-volume_table.json'), unit="mm")
+    vol_file = massp_to_table(
+        massp_results['max_label'],
+        out=opj(outputdir, f'{base}_desc-volume_table.json'),
+        unit="mm"
+    )
+
     print(f"\nWrote {vol_file}")
 
     #---------------------------------------------------------------------------------------------------
