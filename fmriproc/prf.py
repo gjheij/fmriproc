@@ -11,6 +11,7 @@ from lazyfmri import (
     fitting,
     preproc
 )
+import fmriproc
 import math
 import matplotlib.image as mpimg
 import matplotlib.patches as patches
@@ -25,7 +26,11 @@ from prfpy.fit import *
 from prfpy.model import *
 import random
 from scipy.ndimage import rotate
-from scipy import signal, io
+from scipy import (
+    signal,
+    io,
+    interpolate
+)
 import subprocess
 import time
 import yaml
@@ -33,6 +38,46 @@ import pickle
 
 opj = os.path.join
 
+def resample2d(array:np.ndarray, new_size:int, kind='linear'):
+    """resample2d
+
+    Resamples a 2D (or 3D) array with :func:`scipy.interpolate.interp2d` to `new_size`. If input is 2D, we'll loop over the final axis.
+
+    Parameters
+    ----------
+    array: np.ndarray
+        Array to be interpolated. Ideally axis have the same size.
+    new_size: int
+        New size of array
+    kind: str, optional
+        Interpolation method, by default 'linear'
+
+    Returns
+    ----------
+    np.ndarray
+        If 2D: resampled array of shape `(new_size,new_size)`
+        If 3D: resampled array of shape `(new_size,new_size, array.shape[-1])`
+    """
+    # set up interpolater
+    x = np.array(range(array.shape[0]))
+    y = np.array(range(array.shape[1]))
+
+    # define new grid
+    xnew = np.linspace(0, x.shape[0], new_size)
+    ynew = np.linspace(0, y.shape[0], new_size)
+
+    if array.ndim > 2:
+        new = np.zeros((new_size,new_size,array.shape[-1]))
+
+        for dd in range(array.shape[-1]):
+            f = interpolate.interp2d(x, y, array[...,dd], kind=kind)
+            new[...,dd] = f(xnew,ynew)
+
+        return new    
+    else:
+        f = interpolate.interp2d(x, y, array, kind=kind)
+        return f(xnew,ynew)
+    
 def normalize_prf(src,targ):
 
     # check that we have enough parameters
@@ -204,7 +249,7 @@ def get_prfdesign(screenshot_path, n_pix=40, dm_edges_clipping=[0,0,0,0]):
 
     # downsample (resample2d can also deal with 3D input)
     if n_pix != design_matrix.shape[0]:
-        dm_resampled = utils.resample2d(design_matrix, n_pix)
+        dm_resampled = resample2d(design_matrix, n_pix)
         dm_resampled[dm_resampled<0.9] = 0
         return dm_resampled
     else:
@@ -485,7 +530,7 @@ def plot_stims(
     n_elements = int(round(n_elements/interval))
     n_rows = int(round(n_elements/n_cols))
 
-    if figsize == None:
+    if figsize is None:
         figsize = (24,n_rows*scalar)
 
     fig,_ = plt.subplots(
@@ -623,7 +668,7 @@ def make_prf(
     # spatially smooth for visualization
     if isinstance(resize_pix, int):
         prf_squeezed = np.squeeze(prf, axis=0)
-        prf = utils.resample2d(prf_squeezed, resize_pix)
+        prf = resample2d(prf_squeezed, resize_pix)
     
     # save a bunch of problems if returned array is 2D
     if prf.ndim > 2:
@@ -1178,7 +1223,7 @@ def create_line_prf_matrix(
         design_matrix[:, (design_matrix.shape[0]-dm_edges_clipping[3]):, :] = 0
 
         # downsample (resample2d can also deal with 3D input)
-        dm_resampled = utils.resample2d(design_matrix, n_pix)
+        dm_resampled = resample2d(design_matrix, n_pix)
 
         # deal with baseline and deleted volumes
         baseline_before = np.zeros((n_pix,n_pix,int(baseline_before/TR)))
@@ -1250,7 +1295,7 @@ def create_line_prf_matrix(
                         ix,_ = utils.find_nearest(trial_df['onset'].values, tr_in_sec)
                         image_file = utils.get_file_from_substring(f"Screenshots{ix}.png", screenshot_path, return_msg=None)
                         
-                        if image_file != None:
+                        if image_file is not None:
                             
                             img = (255*mpimg.imread(image_file)).astype('int')
 
@@ -1287,7 +1332,7 @@ def create_line_prf_matrix(
                 if isinstance(image_file, list):
                     raise ValueError(f"Found multiple ({len(image_file)}) files for '{search_for}': {image_file}")
                 
-                if image_file != None:
+                if image_file is not None:
                     
                     img = (255*mpimg.imread(image_file)).astype('int')
 
@@ -1310,7 +1355,7 @@ def create_line_prf_matrix(
 
         # downsample (resample2d can also deal with 3D input)
         if n_pix != design_matrix.shape[0]:
-            dm_resampled = utils.resample2d(design_matrix, n_pix)
+            dm_resampled = resample2d(design_matrix, n_pix)
             dm_resampled[dm_resampled<0.9] = 0
             return dm_resampled
         else:
@@ -1402,7 +1447,9 @@ def generate_model_params(
     TR=1.5, 
     fit_hrf=False, 
     verbose=False,
-    old_settings=None):
+    old_settings=None,
+    hrf=None
+    ):
 
     """generate_model_params
 
@@ -1424,7 +1471,9 @@ def generate_model_params(
         Whether or not to fit two extra parameters for hrf derivative and dispersion. The default is False.
     old_settings: dict, optional
         Dictionary describing an existing set of settings (e.g., from previous fit)
-        
+    hrf: list, optional
+        List of HRF parameters if it deviates from hrf parameters in settings file.
+
     Returns
     ----------
     dict
@@ -1444,10 +1493,11 @@ def generate_model_params(
     except:
         yml_file = None
 
-    if yml_file == None:
+    if yml_file is None:
+        
         yml_file = utils.get_file_from_substring(
             "prf_analysis.yml",
-            opj(os.path.dirname(os.path.dirname(utils.__file__)),'misc')
+            opj(os.path.dirname(os.path.dirname(fmriproc.__file__)),'misc')
         )
 
     if not isinstance(old_settings, dict):
@@ -1589,6 +1639,17 @@ def generate_model_params(
     if fit_hrf:
         bounds['bounds']["hrf_deriv"] = settings["hrf"]["deriv_bound"]
         bounds['bounds']["hrf_disp"] = settings["hrf"]["disp_bound"]
+    else:
+        # fix parameters of HRF is array or list
+        if isinstance(hrf, list):
+            ref = hrf
+        else:
+            ref = settings["hrf"]["pars"]
+
+        b1, b2 = [ref[1], ref[1]], [ref[2], ref[2]]
+
+        bounds['bounds']["hrf_deriv"] = b1
+        bounds['bounds']["hrf_disp"] = b2
 
     # update settings file if we've generated a new one
     settings.update(bounds)
@@ -1597,14 +1658,18 @@ def generate_model_params(
     settings.update({'TR': TR})
 
     # print important settings
-    utils.verbose("\n---------------------------------------------------------------------------------------------------",
-                  verbose)
+    utils.verbose(
+        "\n---------------------------------------------------------------------------------------------------",
+        verbose
+    )
     utils.verbose("Check these important settings!", verbose)
     utils.verbose(f" Screen distance: {settings['screen_distance_cm']}cm", verbose)
     utils.verbose(f" Screen size: {settings['screen_size_cm']}cm", verbose)
     utils.verbose(f" TR: {settings['TR']}s", verbose)
-    utils.verbose("---------------------------------------------------------------------------------------------------\n",
-                  verbose)
+    utils.verbose(
+        "---------------------------------------------------------------------------------------------------\n",
+        verbose
+    )
 
     # return
     return settings, prf_stim
@@ -1616,16 +1681,18 @@ class GaussianModel():
         self.gaussian_fitter = Iso2DGaussianFitter(
             data=self.data,
             model=self.gauss_model,
-            fit_css=False,
-            fit_hrf=self.fit_hrf,
-            n_jobs=self.nr_jobs)
+            n_jobs=self.nr_jobs
+        )
 
         if isinstance(self.old_params, np.ndarray):
             
             # check if dimensions make sense
             if self.old_params.shape[0] != self.data.shape[0]:
-                utils.verbose(f"""Matching old parameters of shape {self.old_params.shape} to data of shape
-                              {self.data.shape[0],self.old_params.shape[-1]}""", self.verbose)
+                utils.verbose(
+                    f"""Matching old parameters of shape {self.old_params.shape} to data of shape {self.data.shape[0],self.old_params.shape[-1]}""",
+                    self.verbose
+                )
+
                 self.old_params = np.tile(self.old_params, (self.data.shape[0],1))
 
             # set inserted params as gridsearch_params and iterative_search_params
@@ -1636,13 +1703,17 @@ class GaussianModel():
             # set gaussian_fitter as previous_gaussian_fitter
             self.previous_gaussian_fitter = self.gaussian_fitter
 
-            utils.verbose(f"Inserting parameters from {type(self.old_params)} as 'iterative_search_params' in {self}",
-                          self.verbose)         
+            utils.verbose(
+                f"Inserting parameters from {type(self.old_params)} as 'iterative_search_params' in {self}",
+                self.verbose
+            )
 
     def gridfit(self):
         ## start grid fit
-        utils.verbose(f"Starting gauss gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
-                      self.verbose)
+        utils.verbose(
+            f"Starting Gaussian gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            self.verbose
+        )
         
         start = time.time()
         self.gaussian_fitter.grid_fit(
@@ -1652,7 +1723,8 @@ class GaussianModel():
             fixed_grid_baseline=self.fix_grid_baseline,
             verbose=self.verbose,
             grid_bounds=[tuple(self.settings['bounds']['prf_ampl'])],
-            n_batches=self.nr_jobs)
+            n_batches=self.nr_jobs
+        )
         
         elapsed = (time.time() - start)
 
@@ -1663,10 +1735,15 @@ class GaussianModel():
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
         nr = np.sum(self.gauss_grid[:, -1]>self.settings['rsq_threshold'])
         total = self.gaussian_fitter.data.shape[0]
-        utils.verbose(f"""Completed Gaussian gridfit at {start_time}. Voxels/vertices above {self.settings['rsq_threshold']}:
-                      {nr}/{total}""", self.verbose)
-        utils.verbose(f"""Gridfit took {timedelta(seconds=elapsed)} | Mean rsq>{self.settings['rsq_threshold']}:
-                      {round(mean_rsq,2)}""", self.verbose)
+        utils.verbose(
+            f"""Completed Gaussian gridfit at {start_time}. Voxels/vertices above {self.settings['rsq_threshold']}: {nr}/{total}""",
+            self.verbose
+        )
+
+        utils.verbose(
+            f"""Gridfit took {timedelta(seconds=elapsed)} | Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}""",
+            self.verbose
+        )
         
         if self.write_files:
             if self.save_grid:
@@ -1675,35 +1752,23 @@ class GaussianModel():
     def iterfit(self):
 
         start = time.time()
-        utils.verbose(f"Starting gauss iterfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
-                      self.verbose)
+        utils.verbose(
+            f"Starting Gaussian iterfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            self.verbose
+        )
 
         # fetch bounds
         self.gauss_bounds = self.fetch_bounds(model='gauss')
 
-        if isinstance(self.fix_parameters, (list,int)):
-            utils.verbose(f"Fixing parameters (idx): {self.fix_parameters}", self.verbose)
-
-            self.gauss_bounds = self.unitwise_bounds(
-                self.fix_parameters,
-                model="gauss",
-                ref_pars=self.gaussian_fitter.gridsearch_params
-            )
+        # get optimizer arguments
+        self.optimizer_kws_gauss = self.fetch_optimizer_info(self.constraints[0])
 
         # fit
-        if self.constraints[0] == "tc":
-            constr = []
-        elif self.constraints[0] == "bgfs":
-            constr = None
-        else:
-            raise ValueError(f"Unknown optimizer '{self.constraints[0]}'. Must be one of ['tc', 'bgfs']")
-
         self.gaussian_fitter.iterative_fit(
             rsq_threshold=self.settings['rsq_threshold'], 
             bounds=self.gauss_bounds,
-            constraints=constr,
-            xtol=self.settings['xtol'],
-            ftol=self.settings['ftol'])
+            **self.optimizer_kws_gauss
+        )
 
         # print summary
         elapsed = (time.time() - start)              
@@ -1713,8 +1778,11 @@ class GaussianModel():
         mean_rsq = np.nanmean(self.gauss_iter[self.gaussian_fitter.rsq_mask, -1])
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
 
-        utils.verbose(f"""Completed Gaussian iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
-                      {round(mean_rsq,2)}""", self.verbose)
+        utils.verbose(
+            f"""Completed Gaussian iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}""",
+            self.verbose
+        )
+
         utils.verbose(f"Iterfit took {timedelta(seconds=elapsed)}", self.verbose)
 
         # save intermediate files
@@ -1729,74 +1797,77 @@ class ExtendedModel():
             self.active_fitter = DoG_Iso2DGaussianFitter
         elif self.model == "css":
             self.active_fitter = CSS_Iso2DGaussianFitter
-        elif self.model in ["norm","abc","abd"]:
+        elif self.model in ["norm", "abc", "abd"]:
             self.active_fitter = Norm_Iso2DGaussianFitter
 
         self.active_model = getattr(self, f"{self.model}_model")
 
         # define fitter; previous_gaussian_fitter can be specified in kwargs
+        self.ext_fit_kws = {
+            "use_previous_gaussian_fitter_hrf": self.fix_hrf
+        }
         if not hasattr(self, "previous_gaussian_fitter"):
-            
+
             # check if we have gaussian fit
             if hasattr(self, "gaussian_fitter"):
-                self.tmp_fitter = self.active_fitter(
-                    self.active_model,
-                    self.data, 
-                    fit_hrf=self.fit_hrf, 
-                    previous_gaussian_fitter=self.gaussian_fitter,
-                    n_jobs=self.nr_jobs)
-            else:
-                # we might have manually injected parameters
-                self.tmp_fitter = self.active_fitter(
-                    self.active_model, 
-                    self.data, 
-                    fit_hrf=self.fit_hrf,
-                    n_jobs=self.nr_jobs)
+                self.ext_fit_kws["previous_gaussian_fitter"] = self.gaussian_fitter
+
         else:
             # inject existing-model object > advised when fitting the HRF
-            self.tmp_fitter = self.active_fitter(
-                self.active_model, 
-                self.data, 
-                fit_hrf=self.fit_hrf, 
-                previous_gaussian_fitter=self.previous_gaussian_fitter,
-                n_jobs=self.nr_jobs)
+            self.ext_fit_kws["previous_gaussian_fitter"] = self.previous_gaussian_fitter
 
-    def gridfit(self):
-        
-        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+        # initialize Fitter
+        self.tmp_fitter = self.active_fitter(
+            self.active_model, 
+            self.data,
+            n_jobs=self.nr_jobs,
+            **self.ext_fit_kws
+        )
+
+    def define_grid_bounds(self, model=None):
 
         # define grids into lists so we can call gridfit ones
-        if self.model == "css":
-            self.grid_list = [
+        if model == "css":
+            grid_list = [
                 np.array(self.settings['css']['css_exponent_grid'], dtype='float32')
             ]
 
-            self.grid_bounds = [
+            grid_bounds = [
                 tuple(self.settings['bounds']['prf_ampl'])
             ]
 
-        elif self.model == "dog":
-            self.grid_list = [
+        elif model == "dog":
+            grid_list = [
                 np.array(self.settings['dog']['dog_surround_amplitude_grid'], dtype='float32'),
                 np.array(self.settings['dog']['dog_surround_size_grid'], dtype='float32')
-            ]      
-            self.grid_bounds = [
+            ]
+
+            grid_bounds = [
                 tuple(self.settings['prf_ampl']),
                 tuple(self.settings['bounds']['surr_ampl'])
             ]
 
-        elif self.model in ["norm","abc","abd"]:
-            self.grid_list = [
+        elif model in ["norm","abc","abd"]:
+            grid_list = [
                 np.array(self.settings['norm']['surround_amplitude_grid'], dtype='float32'),
                 np.array(self.settings['norm']['surround_size_grid'], dtype='float32'),
                 np.array(self.settings['norm']['neural_baseline_grid'], dtype='float32'),
                 np.array(self.settings['norm']['surround_baseline_grid'], dtype='float32')
             ]
 
-            self.grid_bounds = [
+            grid_bounds = [
                 tuple(self.settings['bounds']['prf_ampl']),
                 tuple(self.settings['bounds']['neur_bsl'])
             ]
+
+        return grid_list, grid_bounds
+
+    def gridfit(self):
+        
+        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+        # get list of bounds
+        self.grid_list, self.grid_bounds = self.define_grid_bounds(self.model)
         
         # grid fit
         if not self.skip_grid:
@@ -1807,7 +1878,10 @@ class ExtendedModel():
 
             ## Start grid fit
             start = time.time()
-            utils.verbose(f"Starting {self.model} gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}", self.verbose)
+            utils.verbose(
+                f"Starting {self.model} gridfit {self.data.shape} at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+                self.verbose
+            )
 
             self.tmp_fitter.grid_fit(
                 *self.grid_list,
@@ -1815,7 +1889,8 @@ class ExtendedModel():
                 verbose=self.verbose,
                 rsq_threshold=self.settings['rsq_threshold'],
                 fixed_grid_baseline=self.fix_grid_baseline,
-                grid_bounds=self.grid_bounds)
+                grid_bounds=self.grid_bounds
+            )
 
             elapsed = (time.time() - start)
 
@@ -1826,16 +1901,22 @@ class ExtendedModel():
             # verbose stuff
             mean_rsq = np.mean(filtered_[self.tmp_fitter.gridsearch_rsq_mask, -1])
             start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-            utils.verbose(f"""Completed {self.model} gridfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
-                          {round(mean_rsq,2)}""", self.verbose)
+            utils.verbose(
+                f"""Completed {self.model} gridfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}""", 
+                self.verbose
+            )
+
             utils.verbose(f"Gridfit took {timedelta(seconds=elapsed)}", self.verbose)
 
             if self.write_files:
                 if self.save_grid:
                     self.save_params(model=self.model, stage="grid")
         else:
-            utils.verbose(f"""Setting {(type(self.gaussian_fitter.iterative_search_params))} as 'gridsearch_params' in
-                          {self.tmp_fitter}""", self.verbose)
+            utils.verbose(
+                f"""Setting {(type(self.gaussian_fitter.iterative_search_params))} as 'gridsearch_params' in {self.tmp_fitter}""",
+                self.verbose
+            )
+
             self.tmp_fitter.gridsearch_params = self.gaussian_fitter.iterative_search_params
 
         setattr(self, f"{self.model}_fitter", self.tmp_fitter)
@@ -1853,26 +1934,30 @@ class ExtendedModel():
                 ref_pars=self.previous_gaussian_fitter.iterative_search_params
             )
 
+        # these will be fixed in the grid stage, but make sure they're inherited to iter stage
+        if self.fix_hrf:
+            self.tmp_bounds = self.fix_hrf_parameters(
+                self.tmp_bounds,
+                ref_pars=self.previous_gaussian_fitter.iterative_search_params
+            )
+            
         setattr(self, f"{self.model}_bounds", self.tmp_bounds)        
         
         start = time.time()
-        utils.verbose(f"Starting {self.model} iterfit {self.data.shape}  at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
-                      self.verbose)
+        utils.verbose(
+            f"Starting {self.model} iterfit {self.data.shape}  at {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            self.verbose
+        )
+
+        # get optimizer arguments
+        self.optimizer_kws_ext = self.fetch_optimizer_info(self.constraints[1])
 
         # fit
-        if self.constraints[1] == "tc":
-            constr = []
-        elif self.constraints[1] == "bgfs":
-            constr = None
-        else:
-            raise ValueError(f"Unknown optimizer '{self.constraints[0]}'. Must be one of {self.allowed_optimizers}")        
-
         self.tmp_fitter.iterative_fit(
             rsq_threshold=self.settings['rsq_threshold'], 
             bounds=self.tmp_bounds,
-            constraints=constr,
-            xtol=self.settings['xtol'],
-            ftol=self.settings['ftol'])
+            **self.optimizer_kws_ext
+        )
 
         elapsed = (time.time() - start)  
 
@@ -1883,8 +1968,11 @@ class ExtendedModel():
         # verbose stuff
         mean_rsq = np.mean(filtered_[self.tmp_fitter.rsq_mask, -1])
         start_time = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
-        utils.verbose(f"""Completed {self.model} iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}:
-                      {round(mean_rsq,2)}""", self.verbose)
+        utils.verbose(
+            f"""Completed {self.model} iterfit at {start_time}. Mean rsq>{self.settings['rsq_threshold']}: {round(mean_rsq,2)}""",
+            self.verbose
+        )
+
         utils.verbose(f"Iterfit took {timedelta(seconds=elapsed)}", self.verbose)
 
         if self.write_files:
@@ -1962,6 +2050,20 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
     skip_settings: bool, optional
         avoids overwriting of particular settings (e.g., screen_distance_cm), and takes them from the reference analysis file
         instead
+    optimizer_kws: dict, optional
+        Extra arguments that will be directly passed on to `scipy:minimize`. x(a)tol/f(a)tol values will be set from the
+        settings file.
+    fix_parameters: list, optional
+        Fix certain parameters from a previous fitting stage for the next. This argument is generally used to fix the position.
+        The BOLD baseline can be fixed to 0 using `fix_bold_baseline=True`, and the HRF can be fixed using `fix_hrf`. The latter
+        requires a bit more attention due to indices differing across models. Only the parameters x, y, prf_size, prf_ampl are
+        the same across models.
+    fix_bold_baseline: bool, optional
+        Fix the baseline of the BOLD to [0, 0]. Generally recommended if your data is already percent signal changed and you
+        would like to do surround-suppression stuff. The default is therefore True.
+    fix_hrf: bool, optional
+        Fix the HRF parameters from a previous fitter. For instance, you run a Gaussian model followed by DoG model and would
+        like to use the fitted parameters from the Gaussian model for the DoG model. Default is False.
 
     Returns
     ----------
@@ -1978,7 +2080,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
     >>> modelling_pfov = prf.pRFmodelFitting(
     >>>     partial_nan.T,
     >>>     design_matrix=design_pfov,
-    >>>     stage="grid+iter",
+    >>>     stage="iter",
     >>>     model="norm",
     >>>     output_dir=prf_new,
     >>>     output_base="sub-003_ses-3_task-pRF_acq-3DEPI")
@@ -2011,6 +2113,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         model_obj=None,
         fix_bold_baseline=False,
         fix_parameters=None,
+        fix_hrf=False,
         constraints="tc",
         save_grid=True,
         skip_grid=False,
@@ -2038,6 +2141,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         self.fit_hrf            = fit_hrf
         self.fix_bold_baseline  = fix_bold_baseline
         self.fix_parameters     = fix_parameters
+        self.fix_hrf            = fix_hrf
         self.constraints        = constraints
         self.save_grid          = save_grid
         self.skip_grid          = skip_grid
@@ -2072,14 +2176,19 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 # transpose if this value is negative; means shapes are shifted
                 if missed_vols < 0:
                     self.data = self.data.T
-                    utils.verbose(f"Skipped volumes was negative ({missed_vols}), transposing data to {self.data.shape}",
-                                  self.verbose)
+                    utils.verbose(
+                        f"Skipped volumes was negative ({missed_vols}), transposing data to {self.data.shape}",
+                        self.verbose
+                    )
+
                     missed_vols = self.design_matrix.shape[-1]-self.data.shape[-1]
 
                 self.design_matrix = self.design_matrix[...,missed_vols:]
 
-                utils.verbose(f"""Design has {missed_vols} more volumes than timecourses, trimming from beginning of design to
-                              {self.design_matrix.shape}""", self.verbose)
+                utils.verbose(
+                    f"""Design has {missed_vols} more volumes than timecourses, trimming from beginning of design to {self.design_matrix.shape}""",
+                    self.verbose
+                )
 
         #----------------------------------------------------------------------------------------------------------------------------------------------------------
         # Fetch the settings
@@ -2095,7 +2204,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             self.fix_grid_baseline = None
 
         # check if we got a pRF-stim object
-        if self.prf_stim != None:
+        if self.prf_stim is not None:
             utils.verbose("Using user-defined pRF-stimulus object", self.verbose)
             self.prf_stim = self.prf_stim
         else:
@@ -2112,28 +2221,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         self.update_settings()
 
         # check validity of constraints
-        self.allowed_optimizers = ['tc', 'bgfs']
         if isinstance(self.constraints, str):
             self.constraints = [self.constraints, self.constraints]
-
-        for optimizer in self.constraints:
-            if optimizer not in self.allowed_optimizers:
-                raise ValueError(f"Unknown optimizer '{optimizer}'. Must be one of {self.allowed_optimizers}")
         
-        utils.verbose(f"Using constraint(s): {self.constraints}", self.verbose)
+        utils.verbose(f"Using constraint(s): {self.constraints} (gauss | extended)", self.verbose)
             
         #----------------------------------------------------------------------------------------------------------------------------------------------------------
         # whichever model you run, run the Gaussian first
 
         ## Define models
-        self.gauss_model    = Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
-        self.css_model      = CSS_Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
-        self.dog_model      = DoG_Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
+        self.gauss_model = Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
+        self.css_model = CSS_Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
+        self.dog_model = DoG_Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf)
 
-        if self.model in ["norm","abc","abd"]:
+        if self.model in ["norm", "abc", "abd"]:
             setattr(self, f"{self.model}_model", Norm_Iso2DGaussianModel(stimulus=self.prf_stim, hrf=self.hrf))
 
-        if self.model_obj != None:
+        if self.model_obj is not None:
             utils.verbose(f"Setting {self.model_obj} as '{model}_model'-attribute", self.verbose)
             setattr(self, f'{model}_model', self.model_obj)
 
@@ -2145,7 +2249,9 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             TR=self.TR,
             fit_hrf=self.fit_hrf,
             verbose=self.verbose,
-            old_settings=old_settings)
+            old_settings=old_settings,
+            hrf=self.hrf
+        )
 
     def define_hrf(self):
 
@@ -2197,8 +2303,10 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
                     # only update if different
                     if getattr(self, setting) != self.settings[setting]:
-                        utils.verbose(f"""Setting '{setting}' to user-defined value: {getattr(self, setting)}
-                                      (was: {self.settings[setting]})""", self.verbose)
+                        utils.verbose(
+                            f"""Setting '{setting}' to user-defined value: {getattr(self, setting)} (was: {self.settings[setting]})""",
+                            self.verbose
+                        )
 
                         self.settings[setting] = getattr(self, setting)
 
@@ -2238,8 +2346,11 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 if self.previous_gaussian_fitter.gridsearch_params.shape[-1] > 6:
 
                     # HRF already fitted, so set to false and update settings
-                    utils.verbose(f"HRF already fitted, setting 'fit_hrf' in '{self.previous_gaussian_fitter}' to False",
-                                  self.verbose)
+                    utils.verbose(
+                        f"HRF already fitted, setting 'fit_hrf' in '{self.previous_gaussian_fitter}' to False",
+                        self.verbose
+                    )
+
                     self.previous_gaussian_fitter.fit_hrf = False
 
                 GaussianModel.iterfit(self)
@@ -2253,7 +2364,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             self.define_settings(old_settings=self.settings)
 
             if self.fix_bold_baseline:
-                self.settings['bounds']['bold_bsl'] = [0,0]
+                self.settings['bounds']['bold_bsl'] = [0, 0]
 
             # overwrite settings with custom settings
             self.update_settings()
@@ -2279,13 +2390,46 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             max_shape = 8
         elif model == "css":
             max_shape = 7
-        elif model in ["norm","abc","abd"]:
+        elif model in ["norm", "abc", "abd"]:
             max_shape = 10
         else:
             raise ValueError(f"Model must be one of {self.allowed_models}, not '{model}'")
 
         return max_shape
     
+    def fix_hrf_parameters(
+        self,
+        bounds,
+        ref_pars=None
+        ):
+
+        # third to second to last pars = HRF (voxels, parameters)
+        hrf_pars = ref_pars[:,-3:-1]
+
+        # these are the indices to be set
+        idx_list = [-2, -1]
+
+        # loop through data shape
+        new_bounds = []
+        for b in range(ref_pars.shape[0]):
+
+            # this means we have a list of bounds per voxel, meaning something has been fixed by `unitwise_bounds` or the input is a single time course
+            if len(bounds) == ref_pars.shape[0]:
+                tmp = bounds[b]
+            else:
+                # copy bounds if we have a single set of them
+                tmp = np.array(bounds)
+            
+            # loop through indices
+            for i,idx in enumerate(idx_list):
+
+                # set indices to values of hrf_pars (which are 0, 1 so use enumerate)
+                tmp[idx, :] = hrf_pars[b, i]
+
+            new_bounds.append(tmp)
+
+        return new_bounds
+
     def unitwise_bounds(
         self,
         idx_list,
@@ -2311,6 +2455,60 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         return new_bounds
     
+    def fetch_optimizer_info(
+        self,
+        constraints=None,
+        ):
+
+        if constraints == "tc":
+            constr = []
+            method = "trust-constr"
+        elif constraints == "bgfs":
+            method = "L-BFGS-B"
+            constr = None
+        elif constraints == "nelder":
+            method = "Nelder-Mead"
+            constr = []
+        else:
+            raise ValueError(f"Unknown optimizer '{constraints}'. Must be one of ['tc', 'bgfs', 'nelder']")
+
+        constr_options = {}
+        if constraints in ["nelder"]:
+            args = ["xatol", "fatol"]
+        elif constraints in ["powell", "cg"]:
+            args = None
+        elif constraints in ["tc"]:
+            args = ["xtol", "gtol"]
+        else:
+            args = ["xtol", "ftol"]
+
+        if isinstance(args, list):
+            if len(args)>1:
+                constr_options[args[0]] = self.settings["xtol"]
+                constr_options[args[1]] = self.settings["ftol"]
+            else:
+                constr_options[args[0]] = self.settings["xtol"]
+        else:
+            constr_options = None
+
+        ddict = {
+            "method": method,
+            "constraints": constr,
+            "options": constr_options
+        }
+
+        # update dict with extra arguments from optimizer_kws
+        if hasattr(self, "optimizer_kws"):
+            for key, val in self.optimizer_kws.items():
+                ddict = utils.update_kwargs(
+                    ddict,
+                    key,
+                    val,
+                    force=True
+                )
+        
+        return ddict
+
     def fetch_bounds(self, model=None):
         
         bounds = [
@@ -2338,9 +2536,9 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 tuple(self.settings['bounds']['surr_size'])     # surround size
             ]              
 
-        if self.fit_hrf:
-            bounds.append(tuple(self.settings["bounds"]['hrf_deriv']))      # HRF time derivative
-            bounds.append(tuple(self.settings["bounds"]['hrf_disp']))       # HRF dispersion derivative
+        # fit_hrf=False, these parameters are fixed
+        bounds.append(tuple(self.settings["bounds"]['hrf_deriv']))      # HRF time derivative
+        bounds.append(tuple(self.settings["bounds"]['hrf_disp']))       # HRF dispersion derivative
 
         return bounds
     
@@ -2500,7 +2698,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             if params.ndim == 1:
                 params = params[np.newaxis,...]
 
-            if vox_nr != None:
+            if vox_nr is not None:
                 if vox_nr == "best":
                     vox,_ = utils.find_nearest(params[...,-1], np.amax(params[...,-1]))
                 else:
@@ -2919,7 +3117,7 @@ def find_most_similar_prf(reference_prf, look_in_params, verbose=False, return_n
     utils.verbose(f"{xysize_par.shape} survived size-parameter matching", verbose)
 
     # filter indices with r2
-    if r2_thresh != None:
+    if r2_thresh is not None:
         filt = look_in_params[xysize_par][...,-1] > r2_thresh
         true_idc = np.where(filt == True)
         xysize_par = xysize_par[true_idc]
@@ -3437,8 +3635,8 @@ class SizeResponse():
         elif hemi == "rh":
             hemi = "R"
 
-        if self.subject_info != None:
-            if fname == None:
+        if self.subject_info is not None:
+            if fname is None:
                 prf_bestvertex = opj(
                     self.subject_info.cx_dir, 
                     f'{self.subject_info.subject}_model-norm_desc-best_vertices.csv'
@@ -3585,12 +3783,12 @@ class CollectSubject(pRFmodelFitting):
             self.hemi_tag = "both"
 
         # set pRF directory
-        if self.prf_dir == None:
-            if derivatives != None:
+        if self.prf_dir is None:
+            if derivatives is not None:
                 self.prf_dir = opj(self.derivatives, 'prf', self.subject, f'ses-{self.prf_ses}')
                 
         # get design matrix, vertex info, and analysis file
-        if self.prf_dir != None:
+        if self.prf_dir is not None:
             self.design_fn = utils.get_file_from_substring(["design", ".mat"]+self.filter_list, self.prf_dir)
 
             # error message in case multiple files are found
@@ -3666,11 +3864,11 @@ class CollectSubject(pRFmodelFitting):
                 )
         
         # set pycortex directory
-        if self.cx_dir == None:
-            if derivatives != None:
+        if self.cx_dir is None:
+            if derivatives is not None:
                 self.cx_dir = opj(self.derivatives, 'pycortex', self.subject)
             
-        if self.cx_dir != None and os.path.exists(self.cx_dir):
+        if self.cx_dir is not None and os.path.exists(self.cx_dir):
             self.vert_fn = utils.get_file_from_substring([self.model, "best_vertices.csv"], self.cx_dir, return_msg=None)
 
             if isinstance(self.vert_fn, str):
