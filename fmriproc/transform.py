@@ -193,7 +193,7 @@ def ants_applytopoints(chicken_file, output_file, trafo_file, invert=1):
     Parameters
     ----------
     chicken_file: str
-        output from fmriproc.utils.make_chicken_csv containing the coordinate that needs to be warped
+        output from lazyfmri.utils.make_chicken_csv containing the coordinate that needs to be warped
     output_file: str
         output csv file containing the warped point in LPS-convention! Swap the first and second dimensions to make the coordinate RAS
     trafo_file: str
