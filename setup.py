@@ -16,7 +16,8 @@ setup(
         'fmriproc': [
             'misc/*',
             'recon/*',
-            'examples/*'
+            'examples/*',
+            'notebooks/*'
         ]
     }
 )
