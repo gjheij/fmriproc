@@ -80,12 +80,7 @@ export COMBINE_SEGMENTATIONS="weighted"
 export PATH_HOME=${DIR_PROJECTS}/logs
 
 export PYBEST_SPACE="fsnative"
-export PYBEST_N_COMPS=10
-
-# PROJECT
-# export DIR_PROJECTS="/data1/projects/MicroFunc/Jurjen/projects"
-# export PROJECT="VE-pRF"
-# export TASK_SES1=("pRF")
+export PYBEST_N_COMPS=20
 
 # DATA TYPE(S)
 export ACQ=("MP2RAGE")  # or ("MP2RAGE" "MP2RAGEME")
