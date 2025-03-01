@@ -18,22 +18,30 @@ fi
 We can use `c3d_affine_tool` to tranlate the ANTs matrices to something that FSL understands. We start with the linear part, something that will be called `_0GenericAffine.mat` if you've used ANTs without fancy renaming.
 
 ### ANTs outside fMRIprep
-If you've run module `05b` from the line-scanning repository, you'll have these files below. If you want to use the composite transform from fmriprep, scroll one section down :
+If you've run module `05b` from the line-scanning repository, you'll have these files below. If you want to use the composite transform from fmriprep, scroll one section down:
 
 ```bash
 src="${DIR_DATA_DERIV}/cat12/sub-${subID}/ses-${anatSes}/sub-${subID}_ses-${anatSes}_acq-MP2RAGE_T1w.nii.gz"
-wrp="${DIR_DATA_DERIV}/ants/sub-${subID}/ses-${anatSes}/sub-${subID}_ses-${anatSes}_from-MNI152NLin6Asym_to-T1w_mode-image_xfm.mat"
+wrp="${DIR_DATA_DERIV}/ants/sub-${subID}/ses-${anatSes}/sub-${subID}_ses-${anatSes}_from-MNI152NLin6Asym_to-T1w_mode-image_xfm.mat" # this is T1w>MNI (i messed up naming in earlier versions)
 ```
 
 ### ANTs from fMRIprep
 We can also decompose the composite transform from fmriprep using `CompositeTransformUtil` (see also [this post](https://neurostars.org/t/extracting-individual-transforms-from-composite-h5-files-fmriprep/2215/12)):
 
 ```bash
+# define anatomical file
+src=`find ${DIR_DATA_DERIV}/fmriprep/sub-${subID}/ses-${anatSes} -type f -name "*desc-preproc_T1w.nii.gz" -and -not -name "*space-*"`
+
+# fetch h5 file
 h5_file=`find -L ${DIR_DATA_DERIV}/fmriprep/sub-${subID}/ses-${anatSes}/anat -type f -name "*from-T1w_to-MNI152NLin6Asym*" -and -name "*.h5"`
 
-out_base=${out_dir}/highres2standard
+# extract .mat/.nii.gz file
+out_base=${out_dir}/t1_to_mni
 CompositeTransformUtil --disassemble ${h5_file} ${out_base}
-mv ${out_base}.nii.gz ${out_base}_warp.nii.gz
+
+# set new warp files
+nlin_wrp=`find $out_dir -type f -name "*$(basename ${out_base})*" -and -name "*.nii.gz"`
+wrp=`find $out_dir -type f -name "*$(basename ${out_base})*" -and -name "*.mat"`
 ``` 
 
 ### Continue as is
@@ -50,8 +58,11 @@ c3d_affine_tool -ref ${out_dir}/template.nii.gz -src ${out_dir}/highres.nii.gz -
 
 Now we need to translate the non-linear warp file using the workbench `wb_command` command. This file will be called something like `_1Warp.nii.gz`
 ```bash
-# define warp
-nlin_wrp="${DIR_DATA_DERIV}/ants/sub-${subID}/ses-${anatSes}/sub-${subID}_ses-${anatSes}_from-MNI152NLin6Asym_to-T1w_mode-image_warp.nii.gz"
+# if you're using fMRIprep warps, this variable is already defined
+if [ -f ${nlin_wrp} ]; then
+    nlin_wrp="${DIR_DATA_DERIV}/ants/sub-${subID}/ses-${anatSes}/sub-${subID}_ses-${anatSes}_from-MNI152NLin6Asym_to-T1w_mode-image_warp.nii.gz"
+fi
+
 nlin_fsl="${out_dir}/tmp_warp.nii.gz"
 
 # run wb command
@@ -62,6 +73,11 @@ convertwarp --ref=${out_dir}/template.nii.gz --premat=${mat_fsl} --warp1=${nlin_
 
 # apply to create highres2standard.nii.gz
 applywarp -i ${out_dir}/highres.nii.gz -r ${out_dir}/template.nii.gz -w ${out_dir}/highres2standard_warp.nii.gz -o ${out_dir}/highres2standard.nii.gz
+```
+
+clean up directory if you're using fMRIprep warps:
+```bash
+find ${out_dir} -type f -name "*$(basename $out_base)*" -exec rm {} \;
 ```
 
 ## BOLD >> T1w
