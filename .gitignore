@@ -5,3 +5,5 @@ lazyplot/__pycache__/
 *.pyc
 *.pyo
 .DS_Store
+fmriproc/version.py
+build/*

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=61.0", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "fmriproc"
-version = "0.1.0" # Replace this with the value dynamically loaded by `get_version`
+dynamic = ["version"]
 description = "fmriproc: preprocessing routines for functional (fMRI) and anatomical data (MRI)"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -20,7 +20,8 @@ classifiers = [
     "Programming Language :: Python",
     "Topic :: Scientific/Engineering",
 ]
-# requires-python = ">=3.7, <3.11"
+requires-python = ">=3.7"
+
 dependencies = [
     "lazyfmri @ git+https://github.com/gjheij/lazyfmri.git",
     "pybest @ git+https://github.com/gjheij/pybest.git",
@@ -39,22 +40,20 @@ dependencies = [
     "typing",
     "configparser",
     "mkl-service",
-    "future"
+    "future",
 ]
-
 
 [project.optional-dependencies]
 dev = ["pytest", "black", "flake8"]
 
-[tool.setuptools]
-packages = ["fmriproc"]
-include-package-data = true
+[tool.setuptools_scm]
+write_to = "fmriproc/version.py"
+
+[tool.setuptools.packages.find]
+include = ["fmriproc*"]
 
 [tool.setuptools.package-data]
-fmriproc = [
-    "version.py", 
-    "examples/*", 
-    "misc/*",
-    "notebooks/*", 
-    "recon/*"
-]
+fmriproc = ["version.py", "examples/*", "misc/*", "notebooks/*", "recon/*"]
+
+[tool.setuptools.data-files]
+"bin" = ["shell/*", "bin/*"]
