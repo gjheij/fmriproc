@@ -1,6 +1,6 @@
 # fMRIproc repository
 
-![plot](https://github.com/gjheij/fmriproc/blob/main/doc/imgs/overview.png)
+![plot](https://github.com/gjheij/fmriproc/blob/main/imgs/overview.png)
 
 This repository contains all of the tools used during the acquisition and postprocessing of line scanning data at the Spinoza Centre for Neuroimaging in Amsterdam.
 Note that we have a Philips scanner there, so all routines are tailored for the specific output of this scanner (e.g., PAR/REC files).
