@@ -2479,6 +2479,8 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             args = None
         elif constraints in ["tc"]:
             args = ["xtol", "gtol"]
+        elif constraints in ["bgfs"]:
+            args = ["ftol", "gtol"]
         else:
             args = ["xtol", "ftol"]
 
