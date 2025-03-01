@@ -46,15 +46,16 @@ if [[ $1 == "setup" ]]; then
     echo "Found ITK-Snap installation: `which itksnap`"
   fi
 
-    # Determine OS
+  # Determine OS
+  echo "Setting repository directory"  
   REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`
   echo "Repository: \"${REPO_DIR}\""
   if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS
-    sed -i '' "s|CH_REPO_DIR|${REPO_DIR}|g" "${SETUP_FILE}"
+    sed -i '' "0,/CH_REPO_DIR/s|CH_REPO_DIR|${REPO_DIR}|" "${SETUP_FILE}"
   else
-    # Linux (or other Unix-like)
-    sed -i "s|CH_REPO_DIR|${REPO_DIR}|g" "${SETUP_FILE}"
+    # Linux
+    sed -i "0,/CH_REPO_DIR/s|CH_REPO_DIR|${REPO_DIR}|" "${SETUP_FILE}"
   fi
 
   # done
