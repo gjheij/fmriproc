@@ -247,7 +247,7 @@ for subID in ${search}; do
     export SUBJECTS_DIR=${INPUT}
 
     # check if generate_equivolumetric_surfaces.py is on the PATH
-    CMD="python ${PATH_HOME}/surface_tools/equivolumetric_surfaces/generate_equivolumetric_surfaces.py"
+    CMD="generate_equivolumetric_surfaces"
 
     # loop through hemis
     for i in "lh" "rh"; do
@@ -256,7 +256,7 @@ for subID in ${search}; do
       rm ${input_dir}/surf/${i}.equi* 2>/dev/null
 
       # run cmd
-      echo "Running generate_equivolumetric_surfaces.py on ${i} with ${nr_layers} layers"
+      echo "Running generate_equivolumetric_surfaces on ${i} with ${nr_layers} layers"
       run_cmd="""${CMD} \
         --smoothing  0 \
         ${input_dir}/surf/${i}.pial \
@@ -278,7 +278,7 @@ for subID in ${search}; do
       eval ${run_cmd}
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in `basename ${0}`: generate_equivolumetric_surfaces.py exited with non-zero status"
+        echo "ERROR in `basename ${0}`: generate_equivolumetric_surfaces exited with non-zero status"
         exit 1
       fi
 
