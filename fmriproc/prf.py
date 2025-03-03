@@ -1,7 +1,4 @@
-import mkl
-mkl.set_num_threads=1
-standard_max_threads = mkl.get_max_threads()
-
+import fmriproc
 import ast
 from datetime import datetime, timedelta
 from lazyfmri import (
@@ -11,7 +8,6 @@ from lazyfmri import (
     fitting,
     preproc
 )
-import fmriproc
 import math
 import matplotlib.image as mpimg
 import matplotlib.patches as patches
@@ -21,7 +17,7 @@ import os
 import pandas as pd
 from joblib import Parallel, delayed
 from past.utils import old_div
-from prfpy import rf,stimulus
+from prfpy import rf, stimulus
 from prfpy.fit import *
 from prfpy.model import *
 import random
