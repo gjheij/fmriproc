@@ -25,7 +25,7 @@ requires-python = ">=3.8"
 dependencies = [
     "lazyfmri @ git+https://github.com/gjheij/lazyfmri.git",
     "pybest @ git+https://github.com/gjheij/pybest.git",
-    "surface_tools @ git+https://github.com/gjheij/surface_tools.git",
+    "surface_tools @ git+https://github.com/kwagstyl/surface_tools.git",
     "pymp2rage @ git+https://github.com/gjheij/pymp2rage.git",
     "prfpy @ git+https://github.com/VU-Cog-Sci/prfpy.git",
     "dcm2niix",
