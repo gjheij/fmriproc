@@ -7,6 +7,14 @@ export REPO_DIR="CH_REPO_DIR"
 # source helper functions
 source call_bashhelper
 
+replace_first_in_file() {
+    file="$1"
+    search="$2"
+    replace="$3"
+    awk -v r="${replace}" "{sub(/${search}/, r)} 1" "${file}" > "${file}.tmp" && mv "${file}.tmp" "${file}"
+    chmod 2775 ${file}
+}
+
 if [[ $1 == "setup" ]]; then
 
   if [ -f ~/.bash_profile ]; then
@@ -21,7 +29,7 @@ if [[ $1 == "setup" ]]; then
         echo "Added 'source ${SETUP_FILE}' to '~/.bash_profile'"
         (
         echo 
-        echo "# Inserted via the linescanning-repository"
+        echo "# Inserted via the fMRIproc-repository"
         echo "source ${SETUP_FILE}"
         ) >> ~/.bash_profile
         ;;
@@ -33,7 +41,7 @@ if [[ $1 == "setup" ]]; then
   else
       (
       echo "# .bash_profile"
-      echo "# Inserted via the linescanning-repository"
+      echo "# Inserted via the fMRIproc-repository"
       echo "source ${SETUP_FILE}"
       ) >> ~/.bash_profile
   fi
@@ -50,13 +58,7 @@ if [[ $1 == "setup" ]]; then
   echo "Setting repository directory"  
   REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`
   echo "Repository: \"${REPO_DIR}\""
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    sed -i '' "0,/CH_REPO_DIR/s|CH_REPO_DIR|${REPO_DIR}|" "${SETUP_FILE}"
-  else
-    # Linux
-    sed -i "0,/CH_REPO_DIR/s|CH_REPO_DIR|${REPO_DIR}|" "${SETUP_FILE}"
-  fi
+  replace_first_in_file ${SETUP_FILE} CH_REPO_DIR ${REPO_DIR}
 
   # done
   echo "Your setup file is: \"${SETUP_FILE}\""
