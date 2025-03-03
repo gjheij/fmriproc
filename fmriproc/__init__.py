@@ -3,6 +3,7 @@
 import os
 import warnings
 import platform
+from importlib.metadata import version
 
 def set_mkl_threading_layer():
     """
@@ -26,6 +27,8 @@ def suppress_threadpoolctl_warning():
 # Apply fixes immediately when package loads
 set_mkl_threading_layer()
 suppress_threadpoolctl_warning()
+
+__version__ = version("fmriproc")
 
 # Now import core functionality (optional, but typical in __init__.py)
 from . import image
