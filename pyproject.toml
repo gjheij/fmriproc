@@ -27,7 +27,7 @@ dependencies = [
     "pybest @ git+https://github.com/gjheij/pybest.git",
     "surface_tools @ git+https://github.com/gjheij/surface_tools.git",
     "pymp2rage @ git+https://github.com/gjheij/pymp2rage.git",
-    "prfpy @ git+https://github.com/VU-Cog-Sci/prfpy.git",
+    "prfpy @ git+https://github.com/gjheij/prfpy.git",                 # tmp for t_r PR
     "dcm2niix",
     "fmriprep",
     "nipype",
