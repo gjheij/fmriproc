@@ -7,7 +7,7 @@ name = "fmriproc"
 dynamic = ["version"]
 description = "fmriproc: preprocessing routines for functional (fMRI) and anatomical data (MRI)"
 readme = "README.md"
-license = { text = "GPL-3.0-or-later" }
+license = { file = "LICENSE" }
 authors = [{ name = "Jurjen Heij", email = "jurjenheij@gmail.com" }]
 maintainers = [{ name = "Jurjen Heij", email = "jurjenheij@gmail.com" }]
 keywords = ["neuroimaging", "preprocessing"]
