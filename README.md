@@ -409,6 +409,15 @@ Some modules run via the cluster, so they're not compatible with chaining other 
     master -m 16 -s ${subID} -n ${sesID} --sge -c 20 -j 10
     ```
 
+## Running fMRIprep
+The pipeline allows for three ways to run fMRIprep:
+- [singularity](https://www.nipreps.org/apps/singularity/)-image: recommended for HPC's.
+- [fmriprep-docker](https://fmriprep.org/en/latest/installation.html#the-fmriprep-docker-wrapper): docker wrapper around `fmriprep`.
+For installation of docker, see [here](https://www.nipreps.org/apps/docker/). 
+This is the recommended way for local laptop/PC usage.
+- [fmriprep]()-executable: when you install fmriprep with `pip`, it comes with an `fmriprep`-executable.
+If you want to go down this route, you might as well install [fpreputils](https://reproducibility.stanford.edu/fmriprep-tutorial-running-the-docker-image/), which will install the `fmriprep`-executable as well as functions to deal with partial FOV acquisitions (such as surface coils acquisitions).
+
 ## Tips and tricks for FSL-feat
 
 ### Confounds
