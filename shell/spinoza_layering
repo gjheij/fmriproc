@@ -31,9 +31,8 @@ Arguments:
                       DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the SUB-
                       JECTS_DIR
   <software>          Possible inputs for software are:
-                        Nighres: "nighres", "Nighres", "nigh", "NIGHRES" for nighres or"
-                        Suface tools: "surface", "surface_tools", "SURFACE", "SURFACE_TOOLS", or 
-                                      "ST"
+                        Nighres: voxel-based layering
+                        surface_tools: surface-based layering with Wagstyl's method
 
 Example:
   spinoza_layering SUBJECTS_DIR surface
