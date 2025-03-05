@@ -41,6 +41,8 @@ dependencies = [
     "configparser",
     "mkl-service",
     "future",
+    "psutil",
+    "pydicom",
 ]
 
 [project.optional-dependencies]
