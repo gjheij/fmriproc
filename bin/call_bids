@@ -27,6 +27,11 @@ Arguments:
   -b <bids dir>       output directory for BIDSified data (generally DIR_DATA_HOME/<subject>/<session>)
   -n <base name>      output base name for BIDS files (e.g., sub-01_ses-1)                
   -d <depth>          search depth for dcm2niix
+  -t <TR>             set RepetitionTime for BOLD/EPI files. Default is to search for the TR using
+                      tr_from_par/tr_from_dcm (in call_bashhelper). See those functions for more in-
+                      formation on extracting RepetitionTime-key.
+  -r <runs>           convert specific runs. Can be comma-separated list for multiple runs (e.g.,
+                      "-r 1,3,4")
 
 Options:
   --ow                overwrite existing files
@@ -43,6 +48,9 @@ Options:
                       flag. This flag is mainly here because it can take some time with big files
                       which slows down debugging.
   --phys              run only physiology conversion
+
+  --skip_tr           do not overwrite the TR in the header during call_bids. Generally not recom-
+                      mended, but exists for debugging purposes.
 
 Example:
   call_bids
@@ -85,7 +93,9 @@ OW=0
 PHYS_ONLY=0
 searchDepth=0
 LS_SES=0
-while getopts :-:i:o:b:n:r:d: argument
+SET_TR=""
+SKIP_TR=0
+while getopts :-:i:o:b:n:r:d:t: argument
 do
   case ${argument} in
     -)
@@ -99,7 +109,7 @@ do
           ;;
         take-avg-tr)
           prot_flag="--take-avg-tr"
-          ;;         
+          ;;      
         ap)
           pe_dir="AP"
           ;;          
@@ -111,7 +121,7 @@ do
           ;;         
         rl)
           pe_dir="RL"
-          ;;        
+          ;;
         no_lpi)
           reorient=0
           ;;    
@@ -121,7 +131,19 @@ do
         phys)
           PHYS_ONLY=1
           SES_TYPE="lines"
-          ;;                                                                                                 
+          ;;     
+        philips)
+          export MRI_SYSTEM="philips"
+          ;;
+        siemens)
+          export MRI_SYSTEM="siemens"
+          ;;
+        ge)
+          export MRI_SYSTEM="ge"
+          ;;
+        skip_tr)
+          SKIP_TR=1
+          ;;                                                                                                                   
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}, did you mean \"--lines\"?"
@@ -140,7 +162,9 @@ do
     n)  base=${OPTARG}
           ;;    
     r)  runs=${OPTARG}
-          ;;             
+          ;; 
+    t)  SET_TR=${OPTARG}
+          ;;                       
   esac
 done
 
@@ -164,10 +188,10 @@ fi
 #-------------------------------------------------------------------------------------------------------------------------------
 # PARREC TO NIFTI
 if [[ -d ${tmp_dir} ]]; then
-  if [[ -z "$(ls -A $tmp_dir)" ]]; then    
+  if [[ -z "$(ls -A $tmp_dir)" ]]; then
     echo "Directory exists, but is empty. You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth}). Append \"--full -d <depth>\" to your call"
     exit 1
-  else    
+  else
     echo "Directory exists, skipping conversion (use \"--full\" to overwrite this folder too)." 
   fi
 else
@@ -176,8 +200,11 @@ else
 fi
 
 # check if we got something
-if [[ -z "$(ls -A $tmp_dir)" ]]; then    
-  echo "Directory exists, but is empty. You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth}). Append \"--full -d <depth>\" to your call"
+if [[ -z "$(ls -A $tmp_dir)" ]]; then
+  echo
+  echo "ERROR in call_bids: Directory exists, but is empty."
+  echo "You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth})."
+  echo "Append \"--full -d <depth>\" to your call"
   exit 1
 fi
   
@@ -235,8 +262,8 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
   if [[ ${inv_files} -eq 1 ]]; then
 
     echo " Dealing with anatomical images.."
-    invs=(`find -L "${tmp_dir}" -type f \( -name "*T1w_*" -and -name "*_t10*" -and -not -name "*WIP*" -or -name "*_t29*" -and -not -name "*WIP*" -or -name "*_t30*" -and -not -name "*WIP*" \) 2>/dev/null | sort`)
-
+    invs=(`find -L "${tmp_dir}" -type f \( -name "*inv-*" -and -name "*.nii.gz" \) 2>/dev/null | sort`)
+    
     # do stuff if files are found
     if [[ ! -z ${invs} ]]; then
       
@@ -247,13 +274,13 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
 
       # loop through files and find correct tags
       for ff in ${invs[@]}; do
-        if [[ ${ff} == *"_ph_"* ]]; then
+        if [[ $(basename ${ff}) == *"_ph_"* || $(basename ${ff}) == *"phase"* ]]; then
           rec_tag="part-phase"
         else
           rec_tag="part-mag"
         fi
 
-        if [[ ${ff} == *"t10"* ]]; then
+        if [[ $(basename ${ff}) == *"t10"* || $(basename ${ff}) == *"inv-1"* ]]; then
           inv_tag="inv-1"
         else
           inv_tag="inv-2"
@@ -266,6 +293,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
 
         out_fn=${bids_dir}/anat/${base}_acq-${DATA}_${inv_tag}_${rec_tag}.${ext}
         if [[ ! -f ${out_fn} || ${OW} -eq 1 ]]; then
+          echo "  Renaming $(basename ${ff}) to ${out_fn}"
           cp ${ff} ${out_fn}
 
           if [[ ${ext} == *"nii.gz"* ]]; then
@@ -294,26 +322,43 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
       fi
     fi
 
-    # find T2s or FLAIR
-    for qq in "T2w" "FLAIR"; do
+    # SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w") in spinoza_setup
+    for qq in ${SEARCH_ANATOMICALS[@]}; do
       img=`find -L "${tmp_dir}" -type f \( -name "*${qq}.nii.gz" \) 2>/dev/null`
       if [ ! -z ${img} ]; then
+
         acq=`get_id ${img} acq`
         if [[ ! -z ${acq} ]]; then
           acq_tag="_acq-${acq}"
         else
           acq_tag=""
         fi
-        out_fn=${bids_dir}/anat/${base}${acq_tag}_${qq}.nii.gz
-        cp ${img} ${out_fn} 2>/dev/null
 
-        if [[ ${reorient} -eq 1 ]]; then
-          call_reorient -i ${out_fn}
+        run=`get_id ${img} run`
+        if [[ ! -z ${run} ]]; then
+          run_tag="_run-${run}"
+        else
+          run_tag=""
+        fi
+
+        # make directory
+        if [[ ! -d ${bids_dir}/anat ]]; then
+          mkdir -p ${bids_dir}/anat
+        fi
+
+        out_fn=${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz
+        if [[ ! -f ${out_fn} || ${OW} -eq 1 ]]; then
+          echo "  Renaming $(basename ${img}) to ${out_fn}"
+          cp ${img} ${out_fn} 2>/dev/null
+
+          if [[ ${reorient} -eq 1 ]]; then
+            call_reorient -i ${out_fn}
+          fi
         fi
 
         json_fn=$(dirname ${img})/$(basename ${img} .nii.gz).json
         if [ -f ${json_fn} ]; then
-          cp ${json_fn} $(dirname ${out_fn})/$(basename ${out_fn} .nii.gz).json
+          cp ${json_fn} $(dirname ${out_fn})/$(basename ${out_fn} .nii.gz).json 2>/dev/null
         fi
       fi
     done
@@ -659,33 +704,67 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
               # add other information that call_parrec2nii would've added by reading the ParFile key that should've been added by call_dcm2niix
               par_f=`read_json ${json_bids} ParFile`
               if [[ ! -z ${par_f} ]]; then
-                echo "  Storing information from `basename ${par_f}` in json file"
-                pars_for_json --merge ${par_f} ${json_bids}
 
-                # check if json file has RepetitionTime
-                rep_time=`cat ${json_bids} | grep "RepetitionTime"`
-                if [[ -z ${rep_time} ]]; then
+                # dcm is much richer, so only check for PAR-files
+                ext=`fetch_extension ${par_f}`
+                ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
 
-                  tr=`tr_from_par ${par_f}`
-                  if [[ ! -z ${tr} ]]; then
+                # ALSO DOES PHASE ENCODING DIRECTION; CHECKS PE_DIR_BOLD FIRST!
+                if [[ ${ext_lower} == *"par"* ]]; then
+                  echo "  Storing information from `basename ${par_f}` in json file"
+                  pars_for_json --merge ${par_f} ${json_bids}
+                fi
 
-                    # add RepetitionTime
-                    call_json ${json_bids} RepetitionTime ${tr}
+                # synchronize TR between json files and nifti files
+                tr_hd=`fslval ${ff} pixdim4`
 
-                    # check if fmri-files have TR (pixdim4)
-                    tr_hd=`fslval ${ff} pixdim4`
-                    if [ ${tr_hd} = "0.000000" ] ; then 
-                      echo "  TR=0 in file header.. Setting to ${tr}"
+                # read TR from par/dcm file
+                if [[ -z ${SET_TR} ]]; then 
+                  if [[ ${ext_lower} == *"par"* ]]; then
+                    tr=`tr_from_par ${par_f}`
+                  else
+                    tr=`read_dcm ${par_f} RepetitionTime`
+                  fi
+                  echo "  TR in $(basename ${par_f}) is ${tr}s"
+                else
+                  # manually specified with '-t' flag
+                  echo "  TR manually specified with '-t ${SET_TR}; setting RepetitionTime to ${SET_TR}s"
+                  tr=${SET_TR}
+                fi
+
+                if [[ ! -z ${tr} ]]; then
+
+                  # add RepetitionTime
+                  call_json ${json_bids} RepetitionTime ${tr}
+
+                  # check if fmri-files have TR (pixdim4)
+                  tr_hd=`fslval ${ff} pixdim4`
+                  if [ ${tr_hd} = "0.000000" ] || [[ ${tr_hd} != "${tr}" ]]; then 
+                    if [[ ${SKIP_TR} -eq 0 ]]; then
+                      echo "  WARNING: TR=${tr_hd}s in file header, but ${tr}s in json.. Setting to ${tr}s"
                       call_settr ${ff} ${tr}
+                    
+                      if [[ $? -ne 0 ]]; then
+                        echo "  call_settr exited with non-zero status; probably memory issues.."
+                      fi
+                    else
+                      echo "  WARNING: TR=${tr_hd}s in file header, and ${tr}s in json, but '--skip_tr' is supplied.."
                     fi
                   fi
-                fi   
+                fi
 
                 # check if we can add slicetimings
                 if [[ ${image} != "phase" ]]; then
-                  scan_mode=`read_par ${par_f} "Scan mode"`
+
+                  if [[ ${ext_lower} == *"par"* ]]; then 
+                    scan_mode=`read_par ${par_f} "Scan mode"`
+                  else
+                    scan_mode=`read_dcm ${par_f} "MRAcquisitionType"`
+                  fi
 
                   if [[ ${scan_mode} != "3D" ]]; then
+
+                    # read multiband factor
                     mb_factor=`read_json ${json_bids} MultiBandAccelerationFactor`
                     if [[ -z ${mb_factor} ]]; then
                       mb_factor=3
@@ -694,8 +773,16 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                       echo "  WARNING: defaulting to multiband factor 3 for slice-timings, please check if this is correct or put \"export MB_FACTOR=value\" in setup file!"
                     fi
 
+                    # TR should be in json by now
                     tr=`read_json ${json_bids} RepetitionTime`
-                    n_slices=`read_par ${par_f} "Max. number of slices/locations"`
+
+                    # read number of slices
+                    if [[ ${ext_lower} == *"par"* ]]; then 
+                      n_slices=`read_par ${par_f} "Max. number of slices/locations"`
+                    else
+                      n_slices=`read_dcm ${par_f} "NumberOfImagesInMosaic"`
+                    fi
+
                     cmd="call_slicetiming ${json_bids} ${tr} ${n_slices} ${mb_factor}"
                     ${cmd}
 
@@ -707,36 +794,91 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                 fi     
               fi
 
-              # overwrite PhaseEncoding if --ap|--pa|--lr|--rl flag
+              # PE-direction set by PE_DIR_BOLD
+              if [[ ! -z ${PE_DIR_BOLD} ]]; then
+                txt="PE-direction set by PE_DIR_BOLD"
+              fi
+
+              # HARD OVERWRITE PHASE ENCODING DIRECTION if --ap|--pa|--lr|--rl flag
               if [[ ! -z ${pe_dir} ]]; then
-                echo "  NOTE: PhaseEncodingDirection was manually specified with \"${pe_dir}\" for BOLD; inverting for FMAP"
                 if [[ ${image} == "fmap" ]]; then
                   ph_dir=`fprep_pe ${pe_dir} 1`
                 elif [[ ${image} == "func" ]]; then
                   ph_dir=`fprep_pe ${pe_dir}`
                 fi
 
+                fl_lower=$(echo "$pe_dir" | tr '[:upper:]' '[:lower:]')
+                txt="PE-direction set with \"--${fl_lower}\" for BOLD."
+
                 call_json ${json_bids} PhaseEncodingDirection ${ph_dir}
               fi
 
-              # check PhaseEncodingDirection
+              # DEFAULT SETTINGS FOR PHILIPS
               phase_enc_dir=`cat ${json_bids} | grep "PhaseEncodingDirection"`
               if [[ -z ${phase_enc_dir} ]]; then
-                if [[ ${image} == "fmap" ]]; then
-                  ph_dir="j"  
-                elif [[ ${image} == "func" ]]; then
-                  ph_dir="j-"
-                else
-                  ph_dir=""
+
+                ph_dir=""
+                if [[ ${MRI_SYSTEM} == "philips" ]]; then
+                  if [[ ${image} == "fmap" ]]; then
+                    ph_dir="j"  
+                  elif [[ ${image} == "func" ]]; then
+                    ph_dir="j-"
+                  fi
                 fi
 
-                if [[ ! -z ${ph_dir} ]]; then
-                  pe_warning=1
-                  warning=1
-                  echo "  WARNING: assuming PE-direction for ${image^^}=\"${ph_dir}\", please check if this is correct or put \"export PE_DIR_BOLD=value\" in setup file or use on of '--ap','--pa','--lr', or '--rl' flags"
-                  call_json ${json_bids} PhaseEncodingDirection ${ph_dir}
-                fi 
-              fi     
+                txt="PE-direction set to Philips-default \"${ph_dir}\" for BOLD."
+              else
+
+                if [[ ${MRI_SYSTEM} != "philips" ]]; then
+
+                  # TRY TO READ PHASE ENCODING DIRECTION FROM DCM > ASSUMES POLARITY
+                  # CHECKS PE_DIR_BOLD FIRST!
+
+                  # check dicom file if no flags are specified
+                  if [[ -z ${pe_dir} ]]; then
+                    ph_dir=""
+                    if [[ ! -z ${par_f} ]]; then
+                      pe_from_dcm=`pe_from_dcm ${par_f}`
+
+                      if [[ ! -z ${pe_from_dcm} ]]; then
+                        if [[ -z ${PE_DIR_BOLD} ]]; then
+                          txt="PE-direction set to \"${pe_from_dcm}\" from DCM-file for BOLD [can be iffy..]."
+                        fi
+
+                        if [[ ${image} == "func" ]]; then
+                          ph_dir=${pe_from_dcm}
+                        elif [[ ${image} == "fmap" ]]; then
+                          txt="${txt} Inverting for FMAP."
+                          if [[ ${pe_from_dcm} == "j" ]]; then
+                            ph_dir="j-"
+                          elif [[ ${pe_from_dcm} == "j-" ]]; then
+                            ph_dir="j"
+                          elif [[ ${pe_from_dcm} == "i" ]]; then
+                            ph_dir="i-"
+                          elif [[ ${pe_from_dcm} == "i-" ]]; then
+                            ph_dir="i"
+                          fi
+                        fi
+                      fi
+                    fi
+                  fi
+                else
+                  # read PhaseEncodingDirection from json | should be inserted by call_parrec2nii
+                  ph_dir=`read_json ${json_bids} PhaseEncodingDirection`
+                  txt="Read PhaseEncodingDirection from JSON-file (set by call_parrec2nii)"
+                fi
+              fi
+
+              if [[ ! -z ${ph_dir} ]]; then
+                pe_warning=1
+                warning=1
+                
+                echo "  WARNING: ${txt}"
+                echo "  PE-direction for ${image^^}=\"${ph_dir}\", please check if this is correct or put \"export PE_DIR_BOLD=value\" in setup file or use on of '--ap','--pa','--lr', or '--rl' flags"
+                call_json ${json_bids} PhaseEncodingDirection ${ph_dir}
+              else
+                echo "  WARNING: could not derive PhaseEncoding direction via any means. Please put \"export PE_DIR_BOLD=value\" in setup file or use on of '--ap','--pa','--lr', or '--rl' flags"
+              fi 
             fi
           fi
         else
@@ -1001,4 +1143,3 @@ if [[ ${warning} -eq 1 ]]; then
   echo "Please check that this is correct!"
   echo "---------------------------------------------------------------------------------------------------"
 fi
-

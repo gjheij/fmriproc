@@ -239,7 +239,26 @@ USAGE
 
 }
 
-function add_par_file {
+function phase_encoding_from_dcm {
+    dcm_file="$1"
+
+    if [[ ! -f "$dcm_file" ]]; then
+        echo "Error: File does not exist - $dcm_file"
+        return 1
+    fi
+
+    phase_encoding=$(python3 - <<END
+import pydicom
+
+dcm = pydicom.dcmread("$dcm_file")
+phase_encoding = getattr(dcm, "InPlanePhaseEncodingDirection", "UNKNOWN")
+print(phase_encoding)
+END
+)
+    echo "$phase_encoding"
+}
+
+function read_dcm {
 
   #---------------------------------------------------------------------------------------------------------
   # Create help text
@@ -247,56 +266,98 @@ function add_par_file {
       cat <<USAGE
 
 ---------------------------------------------------------------------------------------------------
-add_par_file
+read_dcm
 
-Add the PAR-file to the jsons of newly converted files with dcm2niix. This ensures we retain the 
-link with the PAR-file so we can extract information from it
+Read parameters from a dcm-file. 
 
 Args:
-  pathInput   input directory for dcm2niix; where the par-files live
-  pathOutput  output directory for dcm2niix; where the nifti's are stored. If empty, we'll default
-              to pathInput/nifti, just like call_dcm2niix
+ <dm file>    dcm file to read
+ <read key>   key to read from the dcm file
 
 Usage:
- add_par_file input_folder output_folder
+ read_dcm some_file.dcm "PatientID"
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
 }
 
-  do_stuff=1
   if [[ $# -lt 1 ]] ; then
     Usage >&2
-    do_stuff=0
-  elif [[ $# -eq 1 ]]; then
-    pathInput=${1}
-    pathOutput=${pathInput}/nifti
-  elif [[ $# -eq 2 ]]; then
-    pathInput=${1}
-    pathOutput=${2}  
+  else
+
+    PYTHON_CODE=$(cat <<END
+from pydicom import dcmread
+
+dcm = dcmread("${1}")
+
+if "$2" == "NumberOfImagesInMosaic":
+  res = dcm.get((0x0019, 0x100a), None)
+  res = res.value if res is not None else ""
+elif "${2}" == "polarity":
+  res = dcm.get((0x0051, 0x1013), None)
+  res = res.value if res is not None else ""
+elif "${2}" == "PhaseEncodingDirection":
+  res = dcm.get((0x0018, 0x1312), None)
+  res = res.value if res is not None else ""  
+else:
+  res = getattr(dcm, "${2}", None)
+
+print(res)
+END
+)
+    if [[ ${2} == "RepetitionTime" ]]; then
+      res=`tr_from_dcm ${1}`
+    elif [[ ${2} == "PhaseEncodingDirection" ]]; then
+      res=`phase_encoding_from_dcm ${1}`
+    else
+      res=("$(python -c "${PYTHON_CODE}")")
+    fi
+
+    echo $res
+
   fi
 
-  if [[ ${do_stuff} -eq 1 ]]; then
-    for ii in ${pathOutput}/*.nii.gz; do
-      if [[ $(basename ${ii}) == *"_bold"* || $(basename ${ii}) == *"_epi"* ]]; then
-        # cross reference with par files in pathInput
-        for par in ${pathInput}/*; do
-          ext=`fetch_extension ${par}`
-          if [[ ${ext,,} == *"par"* ]]; then
-            pat=`read_par ${par} "Patient name"`
-            prot=`read_par ${par} "Protocol name"`
+}
 
-            # assuming dcm2niix command above did not change!
-            nifti_from_par=${pathOutput}/${pat}_${prot}
-            if [[ ${nifti_from_par}.nii.gz -ef ${ii} ]]; then
-              call_json ${nifti_from_par}.json ParFile ${par}
-            fi
-          fi
-        done
-      fi
-    done
+function pe_from_dcm {
+
+  dcm_file=${1}
+  axis=`read_dcm ${dcm_file} PhaseEncodingDirection`
+  csa_dir=`read_dcm ${dcm_file} polarity`
+
+  # phase encoding direction; check variable in setup file
+  if [ ! -z ${PE_DIR_BOLD} ]; then
+    PE=${PE_DIR_BOLD}
+    bids_pe=`fprep_pe ${PE}`
+  else
+    # Infer BIDS PhaseEncodingDirection
+    if [[ "$axis" == "COL" ]]; then
+        if [[ "$csa_dir" == *"L"* ]]; then
+            bids_pe="j"
+        elif [[ "$csa_dir" == *"R"* ]]; then
+            bids_pe="j-"
+        else
+            echo "Error: Unexpected CSA Direction for COL: $csa_dir" >&2
+            exit 1
+        fi
+    elif [[ "$axis" == "ROW" ]]; then
+        if [[ "$csa_dir" == *"P"* ]]; then
+            bids_pe="i"
+        elif [[ "$csa_dir" == *"A"* ]]; then
+            bids_pe="i-"
+        else
+            echo "Error: Unexpected CSA Direction for ROW: $csa_dir" >&2
+            exit 1
+        fi
+    else
+        echo "Error: Could not read InPlanePhaseEncodingDirection." >&2
+        exit 1
+    fi
+
   fi
+
+  echo "${bids_pe}"
 
 }
 
@@ -381,6 +442,187 @@ except:
     echo ${tr}
   fi  
 }
+
+function add_par_file {
+
+  #---------------------------------------------------------------------------------------------------------
+  # Create help text
+  function Usage {
+      cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+add_par_file
+
+Add the PAR-file to the jsons of newly converted files with dcm2niix. This ensures we retain the 
+link with the PAR-file so we can extract information from it
+
+Args:
+  pathInput   input directory for dcm2niix; where the par-files live
+  pathOutput  output directory for dcm2niix; where the nifti's are stored. If empty, we'll default
+              to pathInput/nifti, just like call_dcm2niix
+
+Usage:
+ add_par_file input_folder output_folder
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+  do_stuff=1
+  if [[ $# -lt 1 ]] ; then
+    Usage >&2
+    do_stuff=0
+  elif [[ $# -eq 1 ]]; then
+    pathInput=${1}
+    pathOutput=${pathInput}/nifti
+  elif [[ $# -eq 2 ]]; then
+    pathInput=${1}
+    pathOutput=${2}  
+  fi
+
+  if [[ ${do_stuff} -eq 1 ]]; then
+    for ii in ${pathOutput}/*.nii.gz; do
+      if [[ $(basename ${ii}) == *"_bold"* || $(basename ${ii}) == *"_epi"* ]]; then
+        # cross reference with par files in pathInput
+        for par in ${pathInput}/*; do
+
+          # if file > philips
+          if [ -f ${par} ]; then
+            ext=`fetch_extension ${par}`
+            ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
+            if [[ ${ext_lower} == *"par"* ]]; then
+              pat=`read_par ${par} "Patient name"`
+              prot=`read_par ${par} "Protocol name"`
+
+              # assuming dcm2niix command above did not change!
+              nifti_from_par=${pathOutput}/${pat}_${prot}
+              if [[ ${nifti_from_par}.nii.gz -ef ${ii} ]]; then
+                call_json ${nifti_from_par}.json ParFile ${par}
+              fi
+            fi
+          elif [ -d ${par} ]; then
+
+            # deal with siemens DCM folders
+            if [[ "$(basename ${par})" =~ ^[0-9] ]]; then
+
+              # reconstruct filename from dcm file for each directory
+              dcm_tmp=`find ${par} -type f -name "*.dcm" | head -n 1`
+              pat=`read_dcm ${dcm_tmp} "PatientName"`
+              prot=`read_dcm ${dcm_tmp} "ProtocolName"`
+
+              # assuming dcm2niix command above did not change!
+              nifti_from_dcm=${pathOutput}/${pat}_${prot}
+              if [[ ${nifti_from_dcm}.nii.gz -ef ${ii} ]]; then
+                call_json ${nifti_from_dcm}.json ParFile ${dcm_tmp}
+              fi
+            fi
+          fi
+        done
+      fi
+    done
+  fi
+
+}
+
+function tr_from_dcm {
+    local help_text="
+---------------------------------------------------------------------------------------------------
+tr_from_dcm - Extract TR (Repetition Time) from a Siemens DICOM.
+
+Usage:
+    tr_from_dcm <dicom_file>
+
+This function extracts the TR using these strategies:
+
+1. Parse TR directly from the filename if present (TR2.9, TR=2.9, TR_2p9, _TR2p9_).
+   This is the most reliable for modern Siemens 3D EPI.
+
+2. For 3D acquisitions, trust RepetitionTime (0018,0080) from DICOM directly.
+
+3. For 2D Mosaic acquisitions, calculate TR = NumSlices × SliceMeasurementDuration.
+   This works for Siemens 2D-EPI (especially in fMRI).
+
+4. For 2D multi-band sequences, apply multi-band correction (TR / MultiBandFactor).
+
+5. Final TR is reported in **seconds**.
+---------------------------------------------------------------------------------------------------
+"
+
+    if [[ $# -lt 1 ]]; then
+        echo "$help_text"
+        return 1
+    fi
+
+    dcm_file="$1"
+    if [[ ! -f "$dcm_file" ]]; then
+      echo "Error: File does not exist - $dcm_file"
+      return 1
+    fi
+
+    # Extract TR hint from filename (supports multiple patterns)
+    filename_tr=""
+    if [[ "$dcm_file" =~ [Tt][Rr][=_]?([0-9]+\.[0-9]+) ]]; then
+        filename_tr="${BASH_REMATCH[1]}"
+    elif [[ "$dcm_file" =~ _[Tt][Rr]([0-9]+p[0-9]+)_ ]]; then
+        filename_tr=$(echo "${BASH_REMATCH[1]}" | tr 'p' '.')
+    fi
+
+    read -r acquisition_type repetition_time image_type num_slices slice_duration mb_factor <<EOF
+$(python3 - <<END
+import pydicom
+import re
+
+dcm = pydicom.dcmread("$dcm_file")
+
+acquisition_type = getattr(dcm, "MRAcquisitionType", "Unknown").lower()
+repetition_time = float(dcm.RepetitionTime) / 1000  # ms -> s
+image_type = ",".join(dcm.ImageType)
+
+num_slices = dcm.get((0x0019, 0x100a), None)
+slice_duration = dcm.get((0x0019, 0x100b), None)
+
+num_slices = num_slices.value if num_slices else ""
+slice_duration = float(slice_duration.value) / 1000 if slice_duration else ""  # ms -> s
+
+mb_factor = ""
+csa_header = dcm.get((0x0029, 0x1010), None)
+if csa_header:
+    try:
+        csa_str = csa_header.value.decode(errors="ignore")
+        match = re.search(r"sSliceArray.lMultiBandFactor\s*=\s*(\d+)", csa_str)
+        if match:
+            mb_factor = match.group(1)
+    except Exception:
+        pass
+
+print(acquisition_type, repetition_time, image_type, num_slices, slice_duration, mb_factor)
+END
+)
+EOF
+
+    volume_tr="$repetition_time"  # Default TR from DICOM header
+
+    if [[ "$acquisition_type" == "2d" && "$image_type" == *"MOSAIC"* ]]; then
+      if [[ -n "$num_slices" && -n "$slice_duration" ]]; then
+        volume_tr=$(awk -v ns="$num_slices" -v sd="$slice_duration" 'BEGIN {print ns * sd}')
+      fi
+
+      if [[ -n "$mb_factor" && "$mb_factor" -gt 1 ]]; then
+        volume_tr=$(awk -v tr="$volume_tr" -v mb="$mb_factor" 'BEGIN {print tr / mb}')
+      fi
+    fi
+
+    # Filename TR overrides if detected
+    if [[ -n "$filename_tr" ]]; then
+      delta=$(awk -v tr1="$volume_tr" -v tr2="$filename_tr" 'BEGIN {print (tr1 > tr2) ? tr1 - tr2 : tr2 - tr1}')
+      volume_tr="$filename_tr"
+    fi
+
+    echo $volume_tr
+}
+
+
 
 function pars_for_json {
 
@@ -543,15 +785,15 @@ function fprep_pe {
   # derive code from PE
   if [[ ${PE} == "AP" ]] || [[ ${PE} == "Anterior-Posterior" ]]; then
     if [[ ${FLIP} -eq 0 ]]; then
-      ADD_PE="j-"
-    else
       ADD_PE="j"
+    else
+      ADD_PE="j-"
     fi
   elif [[ ${PE} == "PA" ]] || [[ ${PE} == "Posterior-Anterior" ]]; then
     if [[ ${FLIP} -eq 0 ]]; then
-      ADD_PE="j"
-    else
       ADD_PE="j-"
+    else
+      ADD_PE="j"
     fi
   elif [[ ${PE} == "LR" ]] || [[ ${PE} == "Left-Right" ]]; then
     if [[ ${FLIP} -eq 0 ]]; then

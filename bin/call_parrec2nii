@@ -151,7 +151,7 @@ fi
 # -z : gz compress images (y/o/i/n/3, default n) [y=pigz, o=optimal pigz, i=internal:zlib, n=no, 3=no,3D]
 if [[ -z ${compress} ]]; then
   NIIGZ="o"
-  COMPR="-c"
+  COMPR="--compress"
 else
   if [[ ${compress} == "n" ]]; then
     COMPR=""
@@ -193,11 +193,11 @@ for par in ${par_files[@]}; do
     if [[ ${is_anat} -eq 2 ]]; then
       second_idx=1
       anat=0
-      txt=""
+      add_txt=" | I'm assuming we're dealing with BOLD+phase data"
     elif [[ ${is_anat} -eq 4 ]]; then
       second_idx=2
       anat=1
-      add_txt=" | dealing with MP2RAGE data"
+      add_txt=" | I'm assuming we're dealing with MP2RAGE data"
     else
       echo "ERROR in `basename ${0}`: unknown number of image types in ${par}: ${is_anat}. Is this a sequence other than bold (M/P) or MP2RAGE (M/P for INV1/INV2)?"
       exit 1
@@ -252,7 +252,7 @@ inv1_pha = data[...,2];
 inv2_mag = data[...,1];
 inv2_pha = data[...,3];
 out = '${bids_out}';
-for dd,ext in zip([inv1_mag,inv1_pha,inv2_mag,inv2_ph],["_inv-1_part-mag","_inv-1_part-phase","_inv-2_part-mag","_inv-2_part-phase"]):
+for dd,ext in zip([inv1_mag,inv1_pha,inv2_mag,inv2_pha],["_inv-1_part-mag","_inv-1_part-phase","_inv-2_part-mag","_inv-2_part-phase"]):
   new = nb.Nifti1Image(dd, affine=img.affine, header=img.header);
   new.to_filename(out+f"{ext}.nii.gz");
 END

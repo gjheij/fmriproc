@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+
+import os
+import sys
+from lazyfmri import utils
+import pydicom
+from alive_progress import alive_bar
+
+def main(argv):
+
+    """
+---------------------------------------------------------------------------------------------------
+call_dcm
+
+Overwrite a key in the dcm file. For instance, if we want to change the 'PatientID' or 'ProtocolName`.
+
+Parameters
+----------
+    <dcm file>  path representing a valid dcm-file or folder pointing to dcm-files
+    <key>       string of the attribute that should be altered; use double+single quotes (see
+                example) for list-like input
+    <messsage>  message that is linked to the key; use double+single quotes (see example) 
+                for list-like input. Order must match list-like input from <key>
+
+Usage
+----------
+    call_dcm <file> <key> <message>
+
+Example
+----------
+    call_dcm sub-001_epi.dcm ProtocolName task-rest_bold
+    call_dcm sub-001_epi.dcm "PatientName,ProtocolName" "sub-01_ses-1,task-rest_bold"
+
+---------------------------------------------------------------------------------------------------
+    """
+
+    if len(argv) < 3:
+        print("NOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit(1)
+
+    dcm_file    = argv[0]
+    add_key     = argv[1]
+    add_msg     = argv[2]
+
+    if dcm_file.endswith("dcm"):
+        dcm_files = [dcm_file]
+    else:
+        dcm_files = utils.FindFiles(dcm_file, "dcm").files
+
+    if "," in add_key:
+        add_key = utils.string2list(add_key)
+    else:
+        add_key = [add_key]
+
+    if "," in add_msg:
+        add_msg = utils.string2list(add_msg)
+    else:
+        add_msg = [add_msg]
+
+    # progress bar
+    with alive_bar(len(dcm_files)) as bar:
+
+        # loop through directory
+        for dcm_file in dcm_files:
+
+            # check if file exists
+            if os.path.exists(dcm_file):
+
+                # open json
+                ds = pydicom.dcmread(dcm_file)
+
+                # create dictionary of new key
+                for ix, key in enumerate(add_key):
+                    
+                    if hasattr(ds, key):
+                        
+                        msg = add_msg[ix]
+                        # check if message is a number
+                        if msg.isdigit():
+                            msg = int(msg)
+                        elif msg.replace('.','',1).isdigit() and msg.count('.') < 2:
+                            msg = float(msg)
+
+                        # print(f"Setting {key} to {msg}")
+                        setattr(ds, key, msg)
+                    
+                ds.save_as(dcm_file)
+
+            bar()
+            
+if __name__ == "__main__":
+    main(sys.argv[1:])
+
