@@ -380,6 +380,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         rl)
           pe_dir_flag="--rl"
           ;;
+        philips)
+          MRI_SYSTEM_FLAG="--philips"
+          ;;          
         psc)
           psc_flag="--psc"
           ;;
@@ -401,6 +404,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         separate_hrf)
           FIT_HRF="--separate_hrf"
           ;;
+        siemens)
+          MRI_SYSTEM_FLAG="--siemens"
+          ;;          
         skip_bg)
           BG_FLAG="--skip_bg"
           ;;
