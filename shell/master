@@ -105,6 +105,9 @@ pe_dir_flag=""            # spinoza_scanner2bids
 reorient_flag=""          # spinoza_scanner2bids
 FULL_OW=""                # spinoza_scanner2bids
 SEARCH_DEPTH=""           # spinoza_scanner2bids
+TR_FLAG=""                # spinoza_scanner2bids
+MRI_SYSTEM_FLAG=""        # spinoza_scanner2bids
+SKIP_TR=""                # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
 BIAS_FLAG=""              # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
@@ -122,313 +125,267 @@ ANAT_DEPTH=""             # all anatomical steps
 
 # use long options in bash:
 # https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
-declare -a array=("--no_bbr" "--local" "--ups" "--biascorr" "--remove_wf" "--remove_surf_wf" "--sge" "--no_freeview" "--comb_only" "--grid" "--multi_design" "--hrf" "--rigid" "--syn" "--affine" "--lines" "--gdh" "--nighres" "--surface" "--warp_only" "--no_raw" "--verbose" "--zcore" "--full" "--no_clip" "--tc" "--bgfs" "--inv" "--no_fit" "--fmriprep" "--fprep" "--v1" "--v2" "--save_grid" "--debug" "--no_nordic" "--ow" "--no_bounds" "--no_tsnr" "--mag" "--no_highres" "--xopts-use" "--xopts-clean" "--xopts-overwrite" "--take-avg-tr" "--force_exec" "--no_t2" "--merge_ses" "--fsaverage" "--fsnative" "--ap" "--pa" "--lr" "--rl" "--no_lpi" "--anat_only" "--func_only" "--no_boldref" "--gauss" "--dog" "--css" "--norm" "--no_srf" "--srf_file" "--gallery" "--abc" "--abd" "--manual" "--ctx" "--func" "--help" "--ofsl" "--clean" "--fd" "--fetch_fsl" "--anat" "--no_epi" "--no_manual" "--aparc" "--phys" "--skip_bg" "--docker" "--rh" "--lh" "--identity" "--ident" "--dcm_fix" "--try" "--fetch_anat" "--fetch_func" "--post_only" "--pre_only" "--pyb_only" "--masks" "--mask" "--skip_prf_info" "--refit" "--separate_hrf" "--bold" "--cmd" "--skip_settings" "--mni_fsl" "--mni_2009" "--fs" "--fix_hrf" "--nelder")
+declare -a array
+# opts_file="${REPO_DIR}/misc/options.txt"
+opts_file="${REPO_DIR}/misc/options.txt"
+while IFS= read -r line || [[ -n "$line" ]]; do
+    array+=("$line")
+done < "$opts_file"
 
 # sort options array
 IFS=$'\n' opts=($(sort <<<"${array[*]}"))
 unset IFS
 
-while getopts :-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w: arg
-do
+while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
   case ${arg} in
     -)
       case "${OPTARG}" in
-        full)
-          FULL_OW="--full"
-          PROC="--full"
-          ;;       
-        debug)
-          DEBUG="--debug"
+        abc)
+          MODEL_FLAG="--abc"
           ;;
-        no_bounds)
-          bounds_flag="--no_bounds"
-          ;;                 
-        no_nordic)
-          NORDIC="--no_nordic"
-          ;;     
-        no_tsnr)
-          TSNR_FLAG="--no_tsnr"
-          ;;                     
-        no_bbr)
-          use_bbr="--no_bbr"
-          ;;
-        local)
-          run_local="--local"
-          ;;
-        ups)
-          UPs="-u"
-          ;;
-        biascorr)
-          BIAS_FLAG="--biascorr"
-          ;;
-        remove_wf)
-          REMOVE_WF="--remove_wf"
-          ;;
-        remove_surf_wf)
-          REMOVE_WF="--remove_surf_wf"
-          ;;    
-        sge)
-          SGE="--sge"
-          ;;       
-        no_freeview)
-          FREEVIEW="--no_freeview"
-          ;;      
-        comb_only)
-          COMB_ONLY="-c"
-          ;;            
-        grid)
-          GRID="--grid"
-          ;;        
-        itk)
-          DRAW_SAG="itk"
-          ;;        
-        fsl)
-          DRAW_SAG="fsl"
-          ;;           
-        freeview)
-          DRAW_SAG="fv"
-          ;;    
-        multi_design)
-          MULTIPLE_DESIGNS="--multi_design"
-          ;;   
-        no_hrf)
-          FIT_HRF="--no_hrf"
-          ;;
-        separate_hrf)
-          FIT_HRF="--separate_hrf"
-          ;;          
-        rigid)
-          REG_TYPE="--rigid"
-          ;;
-        syn)
-          REG_TYPE="--syn"
+        abd)
+          MODEL_FLAG="--abd"
           ;;
         affine)
           REG_TYPE="--affine"
           ;;
-        lines)
-          SES_TYPE="--lines"
-          ;;     
-        gdh)
-          GDH_FLAG="--gdh"
-          ;;
-        nighres)
-          LAYER_FLAG="nighres"
-          ;;
-        surface)
-          LAYER_FLAG="surface"
-          ;;       
-        warp_only)
-          WARP_ONLY="--warp_only"
-          ;;                    
-        psc)
-          psc_flag="--psc"
-          ;;      
-        raw)
-          raw_flag="--raw"
-          ;;                 
-        no_raw)
-          raw_flag="--no_raw"
-          ;;        
-        verbose)
-          verb_flag="--verbose"
-          ;;         
-        zscore)
-          zscore_flag="--zscore"
-          ;;            
-        no_clip)
-          CLIP="--no_clip"
-          ;;
-        tc)
-          use_constr="--tc"
-          ;;
-        nelder)
-          use_constr="--nelder"
-          ;;          
-        bgfs)
-          use_constr="--bgfs"
-          ;;          
-        inv)
-          ADD_INV="--inv"
-          ;;        
-        no_fit)
-          fit_flag="--no_fit"
-          ;;         
-        fprep)
-          fprep_input=1
-          ;;
-        fmriprep)
-          fprep_input=1
-          ;;
-        v1)
-          lbl_flag="--v1"
-          ;;
-        v2)
-          lbl_flag="--v2"
-          ;;   
-        save_grid)
-          save_grid="--save_grid"
-          ;;  
-        ow)
-          OW="-o"
-          ;;     
-        no_highres)
-          highres_flag="--no_highres"
-          ;;             
-        xopts-use)
-          XOPTS_="--xopts-use"
-          ;;             
-        xopts-clean)
-          XOPTS_="--xopts-clean"
-          ;;               
-        xopts-overwrite)
-          XOPTS_="--xopts-overwrite"
-          ;;
-        take-avg-tr)
-          PROT_FLAG="--take-avg-tr"
-          ;;
-        force_exec)
-          FORCE_FLAG="--force_exec"
-          ;;           
-        no_t2)
-          use_t2_flag="--no_t2"
-          ;;
-        merge_ses)
-          merge_flag="--merge_ses"
-          ;;    
-        fsaverage)
-          space_flag="--fsaverage"
-          ;;                      
-        fsnative)
-          space_flag="--fsnative"
-          ;;        
-        mni_fsl)
-          space_flag="--mni_fsl"
-          ;;  
-        mni_2009)
-          space_flag="--mni_2009"
-          ;;                      
-        ap)
-          pe_dir_flag="--ap"
-          ;;          
-        pa)
-          pe_dir_flag="--pa"
-          ;;         
-        lr)
-          pe_dir_flag="--lr"
-          ;;         
-        rl)
-          pe_dir_flag="--rl"
-          ;;
-        no_lpi)
-          reorient_flag="--no_lpi"
-          ;;      
-        anat_only)
-          mod_flag="--anat_only"
-          ;;               
-        func_only)
-          mod_flag="--func_only"
-          ;;                    
-        no_boldref)
-          boldref_flag="--no_boldref"
-          ;;   
-        mag)
-          mag_flag="--mag"
-          ;;          
-        gauss)
-          MODEL_FLAG="--gauss"
-          ;;  
-        dog)
-          MODEL_FLAG="--dog"
-          ;;   
-        css)
-          MODEL_FLAG="--css"
-          ;;  
-        norm)
-          MODEL_FLAG="--norm"
-          ;;
-        abc)
-          MODEL_FLAG="--abc"
-          ;;     
-        abd)
-          MODEL_FLAG="--abd"
-          ;;                      
-        no_srf)
-          SRF_FLAG="--no_srf"
-          ;;       
-        srf_file)
-          SRF_FILE="--srf_file"
-          ;;               
-        gallery)
-          GALLERY_FLAG="--gallery"
-          ;;        
-        manual)
-          SELECTION_FLAG="--manual"
-          ;;        
-        ctx)
-          OPEN_WITH_FLAG="--ctx"
-          ;;       
-        func)
-          TYPE="func"
-          space_flag="--func"
-          ;;     
         anat)
           space_flag="--anat"
-          ;;               
-        help)
-          HELP=1
           ;;
-        ofsl)
-          FSL_FLAG="--ofsl"
-          ;;                 
+        anat_only)
+          mod_flag="--anat_only"
+          ;;
+        ap)
+          pe_dir_flag="--ap"
+          ;;
+        aparc)
+          aparc_flag="--aparc"
+          ;;
+        bgfs)
+          use_constr="--bgfs"
+          ;;
+        biascorr)
+          BIAS_FLAG="--biascorr"
+          ;;
+        bold)
+          BOLD_FLAG="--bold"
+          ;;
         clean)
           clean_flag="--clean"
-          ;;   
+          ;;
+        cmd)
+          cmd_flag="--cmd"
+          ;;
+        comb_only)
+          COMB_ONLY="-c"
+          ;;
+        ctx)
+          OPEN_WITH_FLAG="--ctx"
+          ;;
+        css)
+          MODEL_FLAG="--css"
+          ;;
+        dcm_fix)
+          echo "This functionality is now default and therefore the flag is deprecated"
+          exit 1
+          ;;
+        debug)
+          DEBUG="--debug"
+          ;;
+        dog)
+          MODEL_FLAG="--dog"
+          ;;
+        docker)
+          DOCKER_FLAG="--docker"
+          ;;
         fd)
           fd_flag="--fd"
-          ;;          
-        fetch_fsl)
-          fetch_fsl_flag="--fetch_fsl"
           ;;
         fetch_anat)
           fetch_anat_flag="--fetch_anat"
           ;;
+        fetch_fsl)
+          fetch_fsl_flag="--fetch_fsl"
+          ;;
         fetch_func)
           fetch_func_flag="--fetch_func"
-          ;;                    
+          ;;
+        fix_hrf)
+          FIX_FLAG="--fix_hrf"
+          ;;
+        fmriprep)
+          fprep_input=1
+          ;;
+        fprep)
+          fprep_input=1
+          ;;
+        freeview)
+          DRAW_SAG="fv"
+          ;;
+        full)
+          FULL_OW="--full"
+          PROC="--full"
+          ;;
+        fsl)
+          DRAW_SAG="fsl"
+          ;;
+        fs)
+          FS_FLAG="--fs"
+          ;;
+        fsaverage)
+          space_flag="--fsaverage"
+          ;;
+        fsnative)
+          space_flag="--fsnative"
+          ;;
+        force_exec)
+          FORCE_FLAG="--force_exec"
+          ;;
+        func)
+          TYPE="func"
+          space_flag="--func"
+          ;;
+        func_only)
+          mod_flag="--func_only"
+          ;;
+        gallery)
+          GALLERY_FLAG="--gallery"
+          ;;
+        gauss)
+          MODEL_FLAG="--gauss"
+          ;;
+        ge)
+          MRI_SYSTEM_FLAG="--ge"
+          ;;
+        gdh)
+          GDH_FLAG="--gdh"
+          ;;
+        grid)
+          GRID="--grid"
+          ;;
+        help)
+          HELP=1
+          ;;
+        ident)
+          IDENT_FLAG="--identity"
+          ;;
+        identity)
+          IDENT_FLAG="--identity"
+          ;;
+        inv)
+          ADD_INV="--inv"
+          ;;
+        itk)
+          DRAW_SAG="itk"
+          ;;
+        lh)
+          HEMI_FLAG="--lh"
+          ;;
+        lines)
+          SES_TYPE="--lines"
+          ;;
+        local)
+          run_local="--local"
+          ;;
+        mag)
+          mag_flag="--mag"
+          ;;
+        manual)
+          SELECTION_FLAG="--manual"
+          ;;
+        mask)
+          mask_flag="--masks"
+          ;;
+        masks)
+          mask_flag="--masks"
+          ;;
+        merge_ses)
+          merge_flag="--merge_ses"
+          ;;
+        mni_2009)
+          space_flag="--mni_2009"
+          ;;
+        mni_fsl)
+          space_flag="--mni_fsl"
+          ;;
+        multi_design)
+          MULTIPLE_DESIGNS="--multi_design"
+          ;;
+        nelder)
+          use_constr="--nelder"
+          ;;
+        no_bbr)
+          use_bbr="--no_bbr"
+          ;;
+        no_bounds)
+          bounds_flag="--no_bounds"
+          ;;
+        no_boldref)
+          boldref_flag="--no_boldref"
+          ;;
+        no_clip)
+          CLIP="--no_clip"
+          ;;
         no_epi)
           MAN_EPI="--no_epi"
-          ;;  
+          ;;
+        no_fit)
+          fit_flag="--no_fit"
+          ;;
+        no_freeview)
+          FREEVIEW="--no_freeview"
+          ;;
+        no_highres)
+          highres_flag="--no_highres"
+          ;;
+        no_hrf)
+          FIT_HRF="--no_hrf"
+          ;;
+        no_lpi)
+          reorient_flag="--no_lpi"
+          ;;
         no_manual)
           MAN_FLAG="--no_manual"
-          ;;   
-        aparc)
-          aparc_flag="--aparc"
-          ;;       
+          ;;
+        no_nordic)
+          NORDIC="--no_nordic"
+          ;;
+        no_raw)
+          raw_flag="--no_raw"
+          ;;
+        no_srf)
+          SRF_FLAG="--no_srf"
+          ;;
+        no_t2)
+          use_t2_flag="--no_t2"
+          ;;
+        no_tsnr)
+          TSNR_FLAG="--no_tsnr"
+          ;;
+        norm)
+          MODEL_FLAG="--norm"
+          ;;
+        ofsl)
+          FSL_FLAG="--ofsl"
+          ;;
+        ow)
+          OW="-o"
+          ;;
+        pa)
+          pe_dir_flag="--pa"
+          ;;
+        lr)
+          pe_dir_flag="--lr"
+          ;;
+        rl)
+          pe_dir_flag="--rl"
+          ;;
+        psc)
+          psc_flag="--psc"
+          ;;
         phys)
           phys_flag="--phys"
           ;;
-        skip_bg)
-          BG_FLAG="--skip_bg"
-          ;;
-        docker)
-          DOCKER_FLAG="--docker"
-          ;;          
-        lh)
-          HEMI_FLAG="--lh"
-          ;;             
-        rh)
-          HEMI_FLAG="--rh"
-          ;;               
-        ident)
-          IDENT_FLAG="--identity"
-          ;;           
-        identity)
-          IDENT_FLAG="--identity"
-          ;;            
-        try)
-          CRASH_FLAG="--try"
-          ;;    
         post_only)
           post_flag="--post_only"
           ;;
@@ -437,106 +394,159 @@ do
           ;;
         pyb_only)
           pyb_flag="--pyb_only"
-          ;;       
-        masks)
-          mask_flag="--masks"
-          ;;                 
-        mask)
-          mask_flag="--masks"
-          ;;   
+          ;;
+        sge)
+          SGE="--sge"
+          ;;
+        separate_hrf)
+          FIT_HRF="--separate_hrf"
+          ;;
+        skip_bg)
+          BG_FLAG="--skip_bg"
+          ;;
         skip_prf_info)
           skip_prf_info="--skip_prf_info"
           ;;
-        refit)
-          REFIT_FLAG="--refit"
-          ;;          
-        bold)
-          BOLD_FLAG="--bold"
-          ;;             
-        cmd)
-          cmd_flag="--cmd"
-          ;;     
         skip_settings)
           SKIP_FLAG="--skip_settings"
-          ;;    
+          ;;
+        skip_tr)
+          SKIP_TR="--skip_tr"
+          ;;
+        srf_file)
+          SRF_FILE="--srf_file"
+          ;;
+        surface)
+          LAYER_FLAG="surface"
+          ;;
+        tc)
+          use_constr="--tc"
+          ;;
+        take-avg-tr)
+          PROT_FLAG="--take-avg-tr"
+          ;;
         transpose)
           TRANS_FLAG="--transpose"
-          ;; 
-        fs)
-          FS_FLAG="--fs"
-          ;; 
-        fix_hrf)
-          FIX_FLAG="--fix_hrf"
-          ;;                                       
-        dcm_fix)
-          echo "This functionality is now default and therefore the flag is deprecated"
-          exit 1
-          ;;                         
+          ;;
+        try)
+          CRASH_FLAG="--try"
+          ;;
+        ups)
+          UPs="-u"
+          ;;
+        v1)
+          lbl_flag="--v1"
+          ;;
+        v2)
+          lbl_flag="--v2"
+          ;;
+        verbose)
+          verb_flag="--verbose"
+          ;;
+        warp_only)
+          WARP_ONLY="--warp_only"
+          ;;
+        xopts-clean)
+          XOPTS_="--xopts-clean"
+          ;;
+        xopts-overwrite)
+          XOPTS_="--xopts-overwrite"
+          ;;
+        xopts-use)
+          XOPTS_="--xopts-use"
+          ;;
+        zscore)
+          zscore_flag="--zscore"
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             for ii in ${opts[@]}; do echo " ${ii}"; done
             echo
             echo "Unknown option \"--${OPTARG}\", see above for possible option"
-            echo "Enter \"`basename ${0}`\" what these flags do"
+            echo "Enter \"$(basename ${0})\" to see what these flags do"
             exit 1
           fi
           ;;
-      esac;;  
-    m)  MOD=${OPTARG}
-          ;;
-    d)  SEARCH_DEPTH="-d ${OPTARG}"
-        ANAT_DEPTH=${OPTARG}
-          ;;          
-    s)  SUB=${OPTARG}
-          ;;
-    h)  HEMI=${OPTARG}
-          ;;
-    n)  SES=${OPTARG}
-          ;;
-    o)  OW="-o"
-          ;;
-    t)  TYPE=${OPTARG}
-        t_specified=1
-          ;;
-    l)  WHICH_MOD=${OPTARG}
-        NR_LAYERS="-l ${OPTARG}"
-        LS_SES="-l ${OPTARG}"
-          ;;
-    v)  VERTICES=${OPTARG}
-          ;;
-    p)  PRF_MODEL=${OPTARG}
-        PARS_FILE="-p `readlink -f ${OPTARG}`"
-          ;;
-    c)  C_FLAG=${OPTARG}
-          ;;
-    x)  KWARGS=${OPTARG}
-          ;;
-    u)  CONF=${OPTARG}
-          ;;
-    r)  ROI=${OPTARG}
-        FS_stage=${OPTARG}
-        RUNS="-r ${OPTARG}"
-        SET_TR="-r ${OPTARG}"
-          ;;       
-    e)  n_echoes=${OPTARG}
-        START_STAGE=${OPTARG}
-        EPI_FILE="-e ${OPTARG}"
-        PIXEL_FLAG="-p ${OPTARG}"
-          ;;
-    i)  images=${OPTARG}
-          ;;
-    w)  WORK_FLAG="-w ${OPTARG}"
-          ;;          
-    a)  KEEP_RUNS="-a ${OPTARG}"
-          ;;     
-    q)  SGE_QUEUE="-q ${OPTARG}"
-          ;;          
-    j)  jobs_flag="-j ${OPTARG}"
-          ;;          
-    f)  FOLDS_FLAG="-f ${OPTARG}"
-          ;;          
-    k)  kwargs_file="-k `readlink -f ${OPTARG}`"
-          ;;     
+      esac
+      ;;
+    m)
+      MOD=${OPTARG}
+      ;;
+    d)
+      SEARCH_DEPTH="-d ${OPTARG}"
+      ANAT_DEPTH=${OPTARG}
+      ;;
+    s)
+      SUB=${OPTARG}
+      ;;
+    h)
+      HEMI=${OPTARG}
+      ;;
+    n)
+      SES=${OPTARG}
+      ;;
+    o)
+      OW="-o"
+      ;;
+    t)
+      TYPE=${OPTARG}
+      t_specified=1
+      TR_FLAG="-t ${OPTARG}"
+      ;;
+    l)
+      WHICH_MOD=${OPTARG}
+      NR_LAYERS="-l ${OPTARG}"
+      LS_SES="-l ${OPTARG}"
+      ;;
+    v)
+      VERTICES=${OPTARG}
+      ;;
+    p)
+      PRF_MODEL=${OPTARG}
+      PARS_FILE="-p $(readlink -f ${OPTARG})"
+      ;;
+    c)
+      C_FLAG=${OPTARG}
+      ;;
+    x)
+      KWARGS=${OPTARG}
+      ;;
+    u)
+      CONF=${OPTARG}
+      ;;
+    r)
+      ROI=${OPTARG}
+      FS_stage=${OPTARG}
+      RUNS="-r ${OPTARG}"
+      SET_TR="-r ${OPTARG}"
+      ;;
+    e)
+      n_echoes=${OPTARG}
+      START_STAGE=${OPTARG}
+      EPI_FILE="-e ${OPTARG}"
+      PIXEL_FLAG="-p ${OPTARG}"
+      ;;
+    i)
+      images=${OPTARG}
+      ;;
+    w)
+      WORK_FLAG="-w ${OPTARG}"
+      ;;
+    a)
+      KEEP_RUNS="-a ${OPTARG}"
+      ;;
+    q)
+      SGE_QUEUE="-q ${OPTARG}"
+      ;;
+    j)
+      jobs_flag="-j ${OPTARG}"
+      ;;
+    f)
+      FOLDS_FLAG="-f ${OPTARG}"
+      ;;
+    k)
+      kwargs_file="-k $(readlink -f ${OPTARG})"
+      ;;
   esac
 done
 
@@ -791,6 +801,9 @@ if [[ $? -eq 0 ]]; then
     ${SGE_QUEUE} \
     ${phys_flag} \
     ${SEARCH_DEPTH} \
+    ${TR_FLAG} \
+    ${MRI_SYSTEM_FLAG} \
+    ${SKIP_TR} \
     ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
 
   echo "[${module}] DONE" && echo

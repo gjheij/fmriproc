@@ -53,13 +53,17 @@
 
 -q <sge queue>    send jobs to specific queue.
 
--r <roi|stage>    used for various modules to set label file, stage, or repetition time.
+-r <value>        used for various modules to set label file, stage, or repetition time.
+                    - spinoza_fitprfs: set RepetitionTime
+                    - spinoza_bestvertex set label file
+                    - spinoza_freesurfer: set autorecon stage
 
 -s <subject>      Subject ID (e.g., 01).
 
 -t <type|task>    used for:
+                    - spinoza_scanner2bids: set RepetitionTime manually (discouraged..)
                     - spinoza_fmriprep: type of workflow (anat/func/task).
-                    - spinoza_fitprfs: limit fitting to a given task.
+                    - spinoza_fitprfs/spinoza_denoising: limit process to a given task.
                     - spinoza_bestvertex: select pRF-parameters from specific task.
 
 -u <config>       specify configuration file for fMRIprep.
@@ -124,6 +128,8 @@ Options:
 
 --gdh             use custom MGDM (call_gdhmgdm).
 
+--ge              set MRI_SYSTEM to 'ge'. Other options include '--philips' or '--siemens'
+
 --grid            runs gridfit only (spinoza_fitprfs).
 
 --help            show usage information for specific module.
@@ -176,6 +182,8 @@ Options:
 
 --ofsl            output FSL-compatible matrix.
 
+--philips         set MRI_SYSTEM to 'philips'. Other options include '--ge' or '--siemens'
+
 --phys            run physiology-only conversion.
 
 --post_only       run only post-processing step.
@@ -197,6 +205,11 @@ Options:
 --separate_hrf    fit HRF in two stages.
 
 --sge             submit jobs to cluster.
+
+--siemens         set MRI_SYSTEM to 'siemens'. Other options include '--ge' or '--philips'
+
+--skip_tr         do not overwrite the TR in the header during call_bids. Generally not recommended,
+                  but exists for debugging purposes.
 
 --skip_prf_info   skip creating best_vertices.csv.
 
