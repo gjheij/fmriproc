@@ -3,9 +3,12 @@
 export SETUP_FILE="`which spinoza_setup`"
 export SETUP_DIR="$(dirname ${SETUP_FILE})"
 export REPO_DIR="CH_REPO_DIR"
+export BIN_DIR="CH_BIN_DIR"
 
 # source helper functions
-source call_bashhelper
+if [[ -f ${BIN_DIR}/call_bashhelper ]]; then
+  source ${BIN_DIR}/call_bashhelper
+fi
 
 replace_first_in_file() {
     file="$1"
@@ -46,6 +49,20 @@ if [[ $1 == "setup" ]]; then
       ) >> ~/.bash_profile
   fi
 
+  # Set repository directory | somewhere in site-packages
+  echo "Setting repository directory"  
+  REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`
+  echo "Repository: \"${REPO_DIR}\""
+  replace_first_in_file ${SETUP_FILE} CH_REPO_DIR ${REPO_DIR}
+  
+  # Set environmental 'bin'-folder
+  ENV_BIN=$(python -c 'import os, sys; print(os.path.dirname(sys.executable))')
+  echo "Environment bin: \"${ENV_BIN}\""
+  replace_first_in_file ${SETUP_FILE} CH_BIN_DIR ${ENV_BIN}
+  
+  # source full path
+  source ${ENV_BIN}/call_bashhelper
+
   # check itksnap installation
   check_itksnap=`check_function itksnap`
   if [[ ${check_itksnap} -eq 1 ]]; then
@@ -53,12 +70,6 @@ if [[ $1 == "setup" ]]; then
   else
     echo "Found ITK-Snap installation: `which itksnap`"
   fi
-
-  # Determine OS
-  echo "Setting repository directory"  
-  REPO_DIR=`python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))"`
-  echo "Repository: \"${REPO_DIR}\""
-  replace_first_in_file ${SETUP_FILE} CH_REPO_DIR ${REPO_DIR}
 
   # done
   echo "Your setup file is: \"${SETUP_FILE}\""
@@ -70,22 +81,23 @@ fi
 #===================================================================================================
 
 # MRI
-export MRI_SYSTEM="philips"
+export MRI_SYSTEM="siemens" # "philips"
 
 # Project stuff
-export DIR_PROJECTS="/data1/projects/MicroFunc/Luisa/Line_scan/AGEING_paper"
-export PROJECT="ciao"
-export TASK_SES1=("scenes")
+export DIR_PROJECTS="/Users/heij/git/openfmri"
+export PROJECT="EPI"
+export TASK_SES1=("2R")
 export TASK_SES2="LR"
 export SUBJECT_PREFIX="sub-"
 export COMBINE_SEGMENTATIONS="weighted"
 export PATH_HOME=${DIR_PROJECTS}/logs
+export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w")
 
 export PYBEST_SPACE="fsnative"
 export PYBEST_N_COMPS=20
 
 # DATA TYPE(S)
-export ACQ=("MP2RAGE")  # or ("MP2RAGE" "MP2RAGEME")
+export ACQ=("MPRAGE")  # or ("MP2RAGE" "MP2RAGEME")
 export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
 
 # phase encoding direction for BOLD; assume inverse for FMAP
@@ -157,6 +169,3 @@ export PATH=${PATH}:${DIR_SCRIPTS}/shell
 
 # set SSH_KEY for start_ssh
 export SSH_KEY="${HOME}/.ssh/hp_windows"
-
-# source bash helper functions
-source call_bashhelper
