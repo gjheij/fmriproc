@@ -1,5 +1,35 @@
 #!/usr/bin/env bash
 
+# ---------------------------------------------------------------------------------------------------
+# Start timing a process
+function start_timer() {
+    echo
+    echo "==================================================================================================="
+    printf "Bias field correction and sanlm-filtering\n"
+    start=$(date +%s)
+    start_date=$(date)
+    printf "Started at ${start_date}\n"
+    echo "==================================================================================================="
+}
+
+# ---------------------------------------------------------------------------------------------------
+# End timing a process
+function end_timer() {
+    echo
+    echo "---------------------------------------------------------------------------------------------------"
+    end=$(date +%s)
+    end_date=$(date)
+    printf "Done at ${end_date}\n"
+
+    local deltatime=$((end - start))
+    local hours=$((deltatime / 3600))
+    local minutes=$(((deltatime / 60) % 60))
+    local seconds=$((deltatime % 60))
+
+    printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+    echo "---------------------------------------------------------------------------------------------------"
+}
+
 function conda2jupyter {
   conda activate ${1}
   python -m ipykernel install --user --name=${1}

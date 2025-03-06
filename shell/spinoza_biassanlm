@@ -20,16 +20,19 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+  -o|--ow             overwrite existing files
   --biascorr          run bias correction with SPM (default = False)
+  --n4                 run bias correction with ANTs instead of SPM (in case SPM is unavailable)
+  --dry-run            show actions without executing them (for debugging)
+
   <anat dir>          parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
                       DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
   <output>            Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
 
 Example:
-  spinoza_biascorrection DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
-  spinoza_biascorrection -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
-  spinoza_biascorrection -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
+  spinoza_biassanlm DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 --biascorr DIR_DATA_HOME DIR_DATA_DERIV/denoised
 
 ---------------------------------------------------------------------------------------------------
 
@@ -37,203 +40,164 @@ USAGE
     exit 1
 }
 
-# Check for subject flag
+function error_exit {
+    echo "ERROR: $1" >&2
+    exit 1
+}
+
+function start_timer {
+    echo
+    echo "==================================================================================================="
+    printf "Bias field correction and sanlm-filtering\n"
+    printf "Started at $(date)\n"
+    echo "==================================================================================================="
+    start=$(date +%s)
+}
+
+function end_timer {
+    echo
+    echo "---------------------------------------------------------------------------------------------------"
+    printf "Done at $(date)\n"
+    end=$(date +%s)
+    local duration=$((end - start))
+    printf "Time spent: %02d:%02d:%02d\n" $((duration/3600)) $(((duration/60)%60)) $((duration%60))
+    echo "---------------------------------------------------------------------------------------------------"
+}
+
+function run_or_echo {
+    if [[ $DRY_RUN -eq 1 ]]; then
+        echo "[DRY-RUN] $*"
+    else
+        eval "$@"
+    fi
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------------------------------
+
 OW=0
 RUN_BIASCORR=0
-while getopts :-:bos:n: argument
-do
-  case ${argument} in
-    -)
-      case "${OPTARG}" in     
-        biascorr)
-          RUN_BIASCORR=1
-          ;;                                    
+SPM_BIAS=1
+DRY_RUN=0
+subjects=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -s) IFS=',' read -r -a subjects <<< "$2"; shift 2 ;;
+        -n) session="$2"; shift 2 ;;
+        -o|--ow) OW=1; shift ;;
+        --biascorr) RUN_BIASCORR=1; shift ;;
+        --n4) SPM_BIAS=0; shift ;;
+        --dry-run) DRY_RUN=1; shift ;;
+        -h|--help) Usage ;;
+        --) shift; break ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            Usage
+            ;;
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
-          ;;
-      esac;;       
-    s)  sub=${OPTARG}
-          ;;
-    n)  ses=${OPTARG}
-          ;;
-    o)  OW=1
-          ;;
-  esac
+            if [[ -z "$anat_dir" ]]; then
+                anat_dir="$1"
+            elif [[ -z "$output_dir" ]]; then
+                output_dir="$1"
+            else
+                echo "Too many arguments!" >&2
+                Usage
+            fi
+            shift
+            ;;
+    esac
 done
 
-if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+[[ -z "$anat_dir" ]] && Usage
+[[ -z "$output_dir" ]] && output_dir="$anat_dir"
+
+# ---------------------------------------------------------------------------------------------------
+# Setup subjects if not explicitly provided
+# ---------------------------------------------------------------------------------------------------
+
+if [[ ${#subjects[@]} -eq 0 ]]; then
+    while IFS= read -r dir; do
+        subjects+=("$(basename "$dir")")
+    done < <(find "$anat_dir" -mindepth 1 -maxdepth 1 -type d)
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+# ---------------------------------------------------------------------------------------------------
+# Processing functions
+# ---------------------------------------------------------------------------------------------------
 
-if [[ -z ${sub} ]]; then
-  # loop through subjects
-  search="${INPUT}/${SUBJECT_PREFIX}*"
-else
-  # read specified subjects into array
-  IFS=', ' read -r -a search <<< "${sub}"
-  search=${search[@]}
-  unset IFS
-fi
-
-#-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "Bias field correction and sanlm-filtering\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
-
-#-----------------------------------------------------------------------------
-# Run it
-for subID in ${search}; do
-
-  # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-  else
-    sub_name=$(basename ${subID})
-  fi
-
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
-
-  if [[ "${INPUT}" == "${DIR_DATA_HOME}" ]]; then
-    INPUTDIR=${INPUT}/${base_path}/anat
-  else
-    INPUTDIR=${INPUT}/${base_path}
-  fi
-
-  if [[ ! -d ${INPUTDIR} ]]; then
-    echo "ERROR in `basename ${0}`: ${INPUTDIR} does not exist | is session set correctly?"
-    exit 1
-  fi  
-
-  # set outputdir to inputdir if outputdir not specified
-  if [[ ! -z ${OUTPUT} ]]; then
-    OUTPUTDIR=${OUTPUT}/${base_path}
-  else
-    OUTPUTDIR=${INPUTDIR}
-  fi
-
-  if [[ ! -d ${OUTPUTDIR} ]]; then
-    mkdir -p ${OUTPUTDIR}
-  fi
-
-  if [[ ! -d ${INPUTDIR} ]]; then
-    echo " ${sub_name}: Could not find directory containing file to be bias field corrected"
-    continue
-  fi
-
-  input=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-
-  if [[ ! -z ${input} ]]; then
-
-    output=${OUTPUTDIR}/$(basename ${input})
-
-    if [[ ${OW} -eq 1 ]]; then
-      rm ${output} 2>/dev/null
-    fi
-
-    t1map=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}_*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
-    if [[ ! -z ${t1map} ]]; then
-      # copy t1map to output for later reference
-      cp ${t1map} $(dirname ${output})
-    fi
-    
-    if [[ ! -f ${output} ]]; then
-
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
-      echo "Running SANLM-filter"
-      call_spmsanlm ${input} ${OUTPUTDIR}/denoised.nii.gz
-
-      if [[ $? != 0 ]]; then
-        echo
-        echo "---------------------------------------------------------------------------------------------------"
-        echo "ERROR in `basename ${0}`: call_spmsanlm exited with non-zero status"
-        exit 1
-      fi
-
-      # check if we should overwrite input image or store in different directory
-      if [[ ${INPUTDIR} == ${OUTPUTDIR} ]]; then
-        output=${input}
-      else
-        output=${OUTPUTDIR}/$(basename ${input})
-      fi
-
-      if [[ ${RUN_BIASCORR} -eq 1 ]]; then
-        echo "Running bias field correction with SPM"
-        call_spmbias ${OUTPUTDIR}/denoised.nii.gz ${output}
-
-        if [[ $? != 0 ]]; then
-          echo
-          echo "---------------------------------------------------------------------------------------------------"
-          echo "ERROR in `basename ${0}`: call_spmbias exited with non-zero status"
-          exit 1
-        fi
-
-        rm -r ${OUTPUTDIR}/denoised.nii.gz 2>/dev/null
-      else
-        mv ${OUTPUTDIR}/denoised.nii.gz ${output}
-      fi
-
-      echo "Done"
-
+function get_subj_ses_path {
+    local sub=$1
+    if [[ -n $session ]]; then
+        echo "${anat_dir}/sub-${sub}/ses-${session}/anat"
     else
-      echo "`basename ${output}` already exists"
+        echo "${anat_dir}/sub-${sub}/anat"
+    fi
+}
+
+function process_subject {
+    local sub=$1
+    local inputdir
+    inputdir=$(get_subj_ses_path "$sub")
+
+    if [[ ! -d "$inputdir" ]]; then
+        echo "Skipping sub-${sub}: $inputdir not found"
+        return
     fi
 
-  else
-    echo "${sub_name}: Did not find an input file"
-    continue
-  fi
+    local output_subdir="${output_dir}/sub-${sub}"
+    [[ -n $session ]] && output_subdir+="/ses-${session}"
+    run_or_echo "mkdir -p '$output_subdir'"
 
-  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}_*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
-  IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
-  unset IFS 
-  count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
-  if [[ ${count} -gt 1 ]]; then
-    echo "Found more than 1 files with \"acq-${DATA}_\", \"spm_mask\", and \".nii.gz\" (${count})"
-    for ii in ${spm_sorted[@]}; do
-      echo " ${ii}"
-    done
-    continue
-  else
-    cp ${spm_mask} ${OUTPUTDIR} 2>/dev/null
-  fi
+    local input
+    input=$(find "$inputdir" -name "*acq-${DATA}*T1w.nii.gz" -print -quit)
+    if [[ -z "$input" ]]; then
+        echo "Skipping sub-${sub}: no T1w file found"
+        return
+    fi
 
+    local output="${output_subdir}/$(basename "$input")"
+    if [[ $OW -eq 1 ]]; then
+        run_or_echo "rm -f '$output'"
+    elif [[ -f "$output" ]]; then
+        echo "Skipping sub-${sub}: output already exists"
+        return
+    fi
+
+    echo
+    echo "**************************************** Processing sub-${sub} ***************************************"
+
+    run_or_echo "call_spmsanlm '$input' '${output_subdir}/denoised.nii.gz'"
+
+    if [[ $RUN_BIASCORR -eq 1 ]]; then
+        if [[ $SPM_BIAS -eq 1 ]]; then
+            run_or_echo "call_spmbias '${output_subdir}/denoised.nii.gz' '$output'"
+        else
+            run_or_echo "call_antsbias '${output_subdir}/denoised.nii.gz' '$output'"
+        fi
+        run_or_echo "rm -f '${output_subdir}/denoised.nii.gz'"
+    else
+        run_or_echo "mv '${output_subdir}/denoised.nii.gz' '$output'"
+    fi
+
+    local mask
+    mask=$(find "$inputdir" -name "*acq-${DATA}*spm_mask.nii.gz" -print -quit)
+    if [[ -n "$mask" ]]; then
+        run_or_echo "cp '$mask' '$output_subdir/'"
+    fi
+
+    echo "Done processing sub-${sub}"
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Main Execution
+# ---------------------------------------------------------------------------------------------------
+
+start_timer
+
+for sub in "${subjects[@]}"; do
+    process_subject "$sub"
 done
 
-#-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+end_timer
