@@ -6,5 +6,5 @@ source ${SETUP_FILE}
 echo "Project home    : ${DIR_DATA_HOME}"
 echo "Nr acquisitions : ${#ACQ[@]} (${ACQ[@]})"
 echo "Anatomy type    : ${DATA}"
-echo "Task IDs        : ${TASK_SES1[@]}"
+echo "Task IDs        : ${TASK_IDS[@]}"
 echo "Subject prefix  : ${SUBJECT_PREFIX}"

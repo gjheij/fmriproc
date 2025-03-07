@@ -43,7 +43,7 @@ Arguments:
   -c <n_slots>        number of slots to use when we're on a cluster
   -p <n_comps>        number of components to use for decomposition. Default = 10
   -x <kwargs>         other arguments that should be passed to pybest
-  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_SES1
+  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_IDS
                       in the spinoza_setup-file Can also be comma-separated list: task1,task2  
   --raw               undo the z-scoring done by pybest (call_unzscore)
 
@@ -132,7 +132,7 @@ if [[ $# -lt 4 ]] ; then
 fi
 
 if [[ -z ${task_ids} ]]; then
-  task_ids=${TASK_SES1[@]}
+  task_ids=${TASK_IDS[@]}
 else
   # read specified tasks into array
   IFS=', ' read -r -a tasks <<< "${task_ids}"

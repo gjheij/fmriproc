@@ -124,7 +124,7 @@ USAGE
 # Deal with arguments
 FREEVIEW=0
 FORCE_EXEC=0
-SGE=""
+run_local=1
 highres_flag="-hires"
 XOPTS_=""
 EXPERT_FILE=""
@@ -143,10 +143,10 @@ do
           FORCE_EXEC=1
           ;;          
         sge)
-          SGE="SGE"
+          run_local=0
           ;;        
         local)
-          SGE="LOCAL"
+          run_local=1
           ;;   
         no_highres)
           highres_flag=""
@@ -207,15 +207,6 @@ if [[ -z ${subj_ID} ]]; then
   exit 1
 fi
 
-if [[ -z ${SGE} ]]; then
-  # read from spinoza_setup
-  if [[ ${PLACE} == "SGE" ]]; then
-    SGE="SGE"
-  else
-    SGE="LOCAL"
-  fi
-fi
-
 # check if we got expert file
 if [[ ! -z ${EXPERT_FILE} ]]; then
   if [[ ! -f ${EXPERT_FILE} ]]; then
@@ -255,19 +246,17 @@ CMD(){
   fn_exists freesurfer
   echo "Using FreeSurfer from: `which freesurfer`"
 
-  if [[ ${SGE} == "SGE" ]]; then
+  if [[ ${run_local} -eq 0 ]]; then
     echo "Submitting job to cluster with ${n_cpus} core(s)"
     parallel_flag="-parallel"
     mp_flag="-openmp ${n_cpus}"
-    submit=1
   else
     parallel_flag=""
     mp_flag="-nthreads ${n_cpus}"
-    submit=0
   fi
 
   # delete previously existing file
-  fs_script=${PATH_HOME}/freesurfer/${PROJECT}/${1}_${2}.sh
+  fs_script=${PATH_HOME}/freesurfer/${PROJECT}/${1}_stage-${2}.sh
   echo $fs_script
   if [[ -f ${fs_script} ]]; then
     rm -r ${fs_script}
@@ -294,20 +283,16 @@ CMD(){
   # echo "${SUBJECTS_DIR}"
   (
   echo "#!/bin/bash"
-  echo "#$ -S /bin/bash"
-  echo "#$ -N $(basename ${fs_script} .sh)"
-  echo "#$ -wd ${SUBJECTS_DIR}"
-  echo "#$ -o $(dirname ${fs_script})/$(basename ${fs_script} .sh).log"
-  echo "#$ -j Y"
-  echo "#$ -q ${QUEUE}"
-  echo "#$ -V"
   echo ""
   echo "export SUBJECTS_DIR=${SUBJECTS_DIR}"
   echo "recon-all -subjid ${1} ${4} ${highres_flag} ${parallel_flag} ${mp_flag} ${3} ${5} ${expert_flag} ${XOPTS_}"
   ) > ${fs_script}
   
-  if [[ ${submit} -eq 1 ]]; then
-    qsub -pe smp ${n_cpus} ${fs_script}
+  if [[ ${run_local} -eq 0 ]]; then
+  
+    submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpu} $(dirname ${fs_script})/$(basename ${fs_script} .sh).log ${SUBJECTS_DIR})
+  
+    ${submit} ${fs_script}
     echo "Now wait until the program has finished and do some editing in FreeView if required."
     echo "Waiting to qstat.."
     sleep 5
