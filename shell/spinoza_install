@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+
+set -e  # Exit immediately on error
+
+# ---------------------------------------------------------------------------------------------------
+# Usage Information
+function Usage {
+    cat <<EOF
+
+---------------------------------------------------------------------------------------------------
+spinoza_insall
+
+This script configures the fMRIproc repository environment by:
+
+- Adding 'spinoza_setup' sourcing to ~/.bash_profile (or ~/.zshrc if using Zsh)
+- Ensuring the correct path to the user's personal 'spinoza_config' is registered
+- Optionally adding 'conda activate <env>' to ~/.bash_profile if requested
+
+Usage:
+  spinoza_install setup [add_conda] [config_path]
+  spinoza_install help
+
+Options:
+  no_conda       Do not add currently active conda environment to ~/.bash_profile (or ~/.zshrc).
+                 Beware that the correct environment must be loaded for the scripts to be available
+  config_path    Path to a custom 'spinoza_config' file. If not provided, the default will be used.
+
+Examples:
+  spinoza_install setup
+  spinoza_install setup no_conda /home/user/my_spinoza_config
+  spinoza_install help
+
+---------------------------------------------------------------------------------------------------
+EOF
+    exit 1
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Detect conda (robust version)
+function check_conda() {
+    local conda_path=""
+
+    if conda_path="$(command -v conda)"; then
+        echo "$conda_path"
+        return 0
+    fi
+
+    if [[ -n "$CONDA_EXE" && -x "$CONDA_EXE" ]]; then
+        echo "$CONDA_EXE"
+        return 0
+    fi
+
+    local possible_paths=(
+        "$HOME/miniconda3/bin"
+        "$HOME/anaconda3/bin"
+        "/opt/miniconda3/bin"
+        "/usr/local/miniconda3/bin"
+    )
+
+    for dir in "${possible_paths[@]}"; do
+        if [[ -x "${dir}/conda" ]]; then
+            echo "${dir}/conda"
+            return 0
+        fi
+    done
+
+    if [[ -f ~/.bashrc ]]; then
+        conda_init_line=$(grep -m1 'conda' ~/.bashrc || true)
+        if [[ -n "$conda_init_line" ]]; then
+            eval "$conda_init_line"
+            if conda_path="$(command -v conda)"; then
+                echo "$conda_path"
+                return 0
+            fi
+        fi
+    fi
+
+    echo "WARNING: Could not locate conda. Environment activation will be skipped." >&2
+    return 1
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Replace first occurrence in file
+function replace_first_in_file() {
+    local file="$1"
+    local search="$2"
+    local replace="$3"
+    awk -v r="$replace" -v search="$search" '
+        found==0 && $0 ~ search {
+            sub(search, r)
+            found=1
+        }
+        {print}
+    ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+    chmod 2775 "$file"
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Detect which shell profile to modify (bash or zsh)
+function detect_profile() {
+    if [[ $SHELL == */zsh ]]; then
+        echo "${HOME}/.zshrc"
+    else
+        echo "${HOME}/.bash_profile"
+    fi
+}
+
+# ---------------------------------------------------------------------------------------------------
+# Main logic
+if [[ $# -lt 1 ]]; then
+    Usage
+fi
+
+COMMAND="$1"
+ADD_CONDA=1
+CUSTOM_SETUP_PATH=""
+
+if [[ "$2" == "no_conda" ]]; then
+    ADD_CONDA=0
+    if [[ -n "$3" ]]; then
+        CUSTOM_SETUP_PATH="$(readlink -f $3)"
+    fi
+elif [[ -n "$2" ]]; then
+    CUSTOM_SETUP_PATH="$(readlink -f $2)"
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# Handle help
+if [[ "$COMMAND" == "help" ]]; then
+    Usage
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# Locate the correct setup file
+export DEFAULT_CONF_FILE="$HOME/.spinoza_setup"  # Users copy their own setup here
+export DEFAULT_CONFIG=$(which spinoza_config)
+
+# custom file
+if [[ ! -z "${CUSTOM_SETUP_PATH}" ]]; then
+    export CONFIG_FILE="${CUSTOM_SETUP_PATH:-$DEFAULT_CONF_FILE}"
+
+    if [[ ! -f ${CONFIG_FILE} ]]; then
+        cp ${DEFAULT_CONFIG} "$CONFIG_FILE"
+    fi
+
+    echo "📄 Custom config file: ${CONFIG_FILE}"
+else
+    echo "📄 No custom config file found. Creating default at $DEFAULT_CONF_FILE"
+    cp ${DEFAULT_CONFIG} "$DEFAULT_CONF_FILE"
+    export CONFIG_FILE="$DEFAULT_CONF_FILE"
+fi
+
+export SETUP_DIR="$(dirname "$CONFIG_FILE")"
+export SETUP_FILE=$(which spinoza_setup)
+
+# ---------------------------------------------------------------------------------------------------
+# Handle setup
+if [[ "$COMMAND" == "setup" ]]; then
+
+    PROFILE=$(detect_profile)
+
+    if [[ ! -f "$PROFILE" ]]; then
+        echo "Creating new $PROFILE"
+        touch "$PROFILE"
+    fi
+
+    if grep -Fxq "source $SETUP_FILE" "$PROFILE"; then
+        echo "✅ $PROFILE already includes fMRIproc setup."
+    else
+        echo "📄 Adding fMRIproc setup to $PROFILE"
+        REPO_DIR=$(python -c "from fmriproc import planning; import os; print(os.path.dirname(planning.__file__))")
+        ENV_BIN=$(python -c 'import os, sys; print(os.path.dirname(sys.executable))')
+        echo "   - Repository directory set to: $REPO_DIR"
+        echo "   - Environment bin directory set to: $ENV_BIN"
+
+        (
+            echo ""
+            echo "# Inserted via the fMRIproc-repository"
+            if [[ "$ADD_CONDA" -eq 1 ]]; then
+                if conda_path=$(check_conda); then
+                    env=$("$conda_path" info --envs | grep '*' | awk '{print $1}')
+                    echo "conda activate $env"
+                fi
+            fi
+            echo "export CONFIG_FILE=\"${CONFIG_FILE}\""
+            echo "export REPO_DIR=\"${REPO_DIR}\""
+            echo "export BIN_DIR=\"${ENV_BIN}\""
+            echo "export SETUP_FILE=$(which spinoza_setup)"
+            echo ""
+            echo "source \$SETUP_FILE"
+            echo "echo \"ACTIVE PROJECT    \$PROJECT\""
+            echo "echo \"ACTIVE ACQ FORMAT \$DATA\""
+        ) >> "$PROFILE"
+
+        echo "✅ Added to $PROFILE"
+    fi
+
+    echo
+    echo "✅ Setup complete. Now edit the config file and run this to apply the changes:"
+    echo "    source $PROFILE"
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# If command is unknown
+echo "ERROR: Unknown command '$COMMAND'" >&2
+Usage

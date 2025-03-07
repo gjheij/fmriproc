@@ -1,0 +1,48 @@
+#===================================================================================================
+# VARIABLES
+#===================================================================================================
+
+# stuff about the project
+export DIR_PROJECTS="/home/gjheij/git/openfmri"
+export PROJECT="AgeRF"
+export TASK_SES1=("scenes")
+export TASK_SES2="LR"
+export SUBJECT_PREFIX="sub-"
+export COMBINE_SEGMENTATIONS="weighted"
+export PATH_HOME=${DIR_PROJECTS}/logs
+
+# stuff about the anatomical configuration
+export ACQ=("MPRAGE")  # or ("MP2RAGE" "MP2RAGEME")
+export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
+export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w")
+
+# phase encoding direction for BOLD; assume inverse for FMAP
+export PE_DIR_BOLD="AP"
+
+# GRID ENGINE
+export PLACE="SGE"
+export SGE_QUEUE_LONG="long.q@jupiter"
+export SGE_QUEUE_SHORT="short.q@jupiter"
+export OMP_NUM_THREADS=1 
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+# MATLAB
+export MRRECON=/packages/matlab/toolbox/MRecon/3.0.541  
+export MATLAB_CMD="matlab -nosplash -nodisplay -batch" # find with 'which matlab'
+export SPM_PATH=${PATH_HOME}/spm12    
+export SKIP_LINES=34                               
+
+# PYBEST
+export PYBEST_SPACE="fsnative"
+export PYBEST_N_COMPS=20
+
+# fMRIPREP
+export MRIQC_SIMG=/packages/singularity_containers/containers_bids-mriqc--23.0.1.simg
+export FPREP_SIMG=/packages/singularity_containers/containers_bids-fmriprep--20.2.5.simg
+export FPREP_OUT_SPACES="fsnative func"
+export FPREP_BINDING="/data1/projects"                                          # binding directory for singularity image
+export CIFTI=""                                                                 # leave empty if you don't want cifti output
+export DO_SYN=0                                                                 # set to zero if you do not want additional syn-distortion correction
+export BOLD_T1W_INIT="register"                                                 # default = register; for partial FOV, set to 'header'
+export FS_LICENSE=${REPO_DIR}/misc/license.txt                                  # this thing needs to be along the FPREP_BINDING path!
