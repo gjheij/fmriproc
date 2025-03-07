@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ ADD_INV=""
 ORIENT_FLAG=""
 PROT_FLAG=""
 PE_FLAG=""
-SGE_FLAG=0
+run_local=1
 DEBUG_MODE=0
 PHYS_FLAG=""
 SEARCH_DEPTH=0
@@ -134,7 +134,7 @@ do
           FULL_OW=1
           ;;  
         sge)
-          SGE_FLAG=1
+          run_local=0
           if [[ ! -d ${DIR_LOGS} ]]; then
             mkdir -p ${DIR_LOGS} 2>/dev/null
           fi
@@ -238,13 +238,14 @@ for subID in ${search}; do
       intro_txt="Regular session, but with call_parrec2nii fix for big PAR/REC files"
     fi
 
-    if [[ ${SGE_FLAG} -eq 1 ]]; then
+    if [[ ${run_local} -eq 0 ]]; then
       if [[ ! -z ${SGE_QUEUE} ]]; then
         QUEUE=${SGE_QUEUE}
       else
         QUEUE=${SGE_QUEUE_LONG}
-      fi        
-      job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp 1 -N ${base}_desc-dcm2bids"
+      fi
+
+      job=$(generate_submission_command ${QUEUE} 1 ${base}_desc-dcm2bids ${DIR_LOGS})
     else
       job="bash"
       echo

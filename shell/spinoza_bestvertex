@@ -2,8 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
+source "${SETUP_FILE}"
 source call_bashhelper
-source ${SETUP_FILE}
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -129,7 +129,7 @@ USAGE
 OW=0
 aparc_flag=""
 fv_flag=""
-task="${TASK_SES1[0]}"
+task="${TASK_IDS[0]}"
 model="gauss"
 stage="iter"
 man_verts=""
@@ -261,17 +261,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "BEST VERTEX AND NORMAL VECTOR USING PYCORTEX\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# Intro
+start_time "Select coordinate and normal vector using Pycortex"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -429,16 +420,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

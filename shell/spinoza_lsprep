@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ Arguments:
 
                       This allows bash commands to be translated to python commands
 
-  -c|--sge            submit job to cluster (SGE)
+  -c|--sge            submit job to cluster (SGE/SLURM)
   <project root>      base directory containing the derivatives and the subject's folders.
   <derivatives>       base directory to store the 'lsprep'-folder in 
 
@@ -62,13 +62,14 @@ fi
 
 # Check for subject & session flags
 OW=0
+run_local=1
 while getopts :-:cs:n:q:x:j: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in      
         sge)
-          SGE=1
+          run_local=0
           ;;                                                                        
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -96,8 +97,7 @@ INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
+# sort subjects
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -119,7 +119,7 @@ else
   unset IFS
 fi
 
-if [[ ${SGE} -eq 1 ]]; then
+if [[ ${run_local} -eq 0 ]]; then
   if [[ -z ${n_cpus} ]]; then
     n_cpus=1
   fi
@@ -134,17 +134,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "PREPROCESSING OF LINE-SCANNING DATA WITH LSPREP\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Preprocessing of line-scanning data with LSprep"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -165,7 +156,7 @@ for subID in ${search}; do
     LSPREP_KWARGS=`echo ${LSPREP_KWARGS} | tr '=' ' ' | tr ',' ' '`
   fi
 
-  if [[ ${SGE} -eq 0 ]]; then
+  if [[ ${run_local} -eq 1 ]]; then
     echo
     echo "**************************************** Processing ${sub_name} ***************************************"
   fi
@@ -182,14 +173,15 @@ for subID in ${search}; do
     fi
 
     # decide job execution
-    if [[ ${SGE} -eq 1 ]]; then
+    if [[ ${run_local} -eq 0 ]]; then
       if [[ ! -z ${SGE_QUEUE} ]]; then
         QUEUE=${SGE_QUEUE}
       else
         QUEUE=${SGE_QUEUE_SHORT}
-      fi            
+      fi
+      submit=$(generate_submission_command ${QUEUE} ${n_cpu} ${base}_desc-lsprep ${log_file})
       call_=`which call_lsprep`
-      job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N ${base}_desc-lsprep ${call_}"
+      job="${submit} ${call_}"
     else
       job="call_lsprep"
     fi
@@ -200,7 +192,7 @@ for subID in ${search}; do
       ${LSPREP_KWARGS}"""
 
     # echo command
-    if [[ ${SGE} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       echo $cmd
     fi
 
@@ -219,16 +211,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

@@ -2,8 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-echo
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -60,7 +60,7 @@ FULL_OW=0
 SKIP_BG="--mask"
 PARS_FLAG=""
 FORCE_EXEC=0
-SGE=0
+run_local=1
 n_cpus=1
 while getopts :-:oufs:n:p:q:j: argument
 do
@@ -83,7 +83,7 @@ do
           FORCE_EXEC=1
           ;;
         sge)
-          SGE=1
+          run_local=0
           ;;            
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -130,16 +130,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo "==================================================================================================="
-printf "Calculate T1's from ${DATA}\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Derive T1w/T1map from ${DATA} using pymp2rage"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -174,7 +166,7 @@ for subID in ${search}; do
     echo "${sub_name}: could not find input directory \"${input_dir}\""
     continue
   else
-    if [[ ${SGE} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       echo
       echo "**************************************** Processing ${sub_name} ***************************************"
     fi
@@ -206,14 +198,17 @@ for subID in ${search}; do
           mkdir -p ${output_dir}
         fi
 
-        if [[ ${SGE} -eq 1 ]]; then
+        if [[ ${run_local} -eq 0 ]]; then
           if [[ ! -z ${SGE_QUEUE} ]]; then
             QUEUE=${SGE_QUEUE}
           else
             QUEUE=${SGE_QUEUE_SHORT}
-          fi            
+          fi
+
+          submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
           call_=`which call_${a,,}`
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpus} -N ${output_base}_desc-${a,,} ${call_}"
+          job="${submit} ${call_}" 
+
         else
           job="call_${a,,}"
         fi
@@ -227,7 +222,7 @@ for subID in ${search}; do
           ${SKIP_BG}"""
         
         # Execute command
-        if [[ ${SGE} -eq 0 ]]; then
+        if [[ ${run_local} -eq 1 ]]; then
           echo ${cmd}
         fi
         ${cmd}
@@ -266,16 +261,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

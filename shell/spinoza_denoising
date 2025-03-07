@@ -2,8 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-echo
-call_loadsetup
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -24,7 +23,7 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_SES1
+  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_IDS
                       in the spinoza_setup-file Can also be comma-separated list: task1,task2
   -j <n_cpus>         number of CPUs to use (default = 1)
   -c <n_comps>        overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
@@ -45,6 +44,7 @@ Arguments:
   --mni_fsl           overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
   --mni_2009          overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
   --force             force execution despite existing files
+  --sge               submit job to cluster (SGE/SLURM)
   <project root>      base directory containing the derivatives and the subject's folders.
   <derivatives>       path to the derivatives folder
 
@@ -68,7 +68,7 @@ OW=0
 n_cpus=""
 task_flag=""
 raw_flag=""
-SGE=0
+run_local=1
 FULL_OW=0
 ses_flag=""
 post_only=0
@@ -97,7 +97,7 @@ do
           FULL_OW=1
           ;;                 
         sge)
-          SGE=1
+          run_local=1
           ;;     
         force_exec)
           force_exec=1
@@ -169,7 +169,7 @@ if [[ -z ${PYBEST_N_COMPS} ]]; then
   PYBEST_N_COMPS=10
 fi
 
-if [[ ${SGE} -eq 1 ]]; then
+if [[ ${run_local} -eq 0 ]]; then
   if [[ -z ${n_cpus} ]]; then
     n_cpus=1
   fi
@@ -198,16 +198,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo "==================================================================================================="
-printf "DENOISING DATA WITH FMRIPREP-CONFOUNDS\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Denoising functional data with fMRIPrep confounds using Pybest"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -298,13 +290,13 @@ for subID in ${search}; do
       if [[ ${execute_cmd} -eq 1 ]]; then
 
         # append sub
-        if [[ ${SGE} -eq 1 ]]; then
+        if [[ ${run_local} -eq 0 ]]; then
           if [[ ! -z ${SGE_QUEUE} ]]; then
             QUEUE=${SGE_QUEUE}
           else
             QUEUE=${SGE_QUEUE_LONG}
-          fi            
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpus} -N ${base}_desc-pybest"
+          fi
+          job=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-pybest ${DIR_LOGS})
         else
           echo
           echo "**************************************** Processing ${sub_name} ***************************************"
@@ -328,7 +320,7 @@ for subID in ${search}; do
           ${pyb_flag} \
           ${raw_flag}"""
 
-        if [[ ${SGE} -eq 0 ]]; then
+        if [[ ${run_local} -eq 1 ]]; then
           echo ${cmd}
         fi
         ${cmd}
@@ -354,16 +346,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

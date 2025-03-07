@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+source "${SETUP_FILE}"
 source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -67,17 +71,17 @@ USAGE
 
 # Check for subject flag
 job="bash"
-smp=1
-SGE=0
+n_cpus=1
+run_local=1
 mag_only=0
 tsnr_flag="--tsnr"
-while getopts :-:os:n:r:q: argument
+while getopts :-:os:n:r:q:j: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in
         sge)
-          SGE=1
+          run_local=0
           ;;   
         no_tsnr)
           tsnr_flag=""
@@ -104,7 +108,9 @@ do
     r)  runs=${OPTARG}
           ;;      
     q)  SGE_QUEUE=${OPTARG}
-          ;;                 
+          ;;        
+    j)  n_cpus=${OPTARG}
+          ;;                     
   esac
 done
 
@@ -132,17 +138,8 @@ if [[ ! -z ${runs} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "NORDIC denoising of whole-brain data\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Thermal noise reduction using NORDIC [phase data]"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -276,31 +273,30 @@ for subID in ${search}; do
         fi
 
         # decide on job execution
-        if [[ ${SGE} -eq 1 ]]; then
+        if [[ ${run_local} -eq 0 ]]; then
           if [[ ! -z ${SGE_QUEUE} ]]; then
             QUEUE=${SGE_QUEUE}
           else
             QUEUE=${SGE_QUEUE_LONG}
-          fi    
-
-          job_name=$(basename ${mag_img} _bold.nii.gz)_desc-nordic
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${smp} -N ${job_name}"
-          if [ ! -d ${DIR_LOGS} ]; then
-            mkdir -p ${DIR_LOGS}
           fi
+
+          submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${mag_img} _bold.nii.gz)_desc-nordic ${DIR_LOGS})
+          call_=`which call_nordic`
+          job="${submit} ${call_}"
         else
           # print message
           echo "Running NORDIC.."
           echo " -mag:    ${mag_img}"
           echo " -phase:  ${ph_img}"
-          echo " -type:   ${tt}"        
+          echo " -type:   ${tt}"
+          job="call_nordic"
         fi
         
         # run if basenames of phase and magnitude match
         if [[ $(basename ${ph_img} ${ph_tag}.nii.gz) == $(basename ${mag_img} .nii.gz) ]]; then
           out=${func_folder}/$(basename ${mag_img})
-          call_=`which call_nordic`
-          ${job} ${call_} \
+          
+          ${job} \
             ${mag_flag} \
             ${tsnr_flag} \
             ${mag_img} ${ph_img} ${out}
@@ -318,7 +314,7 @@ for subID in ${search}; do
     fi
   done
 
-  if [[ ${SGE} -eq 0 ]]; then
+  if [[ ${run_local} -eq 1 ]]; then
     # remove any left over unzipped files
     nii_files=`find ${func_folder} -type f -name "*.nii" 2>/dev/null`
     if [[ ! -z ${nii_files} ]]; then
@@ -329,16 +325,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

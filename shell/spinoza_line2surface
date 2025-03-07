@@ -2,7 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -73,14 +74,7 @@ done
 #-----------------------------------------------------------------------------
 # Start clock
 #-----------------------------------------------------------------------------
-echo
-echo "==================================================================================================="
-printf "LINE 2 SURFACE REGISTRATION CASCADE\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+start_timer "Register nominal line back to surface"
 
 echo
 echo "**************************************** Processing ${SUB} ***************************************"
@@ -239,21 +233,5 @@ echo "Use cortex.Volume(<filename>, subject=\"${SUB}\", xfmname=\"fs2ctx\", cmap
 echo
 echo "Done"
 
-# # Check webbrowser for comparison
-# echo
-# echo " Now check if line goes through intended pRF [bit of patience please].."
-# call_ctxobject -s "${SUB}" -c "${DIR_DATA_DERIV}/pycortex" -p "${DIR_DATA_DERIV}/prf" -l ${PLACE}
-#-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

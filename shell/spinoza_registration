@@ -2,8 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-echo
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -75,7 +74,7 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
-SGE=0
+run_local=1
 OW=
 reg_type=""
 verb_flag=""
@@ -101,7 +100,7 @@ do
           reg_type="--affine"
           ;;  
         sge)
-          SGE=1
+          run_local=0
           ;;    
         cmd)
           echo_cmd=1
@@ -164,16 +163,8 @@ fi
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo "==================================================================================================="
-printf "REGISTRATION\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Registration with antsRegistration"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -263,15 +254,16 @@ for subID in ${search}; do
       if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
 
         # decide how to execute 
-        if [[ ${SGE} -eq 1 ]]; then
+        if [[ ${run_local} -eq 0 ]]; then
           if [[ ! -z ${SGE_QUEUE} ]]; then
             QUEUE=${SGE_QUEUE}
           else
             QUEUE=${SGE_QUEUE_LONG}
-          fi           
-          job_name="$(basename ${moving} T1w.nii.gz)desc_registration"
+          fi
+
+          submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${moving} T1w.nii.gz)desc_registration ${DIR_LOGS})
           call_=`which call_antsregistration`
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpu} -N ${job_name} ${call_} --verbose"
+          job="${submit} ${call_}" 
         else
           job="call_antsregistration"
         fi
@@ -297,7 +289,7 @@ for subID in ${search}; do
 
         if [[ ${echo_cmd} -eq 0 ]]; then
 
-          if [[ ${SGE} -eq 1 ]]; then
+          if [[ ${run_local} -eq 0 ]]; then
             echo "Waiting to check qstat.."
             sleep 10
 
@@ -406,16 +398,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

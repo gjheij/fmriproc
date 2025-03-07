@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ fi
 # Check for subject & session flags
 OW=0
 type=""
-SGE=0
+run_local=1
 n_cpus=1
 while getopts :-:os:n:t:q:j: argument
 do
@@ -72,7 +72,7 @@ do
           OW=1
           ;;
         sge)
-          SGE=1
+          run_local=0
           ;;                                     
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -115,18 +115,15 @@ else
   unset IFS
 fi
 
-#-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
+if [[ ! -z ${SGE_QUEUE} ]]; then
+  QUEUE=${SGE_QUEUE}
+else
+  QUEUE=${SGE_QUEUE_LONG}
+fi
 
-echo
-echo "==================================================================================================="
-printf "NEW MGDM SEGMENTATION WITH NIGHRES\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+#-----------------------------------------------------------------------------
+# intro
+start_timer "MGDM segmentation with Nighres"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -180,8 +177,10 @@ for subID in ${search}; do
       execute_cmd=1
 
       run_mode="Running GhD-version of MGDM with call_gdhmgdm"
-      if [[ ${SGE} -eq 1 ]]; then
-        run_cmd=`which call_gdhmgdm`
+      if [[ ${run_local} -eq 0 ]]; then
+        submit=$(generate_submission_command ${SGE_QUEUE} ${n_cpu} ${output_root}-mgdm ${DIR_LOGS})
+        call_=`which call_gdhmgdm`
+        run_cmd="${submit} ${call_}"
       else
         run_cmd="call_gdhmgdm"
       fi
@@ -236,7 +235,7 @@ for subID in ${search}; do
         reason="Could not find skullstripped T1map-image.. "
       fi
 
-      if [[ ${SGE} -eq 1 ]]; then
+      if [[ ${run_local} -eq 0 ]]; then
         run_cmd=`which call_nighresmgdm`
       else
         run_cmd="call_nighresmgdm"
@@ -255,7 +254,7 @@ for subID in ${search}; do
   fi
 
   if [[ ${execute_cmd} -eq 1 ]]; then
-    if [[ ${SGE} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
 
       echo
       echo "**************************************** Processing ${sub_name} ***************************************"
@@ -263,7 +262,7 @@ for subID in ${search}; do
       echo "Creating `basename ${mgdm_seg}`"
     fi
 
-    if [[ ${SGE} -eq 1 ]]; then
+    if [[ ${run_local} -eq 0 ]]; then
       if [[ ! -z ${SGE_QUEUE} ]]; then
         QUEUE=${SGE_QUEUE}
       else
@@ -275,7 +274,7 @@ for subID in ${search}; do
     fi
 
     final_cmd="""${job} ${cmd}"""
-    if [[ ${SGE} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       echo ${final_cmd}
     fi
 
@@ -295,16 +294,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer
