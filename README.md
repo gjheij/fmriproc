@@ -1,18 +1,35 @@
+---
 # fMRIproc repository
 
 ![plot](https://github.com/gjheij/fmriproc/blob/main/imgs/overview.png)
 
 This repository contains all of the tools used during the acquisition and postprocessing of line scanning data at the Spinoza Centre for Neuroimaging in Amsterdam.
-Note that we have a Philips scanner there, so all routines are tailored for the specific output of this scanner (e.g., PAR/REC files).
-Some steps - especially at the beginning of the pipeline - will differ among vendors.
+Over time, it has evolved to also incorporate regular whole-brain/partial FOV BOLD data.
 The main goal of the package is to create the most accurate segmentations (both volumetric and surface) by combining various software packages such as [Nighres](https://github.com/nighres/nighres), [fMRIprep](https://fmriprep.org/en/stable/usage.html), [FreeSurfer](https://surfer.nmr.mgh.harvard.edu/), [CAT12](http://www.neuro.uni-jena.de/cat/index.html#DOWNLOAD), and [SPM](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/). 
 This package contains the minimum for the preprocessing of anatomical and functional data as well as denoising with [pybest](https://github.com/gjheij/pybest) and population receptive field routines with [prfpy](https://github.com/VU-Cog-Sci/prfpy).
 HRF estimation, plotting, and other analysis approaches performed in my line-scanning projects can be found in the [lazyfmri](https://github.com/gjheij/lazyfmri) repository.
 
+---
+## Another fMRI package...?
+There are already many software packages to deal with fMRI data.
+Generally, these packages to a particular step of the entire pipeline, e.g., bias field correction, surface reconstruction, higher level analyses, etc.
+fMRIprep kind of changed that by incorporating the best of software package to generate a robust processing pipeline.
+The Spinoza Centre has a strong focus on visual research, which gets obscured by the sagittal sinus.
+This is a large vein around the visual cortex that has the same intensity as gray matter on anatomical images.
+Therefore, surface reconstruction softwares such as FreeSurfer often wrongly classify this as gray matter.
+Thus, the Spinoza Centre (and Gilles de Hollander specifically), set out to devise a framework for optimizing the surface reconstruction using various packages such as pymp2rage, nighres, and fMRIprep (anatomical workflow).
+That idea has been the basis for this package and has been described in this [awesome paper](https://www.sciencedirect.com/science/article/pii/S105381192031168X).
+I believe this pipeline saves users that utilize a regular fMRI acquisition (2D/3D whole-brain'ish) quite some time.
+All steps from conversion to nifti to processing with fMRIprep are wrapper into simple commands that can be easily executed in the terminal.
+Settings are dictated by a configuration file that is user-specific.
+This also ensures a consistent folder-structure across projects - further promoting transparancy and reusability.
+
+---
 ## In active development
 This package is still in development and its API might change. 
 Documentation for this package can be found at [readthedocs](https://linescanning.readthedocs.io/en/latest/) (not up to date)
 
+---
 ## Installation
 
 ```bash
@@ -71,7 +88,6 @@ export PE_DIR_BOLD="AP"
 If you have access to matlab, spm, and cat12, you can specify some paths here:
 ```bash
 # MATLAB
-export MRRECON=/packages/matlab/toolbox/MRecon/3.0.541  
 export MATLAB_CMD="matlab -nosplash -nodisplay -batch" # find with 'which matlab'
 export SPM_PATH=${PATH_HOME}/spm12    
 export SKIP_LINES=34  
@@ -92,6 +108,9 @@ export FS_LICENSE=${REPO_DIR}/misc/license.txt  # this thing needs to be along t
 
 After editing the file you want to run `source ~/.bash_profile` again for the changes to take effect.
 
+---
+## Additional software
+
 Several other software packages need to be accessible from the command line for full functionality:
 - [FSL](https://fsl.fmrib.ox.ac.uk/fsl/docs/#/) [recommended]: used for various manipulations of nifti-files, so this is recommended to have
 - [ITK-Snap](https://linescanning.readthedocs.io/en/latest/installation.html) [optional/recommended]: very good for viewing 3D data and drawing masks/ROIs
@@ -102,6 +121,7 @@ Several other software packages need to be accessible from the command line for 
 - [Nighres](https://nighres.readthedocs.io/en/latest/installation.html) [optional]: very good segmentation software for high-resolution data. 
 - [FreeSurfer](https://surfer.nmr.mgh.harvard.edu/fswiki/DownloadAndInstall) [optional]: surface generation software. Not necessarily mandatory, as this can be done within `fMRIprep` too. Nevertheless, several helper-functions are useful to have.
 If you have `FreeSurfer` installed on a local system, ensure the following is in your `~/.bash_profile`-file:
+
     ```bash
     # freesurfer
     export FREESURFER_HOME=<path to FreeSurfer installation>
@@ -121,6 +141,7 @@ Note that `cxutils` is only relevant for surface-related processing, as we have 
 The command line scripts for preprocessing of anatomical and functional data will work without this package.
 Please be aware that `pycortex` is NOT supported for Windows!
 
+---
 ## General pipeline
 
 The input dataset is required to be in valid `BIDS (Brain Imaging Data Structure)` format. The directory pointing to the project should be specified in the ``spinoza_setup``-file as ``$DIR_PROJECTS``. Then specify the the project name as ``$PROJECT``. It is assumed your converted data lived in:
@@ -177,6 +198,61 @@ sub-001
     └── Raw files (DICOMs/PARRECs) # individual files, not a folder!
 ```
 
+PAR/REC-files should be placed directly in the `sub-<subID>/<ses-sesID>/*` folder:
+```bash
+$DIR_PROJECTS/$PROJECT/sourcedata/sub-<subID>/ses-<sesID>
+├── log.txt
+├── nifti # converted files
+│   └── ...
+├── su_31032023_1043064_16_1_acq-mp2rage_desc-anat_t1wV4.par
+├── su_31032023_1043064_16_1_acq-mp2rage_desc-anat_t1wV4.rec
+├── su_31032023_1059524_18_1_task-scenes_run-1_acq-3depi_boldV4.par
+├── su_31032023_1059524_18_1_task-scenes_run-1_acq-3depi_boldV4.rec
+├── su_31032023_1105288_19_1_task-scenes_run-1_acq-3depi_epiV4.par
+└── su_31032023_1105288_19_1_task-scenes_run-1_acq-3depi_epiV4.rec
+```
+
+DICOM files the folders with *.dcm-files should be placed here:
+```bash
+# DICOM files are within folders representing protocol names
+$DIR_PROJECTS/$PROJECT/sourcedata/sub-<subID>/ses-<sesID>
+├── 10_BonPas_slabT2w_0p4x0p4x1
+│   └── DICOM
+├── 6_dzne-bn_fmri_0p9iso_TR2p9_3x2z1_RefEpi_E00_M
+│   └── DICOM
+├── 8_dzne-bn_fmri_0p9iso_TR2p9_3x2z1_RefEpi_revPE_E00_M
+│   └── DICOM
+├── 9_dzne-bn_MPRAGE_UPCS_0p6iso_p3__GT
+│   └── DICOM
+└── ...
+```
+
+> [!NOTE]
+> ### File naming within PAR/DCM files
+> The conversion combines the `PatientName` and `ProtocolName` to generate a BIDSified filename.
+> For the pipeline to correctly recognize the files, it needs certain elements to be present, such as `sub-`, `ses-` (optional), `acq-MPRAGE_T1w` (for anatomical), `T2w`, `*_bold` (for functional file), and `*_epi` (for fieldmap).
+> The `PatientName` is something that is set at the scanner console while registering the participant/patient, and the `ProtocolName` is whatever the sequence is called on the console.
+> I recommend settings the `PatientName` and `ProtocolName` to something BIDS before acquiring data, where you would register the patient as `sub-01_ses-1` with `task-rest_run-1_bold` as protocol name for the BOLD run.
+> However, you can also change this after acquiring data.
+> For PAR files, you could do something like:
+> ```bash
+> for par in /path/to/par/*.PAR; do
+>     sed -i "s|registered_name|sub-01_ses-1|g" $par
+> done
+>
+> # and for the functionals:
+> sed -i "s|protocol_name|task-rest_run-1_bold|g" bold.par
+> sed -i "s|protocol_name|task-rest_run-1_epi|g" epi.par
+> ```
+> For DICOM files, I added a function based on `pydicom`:
+> ```bash
+> call_dcm /path/to/6_dzne-bn_fmri_0p9iso_TR2p9_3x2z1_RefEpi_E00_M "PatientName,ProtocolName" "sub-01_ses-1,task-rest_bold"
+> call_dcm /path/to/8_dzne-bn_fmri_0p9iso_TR2p9_3x2z1_RefEpi_revPE_E00_M "PatientName,ProtocolName" "sub-01_ses-1,task-rest_epi"
+> call_dcm /path/to/9_dzne-bn_MPRAGE_UPCS_0p6iso_p3__GT "PatientName,ProtocolName" "sub-01_ses-1,acq-MPRAGE_T1w"
+> ```
+> This works by specifying a key-value pair in separate lists.
+> The first list represents all the keys that need to be altered; the second list represents the values they need to be set as.
+
 Once you've put the files there, you can run ``module 02a`` (if this doesn't do anything, you're probably on an older version.
 This means you do not have access to `02b`; quality control with `MRIqc`).
 This will convert your data to nifti's and store them according to BIDS.
@@ -186,31 +262,51 @@ If you also have phase data from your BOLD, then it creates an additional `phase
 If you have a non-linescanning acquisition (i.e., standard whole-brain-ish data), we'll set the coordinate system to `LPI` for all image.
 This ensures we can use later outputs from fMRIprep on our native data, which will help if you want to combine segmentations from different software packages (affine matrices are always a pain;
 check [here](https://nipy.org/nibabel/coordinate_systems.html) for a good explanation).
-If you have extremely large par/rec files, `dcm2niix` [might fail](https://github.com/rordenlab/dcm2niix/issues/659).
-To work around this, we monitor these error and attempt to re-run the conversion with [call_parrec2nii](https://github.com/gjheij/fmriproc/blob/main/bin/call_parrec2nii), which wraps `parrec2nii` that comes with nibabel.
-Additionally, we also try to read the phase-encoding direction from the PAR-file, but this is practically impossible.
-So there's two ways to automatically populate the `PhaseEncodingDirection` field in your json files: 
+PAR/REC-files will be converted with [call_parrec2nii](https://github.com/gjheij/fmriproc/blob/main/bin/call_parrec2nii), which wraps `parrec2nii` that comes with nibabel.
+DCM-files will be converted with `dcm2niix`, which will be installed by the environment.
 
-1) Accept defaults: `AP` for BOLD and `PA` for FMAP 
-2) Set the `export PE_DIR_BOLD=<value>` in the setup file, with one of `AP`, `PA`, `LR`, or `RL`.
-This sets the phase-encoding direction for the BOLD-data.
-This value is automatically switched for accompanying fieldmaps.
-3) use one of the following flags in your call to `master`: `--ap`, `--pa`, `--lr` or `--rl`.
-This again sets the phase-encoding for the BOLD-data, and assumes that the direction is opposite for the fieldmaps.
-4) Manually change the value in your json files after processing (but we don't like manual work now, do we..).
 
-The pipeline can automatically populate the `IntendedFor`-field in the json files.
-It can do so if one of the following situations holds:
-
-1) You have a fieldmap for every BOLD acquisition (recommended as it's easiest to deal with)
-2) You have a fieldmap for every two BOLD acquisitions (gets a bit more tricky, but it can mangage)
-3) You have one fieldmap for all BOLD acquisitions
-
-If this is not the case for you, you'll have to manually fill in the `IntendedFor` field..
-It can also populate the `SliceTiming`-field if you have a 2D acquisition.
-It does so by reading the TR, number of slices, and multiband factor from the PAR-file (so I don't know how this would work for Siemens data).
-It assumes an interleaved acquisition.
-For further details, see the [slicetiming](https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14)-function.
+> [!NOTE]
+> ### Populating the JSON side-cars
+> Additionally, we also try to read the phase-encoding direction from the PAR/DCM-file, but this is practically impossible.
+> So there's two ways to automatically populate the `PhaseEncodingDirection` field in your json files: 
+> 
+> #### PhaseEncodingDirection
+> 1) Accept defaults: `AP` for BOLD and `PA` for FMAP 
+> 2) Set the `export PE_DIR_BOLD=<value>` in the configuration file, with one of `AP`, `PA`, `LR`, or `RL`.
+> This sets the phase-encoding direction for the BOLD-data.
+> This value is automatically switched for accompanying fieldmaps.
+> 3) use one of the following flags in your call to `master`: `--ap`, `--pa`, `--lr` or `--rl`.
+> This again sets the phase-encoding for the BOLD-data, and assumes that the direction is opposite for the fieldmaps.
+> 4) Manually change the value in your json files after processing (but we don't like manual work now, do we..).
+> 
+> #### IntendedFor
+> The pipeline can automatically populate the `IntendedFor`-field in the json files.
+> It can do so if one of the following situations holds:
+> 
+> 1) You have a fieldmap for every BOLD acquisition (recommended as it's easiest to deal with)
+> 2) You have a fieldmap for every two BOLD acquisitions (gets a bit more tricky, but it can mangage)
+> 3) You have one fieldmap for all BOLD acquisitions
+> 
+> If this is not the case for you (i.e., you have some exotic ordering), you'll have to manually fill in the `IntendedFor` field..
+> 
+> #### SliceTiming
+> It can also populate the `SliceTiming`-field if you have a 2D acquisition.
+> It does so by reading the TR, number of slices, and multiband factor from the PAR-file (so I don't know how this would work for Siemens data).
+> It assumes an interleaved acquisition.
+> For further details, see the [slicetiming](https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14)-function.
+> 
+> #### RepetitionTime
+> The repetition time can be derived via several strategies:
+> 1) Manually specified using the `-t <tr>` flag when calling `master -m 02a`
+> 2) a | In case of DCM files, the following strategies will be attempted:
+>     - Parse TR directly from the filename if present (`TR2.9`, `TR=2.9`, `TR_2p9`, `_TR2p9_`). This is the most reliable for modern Siemens 3D EPI.
+>     - For 3D acquisitions, trust RepetitionTime `(0018,0080)` from DICOM directly. Can be a bit dodgy.
+>     - For 2D Mosaic acquisitions, calculate `TR = NumSlices × SliceMeasurementDuration`.
+>     - For 2D multi-band sequences, apply multi-band correction `(TR / MultiBandFactor)`.
+>    b | In case of PAR files, the TR can be deduced from the timing between volumes. You can either select the first interval or the average over the entire run.
+> 
+> The headers of the nifti-files will be corrected based on the derived (or specified) TR.
 
 Next, we can do some basic quality control using MRIqc. This internally generates a report for all your BOLD files (and anatomical files should you so desire). Because the pipeline does custom processing on the anatomicals, I generally run this with the `--func_only` flag, to only include the functional data. 
 
@@ -219,7 +315,6 @@ master -m 02b --func_only               # run func pipeline only
 master -m 02b --anat_only               # run anat pipeline only
 master -m 02b -n 1                      # limit processing to a certain session
 ```
-
 
 After converting our data to nifti, we need to create our T1w/T1map images from the first and second inversion images. We can do this quite easily with Pymp2rage.
 If you do not combine **INV1** and **INV2** yourself, - you already have a ``T1w``-/ ``T1map``-file in ``DIR_DATA_HOME`` - you can skip the part below (in case you're using Siemens data, the T1 is generally sufficient to continue with):
@@ -409,6 +504,8 @@ master -m 22 # spinoza_cortexreconstruction > currently mimicks CRUISE, rather t
 master -m 23 # spinoza_layering > by default uses Nighres; use --surface to use Wagstyl's equivolumetric layering based on FreeSurfer output
 ```
 
+---
+## Vanilla pipeline example
 A vanilla pipeline would look something like this.
 Make sure to run one by one, unless modules are separated with comma's.
 Some modules run via the cluster, so they're not compatible with chaining other modules.
@@ -448,6 +545,7 @@ Some modules run via the cluster, so they're not compatible with chaining other 
     master -m 16 -s ${subID} -n ${sesID} --sge -c 20 -j 10
     ```
 
+---
 ## Running fMRIprep
 The pipeline allows for three ways to run fMRIprep:
 - [singularity](https://www.nipreps.org/apps/singularity/)-image: recommended for HPC's.
@@ -548,12 +646,14 @@ This includes data from the surface coils.
 The [fpreputils](https://github.com/gjheij/fpreputils/tree/main)-repository describes a workflow that allows you to run parts of fMRIprep including motion/distortion correction, registration, and confound extraction on partial FOV data.
 Note that this workflow does need a whole-brain acquisition to extract some data from (e.g., a brain mask and tissue segmentations).
 
+---
 ## Policy & To Do
 
 - [x] refactor `linescanning`-repository: most fitting procedures are in [lazyfmri](https://github.com/gjheij/lazyfmri), while surface-based processing is done by [cxutils](https://github.com/gjheij/cxutils)
 - [x] Docstrings in numpy format.
 - [x] Examples of applications for package (add notebooks to `doc/source/examples`)
-- Port documentation from `linescanning` to `fmriproc`
-- Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
-- Make compatible with SIEMENS data
+- [x] Make compatible with SIEMENS data
+- [ ] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
+- [ ] Port documentation from `linescanning` to `fmriproc`
+- [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - ..
