@@ -5,7 +5,7 @@
 function start_timer() {
     echo
     echo "==================================================================================================="
-    printf "Bias field correction and sanlm-filtering\n"
+    printf "${1}\n"
     start=$(date +%s)
     start_date=$(date)
     printf "Started at ${start_date}\n"
