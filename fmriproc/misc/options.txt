@@ -52,6 +52,7 @@
 --mni_2009
 --mni_fsl
 --multi_design
+--n4
 --nelders
 --nighres
 --no_bbr
@@ -66,6 +67,7 @@
 --no_manual
 --no_nordic
 --no_raw
+--no_sanlm
 --no_srf
 --no_t2
 --no_tsnr
@@ -92,6 +94,7 @@
 --skip_tr
 --skip_prf_info
 --skip_settings
+--spm
 --surface
 --syn
 --take-avg-tr
