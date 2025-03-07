@@ -21,44 +21,73 @@ conda create env --name "fmriproc" python=3.11
 
 # main installation
 pip install git+https://github.com/gjheij/fmriproc
-
-# finalize setup (adds stuff to ~/.bash_profile)
-spinoza_setup setup
-
-# final source
-source ~/.bash_profile
 ```
 
-If you're on a shared system (e.g., cluster) with a single installation, please copy the `spinoza_setup` file to a custom location.
-You can find the file using `which spinoza_setup`.
-This will give you the full path from the `bin` folder of the conda environment.
-Copy this file to a folder, e.g., at the root of your actual project.
-You then also neeed to change the `source ...` command in the `~/.bash_profile` file and `export SETUP_FILE=` in the setup file using `vi`, `gedit`, `atom`, `vscode`, or any other editor.
-Adapt the command to point to your custom file and hit `source ~/.bash_profile`.
+This will install the core python package and place all scripts in the `bin`-folder of the environment.
+The repository works with a `config`-file called `spinoza_config`.
+This file contains all the relevant parameters for your setup/project, such as project directory, project names, paths to singularity image, configuration of anatomical files, etc.
+It is sourced by `spinoza_setup`, which will be placed in the `~/.bash_profile` file.
+So everytime a new terminal is opened, `spinoza_setup` is sourced, which refreshes the environment with your configuration file.
+This makes it easy to switch between projects without much hassle.
 
-At this point, you will want to edit the `spinoza_setup` file to point to the correct paths.
-These include:
+The configuration is handled by `spinoza_install`.
+Running `spinoza_install setup` will do the following:
+
+- Adding `spinoza_setup` sourcing to `~/.bash_profile` (or ~/.zshrc if using Zsh)
+- Ensuring the correct path to the user's personal `spinoza_config` is registered
+- Optionally adding `conda activate <env>` to `~/.bash_profile` if requested
+
+By default, it will copy `spinoza_config` to `~/.spinoza_config`.
+However, if you want a custom location, you can pass this to `spinoza_install` like so:
 
 ```bash
-# path to SPM folder (including cat12 in toolbox-folder)
-export SPM_PATH=${PATH_HOME}/spm12
+spinoza_install setup /path/to/custom_file
+```
 
-# singularity images (if used)
-export MRIQC_SIMG=""
-export FPREP_SIMG=""
+This will make the copy of `spinoza_config` as `/path/to/custom_file`.
+In 
 
-# project information
-export DIR_PROJECTS="/path/to/projects"
-export PROJECT="project1"
-export TASK_SES1=("task1")
-export ACQ=("MP2RAGE")  # or ("MP2RAGE" "MP2RAGEME")
-export PE_DIR_BOLD="AP" # phase encoding direction of functional files
-export PATH_HOME=${DIR_PROJECTS}/logs # place where temp/intermediate/log files will be stored
+If you're on a shared system (e.g., cluster) with a single installation, please copy the `spinoza_setup` file to a custom location.
+You can now edit the file to your needs:
 
-# freesurfer
-export FREESURFER_HOME=<path to FreeSurfer installation>
-export FS_LICENSE=$FREESURFER_HOME/license.txt
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
+```bash
+# stuff about the project
+export DIR_PROJECTS="/home/gjheij/git/openfmri" # project root
+export PROJECT="AgeRF"                          # project name
+export TASK_SES1=("scenes")                     # task names; can also be ("task1" "task2" "task3"), relevant for pybest
+export SUBJECT_PREFIX="sub-"                    # prefix
+export PATH_HOME=${DIR_PROJECTS}/logs           # log directory
+
+# stuff about the anatomical configuration
+export ACQ=("MPRAGE")   # or ("MP2RAGE" "MP2RAGEME")
+export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
+export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w") # files suffixed with these will be copied into the 'anat' folder. 
+
+# [optional] phase encoding direction for BOLD; assume inverse for FMAP
+# You can also keep this empty with "" (or delete) and use --ap/--pa flags (see spinoza_scanner2bids)
+export PE_DIR_BOLD="AP"
+```
+
+If you have access to matlab, spm, and cat12, you can specify some paths here:
+```bash
+# MATLAB
+export MRRECON=/packages/matlab/toolbox/MRecon/3.0.541  
+export MATLAB_CMD="matlab -nosplash -nodisplay -batch" # find with 'which matlab'
+export SPM_PATH=${PATH_HOME}/spm12    
+export SKIP_LINES=34  
+```
+
+Information for fMRIprep goes here:
+```bash
+# fMRIPREP
+export MRIQC_SIMG=/path/to/containers_bids-mriqc--23.0.1.simg
+export FPREP_SIMG=/path/to/containers_bids-fmriprep--20.2.5.simg
+export FPREP_OUT_SPACES="fsnative func"
+export FPREP_BINDING="/path/to" # binding directory for singularity image
+export CIFTI="" # leave empty if you don't want cifti output
+export DO_SYN=0 # set to zero if you do not want additional syn-distortion correction
+export BOLD_T1W_INIT="register" # default = register; for partial FOV, set to 'header'
+export FS_LICENSE=${REPO_DIR}/misc/license.txt  # this thing needs to be along the FPREP_BINDING path!
 ```
 
 After editing the file you want to run `source ~/.bash_profile` again for the changes to take effect.
@@ -72,6 +101,13 @@ Several other software packages need to be accessible from the command line for 
 - [c3d](https://sourceforge.net/projects/c3d/) [optional]: useful for translation of transformation files between `ANTs` and `FSL`
 - [Nighres](https://nighres.readthedocs.io/en/latest/installation.html) [optional]: very good segmentation software for high-resolution data. 
 - [FreeSurfer](https://surfer.nmr.mgh.harvard.edu/fswiki/DownloadAndInstall) [optional]: surface generation software. Not necessarily mandatory, as this can be done within `fMRIprep` too. Nevertheless, several helper-functions are useful to have.
+If you have `FreeSurfer` installed on a local system, ensure the following is in your `~/.bash_profile`-file:
+    ```bash
+    # freesurfer
+    export FREESURFER_HOME=<path to FreeSurfer installation>
+    export FS_LICENSE=$FREESURFER_HOME/license.txt          # if you use singularity, this file must be along the $FPREP_BINDING variable in the config-file
+    source $FREESURFER_HOME/SetUpFreeSurfer.sh
+    ```
 
 Some functionalities regarding surface processing depend on the [cxutils](https://github.com/gjheij/cxutils)-package which wrap around [pycortex](https://github.com/gallantlab/pycortex).
 To install this package too, run:
@@ -227,8 +263,11 @@ If you did use Pymp2rage, we'll be looking for the file in ``<DIR_DATA_HOME>/der
 If you want additional bias correction after denoising, use ``--biascorr``
 
 ```bash
-master -m 08                  # spinoza_biassanlm
-master -m 08 --biascorr       # do bias correction after denoising 
+master -m 08                    # spinoza_biassanlm
+master -m 08 --spm              # do bias correction after denoising with SPM
+master -m 08 --n4               # do bias correction after denoising with ANTs
+master -m 08 --no_sanlm -n4     # no SANLM but bias correction with ANTs
+master -m 08 --n4 -x -s=1       # use '-x' flag to pass kwargs to N4BiasFieldCorrection. Multiple flags should be ':' separated
 ```
 
 Perform brain extraction and white/gray matter + CSF segmentations with CAT12.
