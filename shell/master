@@ -109,7 +109,8 @@ TR_FLAG=""                # spinoza_scanner2bids
 MRI_SYSTEM_FLAG=""        # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
-BIAS_FLAG=""              # spinoza_qmrimaps
+BIAS_FLAG=""              # spinoza_biassanlm
+SANLM_FLAG=""             # spinoza_biassanlm
 BG_FLAG=""                # spinoza_qmrimaps
 PARS_FILE=""              # spinoza_qmrimaps
 PROT_FLAG=""              # spinoza_scanner2bids
@@ -154,7 +155,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         anat_only)
           mod_flag="--anat_only"
-          ;;
+          ;;        
         ap)
           pe_dir_flag="--ap"
           ;;
@@ -163,9 +164,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         bgfs)
           use_constr="--bgfs"
-          ;;
-        biascorr)
-          BIAS_FLAG="--biascorr"
           ;;
         bold)
           BOLD_FLAG="--bold"
@@ -314,6 +312,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         nelder)
           use_constr="--nelder"
           ;;
+        n4)
+          BIAS_FLAG="--n4"
+          ;;          
         no_bbr)
           use_bbr="--no_bbr"
           ;;
@@ -353,6 +354,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no_raw)
           raw_flag="--no_raw"
           ;;
+        no_sanlm)
+          SANLM_FLAG="--no_sanlm"
+          ;;          
         no_srf)
           SRF_FLAG="--no_srf"
           ;;
@@ -422,9 +426,12 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         srf_file)
           SRF_FILE="--srf_file"
           ;;
+        spm)
+          BIAS_FLAG="--spm"
+          ;;
         surface)
           LAYER_FLAG="surface"
-          ;;
+          ;;          
         tc)
           use_constr="--tc"
           ;;
@@ -1194,12 +1201,20 @@ if [[ $? -eq 0 ]]; then
   fi
 
   INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
-  
+
+  # check for lsprep kwargs
+  KWARGS_FLAG=""
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   ${job} spinoza_biassanlm \
     ${SUBJECT} \
     ${SESSION} \
     ${BIAS_FLAG} \
     ${OW} \
+    ${KWARGS_FLAG} \
+    ${SANLM_FLAG} \
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then
