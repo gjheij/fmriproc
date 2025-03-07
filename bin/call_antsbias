@@ -17,18 +17,15 @@ after specifying the input and output files.
 This script allows specifying:
 - Required input file
 - Required output file
-- Common options like shrink factor and convergence
 - Any additional options from N4BiasFieldCorrection, passed as extra arguments (kwargs).
 
 Usage:
   call_antsbias [default_options] <input file> <output file> [extra_options]
 
 Options:
-  -o                     Overwrite existing output file
-  -s shrink              Set shrink factor (default: 1 -> keep native resolution)
-  -c convergence         Set convergence (default: 50x50x50x50)
-  --verbose              Make some noise
-  [extra_options]        anything after gets passed to N4BiasFieldCorrection
+  -o                Overwrite existing output file
+  -v                Make some noise
+  [extra_options]   anything after gets passed to N4BiasFieldCorrection
 
 Example:
   call_antsbias -s 4 input.nii.gz output.nii.gz -x mask.nii.gz -r 1
@@ -46,18 +43,13 @@ USAGE
 #---------------------------------------------------------------------------------------------------
 # Defaults
 ow=0
-shrink=1
-convergence="50x50x50x50"
-threshold="1e-10"
 verbose=0
 
 #---------------------------------------------------------------------------------------------------
 # Parse options
-while getopts "vos:c:" opt; do
+while getopts "vo:" opt; do
   case $opt in
     o) ow=1 ;;
-    s) shrink="$OPTARG" ;;
-    c) convergence="$OPTARG" ;;
     v) verbose=1 ;;
     *) Usage ;;
   esac
@@ -107,10 +99,8 @@ fi
 
 echo "Running N4BiasFieldCorrection:"
 echo "  Input          = $(basename "$input")"
-echo "  Dimensionality = $dim"
-echo "  Shrink factor  = $shrink"
-echo "  Convergence    = [$convergence,$threshold]"
 echo "  Output         = $(basename "$output")"
+echo "  Dimensionality = $dim"
 echo "  Extra options  = ${extra_args[*]:-(none)}"
 echo
 
@@ -118,8 +108,6 @@ cmd=(
   N4BiasFieldCorrection
   --image-dimensionality "$dim"
   --input-image "$input"
-  --shrink-factor "$shrink"
-  --convergence "[$convergence,$threshold]"
   --output "$output"
   --verbose ${verbose}
   "${extra_args[@]}"
