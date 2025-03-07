@@ -69,11 +69,10 @@ You can now edit the file to your needs:
 
 ```bash
 # stuff about the project
-export DIR_PROJECTS="/home/gjheij/git/openfmri" # project root
-export PROJECT="AgeRF"                          # project name
-export TASK_SES1=("scenes")                     # task names; can also be ("task1" "task2" "task3"), relevant for pybest
-export SUBJECT_PREFIX="sub-"                    # prefix
-export PATH_HOME=${DIR_PROJECTS}/logs           # log directory
+export DIR_PROJECTS="/path/to/some_projects"
+export PROJECT="project_name1"
+export TASK_IDS=("task1") # ("task1" "task2" "task3")
+export PATH_HOME="${DIR_PROJECTS}/logs"
 
 # stuff about the anatomical configuration
 export ACQ=("MPRAGE")   # or ("MP2RAGE" "MP2RAGEME")
@@ -105,6 +104,42 @@ export DO_SYN=0 # set to zero if you do not want additional syn-distortion corre
 export BOLD_T1W_INIT="register" # default = register; for partial FOV, set to 'header'
 export FS_LICENSE=${REPO_DIR}/misc/license.txt  # this thing needs to be along the FPREP_BINDING path!
 ```
+
+The pipeline also has several functions/modules that can run on a cluster (SoGE/SLURM).
+You can find out if you have access to either with:
+```bash
+# Check scheduler type
+if command -v qsub >/dev/null 2>&1; then
+    echo "soge"
+elif command -v sbatch >/dev/null 2>&1; then
+    echo "slurm"
+else
+    echo "Neither SoGE (qsub) nor SLURM (sbatch) detected." >&2
+fi
+```
+
+By default, the configuration file contains a setup for `SoGE`:
+```bash
+export SGE_QUEUE_LONG="long.q@jupiter"
+export SGE_QUEUE_SHORT="short.q@jupiter"
+```
+
+If you have access to a SLURM-system, you'll want to adapt these queues so that jobs are correctly submitted.
+The following functions can be submitted (regardless of SoGE/SLURM) with `--sge`:
+- `call_feat`
+- `call_freesurfer`
+- `spinoza_scanner2bids`    [-m 02a]
+- `spinoza_mriqc`           [-m 02b]
+- `spinoza_qmrimap`         [-m 04]
+- `spinoza_registration`    [-m 05*]
+- `spinoza_nordic`          [-m 10]
+- `spinoza_freesurfer`      [-m 14]
+- `spinoza_fmriprep`        [-m 15]
+- `spinoza_denoising`       [-m 16]
+- `spinoza_mgdm`            [-m 20]
+- `spinoza_subcortex`       [-m 24]
+
+The specific queue and number of cores can be adjusted with the `-q <queue>` and `-j <n_cpus>` flags.
 
 After editing the file you want to run `source ~/.bash_profile` again for the changes to take effect.
 
@@ -651,9 +686,10 @@ Note that this workflow does need a whole-brain acquisition to extract some data
 
 - [x] refactor `linescanning`-repository: most fitting procedures are in [lazyfmri](https://github.com/gjheij/lazyfmri), while surface-based processing is done by [cxutils](https://github.com/gjheij/cxutils)
 - [x] Docstrings in numpy format.
-- [x] Examples of applications for package (add notebooks to `doc/source/examples`)
-- [x] Make compatible with SIEMENS data
-- [ ] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
+- [x] Examples of applications for package (add notebooks to `fmriproc/notebooks`)
+- [x] Make compatible with DICOM data
+- [x] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
+- [ ] Add support for SLURM (NOT TESTED!)
 - [ ] Port documentation from `linescanning` to `fmriproc`
 - [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - ..
