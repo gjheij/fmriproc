@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
 #---------------------------------------------------------------------------------------------------------
-# Load setup and helper functions
-call_loadsetup
-source "${SETUP_FILE}"
-source call_bashhelper  # Loads start_timer and end_timer
+# check if there's is a setup file containing the major paths and source it if it exists
+source ${SETUP_FILE}
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -14,51 +13,74 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_scanner2bids
 
-Convert raw data from the scanner to nifti format. Depending on the session, the script either uses
-`call_dcm2niix.py` (for session 1 - which is FromScannerToBIDS.py from M. Aqil) or `call_dcm2niix.sh`
-for line scanning sessions.
+convert raw data from the scanner to nifti format. Depending on which session we're analyzing, we'll
+use either call_dcm2niix.py (session 1 - which is FromScannerToBIDS.py from M. Aqil) which can deal
+nicely with the anatomical and functional stuff or call_dcm2niix.sh, which is more specific for the
+line scanning stuff.
 
-Usage:
-  spinoza_scanner2bids [options] <project root> <sourcedata>
-
-Arguments:
-  -s <subject>        Subject ID (e.g., 01). Can also be comma-separated: 01,02,05
-  -n <session>        Session ID (e.g., 1, 2, or none)
-  -d <depth>          Search depth for dcm2niix
-  -q <queue>          Submit jobs to a specific queue (default: SGE_QUEUE_LONG)
+Input options:
+  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -d <depth>          search depth for dcm2niix
+  <project root>      directory to output BIDSified data to
+  <sourcedata>        directory containing to be converted data
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   -o|--ow             Overwrite existing output
-  --full              Full overwrite (nifti and BIDS folders)
-  --lines             Flag for line-scanning sessions
-  --inv                Add individual inversion files to anat folder
-  --take-avg-tr       Average all TRs from par file instead of taking the first
-  --ap|--pa|--lr|--rl  Phase-encoding direction (overrides PE_DIR_BOLD in setup file)
-  --no_lpi             Skip reorienting to LPI (not recommended, for debugging only)
-  --sge                Submit subjects to cluster (via qsub)
-  --phys               Convert physiology only
-  --skip_tr            Do not overwrite TR in header (for debugging)
+  --full              Overwrite existing output + created nifti folder
+  --lines             flag to tell we're dealing with a line-scanning session. By default 'regular',
+                      which means standard whole-brain acquisitions.
+  --inv               add individual inversion files from anatomies in 'anat' folder
+  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
+                      sequence of TRs
+  --ap|--pa|--lr|--rl Specifies the phase-encoding direction for the BOLD run. The phase-encoding 
+                      for the FMAP will be automatically inverted. This flag can be specified to be
+                      a bit more flexible than using the PE_DIR_BOLD-variable in the setup file
+  --no_lpi            do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
+                      puts on more raw data, I'd advise you to reorient to LPI and to NOT use this 
+                      flag. This flag is mainly here because it can take some time with big files
+                      which slows down debugging.
+  --sge               submit individual subjects to cluster as call_parrec2nii can take a while..
+  --phys              run only physiology conversion
+  --skip_tr           do not overwrite the TR in the header during call_bids. Generally not recom-
+                      mended, but exists for debugging purposes.
 
-Examples:
-  spinoza_scanner2bids /path/to/project_root /path/to/sourcedata
-  spinoza_scanner2bids -n 1 /path/to/project_root /path/to/sourcedata
-  spinoza_scanner2bids --lines -n 2 /path/to/project_root /path/to/sourcedata
+Example:
+  spinoza_scanner2bids /path/to/project_root /path/to/your/project/sourcedata     # regular
+  spinoza_scanner2bids -n 1/path/to/project_root /path/to/your/project/sourcedata # regular|ses-1
+  spinoza_scanner2bids (shows this help text)                                     # help
+  spinoza_scanner2bids --lines -n 2 DIR_DATA_HOME DIR_DATA_SOURCE                 # lines|ses-2
 
-Assumed structure:
-  PROJECT_ROOT
+Notes:
+  Assumes the following data structure:
+  PROJECT
   └── sourcedata
       └── sub-001
           └── ses-1
+              ├── task
               └── DICOMs/PARRECs
+              
+  Converts to:
+  PROJECT
+  └── sub-001
+      └── ses-1
+          ├── anat
+          ├── func
+          ├── fmap
+          └── phase
 
----------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------
 
 EOF
     exit 1
 }
 
 #---------------------------------------------------------------------------------------------------------
-# Argument parsing
+# Deal with arguments
+
+# Check for subject & session flags
 OW=""
 FULL_OW=0
+SES_FLAG=""
 SES_TYPE="regular"
 ADD_INV=""
 ORIENT_FLAG=""
@@ -67,117 +89,226 @@ PE_FLAG=""
 SGE_FLAG=0
 DEBUG_MODE=0
 PHYS_FLAG=""
-SKIP_TR=""
-MRI_SYSTEM_FLAG=""
 SEARCH_DEPTH=0
 TR_FLAG=""
-subjects=()
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -s) IFS=',' read -r -a subjects <<< "$2"; shift 2 ;;
-        -n) session="$2"; shift 2 ;;
-        -d) SEARCH_DEPTH="$2"; shift 2 ;;
-        -q) SGE_QUEUE="$2"; shift 2 ;;
-        -o|--ow) OW="--ow"; shift ;;
-        --full) FULL_OW=1; shift ;;
-        --lines) SES_TYPE="lines"; SES_FLAG="--lines"; shift ;;
-        --inv) ADD_INV="--inv"; shift ;;
-        --take-avg-tr) PROT_FLAG="--take-avg-tr"; shift ;;
-        --ap|--pa|--lr|--rl) PE_FLAG="--${1#--}"; shift ;;
-        --no_lpi) ORIENT_FLAG="--no_lpi"; shift ;;
-        --sge) SGE_FLAG=1; shift ;;
-        --phys) PHYS_FLAG="--phys"; SES_TYPE="lines"; shift ;;
-        --skip_tr) SKIP_TR="--skip_tr"; shift ;;
-        --philips|--siemens|--ge) MRI_SYSTEM_FLAG="$1"; shift ;;
-        --debug) DEBUG_MODE=1; shift ;;
-        -h|--help) Usage ;;
-        --) shift; break ;;
-        *) 
-            if [[ -z "$PROJECT_ROOT" ]]; then
-                PROJECT_ROOT="$1"
-            elif [[ -z "$SOURCEDATA" ]]; then
-                SOURCEDATA="$1"
-            else
-                Usage
-            fi
-            shift
-            ;;
-    esac
+MRI_SYSTEM_FLAG=""
+SKIP_TR_FLAG=""
+while getopts :-:os:n:r:q:d:t: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        lines)
+          SES_FLAG="--lines"
+          SES_TYPE="lines"
+          ;;
+        inv)
+          ADD_INV="--inv"
+          ;;
+        take-avg-tr)
+          PROT_FLAG="--take-avg-tr"
+          ;;         
+        ap)
+          PE_FLAG="--ap"
+          ;;          
+        pa)
+          PE_FLAG="--pa"
+          ;;         
+        lr)
+          PE_FLAG="--lr"
+          ;;         
+        rl)
+          PE_FLAG="--rl"
+          ;;        
+        no_lpi)
+          ORIENT_FLAG="--no_lpi"
+          ;;       
+        ow)
+          OW="--ow"
+          ;;  
+        phys)
+          PHYS_FLAG="--phys"
+          SES_TYPE="lines"
+          ;;           
+        full)
+          FULL_OW=1
+          ;;  
+        sge)
+          SGE_FLAG=1
+          if [[ ! -d ${DIR_LOGS} ]]; then
+            mkdir -p ${DIR_LOGS} 2>/dev/null
+          fi
+          ;;     
+        debug)
+          DEBUG_MODE=1
+          ;;       
+        skip_tr)
+          SKIP_TR="--skip_tr"
+          ;;                       
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}, did you mean \"--lines\"?"
+            exit 1
+          fi
+          ;;  
+      esac;;    
+    s)  sub=${OPTARG}
+          ;;
+    d)  SEARCH_DEPTH=${OPTARG}
+          ;;          
+    n)  ses=${OPTARG}
+          ;;     
+    o)  OW="--ow"
+          ;;    
+    r)  RUNS="-r ${OPTARG}"                                 
+          ;;
+    q)  SGE_QUEUE=${OPTARG}
+          ;;
+    t)  TR_FLAG="-t ${OPTARG}"
+          ;;                               
+  esac
 done
+
+if [[ $# -lt 2 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+PROJECT_ROOT=${@:$OPTIND:1}
+SOURCEDATA=${@:$OPTIND+1:1}
 
 [[ -z "$PROJECT_ROOT" || -z "$SOURCEDATA" ]] && Usage
 
 # If no subjects specified, process all found in sourcedata
-if [[ ${#subjects[@]} -eq 0 ]]; then
-    while IFS= read -r subdir; do
-        subjects+=("$(basename "$subdir")")
-    done < <(find "$SOURCEDATA" -mindepth 1 -maxdepth 1 -type d)
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${SOURCEDATA}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
 fi
 
-#---------------------------------------------------------------------------------------------------------
-# Main processing loop
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Start clock
+#-----------------------------------------------------------------------------
 start_timer "Convert raw data to NIFTI using dcm2niix/parrec2nii"
 
-for sub in "${subjects[@]}"; do
-    sub_name="${SUBJECT_PREFIX}${sub}"
+#-----------------------------------------------------------------------------
+# Run it
+for subID in ${search}; do
 
-    if [[ -n "$session" ]]; then
-        base_path="sub-${sub}/ses-${session}"
-        base="sub-${sub}_ses-${session}"
+  # collect subject name
+  if [[ ! -z ${sub} ]]; then
+    sub_name=${SUBJECT_PREFIX}${subID}
+  else
+    sub_name=$(basename ${subID})
+  fi
+
+  if [[ ! -z ${ses} ]]; then
+    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    base_path=${sub_name}/ses-${nr}
+    base=${sub_name}_ses-${nr}
+    msg="${sub_name} ses-${ses}: already processed"
+  else
+    base_path=${sub_name}
+    base=${sub_name}
+    msg="${sub_name}: already processed"
+  fi  
+
+  input_dir=${SOURCEDATA}/${base_path}
+  output_dir=${input_dir}/nifti
+  bids_dir=${PROJECT_ROOT}/${base_path}
+
+  # full overwrite
+  [[ $FULL_OW -eq 1 ]] && rm -rf "$output_dir" "$bids_dir"
+  
+  if [[ ! -d "$input_dir" ]]; then
+    echo "Missing $input_dir, skipping $sub"
+    continue
+  fi
+
+  # check if input directory exists
+  if [[ ! -d "$bids_dir/anat" || ! -d "$bids_dir/func" || -n "$OW" || $DEBUG_MODE -eq 1 || -n "$PHYS_FLAG" ]]; then
+
+    if [[ ${SES_TYPE} == "lines" ]]; then
+      intro_txt="Exotic session (e.g., line-scanning); using call_dcm2niix"
     else
-        base_path="sub-${sub}"
-        base="sub-${sub}"
+      intro_txt="Regular session, but with call_parrec2nii fix for big PAR/REC files"
     fi
 
-    input_dir="${SOURCEDATA}/${base_path}"
-    output_dir="${input_dir}/nifti"
-    bids_dir="${PROJECT_ROOT}/${base_path}"
-
-    [[ $FULL_OW -eq 1 ]] && rm -rf "$output_dir" "$bids_dir"
-
-    if [[ ! -d "$input_dir" ]]; then
-        echo "Missing $input_dir, skipping $sub"
-        continue
-    fi
-
-    if [[ ! -d "$bids_dir/anat" || ! -d "$bids_dir/func" || -n "$OW" || $DEBUG_MODE -eq 1 || -n "$PHYS_FLAG" ]]; then
-        intro_txt="Processing ${sub_name}: "
-        [[ "$SES_TYPE" == "lines" ]] && intro_txt+="Exotic (line-scanning)" || intro_txt+="Regular session"
-        echo "$intro_txt"
-
-        if [[ $SGE_FLAG -eq 1 ]]; then
-            QUEUE="${SGE_QUEUE:-$SGE_QUEUE_LONG}"
-            job="qsub -q $QUEUE -wd $DIR_LOGS -pe smp 1 -N ${base}_desc-dcm2bids"
-        else
-            job="bash"
-        fi
-
-        cmd="$job $(which call_bids) $SES_FLAG $ADD_INV $ORIENT_FLAG $PROT_FLAG $PE_FLAG $OW $PHYS_FLAG $TR_FLAG $MRI_SYSTEM_FLAG $SKIP_TR -i $input_dir -o $output_dir -b $bids_dir -n $base -d $SEARCH_DEPTH $RUNS"
-
-        [[ $DEBUG_MODE -eq 1 ]] && echo "Running: $cmd"
-
-        eval "$cmd"
+    if [[ ${SGE_FLAG} -eq 1 ]]; then
+      if [[ ! -z ${SGE_QUEUE} ]]; then
+        QUEUE=${SGE_QUEUE}
+      else
+        QUEUE=${SGE_QUEUE_LONG}
+      fi        
+      job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp 1 -N ${base}_desc-dcm2bids"
     else
-        echo "${sub_name}: already processed (use --ow or --full to force re-run)"
+      job="bash"
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+      echo ${intro_txt}
     fi
+
+    if [[ ${DEBUG_MODE} -eq 1 ]]; then
+      echo " OW          = ${OW}"
+      echo " FULL_OW     = ${FULL_OW}"
+      echo " SES_FLAG    = ${SES_FLAG}"
+      echo " ADD_INV     = ${ADD_INV}"
+      echo " ORIENT_FLAG = ${ORIENT_FLAG}"
+      echo " PROT_FLAG   = ${PROT_FLAG}"
+      echo " PE_FLAG     = ${PE_FLAG}"
+      echo " RUNS FLAG   = ${RUNS}"
+      echo " PHYS FLAG   = ${PHYS_FLAG}"
+      echo " TR FLAG     = ${TR_FLAG}"
+    fi
+
+    call_=`which call_bids`
+    cmd="""${job} ${call_} \
+      ${SES_FLAG} \
+      ${ADD_INV} \
+      ${ORIENT_FLAG} \
+      ${PROT_FLAG} \
+      ${PE_FLAG} \
+      ${OW} \
+      ${PHYS_FLAG} \
+      ${TR_FLAG} \
+      ${SKIP_TR} \
+      -i ${input_dir} -o ${output_dir} -b ${bids_dir} -n ${base} -d ${SEARCH_DEPTH} ${RUNS}"""
+
+    # echo command if running locally
+    if [[ ${SGE_FLAG} -eq 0 ]]; then
+      echo
+      echo ${cmd}
+    fi
+
+    ${cmd}
+      
+  else
+    echo "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"
+  fi
+
 done
+
+#---------------------------------------------------------------------------------------------------------
+# make dataset_description file if it doesn't exist. User enters a line for the description
 
 #---------------------------------------------------------------------------------------------------------
 # Dataset description
 if [[ ! -f "${PROJECT_ROOT}/dataset_description.json" ]]; then
-    cd "$PROJECT_ROOT"
-    echo "Enter project name for dataset_description.json: "
-    read -r DESCRIPTION
-    cat > dataset_description.json <<EOF
+  cd "$PROJECT_ROOT"
+  echo "Enter project name for dataset_description.json: "
+  read -r DESCRIPTION
+  cat > dataset_description.json <<EOF
 {
     "Name": "$DESCRIPTION",
     "BIDSVersion": "1.2.2",
     "Authors": ["G.J. Heij"]
 }
 EOF
-    cd - > /dev/null
+  cd - > /dev/null
 fi
 
 #---------------------------------------------------------------------------------------------------------
