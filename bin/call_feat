@@ -66,7 +66,15 @@ do
   esac
 done
 
-fsf_file=`readlink -f ${@:$OPTIND:1}`
+abs_path() {
+    # Get absolute path, even if file/dir does not exist
+    case "$1" in
+        /*) echo "$1" ;;  # already absolute
+        *) echo "$PWD/$1" ;;  # relative path -> prepend working dir
+    esac
+}
+
+fsf_file=$(abs_path "${@:$OPTIND:1}")
 if [[ $# -lt 2 ]] ; then
   Usage >&2
   exit 1

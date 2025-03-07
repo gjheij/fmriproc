@@ -120,9 +120,18 @@ if [[ $# -lt 3 ]] ; then
   Usage >&2
   exit 1
 fi
+
+abs_path() {
+    # Get absolute path, even if file/dir does not exist
+    case "$1" in
+        /*) echo "$1" ;;  # already absolute
+        *) echo "$PWD/$1" ;;  # relative path -> prepend working dir
+    esac
+}
+
 IN_CSV=${@:$OPTIND:1}
-OUT_CSV=`readlink -f ${@:$OPTIND+1:1}`
-WARP=`readlink -f ${@:$OPTIND+2:1}`
+OUT_CSV=$(abs_path ${@:$OPTIND+1:1})
+WARP=$(abs_path ${@:$OPTIND+2:1})
 
 # check if we have to invert our matrix
 APPLY="[${WARP},${INVERT}]"

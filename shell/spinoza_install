@@ -106,6 +106,16 @@ function detect_profile() {
 }
 
 # ---------------------------------------------------------------------------------------------------
+# Read absolute path. Readlink/realpath require the path to exists
+abs_path() {
+    # Get absolute path, even if file/dir does not exist
+    case "$1" in
+        /*) echo "$1" ;;  # already absolute
+        *) echo "$PWD/$1" ;;  # relative path -> prepend working dir
+    esac
+}
+
+# ---------------------------------------------------------------------------------------------------
 # Main logic
 if [[ $# -lt 1 ]]; then
     Usage
@@ -118,10 +128,10 @@ CUSTOM_SETUP_PATH=""
 if [[ "$2" == "no_conda" ]]; then
     ADD_CONDA=0
     if [[ -n "$3" ]]; then
-        CUSTOM_SETUP_PATH="$(readlink -f $3)"
+        CUSTOM_SETUP_PATH=$(abs_path ${3})
     fi
 elif [[ -n "$2" ]]; then
-    CUSTOM_SETUP_PATH="$(readlink -f $2)"
+    CUSTOM_SETUP_PATH=$(abs_path ${2})
 fi
 
 # ---------------------------------------------------------------------------------------------------

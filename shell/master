@@ -16,6 +16,10 @@ else
 fi
 job="bash"
 
+# source helper functions
+source ${SETUP_FILE}
+source call_bashhelper
+
 # Allocate input arguments to variables
 #
 HELP=0
@@ -516,7 +520,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       ;;
     p)
       PRF_MODEL=${OPTARG}
-      PARS_FILE="-p $(readlink -f ${OPTARG})"
+      PARS_FILE="-p $(abs_path \"${OPTARG}\")"
       ;;
     c)
       C_FLAG=${OPTARG}
@@ -558,14 +562,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       FOLDS_FLAG="-f ${OPTARG}"
       ;;
     k)
-      kwargs_file="-k $(readlink -f ${OPTARG})"
+      kwargs_file="-k $(abs_path \"${OPTARG})\""
       ;;
   esac
 done
-
-# source helper functions
-source ${SETUP_FILE}
-source call_bashhelper
 
 # set the execute flag
 FLAG_executeModule="${MOD}"

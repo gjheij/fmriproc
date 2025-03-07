@@ -40,6 +40,14 @@ USAGE
     exit 1
 }
 
+abs_path() {
+    # Get absolute path, even if file/dir does not exist
+    case "$1" in
+        /*) echo "$1" ;;  # already absolute
+        *) echo "$PWD/$1" ;;  # relative path -> prepend working dir
+    esac
+}
+
 #---------------------------------------------------------------------------------------------------
 # Defaults
 ow=0
@@ -62,8 +70,8 @@ if [[ $# -lt 1 ]]; then
   Usage
 fi
 
-input="$(readlink -f "$1" 2>/dev/null || realpath "$1")"
-output="$(readlink -f "${2:-}" 2>/dev/null || realpath "${2:-}")"
+input="$(abs_path "$1")"
+output="$(abs_path "${2:-}")"
 
 shift 2 || true  # Shift away input & output arguments if present
 

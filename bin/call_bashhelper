@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
 # ---------------------------------------------------------------------------------------------------
+# Get full path without the requirement that it exists
+abs_path() {
+    # Get absolute path, even if file/dir does not exist
+    case "$1" in
+        /*) echo "$1" ;;  # already absolute
+        *) echo "$PWD/$1" ;;  # relative path -> prepend working dir
+    esac
+}
+
+# ---------------------------------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {
     echo
@@ -973,7 +983,7 @@ function add_prefix {
 }
 
 function get_id {
-  func=$(basename `readlink -f ${1}`)
+  func=$(basename $(abs_path "${1}"))
   tag=${2}
   if [[ ${func} != *"${tag}"* ]]; then
     tag=""
@@ -1128,7 +1138,7 @@ function fetch_filepath {
 
   # if file specified is in current directory, add entire path
   if [[ `echo ${1:0:1}` != "/" ]]; then
-    INPUT=`readlink -f ${1}`
+    INPUT=$(abs_path "${1}")
   else
     INPUT=${1}
   fi
@@ -1356,7 +1366,7 @@ Example:
 USAGE
 }
 
-  in_file=`readlink -f ${1}`
+  in_file=$(abs_path "${1}")
   interp=${2}
   output_dir=${3}
   base_name=${4}

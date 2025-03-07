@@ -90,7 +90,7 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 # positional args
-INPUT=`readlink -f ${@:$OPTIND:1}`
+INPUT=$(abs_path "${@:$OPTIND:1}")
 
 # set output directory
 if [[ -z ${out_dir} ]]; then
