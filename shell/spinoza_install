@@ -118,10 +118,10 @@ CUSTOM_SETUP_PATH=""
 if [[ "$2" == "no_conda" ]]; then
     ADD_CONDA=0
     if [[ -n "$3" ]]; then
-        CUSTOM_SETUP_PATH=$(readlink -f ${3})
+        CUSTOM_SETUP_PATH=${3}
     fi
 elif [[ -n "$2" ]]; then
-    CUSTOM_SETUP_PATH=$(readlink -f ${2})
+    CUSTOM_SETUP_PATH=${2}
 fi
 
 # ---------------------------------------------------------------------------------------------------
@@ -142,7 +142,9 @@ if [[ ! -z "${CUSTOM_SETUP_PATH}" ]]; then
     if [[ ! -f ${CONFIG_FILE} ]]; then
         cp ${DEFAULT_CONFIG} "$CONFIG_FILE"
     fi
-
+    
+    # file should exist by now, so re-export it
+    export CONFIG_FILE=$(readlink -f ${CONFIG_FILE})
     echo "📄 Custom config file: ${CONFIG_FILE}"
 else
     echo "📄 No custom config file found. Creating default at $DEFAULT_CONF_FILE"
