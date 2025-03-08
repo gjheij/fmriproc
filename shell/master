@@ -1557,6 +1557,7 @@ if [[ $? -eq 0 ]]; then
     ${RUNS} \
     ${OW} \
     ${jobs_flag} \
+    ${SGE} \
     ${SGE_QUEUE} \
     ${KEEP_RUNS} \
     ${clean_flag} \
