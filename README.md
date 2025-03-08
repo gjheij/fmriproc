@@ -102,8 +102,16 @@ export FPREP_BINDING="/path/to" # binding directory for singularity image
 export CIFTI="" # leave empty if you don't want cifti output
 export DO_SYN=0 # set to zero if you do not want additional syn-distortion correction
 export BOLD_T1W_INIT="register" # default = register; for partial FOV, set to 'header'
-export FS_LICENSE=${REPO_DIR}/misc/license.txt  # this thing needs to be along the FPREP_BINDING path!
+export FS_LICENSE=${REPO_DIR}/misc/license.txt  # copy/generate this at $DIR_PROJECTS
 ```
+
+> [!TIP]
+> You can either use the `license.txt`-file or generate one.
+> If you're using a `singularity` image for fMRIprep, this must be placed along the `FPREP_BINDING`-variable.
+> This variable tells the singularity image where to bind, and thus, where to start looking for files.
+> If your binding path is `/some/dir/`, but your license file is in `~/license.txt`, it will fail because it will not recognize the file.
+> By default, the binding path is set to `$(dirname ${DIR_PROJECTS})`, one directory up from you projects.
+> This is also where your logs will end up, so if you copy the license file (either the generated one or the one in `${REPO_DIR}/misc/license.txt`) to `${DIR_PROJECTS}`, you should be good to go
 
 The pipeline also has several functions/modules that can run on a cluster (SoGE/SLURM).
 You can find out if you have access to either with:
