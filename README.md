@@ -697,7 +697,7 @@ Note that this workflow does need a whole-brain acquisition to extract some data
 - [x] Examples of applications for package (add notebooks to `fmriproc/notebooks`)
 - [x] Make compatible with DICOM data
 - [x] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
-- [ ] Add support for SLURM (NOT TESTED!)
+- [x] Add support for SLURM (NOT TESTED!)
 - [ ] Port documentation from `linescanning` to `fmriproc`
 - [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - ..
