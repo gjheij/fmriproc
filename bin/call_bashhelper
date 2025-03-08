@@ -29,7 +29,7 @@ generate_submission_command() {
         log_path="${workdir}/%x_%j.out"
       else
         # SoGE requires explicit filename
-        log_path="${workdir}/${sub_name}.log"
+        log_path="${workdir}/${job_name}.log"
       fi
     else
       # Assume full file path is given
