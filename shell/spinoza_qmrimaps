@@ -184,7 +184,6 @@ for subID in ${search}; do
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
-      echo "Partial overwrite mode activated"
       rm ${t1w} ${t1map} 2>/dev/null
     fi
 
