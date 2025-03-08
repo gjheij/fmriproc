@@ -49,7 +49,7 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
-n_cpu=1
+n_cpus=1
 run_local=1
 
 # Check for subject & session flags
@@ -73,7 +73,7 @@ do
           ;;
     q)  SGE_QUEUE=${OPTARG}
           ;;    
-    j)  n_cpu=${OPTARG}
+    j)  n_cpus=${OPTARG}
           ;;                     
   esac
 done
@@ -175,7 +175,7 @@ for subID in ${search}; do
 
     if [[ ${run_local} -eq 1 ]]; then
       call_=`which call_nighresmassp`
-      submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpu} ${base}_acq-${DATA^^}_desc-massp ${DIR_LOGS})
+      submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpus} ${base}_acq-${DATA^^}_desc-massp ${DIR_LOGS})
       job="${submit} ${call_}"
     else
       job="call_nighresmassp"

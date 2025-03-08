@@ -104,8 +104,10 @@ Example:
   spinoza_fmriprep <project>/derivatives/masked_mp2rage <project>/derivatives anat
   spinoza_fmriprep -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
                    vatives anat
-  master -m 15 -s 01 -n 1 --func -j 15    # run via master with singularity and 15 cores
-  master -m 15 -s 01 -n 1 --func --docker # run via master with docker
+  
+  master -m 15 -s 01 -n 1 --func              # run locally via master
+  master -m 15 -s 01 -n 1 --func -j 15 --sge  # run via master with singularity and 15 cores
+  master -m 15 -s 01 -n 1 --func --docker     # run via master with docker
 
 ---------------------------------------------------------------------------------------------------
 
@@ -127,7 +129,7 @@ boldref_flag=""
 remove_wf=0
 remove_surf_wf=0
 OW=0
-n_cpu=1
+n_cpus=1
 clean_wd=""
 fsl_flag=""
 func_flag=""
@@ -205,7 +207,7 @@ case ${argument} in
           ;;
     u)  conf=${OPTARG}
           ;;
-    j)  n_cpu=${OPTARG}
+    j)  n_cpus=${OPTARG}
           ;;          
     k)  kwargs_file="-k ${OPTARG}"
           ;;       
@@ -483,7 +485,7 @@ for subID in ${search}; do
     -r ${INPUT} \
     -d ${OUTPUT} \
     -w ${workdir} \
-    -c ${n_cpu} \
+    -c ${n_cpus} \
     ${crash_flag} \
     ${keep_runs} \
     ${confFile} \

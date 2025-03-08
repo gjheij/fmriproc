@@ -179,7 +179,7 @@ for subID in ${search}; do
       else
         QUEUE=${SGE_QUEUE_SHORT}
       fi
-      submit=$(generate_submission_command ${QUEUE} ${n_cpu} ${base}_desc-lsprep ${log_file})
+      submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-lsprep ${log_file})
       call_=`which call_lsprep`
       job="${submit} ${call_}"
     else

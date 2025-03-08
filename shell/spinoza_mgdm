@@ -178,7 +178,7 @@ for subID in ${search}; do
 
       run_mode="Running GhD-version of MGDM with call_gdhmgdm"
       if [[ ${run_local} -eq 0 ]]; then
-        submit=$(generate_submission_command ${SGE_QUEUE} ${n_cpu} ${output_root}-mgdm ${DIR_LOGS})
+        submit=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${output_root}-mgdm ${DIR_LOGS})
         call_=`which call_gdhmgdm`
         run_cmd="${submit} ${call_}"
       else

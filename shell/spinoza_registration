@@ -81,7 +81,7 @@ verb_flag=""
 FSL_FMT=0
 verb=0
 fsl_flag=""
-n_cpu=1
+n_cpus=1
 echo_cmd=0
 
 # Check for subject flag
@@ -128,7 +128,7 @@ do
           ;;
     o)  OW=1
           ;;
-    j)  n_cpu=${OPTARG}
+    j)  n_cpus=${OPTARG}
           ;;           
     q)  SGE_QUEUE=${OPTARG}
           ;;             
@@ -269,7 +269,7 @@ for subID in ${search}; do
         fi
 
         echo "Registering $(basename ${moving}) to $(basename ${fixed}) [${reg_type}]"
-        cmd="${job} ${fsl_flag} ${verb_flag} ${reg_type} -j ${n_cpu} ${fixed} ${moving} ${output_dir}/${base}_${ext}"
+        cmd="${job} ${fsl_flag} ${verb_flag} ${reg_type} -j ${n_cpus} ${fixed} ${moving} ${output_dir}/${base}_${ext}"
 
         if [[ ${verb} -eq 1 || ${echo_cmd} -eq 1 ]]; then
           echo
