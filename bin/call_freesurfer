@@ -290,7 +290,7 @@ CMD(){
   
   if [[ ${run_local} -eq 0 ]]; then
   
-    submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpu} $(dirname ${fs_script})/$(basename ${fs_script} .sh).log ${SUBJECTS_DIR})
+    submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpus} $(basename ${fs_script} .sh) $(dirname ${fs_script}))
   
     ${submit} ${fs_script}
     echo "Now wait until the program has finished and do some editing in FreeView if required."

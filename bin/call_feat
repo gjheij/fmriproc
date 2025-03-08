@@ -89,7 +89,7 @@ echo "feat ${fsf_file}"
 ) > ${fsf_script}
 
 if [[ ${submit} -eq 1 ]]; then
-  job=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${base_name}.log ${DIR_LOGS})
+  job=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${base_name} ${DIR_LOGS})
 else
   job="bash"
 fi
