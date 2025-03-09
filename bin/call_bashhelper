@@ -1059,7 +1059,7 @@ function start_ssh {
     ssh-add ${SSH_KEY}
     ssh -T git@github.com
   else
-    echo "${SSH_KEY} key not found!"
+    echo "${SSH_KEY} key not found! Confirm file exists or set SSH_KEY variable in ~/.bash_profile"
   fi
 }
 
