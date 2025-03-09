@@ -290,12 +290,19 @@ for subID in ${search}; do
         if [[ ${echo_cmd} -eq 0 ]]; then
 
           if [[ ${run_local} -eq 0 ]]; then
-            echo "Waiting to check qstat.."
+            echo "Waiting to qstat/squeue.."
             sleep 10
 
-            wait_for_qsub "${job_name}"
+            system=$(detect_scheduler) || return 1
+            if [[ ${system} == "soge" ]]; then
+              qstat
+            elif [[ ${system} == "slurm" ]]; then
+              squeue
+            fi
+
+            wait_for_job "${job_name}"
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: wait_for_qsub exited with non-zero status"
+              echo "ERROR in `basename ${0}`: wait_for_job exited with non-zero status"
               exit 1
             fi
           fi

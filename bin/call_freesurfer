@@ -294,9 +294,15 @@ CMD(){
   
     ${submit} ${fs_script}
     echo "Now wait until the program has finished and do some editing in FreeView if required."
-    echo "Waiting to qstat.."
+    echo "Waiting to qstat/squeue.."
     sleep 5
-    qstat
+
+    system=$(detect_scheduler) || return 1
+    if [[ ${system} == "soge" ]]; then
+      qstat
+    elif [[ ${system} == "slurm" ]]; then
+      squeue
+    fi
   else
     echo "Running FreeSurfer locally"
     bash ${fs_script}
