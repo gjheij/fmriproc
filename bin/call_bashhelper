@@ -13,14 +13,7 @@ generate_submission_command() {
     local log_path=""
 
     # Check scheduler type
-    if command -v qsub >/dev/null 2>&1; then
-      system="soge"
-    elif command -v sbatch >/dev/null 2>&1; then
-      system="slurm"
-    else
-      echo "Error: Neither SoGE (qsub) nor SLURM (sbatch) detected. Remove --sge flag from call" >&2
-      return 1
-    fi
+    system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
 
     # Determine if workdir is a file or a directory
     if [[ -d "$workdir" ]]; then
@@ -1080,44 +1073,74 @@ function check_function {
   fi
 }
 
-# function to wait for a submitted job
-function wait_for_qsub {
+detect_scheduler() {
+  if command -v qsub >/dev/null 2>&1; then
+    echo "soge"
+  elif command -v sbatch >/dev/null 2>&1; then
+    echo "slurm"
+  else
+    echo "Error: Neither SoGE (qsub) nor SLURM (sbatch) detected. Remove --sge flag from call" >&2
+    return 1
+  fi
+}
+
+# Function to wait for a submitted job (supports both qsub (SGE) and sbatch (SLURM))
+function wait_for_job {
 
   if [[ $# -eq 0 ]]; then
     echo
     echo "---------------------------------------------------------------------------------------------------"
-    echo "wait_for_qsub"
+    echo "wait_for_job"
     echo
-    echo "This function waits until the execution of a submitted job has finished before continuing"
+    echo "This function waits until the execution of a submitted job has finished before continuing."
     echo
-    echo "Usage"
-    echo "  wait_for_qsub <job_name>"
+    echo "Usage:"
+    echo "  wait_for_job <job_name>"
     echo
-    echo "Examples"
-    echo "  wait_for_qsub \"sub-003_all\"    > waits for recon-all for sub-003 to finish"
+    echo "Examples:"
+    echo "  wait_for_job \"sub-003_all\"    # waits for job 'sub-003_all' to finish (SGE or SLURM)"
     echo "---------------------------------------------------------------------------------------------------"
     echo
-  else
-
-    # cut job to 9 characters
-    PID=$(qstat | grep -A0 "${1}" | awk '{print $1}')
-    
-    if [[ -z ${PID} ]]; then
-      echo "ERROR: could not find job!"
-      exit 1
-    fi
-
-    # PID=$(qstat | grep -A0 "qsub_test" | awk '{print $1}')
-    echo "Waiting for job to finish.."
-    while true; do
-      JOBRUNNING=$(qstat -u "`whoami`" | awk '$1 == '"${PID}"'' | wc -l)
-      if [[ ${JOBRUNNING} == "0" ]]; then
-        echo "Job done"
-        break
-      fi
-    done
+    return
   fi
 
+  JOB_NAME="$1"
+
+  # Detect scheduler: SGE/qsub or SLURM/sbatch
+  system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
+
+  # Handle job waiting for SGE (qsub)
+  if [[ "${system}" == "soge" ]]; then
+    # Find job ID based on job name
+    JOB_ID=$(qstat | grep -m1 -F "${JOB_NAME}" | awk '{print $1}')
+    
+    if [[ -z "${JOB_ID}" ]]; then
+      echo "ERROR: Could not find job '${JOB_NAME}' in SGE queue!"
+      return 1
+    fi
+
+    echo "Waiting for SGE job '${JOB_NAME}' (ID: ${JOB_ID}) to finish..."
+    while qstat -u "$(whoami)" | awk '$1 == '"${JOB_ID}"'' | grep -q .; do
+      sleep 10  # Check every 10 seconds
+    done
+    echo "SGE Job '${JOB_NAME}' finished."
+
+  # Handle job waiting for SLURM (sbatch)
+  elif [[ "${system}" == "slurm" ]]; then
+    # Find job ID based on job name
+    JOB_ID=$(squeue --name="${JOB_NAME}" --format="%A" | tail -n 1)
+
+    if [[ -z "${JOB_ID}" || "${JOB_ID}" == "JOBID" ]]; then
+      echo "ERROR: Could not find job '${JOB_NAME}' in SLURM queue!"
+      return 1
+    fi
+
+    echo "Waiting for SLURM job '${JOB_NAME}' (ID: ${JOB_ID}) to finish..."
+    while squeue -u "$(whoami)" --job "${JOB_ID}" | grep -q "${JOB_ID}"; do
+      sleep 10  # Check every 10 seconds
+    done
+    echo "SLURM Job '${JOB_NAME}' finished."
+  fi
 }
 
 
