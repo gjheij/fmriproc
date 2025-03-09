@@ -133,6 +133,25 @@ export SGE_QUEUE_SHORT="short.q@jupiter"
 ```
 
 If you have access to a SLURM-system, you'll want to adapt these queues so that jobs are correctly submitted.
+In SLURM, queues are referred to as partitions.
+The equivalent of SGE queues (`qstat` → `long.q@jupiter`) in SLURM is the partition name (`sinfo` → `long,jupiter`).
+SLURM partitions are typically defined in `sinfo`, and they can look like:
+
+```bash
+$ sinfo
+PARTITION  AVAIL  TIMELIMIT  NODES  STATE NODELIST
+debug      up     1:00:00    2      idle  node01,node02
+short      up     4:00:00    10     mix   node[03-12]
+long       up     7-00:00:00 20     alloc node[13-32]
+jupiter    up     7-00:00:00 15     idle  node[33-47]
+```
+
+Here’s how you can map SGE queues to SLURM partitions:
+```bash
+export SGE_QUEUE_LONG="long"
+export SGE_QUEUE_SHORT="short"
+```
+
 The following functions can be submitted (regardless of SoGE/SLURM) with `--sge`:
 - `call_feat`
 - `call_freesurfer`
