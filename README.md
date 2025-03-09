@@ -168,7 +168,7 @@ The following functions can be submitted (regardless of SoGE/SLURM) with `--sge`
 
 The specific queue and number of cores can be adjusted with the `-q <queue>` and `-j <n_cpus>` flags.
 
-> [!ATTENTION]
+> [!IMPORTANT]
 > After editing the file you want to run `source ~/.bash_profile` again for the changes to take effect.
 
 ---
