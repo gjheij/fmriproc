@@ -1,5 +1,5 @@
 matlabbatch{1}.spm.tools.cat.estwrite.data = {'CHANGE_THIS_INPUT,1'};
-matlabbatch{1}.spm.tools.cat.estwrite.nproc = ${CPUs};
+matlabbatch{1}.spm.tools.cat.estwrite.nproc = 0;
 matlabbatch{1}.spm.tools.cat.estwrite.opts.tpm = {'CHANGE_THIS_SPM_PATH/tpm/TPM.nii'};
 matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';
 matlabbatch{1}.spm.tools.cat.estwrite.output.GM.native = 1;
