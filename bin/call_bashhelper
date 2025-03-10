@@ -1787,7 +1787,7 @@ function make_cat_script {
 
     # Check if we have compatible version; we're using 12.6!!
     VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556")
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "custom")
     if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
       :
     else

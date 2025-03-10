@@ -431,6 +431,17 @@ master -m 08 --n4 -x -s=1       # use '-x' flag to pass kwargs to N4BiasFieldCor
 Perform brain extraction and white/gray matter + CSF segmentations with CAT12.
 If you've skipped the previous step because you want a more thorough denoising of your data, you can specify ``--full`` to do iterative filtering of the data.
 Beware, though, that this is usually a bit overkill as it makes your images look cartoon'ish.
+For now, I have provided `batch`-files compatible with the following versions of CAT12:
+
+```bash
+# the API changes slightly between versions, so it's had to remain agnostic
+ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "custom")
+```
+
+The batch files are located in `$REPO_DIR/misc/cat_batch_r??.m`.
+Version `r2556` corresponds to the MCR-compatible version.
+If you have a different version (`cat ${cat12_dir}/Contents.txt | grep Version`), you can use the CAT12 GUI to fill in the `batch`.
+Save this file as `$REPO_DIR/misc/cat_batch_rcustom.m`.
 
 ```bash
 master -m 09 # spinoza_brainextraction
