@@ -84,7 +84,7 @@ export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w") # files suffixed with these will
 export PE_DIR_BOLD="AP"
 ```
 
-If you have access to matlab, spm, and cat12, you can specify some paths here:
+If you have access to matlab, spm, and cat12, you can specify some paths here (see way below how to deal with MCR; matlab without license):
 ```bash
 # MATLAB
 export MATLAB_CMD="matlab -nosplash -nodisplay -batch" # find with 'which matlab'
@@ -367,7 +367,8 @@ DCM-files will be converted with `dcm2niix`, which will be installed by the envi
 >     - For 3D acquisitions, trust RepetitionTime `(0018,0080)` from DICOM directly. Can be a bit dodgy.
 >     - For 2D Mosaic acquisitions, calculate `TR = NumSlices × SliceMeasurementDuration`.
 >     - For 2D multi-band sequences, apply multi-band correction `(TR / MultiBandFactor)`.
->    b | In case of PAR files, the TR can be deduced from the timing between volumes. You can either select the first interval or the average over the entire run.
+>    b | In case of PAR files, the TR can be deduced from the timing between volumes. 
+You can either select the first interval or the average over the entire run.
 > 
 > The headers of the nifti-files will be corrected based on the derived (or specified) TR.
 
@@ -415,10 +416,10 @@ master -m 07 # spinoza_sinusfrommni
 master -m 05b --affine # use affine registration instead of SyN (is faster, but less accurate)
 ```
 
-Bias correct (*SPM*) and denoise (*SANLM*) your ``T1w``-image.
-If you did not use Pymp2rage_, we'll be looking for the ``T1w``-file in ``DIR_DATA_HOME/<subject>/<ses>/anat``.
+Bias correct (*SPM*/*ANTs*) and denoise (*SANLM*) your ``T1w``-image.
+If you did not use Pymp2rage, we'll be looking for the ``T1w``-file in ``DIR_DATA_HOME/<subject>/<ses>/anat``.
 If you did use Pymp2rage, we'll be looking for the file in ``<DIR_DATA_HOME>/derivatives/pymp2rage/<subject>/<ses>``, otherwise we'll default to ``$DIR_DATA_HOME``.
-If you want additional bias correction after denoising, use ``--biascorr``
+If you want additional bias correction after denoising, use ``--spm`` or ``--n4``.
 
 ```bash
 master -m 08                    # spinoza_biassanlm
@@ -449,7 +450,7 @@ Beware, though, that this is usually a bit overkill as it makes your images look
 ```bash
 master -m 09 # spinoza_brainextraction
 
-# optional
+# optional: also apply SANLM filtering (see previous step)
 master -m 09 --full
 ```
 
@@ -742,11 +743,11 @@ mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2023b/Release/7/depl
 wget ${mcr_link}
 ```
 
-Then, unzip and install the MCR:
+Then, unzip and install the MCR (`-mode silent` is necessary for <2022):
 
 ```bash
 mkdir ~/software/MCR_R2017b
-unzip $(basename ${mcr_link})$ -d ~/software/MCR_R2017b
+unzip $(basename ${mcr_link}) -d ~/software/MCR_R2017b
 sudo ./install -agreeToLicense yes -mode silent
 
 # if you do not have sudo rights use:
