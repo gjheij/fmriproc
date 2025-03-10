@@ -1218,16 +1218,15 @@ function fetch_filepath {
 #-----------------------------------------------------------------------------
 # Define function to call matlab given a script
 function call_matlab {
-
   if [[ $# -ne 1 ]]; then
-    echo "Received 0 arguments, need the path to the matlab script"
+    echo "Received 0 arguments, need the path to the MATLAB script"
     echo
     echo "---------------------------------------------------------------------------------------------------"
     echo "call_matlab"
     echo
-    echo "Wrapper to call matlab from the command line. It'll need a full path to the script and will read"
-    echo "from the SKIP_LINES variable how many lines should be skipped during start up. Seeing all those"
-    echo "module that are added is rather redundant."
+    echo "Wrapper to call MATLAB from the command line. It'll need a full path to the script and will read"
+    echo "from the SKIP_LINES variable how many lines should be skipped during start-up. Seeing all those"
+    echo "modules that are added is rather redundant."
     echo
     echo "Usage:"
     echo "  call_matlab <string_to_matlab_script>"
@@ -1236,19 +1235,40 @@ function call_matlab {
     echo "  call_matlab /path/to/my/matlab_script.m"
     echo "---------------------------------------------------------------------------------------------------"
     echo
-  else
-    if [[ ! -z ${SKIP_LINES} ]]; then
-      skip_lines=${SKIP_LINES}
-    else
-      skip_lines=0
-    fi
+    return 1
+  fi
 
-    MATLAB_SCRIPT=`fetch_filepath ${1}`
-    ${MATLAB_CMD} "addpath('$(dirname ${MATLAB_SCRIPT})'); $(basename ${MATLAB_SCRIPT} .m); quit" | tail -n +${skip_lines} # suppress intro text
-    if [[ $? -ne 0 ]]; then
-      exit 1
-    fi
-  fi  
+  # Check if SKIP_LINES is set; otherwise, default to 0
+  local skip_lines=${SKIP_LINES:-0}
+
+  # Fetch the absolute path of the MATLAB script
+  local MATLAB_SCRIPT=$(fetch_filepath "${1}")
+  
+  # Check if MATLAB_CMD contains 'spm_mcr' or 'run_spm12.sh'
+  if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+    # If using MCR, do NOT modify the path
+    echo "Running with MCR command: ${MATLAB_CMD}"
+    
+    # Save the current LD_LIBRARY_PATH
+    local OLD_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+
+    # add the libraries
+    export PATH=$MCRROOT/bin:$PATH
+    export LD_LIBRARY_PATH=$MCRROOT/runtime/glnxa64:$MCRROOT/bin/glnxa64:$MCRROOT/sys/os/glnxa64
+    ${MATLAB_CMD} "${MATLAB_SCRIPT}" | tail -n +${skip_lines}
+
+    # unset LD_LIBRARY_PATH
+     export LD_LIBRARY_PATH="$OLD_LD_LIBRARY_PATH"
+
+  else
+    # If using standard MATLAB, add path and execute
+    ${MATLAB_CMD} "addpath('$(dirname "${MATLAB_SCRIPT}")'); $(basename "${MATLAB_SCRIPT}" .m); quit" | tail -n +${skip_lines}
+  fi
+
+  # Check exit status and return appropriately
+  if [[ $? -ne 0 ]]; then
+    return 1
+  fi
 }
 
 #-----------------------------------------------------------------------------
@@ -1670,7 +1690,7 @@ function make_physio_script {
 # SPM BRAIN MASK SCRIPT
 function make_mask_script {
 
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -ne 4 ]]; then
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
@@ -1682,6 +1702,7 @@ function make_mask_script {
     echo "Args:"
     echo "  <spm_path>  path to the desired SPM-installation"
     echo "  <input>     input image (gunzip'ed nii-file), generally the INV2 image of an MP2RAGE sequence"
+    echo "  <output>    output image (mask)"
     echo "  <script>    script name"
     echo ""
     echo "Usage:"
@@ -1695,17 +1716,36 @@ function make_mask_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. spmBrainMask on INV-2 image"
+    echo "% Created on `date`. Running with ${VER}"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
-    echo "addpath(genpath('${1}'));"
     echo ""
-    echo "niifile = '${2}';"
-    echo "maskfile=spmBrainMask(niifile);"
+    ) >> ${4}
+
+    # echo to file
+    batch_file=${REPO_DIR}/misc/spmBrainMask_spm12_job.m
+    cat "${batch_file}" >> ${4}
+
+    # change parameters
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS uses BSD sed
+      local sed_cmd="sed -i ''"
+    else
+      # Linux uses GNU sed
+      local sed_cmd="sed -i"
+    fi
+    
+    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${1}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_INPUT|${2}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_OUTPUT|${3}|g" "${4}"
+
+    (
     echo ""
-    echo "exit;"
-    ) >> ${3}
+    echo "spm_jobman('initcfg');"
+    echo "spm('defaults','fMRI')"
+    echo "spm_jobman('serial', matlabbatch);"
+    echo "exit"
+    ) >> ${4}
     
   fi
 }
@@ -1786,7 +1826,7 @@ function make_cat_script {
       sanlm=1             # classic
     fi
 
-    batch_file=${REPO_DIR}/cat_batch_r${VER}.m
+    batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
     if [[ ! -f ${batch_file} ]]; then
       echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
       for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
@@ -1805,8 +1845,8 @@ function make_cat_script {
       local sed_cmd="sed -i"
     fi
 
-    ${sed_cmd} "s|CHANGE_THIS_INPUT|${input}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${spm_path}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_INPUT|${2}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${1}|g" "${4}"
     ${sed_cmd} "s|CHANGE_BIAS_STR|${bias_str}|g" "${4}"
     ${sed_cmd} "s|CHANGE_BIAS_REG|${bias_reg}|g" "${4}"
     ${sed_cmd} "s|CHANGE_BIAS_FWHM|${bias_fwhm}|g" "${4}"

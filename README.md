@@ -709,7 +709,82 @@ This includes data from the surface coils.
 The [fpreputils](https://github.com/gjheij/fpreputils/tree/main)-repository describes a workflow that allows you to run parts of fMRIprep including motion/distortion correction, registration, and confound extraction on partial FOV data.
 Note that this workflow does need a whole-brain acquisition to extract some data from (e.g., a brain mask and tissue segmentations).
 
----
+## Running Matlab without license
+MATLAB® Runtime contains the libraries needed to run compiled MATLAB applications on a target system without a licensed copy of MATLAB.
+The developers from CAT12 have provided a standalone version of CAT12 precompiled with SPM.
+This means we can run CAT12 and SPM functions without a matlab license.
+
+First, download the MCR installer:
+```bash
+cd ~/Downloads
+
+# linux
+mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2017b/deployment_files/R2017b/installers/glnxa64/MCR_R2017b_glnxa64_installer.zip"
+
+# mac (UNTESTED: paths below are representative for linux install [WSL-tested])
+mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2023b/Release/7/deployment_files/installer/complete/maci64/MATLAB_Runtime_R2023b_Update_7_maci64.dmg.zip"
+
+# download
+wget ${mcr_link}
+```
+
+Then, unzip and install the MCR:
+
+```bash
+mkdir ~/software/MCR_R2017b
+unzip $(basename ${mcr_link})$ -d ~/software/MCR_R2017b
+sudo ./install -agreeToLicense yes -mode silent
+
+# if you do not have sudo rights use:
+dest_folder="~/software/MATLAB/MATLAB_Runtime
+./install -agreeToLicense yes -mode silent -destinationFolder ${dest_folder}
+```
+
+This will take a few minutes.
+If you have used `sudo`, it will place the output in `/usr/local/MATLAB/MATLAB_Runtime/v93`.
+If you have used `-destinationFolder`, it'll be different.
+Regardless, this path needs to be in the `~/.bash_profile` file as `MCRROOT`.
+The installer will also echo other paths that need to be added to the `~/.bash_profile` file (`LD_LIBRARY_PATH`), but this is not necessary.
+These paths will be added only when MCR is actually called to avoid messing up the environment.
+
+```bash
+# add this to your ~/.bash_profile (or whatever you used for -destinationFolder)
+# The 'v93' will be there regardless
+export MCRROOT="/usr/local/MATLAB/MATLAB_Runtime/v93"
+```
+
+Next, install the standalone version of CAT12:
+```bash
+# linux
+cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2017b_MCR_Linux.zip"
+
+# mac
+cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2023b_MCR_Mac.zip"
+
+# download
+wget ${cat_link}
+
+# unzip
+unzip $(basename ${cat_link} .zip) -d ~/software
+```
+
+Now, in your configuration file (e.g., `~/.spinoza_config`), edit the `$MATLAB_CMD`-variable:
+
+```bash
+# something along these lines, makes sure the path is correct
+export MATLAB_CMD="${HOME}/$(basename ${cat_link} .zip)/run_spm12.sh ${MCRROOT} script"
+```
+
+> [!WARNING]
+> With the Matlab Runtime (MCR), the following functions are unavailable (because it's NOT a full matlab installation!)
+> - NORDIC (`spinoza_nordic`)
+> - Reconstruction of line-scanning data (`spinoza_linerecon`)
+> - Sampling from MNI152 to FSAverage (`call_mni2fsaverage`)
+> - There are probably more that I haven't verified yet
+>
+> To run these functions, a full matlab installation is required.
+
+Now run `source ~/.bash_profile` and you should be good to go.
 ## Policy & To Do
 
 - [x] refactor `linescanning`-repository: most fitting procedures are in [lazyfmri](https://github.com/gjheij/lazyfmri), while surface-based processing is done by [cxutils](https://github.com/gjheij/cxutils)
@@ -718,6 +793,7 @@ Note that this workflow does need a whole-brain acquisition to extract some data
 - [x] Make compatible with DICOM data
 - [x] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
 - [x] Add support for SLURM (NOT TESTED!)
+- [x] Instructions and functionality for Matlab Runtime (MCR)
 - [ ] Port documentation from `linescanning` to `fmriproc`
 - [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - ..
