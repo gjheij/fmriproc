@@ -1710,7 +1710,6 @@ function make_mask_script {
   fi
 }
 
-
 #-----------------------------------------------------------------------------
 # CAT12 SCRIPT
 function make_cat_script {
@@ -1748,7 +1747,7 @@ function make_cat_script {
 
     # Check if we have compatible version; we're using 12.6!!
     VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170")
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556")
     if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
       :
     else
@@ -1763,8 +1762,6 @@ function make_cat_script {
       exit 1
     fi
 
-    CPUs=0
-
     (
     echo "%-----------------------------------------------------------------------------"
     echo "% Created on `date`. Running with ${VER}"
@@ -1774,302 +1771,47 @@ function make_cat_script {
     echo ""
     ) >> ${4}
 
-    if [[ ${VER} != "2170" ]]; then
-      (
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.data = {'${2},1'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.nproc = ${CPUs};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.tpm = {'${1}/tpm/TPM.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.dartel = 0;"  
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.dartel = 0;" 
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.dartel = 0;"   
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.warps = [0 0];"
-      ) >> ${4}
-
-      if [[ ${3} == 'brain' ]]; then
-        echo "Turning off bias/intensity correction & sanlm-filtering"
-        bias_reg=0
-        bias_fhwm="Inf"
-        app=0
-        sanlm=0
-      else
-        bias_reg=0.001
-        bias_fhwm=60
-        app=2
-        sanlm=2
-      fi
-
-      if [[ ${VER} == "1113" ]]; then
-
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.ngaus = [1 1 2 3 4 2];"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasreg = ${bias_reg};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasfwhm = ${bias_fhwm};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.warpreg = [0 0.001 0.5 0.05 0.2];"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.samp = 3;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.APP = ${app};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.sanlm = ${sanlm};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.NCstr = -Inf;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.LASstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.gcutstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.regstr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.WMHCstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.darteltpm = {'${1}/toolbox/cat12/templates_1.50mm/Template_1_IXI555_MNI152.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.vox = 1.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROI = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.neuromorphometrics = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.lpba40 = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.cobra = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.hammers = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobian.warped = 0;"
-        ) >> ${4}
-
-      elif [[ ${VER} == "1450" ]]; then
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = 0.75;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 1070;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = -Inf;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.dartel.darteltpm = {'${1}/toolbox/cat12/templates_1.50mm/Template_1_IXI555_MNI152.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.vox = 1.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.noROI = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-        ) >> ${4}
-
-      elif [[ ${VER} == "2043" ]]; then
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.data_wmh = {''};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.useprior = '';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = eps;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.setCOM = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.affmod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.spm_kamap = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.75;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASmyostr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.BVCstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.mrf = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.shootingtpm = {'${1}/toolbox/cat12/templates_MNI152NLin2009cAsym/Template_0_GS.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.regstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.vox = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.bb = 12;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtmethod = 'pbt2x';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.SRP = 22;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.reduce_mesh = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.vdist = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.experimental = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.new_release = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.lazy = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.BIDS.BIDSno = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surf_measures = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.noROI = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.labelnative = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.rmat = 0;"
-      ) >> ${4}
-      fi
+    if [[ ${3} == 'brain' ]]; then
+      echo "Turning off bias/intensity correction & sanlm-filtering"
+      bias_str=2.2204e-16 # ultralight
+      bias_reg=0.01       # ultralight
+      bias_fhwm=90        # ultralight
+      app=0               # none
+      sanlm=0             # none
     else
-
-      if [[ ${3} == 'brain' ]]; then
-        echo "Turning off bias/intensity correction & sanlm-filtering"
-        bias_reg=0
-        bias_fhwm="Inf"
-        app=0
-        sanlm=0
-      else
-        bias_reg=0.001
-        bias_fhwm=60
-        app=2
-        sanlm=2
-      fi
-
-      (
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.data = {'${2},1'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.nproc = ${CPUs};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.useprior = '';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.tpm = {'${1}/tpm/TPM.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = 2.22044604925031e-16;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.setCOM = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 1070;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.affmod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = ${sanlm};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.spm_kamap = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASmyostr = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.BVCstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.mrf = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.shootingtpm = {'${1}/toolbox/cat12/templates_MNI152NLin2009cAsym/Template_0_GS.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.regstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.vox = 1.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.bb = 12;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtmethod = 'pbt2x';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.SRP = 22;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.reduce_mesh = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.vdist = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.experimental = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.new_release = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.lazy = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.BIDS.BIDSno = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surf_measures = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.neuromorphometrics = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.lpba40 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.cobra = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.hammers = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.thalamus = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.thalamic_nuclei = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.suit = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.ibsr = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.aal3 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.mori = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.anatomy3 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.julichbrain = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Tian_Subcortex_S4_7T = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_100Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_200Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_400Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_600Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.ownatlas = {''};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.labelnative = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.warps = [0 0];"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.rmat = 0;"
-      ) >> ${4}
+      bias_str=0.25       # light
+      bias_reg=0.001      # medium
+      bias_fhwm=60        # medium
+      app=1070            # default
+      sanlm=1             # classic
     fi
+
+    batch_file=${REPO_DIR}/cat_batch_r${VER}.m
+    if [[ ! -f ${batch_file} ]]; then
+      echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
+      for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
+      exit 1
+    fi
+
+    # echo to file
+    cat "${batch_file}" >> ${4}
+
+    # change parameters
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      # macOS uses BSD sed
+      local sed_cmd="sed -i ''"
+    else
+      # Linux uses GNU sed
+      local sed_cmd="sed -i"
+    fi
+
+    ${sed_cmd} "s|CHANGE_THIS_INPUT|${input}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${spm_path}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_BIAS_STR|${bias_str}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_BIAS_REG|${bias_reg}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_BIAS_FWHM|${bias_fwhm}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_APP_TERM|${app}|g" "${4}"
+    ${sed_cmd} "s|CHANGE_THIS_SANLM_TERM|${sanlm}|g" "${4}"
 
     (
     echo ""
