@@ -773,6 +773,9 @@ Now, in your configuration file (e.g., `~/.spinoza_config`), edit the `$MATLAB_C
 ```bash
 # something along these lines, makes sure the path is correct
 export MATLAB_CMD="${HOME}/$(basename ${cat_link} .zip)/run_spm12.sh ${MCRROOT} script"
+
+# and set the SPM_PATH, something like this:
+export SPM_PATH="~/software/CAT12.9_R2017b_MCR_Linux/spm12_mcr/home/gaser/gaser/spm/spm12"
 ```
 
 > [!WARNING]
