@@ -1786,12 +1786,23 @@ function make_cat_script {
     fi
 
     # Check if we have compatible version; we're using 12.6!!
+
     VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "custom")
-    if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
-      :
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556")
+    if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
+      if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
+        batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
+      else
+        echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
+        for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
+        exit 1
+      fi
     else
-      echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
+      batch_file=${REPO_DIR}/misc/cat_batch_custom.m
+    fi
+
+    if [[ ! -f ${batch_file} ]]; then
+      echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
       for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
       exit 1
     fi
@@ -1824,13 +1835,6 @@ function make_cat_script {
       bias_fhwm=60        # medium
       app=1070            # default
       sanlm=1             # classic
-    fi
-
-    batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
-    if [[ ! -f ${batch_file} ]]; then
-      echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
-      for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
-      exit 1
     fi
 
     # echo to file

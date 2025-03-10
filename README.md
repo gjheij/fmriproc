@@ -444,7 +444,7 @@ Beware, though, that this is usually a bit overkill as it makes your images look
 > The batch files are located in `$REPO_DIR/misc/cat_batch_r??.m`.
 > Version `r2556` corresponds to the MCR-compatible version.
 > If you have a different version (`cat ${cat12_dir}/Contents.txt | grep Version`), you can use the CAT12 GUI to fill in the `batch`.
-> Save this file as `$REPO_DIR/misc/cat_batch_rcustom.m`.
+> Save this file as `$REPO_DIR/misc/cat_batch_custom.m`.
 
 ```bash
 master -m 09 # spinoza_brainextraction
