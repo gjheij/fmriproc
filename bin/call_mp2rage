@@ -28,6 +28,7 @@ from bids import BIDSLayout
 from lazyfmri import utils
 import shutil
 import json
+import subprocess
 from nipype.interfaces import fsl
 warnings.filterwarnings("ignore")
 opj = os.path.join
@@ -272,7 +273,7 @@ Notes:
 
         else:
 
-            print(" {} already exists".format(os.path.basename(OUTPUT[p])))
+            print(f" {os.path.basename(OUTPUT[p])} already exists")
 
         json_file = OUTPUT[p].split('.')[0]+'.json'
         base_path = None
@@ -300,72 +301,129 @@ Notes:
     trg = opj(os.path.dirname(src), "orig.nii.gz")
     shutil.copyfile(src,trg)
 
+    # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
-        brainmask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        if not os.path.exists(brainmask):
 
+        spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
+        fsl_mask = opj(inputdir, 'tmp_mask.nii.gz')
+        
+        if not os.path.exists(fsl_mask):
+            print("Make mask with FSL from INV2-image")
+            cmd = f"bet2 {select_fn[2]} {opj(inputdir, 'tmp')} -m -f 0.2"
+            print(cmd)
             try:
-                print("Make mask with FSL from INV2-image")
-                cmd = f"bet2 {select_fn[2]} {opj(inputdir, 'tmp')} -m -f 0.2"
-                print(cmd)
                 os.system(cmd)
-            except:
+            except Exception:
                 pass
-            
+
+        if not os.path.exists(spm_mask):
+            print("Make mask with SPM from INV2-image")
+            cmd = f'call_spmmask --clean {select_fn[2]} {spm_mask}'
+            print(cmd)
             try:
-                print("Make mask with SPM from INV2-image")
-                cmd = f'call_spmmask --clean {select_fn[2]} {brainmask}'
-                print(cmd)
                 os.system(cmd)
             except:
                 pass
             
             # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
             # but also leaves in more dura. This will be removed, however, during the CAT12 stage
-            if os.path.exists(brainmask) and os.path.exists(opj(inputdir, 'tmp_mask.nii.gz')):
+            if os.path.exists(spm_mask) and os.path.exists(fsl_mask):
                 
                 print("Combining SPM & FSL mask to include cerebellum too")
 
-                new_mask = image.math_img('(spm + fsl) > 0', spm=brainmask, fsl=opj(inputdir, 'tmp_mask.nii.gz'))
-                new_mask.to_filename(brainmask)
+                try:
+                    new_mask = image.math_img(
+                        '(spm + fsl) > 0',
+                        spm=spm_mask,
+                        fsl=fsl_mask
+                    )
+                except Exception as e:
+                    raise ValueError(f"Could not complete operation: {e}")
+
+                new_mask.to_filename(spm_mask)
 
                 # remove files starting with 'tmp'
-                utils.remove_files(inputdir, 'tmp', ext=False)
+                utils.remove_files(
+                    inputdir,
+                    'tmp',
+                    ext=False
+                )
 
         # remove pepper noise pattern around brain
         print("Removing noise pattern around the brain")
-        cmd = f"call_rmbackground -t {OUTPUT['t1w_uni']} -m {brainmask} -i {select_fn[2]} -o {OUTPUT['t1w_uni']}"
-        print(cmd)
-        os.system(cmd)
+
+        try:
+            cmd = f"call_rmbackground -t {OUTPUT['t1w_uni']} -m {spm_mask} -i {select_fn[2]} -o {OUTPUT['t1w_uni']}"
+            print(cmd)
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Command '{cmd}' failed with exit code {e.returncode}")
+            print(f"Standard Output:\n{e.stdout}")
+            print(f"Standard Error:\n{e.stderr}")
+
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+
         print("TIP: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
 
         # truncate image intensities
-        t1_file = OUTPUT['t1w_uni']
-        tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-        cmd = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
         try:
-            print("Truncating image intensities [0,0.999] with 256 bins")
-            print(cmd)
-            os.system(cmd)
+            # Truncate image intensities
+            t1_file = OUTPUT['t1w_uni']
+            tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
+            cmd_truncate = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
 
+            print("Truncating image intensities [0,0.999] with 256 bins")
+            print(cmd_truncate)
+
+            # Run ImageMath
+            result = subprocess.run(
+                cmd_truncate,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            # Get min and max values from the processed image
             out_ = get_minmax(tmp_file)
             clip_value = out_[1]
 
-            # clip positive values if mininum value != 0
+            # Clip positive values if the minimum is not zero
             if out_[0] != 0:
                 print(f"Clipping original output at {clip_value}")
-                cmd = f"call_clipimage {t1_file} {clip_value}"
-                print(cmd)
-                os.system(cmd)
+                cmd_clip = f"call_clipimage {t1_file} {clip_value}"
+                print(cmd_clip)
 
-                # remove tmp file
+                # Run call_clipimage
+                result = subprocess.run(
+                    cmd_clip,
+                    shell=True,
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
+
+                # Remove temporary file
                 os.remove(tmp_file)
             else:
-                # minimum values are zero
+                # Rename tmp file to the original file
                 os.rename(tmp_file, t1_file)
 
-        except:
-            print("Could not run 'ImageMath' to truncate image intensities. Check the contrast and use 'call_clipimage' if the image is too dark..")
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Command '{e.cmd}' failed with exit code {e.returncode}")
+            print(f"Standard Output:\n{e.stdout}")
+            print(f"Standard Error:\n{e.stderr}")
+
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+
 
     print("Done")
 
