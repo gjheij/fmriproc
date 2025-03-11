@@ -733,17 +733,22 @@ First, download the MCR installer:
 ```bash
 cd ~/Downloads
 
-# linux
-mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2017b/deployment_files/R2017b/installers/glnxa64/MCR_R2017b_glnxa64_installer.zip"
-
-# mac (UNTESTED: paths below are representative for linux install [WSL-tested])
-mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2023b/Release/7/deployment_files/installer/complete/maci64/MATLAB_Runtime_R2023b_Update_7_maci64.dmg.zip"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # mac (UNTESTED: paths below are representative for linux install [WSL-tested])
+    mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2023b/Release/7/deployment_files/installer/complete/maci64/MATLAB_Runtime_R2023b_Update_7_maci64.dmg.zip"
+    cmd="curl -O"
+else
+    # Linux uses GNU sed
+    mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2017b/deployment_files/R2017b/installers/glnxa64/MCR_R2017b_glnxa64_installer.zip"
+    cmd="wget"
+fi
 
 # download
-wget ${mcr_link}
+${cmd} ${mcr_link}
 ```
 
-Then, unzip and install the MCR (`-mode silent` is necessary for <2022):
+Then, unzip and install the MCR (`-mode silent` is necessary for <2022).
+For linux, run the following commands:
 
 ```bash
 mkdir ~/software/MCR_R2017b
@@ -755,9 +760,13 @@ dest_folder="~/software/MATLAB/MATLAB_Runtime
 ./install -agreeToLicense yes -mode silent -destinationFolder ${dest_folder}
 ```
 
-This will take a few minutes.
+For MacOS, double click the extracted `dmg`-file, then double click the Matlab icon. 
+This will launch the installer.
+
+The installation will take a few minutes.
 If you have used `sudo`, it will place the output in `/usr/local/MATLAB/MATLAB_Runtime/v93`.
 If you have used `-destinationFolder`, it'll be different.
+For MacOS, the default installation path is `/Applications/MATLAB/MATLAB_Runtime/`.
 Regardless, this path needs to be in the `~/.bash_profile` file as `MCRROOT`.
 The installer will also echo other paths that need to be added to the `~/.bash_profile` file (`LD_LIBRARY_PATH`), but this is not necessary.
 These paths will be added only when MCR is actually called to avoid messing up the environment.
@@ -765,19 +774,28 @@ These paths will be added only when MCR is actually called to avoid messing up t
 ```bash
 # add this to your ~/.bash_profile (or whatever you used for -destinationFolder)
 # The 'v93' will be there regardless
-export MCRROOT="/usr/local/MATLAB/MATLAB_Runtime/v93"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    export MCRROOT="/Applications/MATLAB/MATLAB_Runtime/R2023b"
+else
+    export MCRROOT="/usr/local/MATLAB/MATLAB_Runtime/v93"
+fi
 ```
 
 Next, install the standalone version of CAT12:
 ```bash
-# linux
-cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2017b_MCR_Linux.zip"
 
-# mac
-cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2023b_MCR_Mac.zip"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # mac (UNTESTED: paths below are representative for linux install [WSL-tested])
+    cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2023b_MCR_Mac.zip"
+    cmd="curl -O"
+else
+    # Linux uses GNU sed
+    cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2017b_MCR_Linux.zip"
+    cmd="wget"
+fi
 
 # download
-wget ${cat_link}
+${cmd} ${cat_link}
 
 # unzip
 unzip $(basename ${cat_link} .zip) -d ~/software
@@ -786,11 +804,17 @@ unzip $(basename ${cat_link} .zip) -d ~/software
 Now, in your configuration file (e.g., `~/.spinoza_config`), edit the `$MATLAB_CMD`-variable:
 
 ```bash
-# something along these lines, makes sure the path is correct
-export MATLAB_CMD="${HOME}/$(basename ${cat_link} .zip)/run_spm12.sh ${MCRROOT} script"
-
-# and set the SPM_PATH, something like this:
-export SPM_PATH="~/software/CAT12.9_R2017b_MCR_Linux/spm12_mcr/home/gaser/gaser/spm/spm12"
+# set MATLAB_CMD and SPM_PATH variables depending on system and location
+# put these variables (not this if-statement) in your config-file!
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    install_dir="${HOME}/software/CAT12.9_R2023b_MCR_Mac"
+    export MATLAB_CMD="${install_dir}/run_spm12.sh ${MCRROOT} script"
+    export SPM_PATH="${install_dir}/spm12.app/Contents/Resources/spm12_mcr/Users/gaser/spm/spm12"
+else
+    install_dir="${HOME}/software/CAT12.9_R2017b_MCR_Linux"
+    export MATLAB_CMD="${install_dir}/run_spm12.sh ${MCRROOT} script"
+    export SPM_PATH="${install_dir}/spm12_mcr/home/gaser/gaser/spm/spm12"
+fi
 ```
 
 > [!WARNING]
