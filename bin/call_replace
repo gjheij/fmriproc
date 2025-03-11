@@ -8,11 +8,14 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_replace
 
-wrapper for replacing a string for another for all files in a directory or just a single file.
+Simple wrapper around 'perl' to search for a particular string and replace with another in a file
+or directory of files. I preferred perl because it works the same on MacOS and Linux, whereas 'sed'
+has all sorts of complications.
 
 Args:
   -h|--help         show this help text
   -r|--recursive    run in recursive mode; use at own risk
+  --verbose         echo what is being replaced by what
   <search for>      string to be replaced
   <replace with>    replacement string
   <dir/file>        directory or file to perform the operation on
@@ -34,6 +37,7 @@ USAGE
 #-----------------------------------------------------------------------------
 # Deal with arguments
 recursive=0
+verbose=0
 while getopts :-:hr arg; do
   case ${arg} in
     -)
@@ -41,6 +45,9 @@ while getopts :-:hr arg; do
         recursive)
           recursive=1
           ;; 
+        verbose)
+          verbose=1
+          ;;           
         help)
           Usage >&2
           exit 1
@@ -70,26 +77,35 @@ replace_with=${@:$OPTIND+1:1}
 search_dir=${@:$OPTIND+2:1}
 
 function search_string {
-  case `grep -rn "${search_for}" ${1} >/dev/null; echo $?` in
+  local file=${1}
+  local search=${2}
+  local replace=${3}
+
+  case `grep -rn "${search}" ${file} >/dev/null; echo $?` in
     0)
     # code if found
-    echo "replacing \"${search_for}\" with \"${replace_with}\" in ${1}"
-    sed -i "s|${search_for}|${replace_with}|g" ${1}
+    if [[ ${verbose} -eq 1 ]]; then
+      echo "replacing \"${search}\" with \"${replace}\" in \"${file}\""
+    fi
+
+    perl -pi -e 's|'"${search}"'|'"${replace}"'|g' "${file}"
     ;;
     1)
     # code if not found
     ;;
     *)
     # code if an error occurred
-    echo "FAILURE: \"${1}\""
+    echo "FAILURE: \"${file}\""
     ;;
   esac
 }
 
 if [[ -d ${search_dir} ]]; then
-
   if [[ ${recursive} -eq 1 ]]; then
-    echo "Locating files"
+    if [[ ${verbose} -eq 1 ]]; then
+      echo "Locating files"
+    fi
+    
     search_files=(`find ${search_dir} -type f`)
   else
     search_files=(`find ${search_dir} -maxdepth 1 -type f`)
@@ -97,9 +113,9 @@ if [[ -d ${search_dir} ]]; then
 
   for file in ${search_files[@]}; do
     if [[ -f ${file} ]]; then
-      search_string ${file}
+      search_string ${file} ${search_for} ${replace_with}
     fi
   done
 elif [[ -f ${search_dir} ]]; then
-  search_string ${search_dir}
+  search_string ${search_dir} ${search_for} ${replace_with}
 fi
