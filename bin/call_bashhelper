@@ -1313,7 +1313,14 @@ function make_sanlm_script {
     echo "% Created on `date`. SANLM-filtering with CAT12"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.data = {'${2},1'};"
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.prefix = 'sanlm_';"
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.NCstr = Inf;"
@@ -1361,7 +1368,14 @@ function make_suit_script {
     echo "% Created on `date`. Cerebellum segmentation with SUIT"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
+    
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+
     echo "matlabbatch{1}.spm.tools.suit.isolate_seg.source = {{'${2},1'}};"
     echo "matlabbatch{1}.spm.tools.suit.isolate_seg.bb = [-76 76"
     echo "                                                -108 -6"
@@ -1412,7 +1426,7 @@ function make_nordic_script {
     echo "% Created on `date`. Nordic on $(basename ${1})"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
+    echo "addpath(genpath('${REPO_DIR}/misc'));"
     echo "ARG.DIROUT              = '$(dirname ${3})/';"
     # echo "ARG.temporal_phase      = 1;"
     # echo "ARG.phase_filter_width  = 10;"
@@ -1494,9 +1508,9 @@ USAGE
     echo "% Created on `date`. Projecting $(basename ${in_file}) to FSAverage"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
-    echo "lh_map = '${DIR_SCRIPTS}/misc/CBIG_lh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
-    echo "rh_map = '${DIR_SCRIPTS}/misc/CBIG_rh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
+    echo "addpath(genpath('${REPO_DIR}/misc'));"
+    echo "lh_map = '${REPO_DIR}/misc/CBIG_lh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
+    echo "rh_map = '${REPO_DIR}/misc/CBIG_rh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
     echo "input = MRIread('${in_file}');"
     echo "[lh_proj_data, rh_proj_data] = CBIG_RF_projectMNI2fsaverage('${in_file}', '${interp}', lh_map, rh_map);"
     echo ""
@@ -1524,6 +1538,8 @@ function make_bias_script {
     echo "make_bias_script"
     echo
     echo "Make a matlab script to be called with call_matlab to bias correct your image with SPM".
+    echo "Uses: \"${REPO_DIR}/misc/spm_batch_bias.m\"."
+    echo "This file can be changed according to your needs."
     echo ""
     echo "Args:"
     echo "  <spm_path>  path to the desired SPM-installation"
@@ -1543,42 +1559,21 @@ function make_bias_script {
     echo "% Created on `date`. Bias field correction with SPM12"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.vols = {'${2},1'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.biasreg = 0.001;"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.biasfwhm = 60;"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.write = [1 1];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).tpm = {'${1}/tpm/TPM.nii,1'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).ngaus = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).tpm = {'${1}/tpm/TPM.nii,2'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).ngaus = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).tpm = {'${1}/tpm/TPM.nii,3'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).ngaus = 2;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).tpm = {'${1}/tpm/TPM.nii,4'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).ngaus = 3;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).tpm = {'${1}/tpm/TPM.nii,5'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).ngaus = 4;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).tpm = {'${1}/tpm/TPM.nii,6'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).ngaus = 2;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.mrf = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.cleanup = 0;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.affreg = 'mni';"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.fwhm = 0;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.samp = 3;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.write = [0 0];"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    ) >> "${3}"
+
+    batch_file="${REPO_DIR}/misc/spm_batch_bias.m"
+    cat "${batch_file}" >> "${3}"
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${3}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${3}"
+
+    (
     echo ""
     echo "spm_jobman('initcfg');"
     echo "spm('defaults','fMRI')"
@@ -1604,14 +1599,14 @@ function make_physio_script {
     echo "dings from the scanner using the PhysIO-toolbox as part of TAPAS"
     echo ""
     echo "Args:"
-    echo "  <spm_path>  path to the desired SPM-installation"
-    echo "  <input>     input file; assumed to be the output from \"scanphyslog2bids\" (.tsv.gz-file)"
-    echo "  <tr>        repetition time of acquisition"
-    echo "  <volumes>   number of volumes in the functional run"
-    echo "  <output>    directory+basename for output files (extensions will be appended)"
-    echo "  <dummies>   number of dummy volumes"
-    echo "  <n_slices>  number of slices in the volume"
-    echo "  <script>    script name"
+    echo "  <spm_path>  (1) path to the desired SPM-installation"
+    echo "  <input>     (2) input file; assumed to be the output from \"scanphyslog2bids\" (.tsv.gz-file)"
+    echo "  <tr>        (3) repetition time of acquisition"
+    echo "  <volumes>   (4) number of volumes in the functional run"
+    echo "  <output>    (5) directory+basename for output files (extensions will be appended)"
+    echo "  <dummies>   (6) number of dummy volumes"
+    echo "  <n_slices>  (7) number of slices in the volume"
+    echo "  <script>    (8) script name"
     echo ""
     echo "Usage:"
     echo "  make_physio_script <path/to/spm12> <physio.tsv.gz> <tr> <volumes> <output> <string_to_matlab_script>"
@@ -1622,7 +1617,16 @@ function make_physio_script {
     echo
   else
 
-    ext=`fetch_extension ${2}`
+    local spm_path="${1}"
+    local input_file="${2}"
+    local tr=${3}
+    local vols=${4}
+    local output="${5}"
+    local dummies=${6}
+    local n_slices=${7}
+    local job_name="${8}"
+
+    ext=`fetch_extension "${input_file}"`
     if [[ ${ext,,} == "log" ]]; then
       vendor="philips"
     else
@@ -1634,53 +1638,35 @@ function make_physio_script {
     echo "% Created on `date`. Create PhysIO regressors from SCANPHYSLOG"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo "matlabbatch{1}.spm.tools.physio.save_dir = {''};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.vendor = '${vendor}';"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.cardiac = {'${2}'};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.respiration = {'${2}'};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.scan_timing = {''};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.sampling_interval = [];"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.relative_start_acquisition = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.align_scan = 'first';"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nslices = ${7};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.NslicesPerBeat = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.TR = ${3};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Ndummies = ${6};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nscans = ${4};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.onset_slice = 1;"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.time_slice_to_slice = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nprep = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sync.nominal = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.modality = 'PPU';"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.filter.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.min = 0.4;"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.file = 'initial_cpulse_kRpeakfile.mat';"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.max_heart_rate_bpm = 120;"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.posthoc_cpulse_select.off = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.output_multiple_regressors = '${5}.tsv';"
-    echo "matlabbatch{1}.spm.tools.physio.model.output_physio = '${5}.mat';"
-    echo "matlabbatch{1}.spm.tools.physio.model.orthogonalise = 'none';"
-    echo "matlabbatch{1}.spm.tools.physio.model.censor_unreliable_recording_intervals = false;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.c = 3;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.r = 4;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.cr = 1;"
-    echo "matlabbatch{1}.spm.tools.physio.model.rvt.yes.delays = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.model.hrv.yes.delays = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.model.noise_rois.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.movement.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.other.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.level = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.fig_output_file = '';"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.use_tabs = false;"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${spm_path}'));"
+    fi
+    ) >> "${job_name}"
+
+    batch_file=${REPO_DIR}/misc/spm_batch_phys.m
+    cat "${batch_file}" >> "${job_name}"
+
+    call_replace CHANGE_THIS_INPUT "${input_file}" "${job_name}"
+    call_replace CHANGE_THIS_VENDOR "${vendor}" "${job_name}"
+    call_replace CHANGE_THIS_N_SLICES ${n_slices} "${job_name}"
+    call_replace CHANGE_THIS_TR ${tr} "${job_name}"
+    call_replace CHANGE_THIS_N_DUMMIES ${dummies} "${job_name}"
+    call_replace CHANGE_THIS_N_VOLS ${vols} "${job_name}"
+    call_replace CHANGE_THIS_OUTPUT ${output} "${job_name}"
+
+    (
     echo ""
     echo "spm_jobman('initcfg');"
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('run', matlabbatch);"
     echo "exit"
-    ) >> ${8}
+    ) >> "${job_name}"
 
-    cat ${8} | grep -A0 "matlabbatch{" >> $(dirname ${8})/$(basename ${8} .m)_batch.m
+    cat "${job_name}" | grep -A0 "matlabbatch{" >> $(dirname "${job_name}")/$(basename "${job_name}" .m)_batch.m
 
   fi
   
@@ -1720,24 +1706,16 @@ function make_mask_script {
     echo ""
     echo "clear;"
     echo ""
-    ) >> ${4}
+    ) >> "${4}"
 
     # echo to file
     batch_file=${REPO_DIR}/misc/spmBrainMask_spm12_job.m
-    cat "${batch_file}" >> ${4}
+    cat "${batch_file}" >> "${4}"
 
-    # change parameters
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      # macOS uses BSD sed
-      local sed_cmd="sed -i ''"
-    else
-      # Linux uses GNU sed
-      local sed_cmd="sed -i"
-    fi
-    
-    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${1}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_INPUT|${2}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_OUTPUT|${3}|g" "${4}"
+    # perl is agnostic to MacOS/Linux
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${4}"
+    call_replace CHANGE_THIS_INPUT "${3}" "${4}"
 
     (
     echo ""
@@ -1745,7 +1723,7 @@ function make_mask_script {
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('serial', matlabbatch);"
     echo "exit"
-    ) >> ${4}
+    ) >> "${4}"
     
   fi
 }
@@ -1788,17 +1766,23 @@ function make_cat_script {
     # Check if we have compatible version; we're using 12.6!!
 
     VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556")
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
     if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
       if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
         batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
       else
         echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
         for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
+        echo
+        echo "If you have a different version, use the CAT12 GUI to generate a matlabbatch file"
+        echo "See \"${REPO_DIR}/misc/cat_batch_r2556.m\" for an example"
+        echo "Use the \"view .m code\" option and save the file as \"${REPO_DIR}/misc/cat_batch_custom.m\""
+        echo "Ensure that all variables starting with \"CHANGE_*\" have the same format!"
         exit 1
       fi
     else
       batch_file=${REPO_DIR}/misc/cat_batch_custom.m
+      echo "Using custom batch-file: \"${batch_file}\""
     fi
 
     if [[ ! -f ${batch_file} ]]; then
@@ -1818,8 +1802,14 @@ function make_cat_script {
     echo "% Created on `date`. Running with ${VER}"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo ""
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    
     ) >> ${4}
 
     if [[ ${3} == 'brain' ]]; then
@@ -1840,22 +1830,14 @@ function make_cat_script {
     # echo to file
     cat "${batch_file}" >> ${4}
 
-    # change parameters
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      # macOS uses BSD sed
-      local sed_cmd="sed -i ''"
-    else
-      # Linux uses GNU sed
-      local sed_cmd="sed -i"
-    fi
-
-    ${sed_cmd} "s|CHANGE_THIS_INPUT|${2}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_SPM_PATH|${1}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_BIAS_STR|${bias_str}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_BIAS_REG|${bias_reg}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_BIAS_FWHM|${bias_fwhm}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_APP_TERM|${app}|g" "${4}"
-    ${sed_cmd} "s|CHANGE_THIS_SANLM_TERM|${sanlm}|g" "${4}"
+    # # change parameters (perl is agnostic to MacOS/Linux)
+    call_replace CHANGE_THIS_SPM_PATH "${1}" ${4}
+    call_replace CHANGE_THIS_INPUT "${2}" ${4}
+    call_replace CHANGE_BIAS_STR "${bias_str}" ${4}
+    call_replace CHANGE_BIAS_REG "${bias_reg}" ${4}
+    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" ${4}
+    call_replace CHANGE_THIS_APP_TERM "${app}" ${4}
+    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" ${4}
 
     (
     echo ""
@@ -1873,149 +1855,4 @@ function make_cat_script {
 
     cat ${4} | grep -A0 "matlabbatch{" >> $(dirname ${4})/$(basename ${4} .m)_batch.m
   fi
-}
-
-
-#-----------------------------------------------------------------------------
-# HTML started mimicking fMRIprep
-function make_html_start {
-
-  cat > ${1} << EOF
-
-<?xml version="1.0" encoding="utf-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
-<title></title>
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-<style type="text/css">
-.sub-report-title {}
-.run-title {}
-
-h1 { padding-top: 35px; }
-h2 { padding-top: 20px; }
-h3 { padding-top: 15px; }
-
-.elem-desc {}
-.elem-caption {
-    margin-top: 15px
-    margin-bottom: 0;
-}
-.elem-filename {}
-
-div.elem-image {
-  width: 100%;
-  page-break-before:always;
-}
-
-.elem-image object.svg-reportlet {
-    width: 100%;
-    padding-bottom: 5px;
-}
-body {
-    padding: 65px 10px 10px;
-}
-
-.boiler-html {
-    font-family: "Bitstream Charter", "Georgia", Times;
-    margin: 20px 25px;
-    padding: 10px;
-    background-color: #F8F9FA;
-}
-
-div#boilerplate pre {
-    margin: 20px 25px;
-    padding: 10px;
-    background-color: #F8F9FA;
-}
-
-#errors div, #errors p {
-    padding-left: 1em;
-}
-</style>
-</head>
-<body>
-
-
-<nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
-<div class="collapse navbar-collapse">
-    <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="#Summary">Summary</a></li>
-        <li class="nav-item"><a class="nav-link" href="#Anatomical">Anatomical</a></li>
-    </ul>
-</div>
-</nav>
-<noscript>
-    <h1 class="text-danger"> The navigation menu uses Javascript. Without it this report might not work as expected </h1>
-</noscript>
-
-    <div id="Summary">
-    <h1 class="sub-report-title">Summary</h1>
-        <div id="datatype-figures_desc-summary_suffix-T1w">
-                    <ul class="elem-desc">
-		<li>Structural images: 1 T1-weighted </li>
-		<li>FreeSurfer reconstruction: Run by fMRIPrep</li>
-	</ul>
-        </div>
-    </div>
-    <div id="Anatomical">
-
-EOF
-
-}
-
-
-function make_html_end {
-
-  cat >> ${1} << EOF
-
-        </div>
-        <div id="datatype-figures_regex_search-True_space-.*_suffix-T1w">
-
-<script type="text/javascript">
-    function toggle(id) {
-        var element = document.getElementById(id);
-        if(element.style.display == 'block')
-            element.style.display = 'none';
-        else
-            element.style.display = 'block';
-    }
-</script>
-</body>
-</html>
-
-EOF
-}
-
-function scanner_v_itksnap {
-
-    cat <<USAGE
-
-SCANNER VS ITKSNAP SOFTWARE ANGLES
---------------------------------------------------------------------------------------------------------
-Translation values:
-    ________|__ITKSNAP________________________________|__SCANNER_______________________________
-    X (LR)  |  R = +mm (R = pos; L is neg)            |  L = +mm (R = neg; L = pos)
-    Y (AP)  |  A = +mm (A = pos; P = neg)             |  P = +mm (A = neg; P = pos)
-    Z (FH)  |  F = +mm (F = pos; H = neg)             |  H = +mm (F = neg; H = pos)
-
-Orientation values:
-    ________|__ITKSNAP________________________________|__SCANNER_______________________________
-    X (LR)  |  neg = counterclock; pos = clockwise    |  neg = clockwise;    pos = counterclock
-    Y (AP)  |  neg = clockwise;    pos = counterclock |  neg = counterclock; pos = clockwise
-    Z (FH)  |  neg = clockwise;    pos = counterclock |  neg = counterclock; pos = clockwise
-
-As you can see, the values are interpreted inversely, meaning we need to flip the signs of the rotation
-and translation if we want values corresponding to scanner customs.
-
-Another important note to make: the voxel values from coordinates.csv are indexed starting from 0.
-Other software packages, such as ITKSNAP indexes starting from 1. If you want the correct value from
-coordinates.csv in ITK-Snap, add 1 to all dimensions.
-
-USAGE
-
 }
