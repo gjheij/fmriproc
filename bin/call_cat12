@@ -196,6 +196,13 @@ if [[ ${RUN} -eq 1 ]]; then
 
   call_matlab "${new_script}" >> "${log_file}"
 
+  # we should have p* files by now
+  ff=$(find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" \))
+  if [[ -z ${ff} ]]; then
+    echo "ERROR: could not find segmentation files in $(dirname ${in_file}). Matlab must have exited with non-zero status"
+    exit 1
+  fi
+
   # check if matlab succeeded
   ff=cat "${log_file}" | grep "Failed: CAT12: Segmentation" | cut -d"." -f2 | xargs | sed 's/\r$//'
   if [[ ! -z ${ff} ]]; then
