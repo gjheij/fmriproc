@@ -300,12 +300,12 @@ $DIR_PROJECTS/$PROJECT/sourcedata/sub-<subID>/ses-<sesID>
 > For PAR files, you could do something like:
 > ```bash
 > for par in /path/to/par/*.PAR; do
->     sed -i "s|registered_name|sub-01_ses-1|g" $par
+>   call_replace "registered_name" "sub-01_ses-1" "${par}"
 > done
 >
 > # and for the functionals:
-> sed -i "s|protocol_name|task-rest_run-1_bold|g" bold.par
-> sed -i "s|protocol_name|task-rest_run-1_epi|g" epi.par
+> call_replace "protocol_name" "task-rest_run-1_bold" "bold.par"
+> call_replace "protocol_name" "task-rest_run-1_epi" "epi.par"
 > ```
 > For DICOM files, I added a function based on `pydicom`:
 > ```bash
@@ -443,9 +443,24 @@ Beware, though, that this is usually a bit overkill as it makes your images look
 > ```
 > 
 > The batch files are located in `$REPO_DIR/misc/cat_batch_r??.m`.
-> Version `r2556` corresponds to the MCR-compatible version.
+> Version `r2556` corresponds to linux' MCR-compatible version and `r2557` to MacOS.
 > If you have a different version (`cat ${cat12_dir}/Contents.txt | grep Version`), you can use the CAT12 GUI to fill in the `batch`.
 > Save this file as `$REPO_DIR/misc/cat_batch_custom.m`.
+> However, I cannot know how this custom version is going to output the segmentations, so I cannot promise that stuff ends up in the correct folder.
+> If you really need a specific version, open an issue so I can add support.
+> At the end of the day, you'd need the following from CAT12 to be present:
+> ```bash
+> tree $PWD
+> /some/project_dir/project_name/derivatives/cat12/sub-<subID>/ses-<sesID>
+> ├── catreport_sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.pdf
+> ├── maskp0sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz    # mandatory [mask]
+> ├── p0sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz
+> ├── p1sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz        # mandatory [GM]
+> ├── p2sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz        # mandatory [WM]  
+> ├── p3sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz        # mandatory [CSF]
+> ├── sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1map.nii.gz        # mandatory if Nighres
+> └── sub-<subID>_ses-<sesID>_acq-MP2RAGE_T1w.nii.gz          # mandatory [Can be copied from previous steps]
+> ```
 
 ```bash
 master -m 09 # spinoza_brainextraction
