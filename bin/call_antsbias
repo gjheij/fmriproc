@@ -86,23 +86,20 @@ if [[ -z "$output" ]]; then
   exit 1
 fi
 
-if [[ -f "$output" && $ow -ne 1 ]]; then
-  echo "Error: Output file already exists and -o (overwrite) was not specified: $output" >&2
-  exit 1
-fi
-
 dim=$(fslval "$input" dim0)
 if [[ -z "$dim" ]]; then
   echo "Error: Unable to determine image dimensionality with fslval." >&2
   exit 1
 fi
 
-echo "Running N4BiasFieldCorrection:"
-echo "  Input          = $(basename "$input")"
-echo "  Output         = $(basename "$output")"
-echo "  Dimensionality = $dim"
-echo "  Extra options  = ${extra_args[*]:-(none)}"
-echo
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Running N4BiasFieldCorrection:"
+  echo "  Input          = $(basename "$input")"
+  echo "  Output         = $(basename "$output")"
+  echo "  Dimensionality = $dim"
+  echo "  Extra options  = ${extra_args[*]:-(none)}"
+  echo
+fi
 
 cmd=(
   N4BiasFieldCorrection
@@ -113,7 +110,10 @@ cmd=(
   "${extra_args[@]}"
 )
 
-echo "Executing: ${cmd[*]}"
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Executing: ${cmd[*]}"
+fi
+
 "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
@@ -121,4 +121,6 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-echo "Bias field correction complete."
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Bias field correction complete."
+fi
