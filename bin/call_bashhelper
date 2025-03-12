@@ -1715,7 +1715,7 @@ function make_mask_script {
     # perl is agnostic to MacOS/Linux
     call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
     call_replace CHANGE_THIS_INPUT "${2}" "${4}"
-    call_replace CHANGE_THIS_INPUT "${3}" "${4}"
+    call_replace CHANGE_THIS_OUTPUT "${3}" "${4}"
 
     (
     echo ""
