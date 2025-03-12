@@ -84,7 +84,7 @@ Options:
                   course. If you trust your iterative fitter, you can turn off the bounds and let 
                   the iterative take care of the parameters
   --raw           use the raw, un-zscore'd output from pybest, rather than percent signal change
-  --refit         refit existing data; uses a simplified call to linescanning.prf.pRFmodelFitting 
+  --refit         refit existing data; uses a simplified call to fmriproc.prf.pRFmodelFitting 
                   using call_prfrefit
   --tc            use trust-constr minimization for both the Gaussian as well as the extended model. 
                   Use the '-x' flag if you want different minimizers for both stages
