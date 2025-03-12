@@ -213,7 +213,7 @@ The input dataset is required to be in valid `BIDS (Brain Imaging Data Structure
 $DIR_PROJECTS/$PROJECT/<subjects>
 ```
 
-It is also assumed your ``T1w``-files have the ``acq-(ME)MP(2)RAGE`` tag in the filename. This is because the package can deal with either of these, or an *average* of MP2RAGE and MP2RAGEME acquisitions (see e.g., `<https://www.sciencedirect.com/science/article/pii/S105381192031168X?via%3Dihub>`_). So, a typical folder structure would look like this:
+It is also assumed your ``T1w``-files have the ``acq-(ME)MP(2)RAGE`` tag in the filename. This is because the package can deal with either of these, or an *average* of MP2RAGE and MP2RAGEME acquisitions (see e.g., [here](https://www.sciencedirect.com/science/article/pii/S105381192031168X?via%3Dihub)). So, a typical folder structure would look like this:
 
 ```bash
 tree $DIR_PROJECTS/$PROJECT/sub-001
@@ -399,10 +399,81 @@ Here, we'll assume that the reference space is `MP2RAGE`, and register the `MP2R
 To then average together, use `module 06`.
 Note that this will only have an effect if you specified ``DATA=AVERAGE`` in the setup file.
 **If you have only 1 image type, skip this step**. 
-If you have multiple MPRAGE's, they should have a **run-<runID>** identifier ("run-1" will be used as reference).
+
+> [!TIP]
+> ### Multiple anatomical images in a session
+> Most regular sessions will have an MP2RAGE or MPRAGE as anatomical reference.
+> The pipeline will deal with that just fine.
+> However, you can also get a bit more exotic, with multiple MPRAGEs, MPRAGE+T1map, or MP2RAGE+MP2RAGEME
+> ##### Multiple MPRAGEs
+> If you have multiple MPRAGE's, they should have a **run-<runID>** identifier ("run-1" will be used as reference).
+> In this case the `DATA` should be set to `AVERAGE`.
+> The final output will then be:
+> ```bash
+> # example multiple MPRAGES
+> /path/to/projects/some_project/sub-04
+> └── ses-1
+>     └── anat
+>         ├── sub-04_ses-1_acq-MPRAGE_run-1_T1w.nii.gz
+>         └── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
+> ```
+>
+> The final output will then be:
+> ```bash
+> # example multiple MPRAGES
+> /path/to/projects/some_project/derivatives/pymp2rage/sub-04
+> └── ses-1
+>     ├── spm_mask.m
+>     ├── sub-04_ses-1_acq-AVERAGE_T1w.nii.gz
+>     ├── sub-04_ses-1_acq-AVERAGE_desc-spm_mask.nii.gz
+>     ├── sub-04_ses-1_acq-MPRAGE_run-1_T1w.nii.gz
+>     ├── sub-04_ses-1_acq-MPRAGE_run-1_desc-spm_mask.nii.gz
+>     ├── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
+>     ├── sub-04_ses-1_acq-MPRAGE_run-2_desc-spm_mask.nii.gz
+>     └── sub-04_ses-1_acq-MPRAGE_run-2_space-run1_T1w.nii.gz
+> ```
+> #### MPRAGE+T1map
+> With MP2RAGE, you also get a T1map, but with MPRAGE not.
+> You can still include a separate T1map.
+> This file will be registered to the T1w and stored together with the T1w.
+> ```bash
+> # example MPRAGE+separate T1map
+> /path/to/projects/some_project/sub-03
+> └── ses-1
+>     └── anat
+>         ├── sub-03_ses-1_acq-MPRAGE_T1w.nii.gz
+>         └── sub-03_ses-1_acq-VFA_T1map.nii.gz
+> ```
+> #### MP2RAGEME+MP2RAGE
+> MP2RAGEME is an extension of the MP2RAGE, where extra echoes are used to generate multi-constrast images in the same space.
+> In this scenario, the MP2RAGEME files are registered to the MP2RAGE files.
+> The extra parametric maps from the MP2RAGEME can be be warped to the MP2RAGE too via `export WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")`.
+> ```bash
+> # MP2RAGE+MP2RAGEME example
+> /path/to/projects/some_project/sub-05
+> └── ses-1
+>     └── anat
+>         ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-mag.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-phase.nii.gz
+>         ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-mag.nii.gz
+>         └── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-phase.nii.gz
+> ```
 
 ```bash
-master -m 05a # spinoza_registration (anat-to-anat)    
+# warp to reference image
+master -m 05a # spinoza_registration (anat-to-anat)
+
+# calculate average and save as "acq-AVERAGE"
 master -m 06  # spinoza_averageanatomies
 ```
 
