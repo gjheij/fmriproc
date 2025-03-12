@@ -35,6 +35,16 @@ Arguments:
   -f|--full           overwrite all existing files (including masks)
   -u|--ups            use settings for universal pulse (UP) [parameters are hardcoded]
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_SHORT in spinoza_setup
+  -x <kwargs>         Additional commands to be passed to 'call_antsbias' [call_mprage]. Format 
+                      should be colon-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+  --no_reg            do not register separate T1map in case you have MPRAGE image
+  --spm               use SPM for bias correction instead of ANTs [call_mprage]
   --sge               submit job to cluster (called with 'master -m <module> --sge')  
   --skip_bg           Do not create masks from INV2-image to remove noise from MP2RAGE   
   --force_exec        Force the execution even if the files exist already
@@ -62,7 +72,10 @@ PARS_FLAG=""
 FORCE_EXEC=0
 run_local=1
 n_cpus=1
-while getopts :-:oufs:n:p:q:j: argument
+kwargs=""
+spm_flag=""
+reg_flag=""
+while getopts :-:oufs:n:p:q:j:x: argument
 do
   case ${argument} in
     -)
@@ -84,10 +97,16 @@ do
           ;;
         sge)
           run_local=0
-          ;;            
+          ;;  
+        spm)
+          spm_flag="--spm"
+          ;; 
+        no_reg)
+          reg_flag="--no_reg"
+          ;;                                
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}, did you mean \"--lines\"?"
+            echo "Unknown option --${OPTARG}, did you mean \"--ow\", \"--full\", \"--ups\", \"--skip_bg\", \"--force_exec\", \"--sge\", \"--sge\", \"--spm\", or \"--no_reg\"?"
             exit 1
           fi
           ;;  
@@ -107,7 +126,9 @@ do
     j)  n_cpus=${OPTARG}
           ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;             
+          ;;
+    x)  kwargs="-x ${OPTARG}"
+          ;; 
   esac
 done
 
@@ -127,6 +148,12 @@ else
   IFS=', ' read -r -a search <<< "${sub}"
   search=${search[@]}
   unset IFS
+fi
+
+if [[ ! -z ${SGE_QUEUE} ]]; then
+  QUEUE=${SGE_QUEUE}
+else
+  QUEUE=${SGE_QUEUE_SHORT}
 fi
 
 #-----------------------------------------------------------------------------
@@ -171,16 +198,18 @@ for subID in ${search}; do
       echo "**************************************** Processing ${sub_name} ***************************************"
     fi
   fi
-  
+
   # loop through available datatype (see spinoza_setup)
   for a in ${ACQ[@]}; do
 
     t1w=`find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
-    t1map=`find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1map.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`    
-    NoF=`find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -not -name "*T1w*" -and -name "*.nii.gz" \) | wc -l 2>/dev/null`
-    
-    # set output name based on acquisition strategy
-    output_base=${base}_acq-${a^^}
+    t1map=`find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1map.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
+
+    if [[ ${DATA^^} == "MPRAGE" ]]; then
+      in_files=(`find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null`)
+    else
+      in_files=`find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -not -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null`
+    fi
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
@@ -189,42 +218,77 @@ for subID in ${search}; do
 
     if [[ ! -f ${t1w} || ! -f ${t1map} || ${FORCE_EXEC} -eq 1 ]]; then
 
-      if [[ ${NoF} -eq 0 ]]; then
-        echo "${sub_name}: ${NoF} files available for ${a^^}"
+      if [[ ${#in_files[@]} -eq 0 ]]; then
+        echo "${sub_name}: ${#in_files[@]} files available for ${a^^}"
         break
       else
         if [[ ! -d ${output_dir} ]]; then
           mkdir -p ${output_dir}
         fi
 
-        if [[ ${run_local} -eq 0 ]]; then
-          if [[ ! -z ${SGE_QUEUE} ]]; then
-            QUEUE=${SGE_QUEUE}
+        # mp2rage(me) job
+        if [[ "$(basename $(which call_${a,,}))" == *"mp2rage"* ]]; then
+
+          # decide job execution
+          output_base=${base}_acq-${a^^}
+          if [[ ${run_local} -eq 0 ]]; then
+            submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
+            call_=`which call_${a,,}`
+            job="${submit} ${call_}" 
           else
-            QUEUE=${SGE_QUEUE_SHORT}
+            job="call_${a,,}"
           fi
 
-          submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
-          call_=`which call_${a,,}`
-          job="${submit} ${call_}" 
+          # define command
+          cmd="""${job} \
+            -i ${input_dir} \
+            -o ${output_dir} \
+            -b ${output_base} \
+            ${PARS_FLAG} \
+            ${UPs} \
+            ${SKIP_BG}"""
 
+            # execute command
+            if [[ ${run_local} -eq 1 ]]; then
+              echo ${cmd}
+            fi
+            ${cmd}
         else
-          job="call_${a,,}"
-        fi
+          # mprage job
+          for file in ${in_files[@]}; do
+            # set output name based on acquisition strategy
+            add_run=""
+            run=`get_id ${file} run`
+            if [[ ! -z ${run} ]]; then
+              add_run="_run-${run}"
+            fi
 
-        cmd="""${job} \
-          -i ${input_dir} \
-          -o ${output_dir} \
-          -b ${output_base} \
-          ${PARS_FLAG} \
-          ${UPs} \
-          ${SKIP_BG}"""
-        
-        # Execute command
-        if [[ ${run_local} -eq 1 ]]; then
-          echo ${cmd}
+            # decide job execution
+            output_base=${base}_acq-${a^^}${add_run}
+            if [[ ${run_local} -eq 0 ]]; then
+              submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
+              call_=`which call_${a,,}`
+              job="${submit} ${call_}" 
+            else
+              job="call_${a,,}"
+            fi
+
+            # define command
+            cmd="""${job} \
+              ${kwargs} \
+              ${spm_flag} \
+              ${reg_flag} \
+              ${file} \
+              ${output_dir}/${output_base}"""
+
+            # execute command
+            if [[ ${run_local} -eq 1 ]]; then
+              echo "Processing \"${file}\""
+            fi
+            
+            eval ${cmd}
+          done
         fi
-        ${cmd}
       fi
 
     else
@@ -233,30 +297,23 @@ for subID in ${search}; do
 
   done
 
-  # copy T2w-file to pymp2rage folder for later convenience
-  t2=`find -L "${input_dir}" -type f \( -name "*T2w.nii.gz" \) 2>/dev/null`
-  if [ ! -z ${t2} ]; then
-    ct=0; for ii in ${t2[@]}; do ((ct++)); done
-    ix=0
-    if [[ ${ct} -gt 1 ]]; then
-      echo "Found multiple T2-images; taking last one"
-      ix=$((${#t2[@]}-1))
-    fi
-    cp ${t2[ix]} ${output_dir} 2>/dev/null  
-  fi
+  # copy extra anatomical files
+  for f in ${SEARCH_ANATOMICALS[@]}; do
 
-  # copy FLAIR-file to pymp2rage folder for later convenience
-  flair=(`find -L "${input_dir}" -type f \( -name "*FLAIR.nii.gz" \) 2>/dev/null`)
-  if [[ ! -z ${flair} ]]; then
-    ct=0; for ii in ${flair[@]}; do ((ct++)); done
-    ix=0
-    if [[ ${ct} -gt 1 ]]; then
-      echo "Found multiple FLAIR-images; taking last one"
-      ix=$((${#flair[@]}-1))
+    # copy T2w-file to pymp2rage folder for later convenience
+    if [[ ${f} != "T1w" ]]; then
+      f_files=`find -L "${input_dir}" -type f \( -name "*${f}.nii.gz" \) 2>/dev/null`
+      if [ ! -z ${f_files} ]; then
+        ct=0; for ii in ${f_files[@]}; do ((ct++)); done
+        ix=0
+        if [[ ${ct} -gt 1 ]]; then
+          echo "Found multiple ${f}-images; taking last one"
+          ix=$((${#f_files[@]}-1))
+        fi
+        cp ${f_files[ix]} ${output_dir} 2>/dev/null  
+      fi
     fi
-    cp ${flair[ix]} ${output_dir} 2>/dev/null
-  fi  
-
+  done
 done
 
 #-----------------------------------------------------------------------------
