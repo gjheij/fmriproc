@@ -381,7 +381,14 @@ master -m 02b -n 1                      # limit processing to a certain session
 ```
 
 After converting our data to nifti, we need to create our T1w/T1map images from the first and second inversion images. We can do this quite easily with Pymp2rage.
-If you do not combine **INV1** and **INV2** yourself, - you already have a ``T1w``-/ ``T1map``-file in ``DIR_DATA_HOME`` - you can skip the part below (in case you're using Siemens data, the T1 is generally sufficient to continue with):
+If you do not combine **INV1** and **INV2** yourself, - you already have a ``T1w``-/ ``T1map``-file in ``DIR_DATA_HOME`` - you can skip the part below (in case you're using Siemens data, the T1 is generally sufficient to continue with).
+You *can* use it for MPRAGE data, in which case the following steps are performed:
+- Bias correction (either SPM [--spm] or ANTs [default])
+- Brain masking using 'call_spmmask', which will create *desc-spm_mask
+- Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
+
+In this case, `module 08` can be skipped!
+These steps are mainly performed to promote compatibility with the rest of the pipeline.
 
 ```bash
 master -m 04 # spinoza_qmrimaps
@@ -392,6 +399,7 @@ Here, we'll assume that the reference space is `MP2RAGE`, and register the `MP2R
 To then average together, use `module 06`.
 Note that this will only have an effect if you specified ``DATA=AVERAGE`` in the setup file.
 **If you have only 1 image type, skip this step**. 
+If you have multiple MPRAGE's, they should have a **run-<runID>** identifier ("run-1" will be used as reference).
 
 ```bash
 master -m 05a # spinoza_registration (anat-to-anat)    
@@ -439,7 +447,7 @@ Beware, though, that this is usually a bit overkill as it makes your images look
 > 
 > ```bash
 > # the API changes slightly between versions, so it's had to remain agnostic
-> ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "custom")
+> ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
 > ```
 > 
 > The batch files are located in `$REPO_DIR/misc/cat_batch_r??.m`.
@@ -851,6 +859,8 @@ Now run `source ~/.bash_profile` and you should be good to go.
 - [x] Remove dependendency of `PLACE`-variable. Submit to cluster when specified
 - [x] Add support for SLURM (NOT TESTED!)
 - [x] Instructions and functionality for Matlab Runtime (MCR)
+- [x] Workflow for multiple MPRAGEs 
+- [ ] Port [CBIG_RF_projectMNI2fsaverage.m](https://github.com/gjheij/fmriproc/blob/dev/fmriproc/misc/CBIG_RF_projectMNI2fsaverage.m) to python
 - [ ] Port documentation from `linescanning` to `fmriproc`
 - [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
 - ..
