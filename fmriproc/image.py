@@ -6,10 +6,103 @@ import matplotlib.pyplot as plt
 import nibabel as nb
 import numpy as np
 import os
+import platform
 from sklearn.preprocessing import MinMaxScaler
 import subprocess
 
 opj = os.path.join
+
+def get_minmax(file):
+
+    from nipype.interfaces import fsl
+    stats = fsl.ImageStats(in_file=file, op_string="-R")
+    res = stats.run()
+    return res.outputs.out_stat
+
+def write_pymp2rage_json(file, params):
+    json_file = file.replace('.nii.gz', '.json')
+    if os.path.isfile(json_file):
+        print(f" {os.path.basename(json_file)} already exists")
+    else:
+        print(f" writing {os.path.basename(json_file)}")
+        with open(json_file, "w+") as f:
+            json.dump(params, f, indent=4)
+    
+    return json_file
+
+def write_pymp2rage_nifti(
+    file,
+    descriptor,
+    obj,
+    input_files,
+    is_mp2rageme=False
+    ):
+    """Calculate and write multiparametric maps to outputdir."""
+
+    from pymp2rage import version
+    if os.path.isfile(file):
+        print(f" {os.path.basename(file)} already exists")
+        return
+
+    base_path = None
+    try:
+        pref = os.environ.get("SUBJECT_PREFIX", "sub-")
+    except Exception:
+        pref = "sub-"
+    
+    sp = input_files[0].split(os.sep)
+    for i in sp:
+        if i.startswith(pref) and not i.endswith('.nii.gz'):
+            base_path = os.path.join(*sp[sp.index(i) + 1: -1])
+            break
+    
+    if not is_mp2rageme:
+        ref = "Marques et al., 2010"
+        sequence_name = "MP2RAGE"
+    else:
+        ref = "Caan et al., 2019"
+        sequence_name = "MEMP2RAGE"
+
+    estimation_algorithms = {
+        "r2starmap": "Ordinary Least Squares in Log-space",
+        "t1w_uni": f"{sequence_name} unified T1-weighted image",
+        "t1map": f"{sequence_name} T1 map",
+        "t2starw": "Ordinary Least Squares in Log-space",
+        "t2starmap": f"{sequence_name} unified T1-weighted image",
+        "s0": "Ordinary Least Squares in Log-space"
+    }
+    
+    index_ranges = {
+        "r2starmap": np.arange(2, 10, 2),
+        "t1w_uni": range(4),
+        "t1map": range(4),
+        "t2starw": np.arange(2, 10, 2),
+        "t2starmap": range(4),
+        "s0": np.arange(2, 10, 2)
+    }
+    
+    if descriptor not in estimation_algorithms:
+        print(f" Unknown descriptor: {descriptor}")
+        return
+    else:
+        print(f" writing {os.path.basename(file)}")
+    
+    getattr(obj, descriptor).to_filename(file)
+    params = {
+        "BasedOn": [os.path.join(base_path, os.path.basename(input_files[i])) for i in index_ranges[descriptor]],
+        "EstimationReference": ref,
+        "EstimationAlgorithm": estimation_algorithms[descriptor],
+        "EstimationSoftwareName": "pymp2rage",
+        "EstimationSoftwareVer": f"{version.__version__}",
+        "EstimationSoftwareLang": f"python {platform.python_version()}",
+        "EstimationSoftwareEnv": f"{platform.platform()}"
+    }
+    
+    json_file = write_pymp2rage_json(file, params)
+    return {
+        "nifti": file,
+        "json": json_file
+    }
 
 def slice_timings_to_json(
     json_file,

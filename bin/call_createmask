@@ -1,0 +1,210 @@
+#!/usr/bin/env python
+
+import os
+import sys, getopt
+from lazyfmri import utils
+import subprocess
+from nilearn import image
+from fmriproc.image import get_minmax
+
+opj = os.path.join
+opd = os.path.dirname
+
+def main(argv):
+
+    """
+---------------------------------------------------------------------------------------------------
+call_createmask
+
+This script is a wrapper for the generation of a mask based on FSL and SPM. Generally, this is used
+in the MP(2)RAGE(ME) workflows to create a first instance of a brain mask. This brain mask is later
+refined using CAT12. The idea is simple: MP2RAGE(ME) images can have pepper corn noise structure
+on the outside of the brain, which interferes with automatic brain extraction tools. In case of 
+MP2RAGE(ME)s, we can use the INV2-image instead. We create a mask using FSL and SPM (works with
+standalone version), then combine them. This is because each mask can miss particular areas which 
+is compensated with the other.
+
+Args:
+    -i|--input  <input image>   image to use for processing (e.g., INV2 or MPRAGE image)
+    -o|--output <output image>  file name of the outputmask
+    -t|--t1     <t1 file>       in case '--input' is INV2, you can specify the T1w image to apply
+                                the generated mask to remove noise around the brain. Generally 
+                                should be done for MP2RAGE(ME)s, not MPRAGE.
+
+Optional args:
+    --verbose                   print some stuff to the terminal
+    --skip_bg                   do not attempt to remove the noise structure around the brain (in
+                                case of MPRAGE image)
+
+Outputs:
+    T1w     (Nifti1Image):      denoised T1w image
+    Mask    (Nifti1Image):      brain mask
+
+Example:
+    call_createmask -i inv2.nii.gz -o spm_mask.nii.gz # no t1
+    call_createmask --input inv2.nii.gz --output spm_mask.nii.gz --t1 t1w.nii.gz # add t1
+    call_createmask -i t1w.nii.gz -o spm_mask.nii.gz --skip_bg # skip background stuff
+---------------------------------------------------------------------------------------------------
+    """
+    
+    input_file = None
+    mask_file = None
+    verbose = False
+    apply_mask = True
+    t1_file = None
+
+    try:
+        opts = getopt.getopt(argv, "hi:o:t:", ["help", "input=", "output=", "t1=", "skip_bg", "verbose"])[0]
+    except getopt.GetoptError:
+        print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-u", "--ups"):
+            ups = True              
+        elif opt in ("-i", "--input"):
+            input_file = os.path.abspath(arg)
+        elif opt in ("-o", "--output"):
+            output_file = arg
+        elif opt in ("-t", "--t1"):
+            t1_file = os.path.abspath(arg)
+        elif opt in ("--skip_bg"):
+            apply_mask = False
+        elif opt in ("--verbose"):
+            verbose = True         
+
+    if len(argv) < 2:
+        print("NOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit(1)
+
+    # check if T1-file was specified
+    if apply_mask:
+        if not isinstance(t1_file, str) or not os.path.exists(t1_file):
+            print(f" WARNING: apply_mask was set to True, but no valid T1-file was specified..")
+            apply_mask = False
+    
+    # generate FSL mask
+    fsl_mask = opj(opd(input_file), 'tmp_mask.nii.gz')
+    if not os.path.exists(fsl_mask):
+        utils.verbose("Make mask with FSL from INV2-image", verbose)
+        cmd = f"bet2 {input_file} {opj(opd(input_file), 'tmp')} -m -f 0.2"
+        utils.verbose(cmd, verbose)
+        
+        try:
+            os.system(cmd)
+        except Exception:
+            pass
+
+    # generate SPM mask
+    if not os.path.exists(output_file):
+        utils.verbose("Make mask with SPM from INV2-image", verbose)
+        cmd = f'call_spmmask --clean {input_file} {output_file}'
+        utils.verbose(cmd, verbose)
+        try:
+            os.system(cmd)
+        except:
+            pass
+        
+        # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
+        # but also leaves in more dura. This will be removed, however, during the CAT12 stage
+        if os.path.exists(output_file) and os.path.exists(fsl_mask):
+            utils.verbose("Combining SPM & FSL mask to include cerebellum too", verbose)
+            try:
+                new_mask = image.math_img(
+                    '(spm + fsl) > 0',
+                    spm=output_file,
+                    fsl=fsl_mask
+                )
+            except Exception as e:
+                raise ValueError(f"Could not complete operation: {e}")
+
+            new_mask.to_filename(output_file)
+
+    # remove files starting with 'tmp'
+    utils.remove_files(
+        opd(input_file),
+        'tmp',
+        ext=False
+    )
+
+    # remove pepper noise pattern around brain
+    if apply_mask:
+        utils.verbose("Removing noise pattern around the brain", verbose)
+        try:
+            cmd = f"call_rmbackground -t {t1_file} -m {output_file} -i {input_file} -o {t1_file}"
+            print(cmd)
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Command '{cmd}' failed with exit code {e.returncode}")
+            print(f"Standard Output:\n{e.stdout}")
+            print(f"Standard Error:\n{e.stderr}")
+
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+
+        print("TIP: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
+
+        # truncate image intensities
+        try:
+            # Truncate image intensities
+            tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
+            cmd_truncate = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
+
+            print("Truncating image intensities [0,0.999] with 256 bins")
+            print(cmd_truncate)
+
+            # Run ImageMath
+            result = subprocess.run(
+                cmd_truncate,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True
+            )
+
+            # Get min and max values from the processed image
+            out_ = get_minmax(tmp_file)
+            clip_value = out_[1]
+
+            # Clip positive values if the minimum is not zero
+            if out_[0] != 0:
+                print(f"Clipping original output at {clip_value}")
+                cmd_clip = f"call_clipimage {t1_file} {clip_value}"
+                print(cmd_clip)
+
+                # Run call_clipimage
+                result = subprocess.run(
+                    cmd_clip,
+                    shell=True,
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
+
+                # Remove temporary file
+                os.remove(tmp_file)
+            else:
+                # Rename tmp file to the original file
+                os.rename(tmp_file, t1_file)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Command '{e.cmd}' failed with exit code {e.returncode}")
+            print(f"Standard Output:\n{e.stdout}")
+            print(f"Standard Error:\n{e.stderr}")
+
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
