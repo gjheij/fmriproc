@@ -7,14 +7,6 @@ else
   exit 1
 fi
 
-# For DATA == AVERAGE we'll need multiple acquisitions
-if [[ ${DATA} == "AVERAGE" ]]; then
-  if [[ `echo ${#ACQ[@]}` -ne 2 ]]; then
-    echo "Average of what..? \"ACQ\" variable in spinoza_setup has ${#ACQ[@]} item(s) [\"${ACQ[@]}\"]"
-    exit 1
-  fi
-fi
-
 #===================================================================================================
 # PATHS
 #===================================================================================================
