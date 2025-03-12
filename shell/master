@@ -46,7 +46,7 @@ FS_FLAG=""                # spinoza_brainextraction
 pre_flag=""               # spinoza_denoising
 post_flag=""              # spinoza_denoising
 pyb_flag=""               # spinoza_denoising
-raw_flag=""               # spinoza_denoising
+raw_flag=""               # spinoza_denoising/spinoza_fitprfs
 SGE=""                    # spinoza_denoising/spinoza_nordic/spinoza_linerecon/spinoza_registration
 cmd_flag=""               # spinoza_registration
 COMB_ONLY=""              # spinoza_extractregions
@@ -59,7 +59,6 @@ MULTIPLE_DESIGNS=""       # spinoza_fitprfs
 FIT_HRF=""                # spinoza_fitprfs
 psc_flag=""               # spinoza_fitprfs
 zscore_flag=""            # spinoza_fitprfs
-raw_flag=""               # spinoza_fitprfs
 use_constr=""             # spinoza_fitprfs
 fit_flag=""               # spinoza_fitprfs
 fprep_input=0             # spinoza_fitprfs
@@ -113,10 +112,11 @@ TR_FLAG=""                # spinoza_scanner2bids
 MRI_SYSTEM_FLAG=""        # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
-BIAS_FLAG=""              # spinoza_biassanlm
-SANLM_FLAG=""             # spinoza_biassanlm
+REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
 PARS_FILE=""              # spinoza_qmrimaps
+BIAS_FLAG=""              # spinoza_biassanlm
+SANLM_FLAG=""             # spinoza_biassanlm
 PROT_FLAG=""              # spinoza_scanner2bids
 FS_stage="all"            # spinoza_freesurfer
 FORCE_FLAG=""             # spinoza_freesurfer
@@ -217,6 +217,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         fmriprep)
           fprep_input=1
+          ;;        
+        force_exec)
+          FORCE_FLAG="--force_exec"
           ;;
         fprep)
           fprep_input=1
@@ -240,9 +243,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         fsnative)
           space_flag="--fsnative"
           ;;
-        force_exec)
-          FORCE_FLAG="--force_exec"
-          ;;
         func)
           TYPE="func"
           space_flag="--func"
@@ -255,9 +255,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         gauss)
           MODEL_FLAG="--gauss"
-          ;;
-        ge)
-          MRI_SYSTEM_FLAG="--ge"
           ;;
         gdh)
           GDH_FLAG="--gdh"
@@ -289,6 +286,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         local)
           run_local="--local"
           ;;
+        lr)
+          pe_dir_flag="--lr"
+          ;;          
         mag)
           mag_flag="--mag"
           ;;
@@ -313,11 +313,14 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         multi_design)
           MULTIPLE_DESIGNS="--multi_design"
           ;;
+        n4)
+          BIAS_FLAG="--n4"
+          ;;          
         nelder)
           use_constr="--nelder"
           ;;
-        n4)
-          BIAS_FLAG="--n4"
+        nighres)
+          LAYER_FLAG="nighres"
           ;;          
         no_bbr)
           use_bbr="--no_bbr"
@@ -358,6 +361,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no_raw)
           raw_flag="--no_raw"
           ;;
+        no_reg)
+          REG_T1="--no_reg"
+          ;;          
         no_sanlm)
           SANLM_FLAG="--no_sanlm"
           ;;          
@@ -382,15 +388,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         pa)
           pe_dir_flag="--pa"
           ;;
-        lr)
-          pe_dir_flag="--lr"
-          ;;
-        rl)
-          pe_dir_flag="--rl"
-          ;;
-        philips)
-          MRI_SYSTEM_FLAG="--philips"
-          ;;          
         psc)
           psc_flag="--psc"
           ;;
@@ -406,6 +403,30 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         pyb_only)
           pyb_flag="--pyb_only"
           ;;
+        raw)
+          raw_flag="--raw"
+          ;;
+        refit)
+          REFIT_FLAG="--refit"
+          ;;          
+        remove_surf_wf)
+          REMOVE_WF="--remove_surf_wf"
+          ;;  
+        remove_wf)
+          REMOVE_WF="--remove_wf"
+          ;;                    
+        rh)
+          HEMI_FLAG="--rh"
+          ;;          
+        rigid)
+          REG_TYPE="--rigid"
+          ;;          
+        rl)
+          pe_dir_flag="--rl"
+          ;;
+        save_grid)
+          save_grid="--save_grid"
+          ;;          
         sge)
           SGE="--sge"
           ;;
@@ -435,7 +456,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         surface)
           LAYER_FLAG="surface"
-          ;;          
+          ;;  
+        syn)
+          REG_TYPE="--syn"
+          ;;                  
         tc)
           use_constr="--tc"
           ;;
@@ -970,6 +994,12 @@ if [[ $? -eq 0 ]]; then
   echo "---------------------------------------------------------------------------------------------------"
   echo "[${module}] Multiparametric mapping"
 
+  # check for lsprep kwargs
+  KWARGS_FLAG=""
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+  
   ${job} spinoza_qmrimaps \
     ${SUBJECT} \
     ${SESSION} \
@@ -982,6 +1012,9 @@ if [[ $? -eq 0 ]]; then
     ${SGE} \
     ${SGE_QUEUE} \
     ${jobs_flag} \
+    ${KWARGS_FLAG} \
+    ${BIAS_FLAG} \
+    ${REG_T1} \
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
 
   if [[ $? -ne 0 ]]; then
