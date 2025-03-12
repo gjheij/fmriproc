@@ -237,7 +237,6 @@ for subID in ${search}; do
   fi
 
   if [[ ! -d ${output_dir} ]]; then
-    echo "Creating output directory"
     mkdir -p ${output_dir}
   fi
   
