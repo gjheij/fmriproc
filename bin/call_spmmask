@@ -164,5 +164,6 @@ fi
 
 # clean up files
 if [[ ${CLEAN_UP} -eq 1 ]]; then
-  rm -r $(dirname ${in_file})/c*$(basename ${in_file}) *.mat 2>/dev/null
+  rm -r $(dirname ${in_file})/c*$(basename ${in_file}) 2>/dev/null
+  rm -r $(dirname ${in_file})/*seg8* 2>/dev/null
 fi
