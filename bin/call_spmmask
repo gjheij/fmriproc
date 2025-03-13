@@ -149,11 +149,14 @@ fi
 
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
 if [[ ${is_niigz} -eq 1 ]]; then
-  gzip ${tmp_out} 2>/dev/null
+  gzip -f ${tmp_out} 2>/dev/null
 
-  # set qformcode to 1 (prefered by nighres)
-  if [[ `fslval ${out_file} qform_code` -ne 1 ]]; then
-    fslorient -setqformcode 1 ${out_file}
+  # cp geom
+  if [[ -f ${out_file} ]]; then
+    call_copyheader ${INPUT} ${out_file}
+  else
+    echo "ERROR: gzip did not create \"${out_file}\""
+    exit 1
   fi
 fi
 
