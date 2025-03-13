@@ -27,7 +27,6 @@ Parameters
     -f|--ft         path to 1st level FEAT directory
                     (default = $DIR_DATA_DERIV/feat/level1
     -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
-                    sub-005 had a rather messy scan session, so is excluded by default
     -o|--out        path to output directory (default = $DIR_DATA_DERIV/roi_extract)
     -n|--n_vox      number of highest/lowest voxels to select from a stats/covariate image (default = 15 highest). To fetch
                     "lowest" voxels, use "--loweset"
@@ -37,13 +36,19 @@ Parameters
                     (generally about 8). 
                     If you're submitting this script to a cluster, the number of cores requested should match the number of
                     subjects to ensure transparancy about the used resources.
-    -r|--rois       comma-separated list of filenames representing masks/stat files.
+    -r|--rois       comma-separated list of filenames representing masks/stat files or a directory with ROI-files.
                     E.g., "--rois file1.nii.gz,file2.nii.gzfile3.nii.gz"
 
                     REALLY NEEDS TO BE COMMA-SEPARATED WITHOUT SPACES!
-
+    -t|--task       List or string representing task IDs to include in the processing. Default is to take everything it can
+                    find, but it's useful to have some control if you have multiple distinct paradigms in your session (e.g.,
+                    HRF mapper & pRF mapper)
+                    
     --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want custom colors, use the
                     "--colors" flag. This function is used before "--colors" in case both as specified.
+    --filters       additional filters to search for ROI files. For instance, you have specified a directory with "--rois
+                    /path/to/ROIs", but that directory contains a bunch of ROIs that you're not necessarily interested in.
+                    If you're only interested in the files starting with "conv-*", you can specify that here.
     --colors        custom colors for plotting. Should be comma-separated (similar to --rois) and should have the same number
                     of elements as "--rois". For matplotlib conventions (e.g., 'r','b','g'), you can use "--color r,g,b". For
                     Hex-codes, use this format to ensure they're parsed properly:
@@ -120,6 +125,12 @@ Options (flag only)
                     Default is to use the parameters extracted from the averaged profiles (same as line plot).
                     Advantage of this is that they match the profiles much, but you lose the subject distribution
     --no_fit        Do not perform deconvolution, just extract data and exit
+    --fprep         Default to DIR_DATA_DERIV/fmriprep as input directory
+    --pybest        Default to DIR_DATA_DERIV/fmriprep as input directory
+    --fsl_mni       Set space to MNI152NLin6Asym (FSL template)
+    --fprep_mni     Set space to MNI152NLin2009cAsym (fMRIprep template)
+    --func          Set space to native functional space (default for volumetric data)
+    --t1            Set space to T1w
 
 Returns
 ----------
@@ -159,6 +170,8 @@ Example
 >>>     --colors "#1B9E77","#D95F02" \
 >>>     --par time_to_peak
 >>> qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no_fit
+>>> call_extract --ft /path/derivatives/feat/level1_motion --out /path/derivatives/roi_extract --base test --verbose --no_fit --rois /path/ROIs --filters conv-,integral-left
+>>> call_extract --fprep --out /path/derivatives/roi_extract --base test --verbose --no_fit
     """
 
     proj_dir = os.environ.get("DIR_DATA_HOME")
@@ -189,9 +202,12 @@ Example
     color_lut = {}
     use_subjects = False
     do_fit = True
+    filters = None
+    task = None
+    space = None
 
     try:
-        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit"])[0]
+        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni"])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         print(main.__doc__, flush=True)
@@ -203,7 +219,7 @@ Example
             sys.exit()
         elif opt in ("-p", "--proj"):
             proj_dir = arg
-        elif opt in ("-f", "--ft_dir"):
+        elif opt in ("-f", "--ft"):
             ft_dir = arg
         elif opt in ("-o", "--out"):
             output_dir = arg    
@@ -216,9 +232,39 @@ Example
         elif opt in ("--verbose"):
             verbose = True 
         elif opt in ("--subjects"):
-            use_subjects = True        
+            use_subjects = True   
+        elif opt in ("--fprep"):
+            ft_dir= opj(os.environ.get("DIR_DATA_DERIV"), "fmriprep")
+        elif opt in ("--pybest"):
+            ft_dir= opj(os.environ.get("DIR_DATA_DERIV"), "pybest")               
+        elif opt in ("--subjects"):
+            use_subjects = True                           
+        elif opt in ("--filters"):
+            filters = arg
+            if "," in filters:
+                filters = [i for i in utils.string2list(filters)]
+            else:
+                filters = [filters]
+
         elif opt in ("--func"):
-            func = arg      
+            func = arg   
+        elif opt in ("--space"):
+            space = arg       
+        elif opt in ("--fsl_mni"):
+            space = "MNI152NLin6Asym"
+        elif opt in ("--func"):
+            space = "func"     
+        elif opt in ("--t1"):
+            space = "T1w"                   
+        elif opt in ("--fprep_mni"):
+            space = "MNI152NLin2009cAsym"                                  
+        elif opt in ("-t", "--task"):
+            task = arg
+            if "," in task:
+                task = [i for i in utils.string2list(task)]
+            else:
+                task = [task]
+
         elif opt in ("--lowest"):
             highest_vox = False
         elif opt in ("--no_fit"):
@@ -314,9 +360,11 @@ Example
             if "," in rois:
                 rois = utils.string2list(rois)
             else:
-                rois = [rois]
+                if os.path.isfile(rois):
+                    rois = [rois]
 
-            rois = [os.path.abspath(i) for i in rois]
+            if isinstance(rois, list):
+                rois = [os.path.abspath(i) for i in rois]
 
         elif opt in ("-i", "--incl"):
             incl_subjs = arg
@@ -363,6 +411,7 @@ Example
         proj_dir=proj_dir,
         ft_dir=ft_dir,
         rois=rois,
+        filters=filters,
         output_dir=output_dir,
         output_base=output_base,
         verbose=verbose,
@@ -375,6 +424,8 @@ Example
         nr=n_vox,
         peak=peak,
         dec_kws=dec_kws,
+        space=space,
+        task=task
     )
 
 if __name__ == "__main__":
