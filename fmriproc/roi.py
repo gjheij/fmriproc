@@ -33,10 +33,16 @@ class ExtractFromROIs():
 
     Parameters
     ----------
-    func: str, nibabel.Nifti1Image, np.ndarray
-        Input functional data, either a string representing a path, a nibabel.Nifti1Image-object, or a numpy array
+    func: str, nibabel.Nifti1Image, nibabel.GiftiImage, np.ndarray
+        Input functional data, either a string representing a path, a nibabel.Nifti1Image-object, a nibabel.GiftiImage-object,
+        or a numpy array
     rois: list, str, optional
-        List of ROIs, either strings representing a path, nibabel.Nifti1Image-objects, or a numpy arrays
+        List of ROIs, either strings representing a path, nibabel.Nifti1Image-objects, or a numpy arrays or a directory con-
+        taining a bunch of ROIs. Use the "filters="-flag to further specify the input.
+    filters: str, list, optional
+        additional filters to search for ROI files. For instance, you have specified a directory with "--rois /path/to/ROIs",
+        but that directory contains a bunch of ROIs that you're not necessarily interested in. If you're only interested in
+        the files starting with "conv-*", you can specify that here.        
     roi_names, list, str, optional
         If empty, we will try to derive the ROI name from the filename (if they are strings).
         E.g., from "bin.thr.ACC_L.nii.gz", it would extract the last elements after ".", so "ACC_L".
@@ -87,6 +93,7 @@ class ExtractFromROIs():
         self, 
         func, 
         rois=None,
+        filters=None,
         roi_names=None,
         ses=None,
         task=None,
@@ -98,6 +105,7 @@ class ExtractFromROIs():
 
         self.func = func
         self.rois = rois
+        self.filters = filters
         self.TR = TR
         self.subject = subject
         self.verbose = verbose
@@ -105,17 +113,56 @@ class ExtractFromROIs():
         self.ses = ses
         self.task = task
 
-        if isinstance(self.func, (str,nb.Nifti1Image,np.ndarray)):
+        if isinstance(self.func, (str,nb.Nifti1Image,np.ndarray,nb.Gifti1Image)):
             self.func = [self.func]
 
-        if isinstance(self.rois, (str,nb.Nifti1Image,np.ndarray)):
-            self.rois = [self.rois]
+        if isinstance(self.filters, str):
+            self.filters = [self.filters]
 
         if isinstance(self.roi_names, str):
             self.roi_names = [self.roi_names]
 
+        # decide input of ROIs
+        self.set_rois_input()
+
+        # check if roi_names == rois
+        if isinstance(self.roi_names, list):
+            if len(self.roi_names) != len(self.roi_list):
+                raise ValueError(f"Number of specified ROI names ({len(self.roi_names)}) does not match number of supplied ROI-files ({len(self.roi_list)})")
+
+        # run extractor
         self.extracted_data = self.main_extractor(**kwargs)
     
+    def set_rois_input(self):
+
+        if isinstance(self.rois, (nb.Gifti1Image, nb.Nifti1Image, np.ndarray)):
+            self.roi_list = [self.rois]
+        elif isinstance(self.rois, str):
+            # input is directory
+            if os.path.isdir(self.rois):
+                self.roi_list = utils.FindFiles(
+                    self.rois,
+                    extension="nii.gz",
+                    exclude="._"
+                ).files
+
+                if isinstance(self.filters, list):
+                    self.roi_list = utils.get_file_from_substring(
+                        self.filters,
+                        self.rois
+                    )
+
+            elif os.path.isfile(self.rois):
+                # input is a file
+                self.roi_list = [self.rois]
+            else:
+                # input is invalid
+                raise TypeError(f"rois must be a directory or filepath, not {type(self.rois)}")
+        elif isinstance(self.rois, list):
+            self.roi_list = self.rois
+        else:
+            raise ValueError(f"rois must be a directory, filepath, or list of files, not {type(self.rois)}")
+                
     def main_extractor(
         self, 
         sep="_",
@@ -142,7 +189,7 @@ class ExtractFromROIs():
 
             # loop through ROIs
             roi_df = []
-            for ix, roi in enumerate(self.rois):
+            for ix, roi in enumerate(self.roi_list):
                 
                 # use specified ROI names
                 roi_name = None
@@ -291,12 +338,14 @@ class ExtractFromROIs():
             data = file.copy()
         elif isinstance(file, nb.Nifti1Image):
             data = file.get_fdata()
+        elif isinstance(file, nb.GiftiImage):
+            data = np.vstack([arr.data for arr in file.f_gif.darrays])
         else:
-            raise TypeError(f"Input {file} is of type {type(file)}. Must be a string pointing to an existing file path, an numpy array, or {nb.Nifti1Image}-object")
+            raise TypeError(f"Input {file} is of type {type(file)}. Must be a string pointing to an existing file path, an numpy array, nb.Nifti1Image-object, or nb.GiftiImage-object")
 
         return data
 
-class ExtractSubjects():
+class ExtractSubjects(ExtractFromROIs):
 
     """ExtractSubjects
 
@@ -309,7 +358,7 @@ class ExtractSubjects():
         path to 1st level FEAT, fMRIprep, or Pybest directory. For FEAT, We're explicitly searching for the
         "filtered_func_data" files; for fMRIprep, we will look for "*desc-preproc_bold.nii.gz" using the
         native functional files as default. Use e.g., `space=MNI152NLin6Asym` to select FSL's MNI files.
-        For Pybest, we will either look in the "denoising"-folder if you want surface-based files (e.g.,
+        For Pybest, we will either look in the "unzscored"-folder if you want surface-based files (e.g.,
         'fsnative' or 'fsaverage') for "*desc-denoised_bold.npy". For volumetric files, we will look in
         the "masked" folder for "*desc-denoised_bold.nii.gz". For both fMRIprep and Pybest, you can select
         specific tasks with 'task=["task1", "task3"]'. Otherwise all files will be considered. This can be
@@ -317,10 +366,6 @@ class ExtractSubjects():
         by Pybest that make selection using these criteria difficult. For instance, if you have multiple runs,
         it saves out an average without "run"-identifier. However, it outputs the same file if you only have
         a single runs..
-    rois: str, list, optional
-        List of ROIs, either strings representing a path, nibabel.Nifti1Image-objects, or a numpy arrays.
-        Note that this function does basic extraction. For atlases, use the Nilearn functions or use the
-        `nideconv.tools.roi.get_fmriprep_timeseries()`-function from nideconv.
     func: str, list, optional
         Reuse existing csv-file (<output_dir>/<base_name>/<base_name>_desc-tcs.csv)
     excl_subjs: list, optional
@@ -354,7 +399,6 @@ class ExtractSubjects():
     def __init__(
         self, 
         ft_dir, 
-        rois=None, 
         func=None,
         space=None,
         task=None,
@@ -365,7 +409,6 @@ class ExtractSubjects():
         **kwargs
         ):
         self.ft_dir = ft_dir
-        self.rois = rois
         self.excl_subjs = excl_subjs
         self.incl_subjs = incl_subjs
         self.n_jobs = n_jobs
@@ -375,41 +418,63 @@ class ExtractSubjects():
         self.task = task
 
         if not isinstance(self.func, str):
-            if not isinstance(self.incl_subjs, (str,list)):
-                self.subjects = sorted([i for i in utils.get_file_from_substring(["sub-"], os.listdir(ft_dir)) if i not in self.excl_subjs])
-            else:
-                if isinstance(self.incl_subjs, str):
-                    self.incl_subjs = [self.incl_subjs]
-                    
-                self.subjects = [i for i in self.incl_subjs if i not in self.excl_subjs]
+            
+            # check for incl/excl subjects
+            self.set_subjects()
 
+            # set number of jobs
             if not isinstance(self.n_jobs, int):
                 self.n_jobs = len(self.subjects)
 
-            utils.verbose(f"Including following subjects: {self.subjects}", self.verbose)
-
-            # check if input if fmriprep
-            utils.verbose(f"Looking for files in '{self.ft_dir}'", self.verbose)
-            if os.path.basename(self.ft_dir) == "fmriprep":
-                self.all_files = self.find_fmriprep_files(self.ft_dir, space=self.space, task=self.task)
-            elif os.path.basename(self.ft_dir) == "pybest":
-                self.all_files = self.find_pybest_files(self.ft_dir, space=self.space, task=self.task)
-            else:
-                self.all_files = self.find_feat_files(self.ft_dir)
-
-            if isinstance(self.all_files, str):
-                self.all_files = [self.all_files]
-                
-            utils.verbose(f"Found {len(self.all_files)} file(s)", self.verbose)
+            # search files
+            self.search_for_files()
 
             # extract
             self.df_func = self.extract_subjects(**kwargs)
         else:
-            utils.verbose(f"Reading file: {self.func}", self.verbose)
-            self.df_func = pd.read_csv(self.func, dtype={"subject": str}) # bit dodgy..
-            self.df_func.set_index(["subject","run","t"], inplace=True)
-            self.subj = utils.get_unique_ids(self.df_func, id="subject")
-            self.subjects = [f"sub-{i}" for i in self.subj]
+            self.read_tcs_file()
+
+    def search_for_files(self):
+
+        # check if input if fmriprep
+        utils.verbose(f"Looking for files in '{self.ft_dir}'", self.verbose)
+        if os.path.basename(self.ft_dir) == "fmriprep":
+            self.all_files = self.find_fmriprep_files(self.ft_dir, space=self.space, task=self.task)
+        elif os.path.basename(self.ft_dir) == "pybest":
+            self.all_files = self.find_pybest_files(self.ft_dir, space=self.space, task=self.task)
+        else:
+            self.all_files = self.find_feat_files(self.ft_dir)
+
+        if isinstance(self.all_files, str):
+            self.all_files = [self.all_files]
+            
+        utils.verbose(f"Found {len(self.all_files)} file(s)", self.verbose)
+
+    def read_tcs_file(self):
+
+        utils.verbose(f"Reading file: {self.func}", self.verbose)
+        self.df_func = pd.read_csv(self.func, dtype={"subject": str}) # bit dodgy..
+        self.df_func.set_index(["subject","run","t"], inplace=True)
+
+        # read subject IDs from dataframe
+        self.subj = utils.get_unique_ids(self.df_func, id="subject")
+        self.subjects = [f"sub-{i}" for i in self.subj]
+
+    def set_subjects(self):
+        if not isinstance(self.incl_subjs, (str,list)):
+
+            self.subjects = utils.get_file_from_substring(["sub-"], os.listdir(self.ft_dir))
+            if isinstance(self.subjects, str):
+                self.subjects = [self.subjects]
+
+            self.subjects = sorted([i for i in self.subjects if i not in self.excl_subjs])
+        else:
+            if isinstance(self.incl_subjs, str):
+                self.incl_subjs = [self.incl_subjs]
+                
+            self.subjects = [i for i in self.incl_subjs if i not in self.excl_subjs]
+        
+        utils.verbose(f"Including following subjects: {self.subjects}", self.verbose)
 
     @staticmethod
     def find_feat_files(input_dir):
@@ -471,7 +536,7 @@ class ExtractSubjects():
                 ).files
 
                 pyb_files = utils.get_file_from_substring(
-                    ["denoising"],
+                    ["unzscored"],
                     pyb_files
                 )
             else:
@@ -504,9 +569,9 @@ class ExtractSubjects():
                 task_files = []
                 for t in task:
                     tmp = utils.get_file_from_substring(
-                            [f"task-{t}"],
-                            pyb_files
-                        )
+                        [f"task-{t}"],
+                        pyb_files
+                    )
                     task_files += tmp
 
                 return task_files
@@ -548,13 +613,12 @@ class ExtractSubjects():
         files,
         **kwargs):
         """Wrapper around `:class:fmriproc.roi.ExtractFromROIs` to extract data from a single subject"""
-        obj = ExtractFromROIs(
+        super().__init__(
             files,
-            rois=self.rois,
             **kwargs
         )
 
-        return obj.extracted_data.copy()
+        return self.extracted_data.copy()
 
 
 def format_onsets(
@@ -615,7 +679,7 @@ class FullExtractionPipeline(ExtractSubjects):
     Parameters
     ----------
     proj_dir: str, optional
-        Root of the project folder, defaults to os.environ.get("DIR_DATA_HOME")
+        Root of the project folder, defaults to os.environ.get("DIR_DATA_HOME"). Mainly necessary for fetching onset files.
     order: list, optional
         If performing deconvolution, a plot can be generated. This flag sets the order (rows). By default, we'll take the order
         in the onset dataframe (unsorted).
@@ -1219,7 +1283,7 @@ class FullExtractionPipeline(ExtractSubjects):
             settings = {
                 "date": datetime.datetime.now(),
                 "subject": self.subjects,
-                "rois": self.rois,
+                "rois": self.roi_list,
                 "fit": self.do_fit,
                 "TR": self.fitter.TR,
                 "basis_sets": self.fitter.basis_sets,
@@ -1233,7 +1297,7 @@ class FullExtractionPipeline(ExtractSubjects):
             settings = {
                 "date": datetime.datetime.now(),
                 "subject": self.subjects,
-                "rois": self.rois,
+                "rois": self.roi_list,
                 "fit": self.do_fit,
                 "project_dir": self.proj_dir,
                 "input_dir": self.ft_dir,
