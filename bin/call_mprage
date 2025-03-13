@@ -14,14 +14,16 @@ call_mprage
 
 Workflow for the preprocessing of MPRAGE data so that it is compatible with the fMRIproc-pipeline.
 Steps include:
-- Bias correction (either SPM [--spm] or ANTs [default])
 - Brain masking using 'call_spmmask', which will create *desc-spm_mask
+- Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
+  brain mask too; seems to work well.
 - Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
 
 Options:
     -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
     --spm           use SPM for bias correction (default is ANTs)
     --no_sanlm      do not apply SANLM filtering
+    --no_winsor     do not apply winsoring of image intensities; would recommend this though..
     -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
                     separated flags as follows: 
                       - if you specify a flag and values | <flag>=<value>
@@ -69,6 +71,7 @@ OW=0
 RUN_WITH_ANTS=1
 RUN_SANLM=1
 REG_T1=1
+WINSORIZE_INTENSITIES=1
 # Check for subject & session flags
 while getopts hdl:s:x: argument
 do
@@ -83,7 +86,10 @@ do
           ;;
         no_reg)
           REG_T1=0
-          ;;          
+          ;;       
+        no_winsor)
+          WINSORIZE_INTENSITIES=0
+          ;;                 
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -137,26 +143,9 @@ if [[ ! -d $(dirname ${OUTPUT}) ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run bias correction
-bias_file="$(dirname ${out_file})/tmp_bias.nii.gz"
-if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
-  cmd="call_spmbias -s ${SPM_PATH} ${in_file} ${bias_file}"
-  echo " Bias correction with SPM.."
-else
-  echo " Bias correction with ANTs.."
-  cmd="call_antsbias ${in_file} ${bias_file} ${kwargs}"
-fi
-
-eval ${cmd}
-
-if [[ ! -f "${bias_file}" ]]; then
-  echo "ERROR in $(basename ${0}): bias correction failed"
-fi
-
-#-----------------------------------------------------------------------------
 # Generate brain mask
 mask_file="${out_file}_desc-spm_mask.nii.gz"
-cmd="call_spmmask --clean ${bias_file} ${mask_file}"
+cmd="call_spmmask --clean ${in_file} ${mask_file}"
 
 echo " Generating brain mask with SPM.."
 eval ${cmd}
@@ -164,6 +153,24 @@ eval ${cmd}
 if [[ ! -f "${mask_file}" ]]; then  
   echo "ERROR in $(basename ${0}): call_spmmask failed, mask-file not created"
   exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Run bias correction
+bias_file="$(dirname ${out_file})/tmp_bias.nii.gz"
+if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
+  cmd="call_spmbias -s ${SPM_PATH} ${in_file} ${bias_file}"
+  software="SPM"
+else
+  software="ANTs"
+  cmd="call_antsbias ${in_file} ${bias_file} -x ${mask_file} ${kwargs}"
+fi
+
+echo " Bias correction with ${software}}.."
+eval ${cmd}
+
+if [[ ! -f "${bias_file}" ]]; then
+  echo "ERROR in $(basename ${0}): bias correction failed"
 fi
 
 #-----------------------------------------------------------------------------
@@ -184,6 +191,20 @@ else
   # simply copy bias-corrected file as final output
   echo " SANLM turned off: simply copy bias-corrected file as final output"
   mv "${bias_file}" "${final_file}"
+fi
+
+#-----------------------------------------------------------------------------
+# truncate intensities and rescale
+if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
+  echo "Truncating image intensities [0.01,0.99] with 256 bins"
+  cmd="call_winsorize ${final_file}"
+  eval ${cmd}
+
+  echo " Rescaling T1w to [0,4095]"
+  cmd="call_rescale ${final_file} 0 4095"
+  eval ${cmd}
+else
+  echo " Winsorizing turned off.. will not touch image intensities"
 fi
 
 #-----------------------------------------------------------------------------
@@ -220,5 +241,20 @@ if [[ ! -z ${t1map} ]]; then
     echo " Not registering T1map, simply copy existing file to output folder"
     cp "${t1map}" "${t1_reg}" 2>/dev/null
   fi
+
+  #-----------------------------------------------------------------------------
+  # truncate intensities and rescale
+  if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
+    echo "Truncating T1map intensities [0.01,0.99] with 256 bins"
+    cmd="call_winsorize ${t1_reg}"
+    eval ${cmd}
+
+    echo " Rescaling T1map to [0,5050]"
+    cmd="call_rescale ${t1_reg} 0 5050"
+    eval ${cmd}
+  else
+    echo " Winsorizing turned off.. will not touch image intensities"
+  fi
 fi
+
 echo " Done"
