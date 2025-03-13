@@ -44,6 +44,8 @@ Arguments:
                       "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
   --no_reg            do not register separate T1map in case you have MPRAGE image
+  --no_winsor         do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so,
+                      though..
   --spm               use SPM for bias correction instead of ANTs [call_mprage]
   --sge               submit job to cluster (called with 'master -m <module> --sge')  
   --skip_bg           Do not create masks from INV2-image to remove noise from MP2RAGE   
@@ -75,6 +77,7 @@ n_cpus=1
 kwargs=""
 spm_flag=""
 reg_flag=""
+intensity_flag=""
 while getopts :-:oufs:n:p:q:j:x: argument
 do
   case ${argument} in
@@ -103,7 +106,10 @@ do
           ;; 
         no_reg)
           reg_flag="--no_reg"
-          ;;                                
+          ;;
+        no_winsor)
+          intensity_flag="--no_winsor"
+          ;;                                      
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}, did you mean \"--ow\", \"--full\", \"--ups\", \"--skip_bg\", \"--force_exec\", \"--sge\", \"--sge\", \"--spm\", or \"--no_reg\"?"
@@ -278,6 +284,7 @@ for subID in ${search}; do
               ${kwargs} \
               ${spm_flag} \
               ${reg_flag} \
+              ${intensity_flag} \
               ${file} \
               ${output_dir}/${output_base}"""
 

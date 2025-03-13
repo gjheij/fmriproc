@@ -115,6 +115,7 @@ UPs=""                    # spinoza_qmrimaps
 REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
 PARS_FILE=""              # spinoza_qmrimaps
+INTENSITY_FLAG=""         # spinoza_qmrimaps
 BIAS_FLAG=""              # spinoza_biassanlm
 SANLM_FLAG=""             # spinoza_biassanlm
 PROT_FLAG=""              # spinoza_scanner2bids
@@ -376,6 +377,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no_tsnr)
           TSNR_FLAG="--no_tsnr"
           ;;
+        no_winsor)
+          INTENSITY_FLAG="--no_winsor"
+          ;;          
         norm)
           MODEL_FLAG="--norm"
           ;;
@@ -1015,6 +1019,7 @@ if [[ $? -eq 0 ]]; then
     ${KWARGS_FLAG} \
     ${BIAS_FLAG} \
     ${REG_T1} \
+    ${INTENSITY_FLAG} \
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
 
   if [[ $? -ne 0 ]]; then

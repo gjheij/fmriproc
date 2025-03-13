@@ -72,6 +72,7 @@
 --no_srf
 --no_t2
 --no_tsnr
+--no_winsor
 --norm
 --ofsl
 --ow

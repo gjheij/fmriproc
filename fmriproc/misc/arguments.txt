@@ -179,6 +179,8 @@ Options:
 
 --no_tsnr         disable tSNR calculation.
 
+--no_winsor       do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so, though..
+
 --ofsl            output FSL-compatible matrix.
 
 --phys            run physiology-only conversion.
