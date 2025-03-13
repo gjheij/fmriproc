@@ -113,7 +113,7 @@ class ExtractFromROIs():
         self.ses = ses
         self.task = task
 
-        if isinstance(self.func, (str,nb.Nifti1Image,np.ndarray,nb.Gifti1Image)):
+        if isinstance(self.func, (str,nb.Nifti1Image,np.ndarray,nb.GiftiImage)):
             self.func = [self.func]
 
         if isinstance(self.filters, str):
@@ -135,7 +135,7 @@ class ExtractFromROIs():
     
     def set_rois_input(self):
 
-        if isinstance(self.rois, (nb.Gifti1Image, nb.Nifti1Image, np.ndarray)):
+        if isinstance(self.rois, (nb.GiftiImage, nb.Nifti1Image, np.ndarray)):
             self.roi_list = [self.rois]
         elif isinstance(self.rois, str):
             # input is directory
@@ -184,42 +184,21 @@ class ExtractFromROIs():
             else:
                 utils.verbose(f"Func #{ix+1}: input={type(func)}", self.verbose)
 
+            # load functional file
             data = self.load_file(func)
-
 
             # loop through ROIs
             roi_df = []
             for ix, roi in enumerate(self.roi_list):
                 
                 # use specified ROI names
-                roi_name = None
-                if isinstance(self.roi_names, list):
-                    roi_name = self.roi_names[ix]
+                roi_name = self.extract_run_identifier(
+                    roi,
+                    ix,
+                    sep=sep
+                )
 
-                # extract ROI name from file
-                if roi_name is None:
-                    if isinstance(roi, str):
-                        utils.verbose(f" Dealing with roi: {roi}", self.verbose)
-            
-                        roi_name = os.path.basename(roi)
-                        if roi_name.endswith("gz"):
-                            roi_name = sep.join(roi_name.split(".")[:-2])
-                        elif roi_name.endswith("nii"):
-                            roi_name = sep.join(roi_name.split(".")[:-1])
-                        else:
-                            raise NotImplementedError()
-                        
-                        try:
-                            bids_comps = utils.split_bids_components(roi)
-                            for key in ["ses", "task", "run"]:
-                                if key in list(bids_comps.keys()):
-                                    setattr(self, key, bids_comps[key])
-                        except Exception:
-                            pass
-
-                else:
-                    roi_name = f"roi_{ix+1}"
-
+                # load file and extract
                 roi_data = self.load_file(roi)
                 extr_data = self.extract_data(
                     data,
@@ -245,6 +224,43 @@ class ExtractFromROIs():
         utils.verbose(f"Done", self.verbose)
         return df
 
+    def extract_run_identifier(
+        self,
+        roi,
+        ix,
+        sep="_",
+        ):
+
+        roi_name = None
+        if isinstance(self.roi_names, list):
+            roi_name = self.roi_names[ix]
+
+        # extract ROI name from file
+        if roi_name is None:
+            if isinstance(roi, str):
+                utils.verbose(f" Dealing with roi: {roi}", self.verbose)
+    
+                roi_name = os.path.basename(roi)
+                if roi_name.endswith("gz"):
+                    roi_name = sep.join(roi_name.split(".")[:-2])
+                elif roi_name.endswith("nii"):
+                    roi_name = sep.join(roi_name.split(".")[:-1])
+                else:
+                    raise NotImplementedError()
+                
+                try:
+                    bids_comps = utils.split_bids_components(roi)
+                    for key in ["ses", "task", "run"]:
+                        if key in list(bids_comps.keys()):
+                            setattr(self, key, bids_comps[key])
+                except Exception:
+                    pass
+
+        else:
+            roi_name = f"roi_{ix+1}"
+
+        return roi_name
+    
     @staticmethod
     def extract_data(
         func,
@@ -1286,6 +1302,7 @@ class FullExtractionPipeline(ExtractSubjects):
                 "rois": self.roi_list,
                 "fit": self.do_fit,
                 "TR": self.fitter.TR,
+                "unit": "seconds",
                 "basis_sets": self.fitter.basis_sets,
                 "interval": self.fitter.interval,
                 "project_dir": self.proj_dir,
@@ -1299,6 +1316,8 @@ class FullExtractionPipeline(ExtractSubjects):
                 "subject": self.subjects,
                 "rois": self.roi_list,
                 "fit": self.do_fit,
+                "TR": self.TR,
+                "unit": "seconds",
                 "project_dir": self.proj_dir,
                 "input_dir": self.ft_dir,
                 "output_dir": self.output_dir,

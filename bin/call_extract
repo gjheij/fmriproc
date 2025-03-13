@@ -113,7 +113,7 @@ Parameters
                         "rise_slope",
                         "positive_area"
                     ]
-    --tr            Repetition time to use for the dataframe formation, by default 2
+    --tr            Repetition time to use for the dataframe formation, by default 1
 
 Options (flag only)
 ----------
@@ -206,7 +206,7 @@ Example
     filters = None
     task = None
     space = None
-    tr = None
+    tr = 1
 
     try:
         opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="])[0]
