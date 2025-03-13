@@ -1,0 +1,381 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import getopt
+from lazyfmri import utils
+from fmriproc import roi
+
+opj = os.path.join
+opd = os.path.dirname
+
+def main(argv):
+
+    """call_extract
+
+Given a list of ROIs, extract the timecourses from all subjects' preprocessed data in a level1 feat folder. If these ROIs are
+binary, the timecourses will be averaged across this entire area. If the ROIs are values (e.g., z-stat values), the n (default
+= 15) highest (default) /lowest (--lowest) values will be selected and averaged. These timecourses are entered in a deconvo-
+lution model using the canonical HRF and its derivatives as basis sets (default). From this model, parameters are extracted
+from the individual basis sets as well as the full HRF. Results are plotted and stored in a figure where the rows denote EV
+(stimulus conditions. There's a couple of default settings that you can generally leave alone, but there's flags to changed
+them nonetheless.
+
+Parameters
+----------
+    -p|--proj       path to project (default = "/fast/project/PG_Niendorf_fmri/fmri/pipeHMR/projects/H02")
+    -f|--ft         path to 1st level FEAT directory
+                    (default = $DIR_DATA_DERIV/feat/level1
+    -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
+                    sub-005 had a rather messy scan session, so is excluded by default
+    -o|--out        path to output directory (default = $DIR_DATA_DERIV/roi_extract)
+    -n|--n_vox      number of highest/lowest voxels to select from a stats/covariate image (default = 15 highest). To fetch
+                    "lowest" voxels, use "--loweset"
+    -b|--base       basename for output. Will also be used to create a subfolder in <output_dir>. "_desc-<description>" will
+                    be appended automatically
+    -j|--n_jobs     number of jobs/cpus to use for timecourse extraction. Default is however many subjects are included
+                    (generally about 8). 
+                    If you're submitting this script to a cluster, the number of cores requested should match the number of
+                    subjects to ensure transparancy about the used resources.
+    -r|--rois       comma-separated list of filenames representing masks/stat files.
+                    E.g., "--rois file1.nii.gz,file2.nii.gzfile3.nii.gz"
+
+                    REALLY NEEDS TO BE COMMA-SEPARATED WITHOUT SPACES!
+
+    --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want custom colors, use the
+                    "--colors" flag. This function is used before "--colors" in case both as specified.
+    --colors        custom colors for plotting. Should be comma-separated (similar to --rois) and should have the same number
+                    of elements as "--rois". For matplotlib conventions (e.g., 'r','b','g'), you can use "--color r,g,b". For
+                    Hex-codes, use this format to ensure they're parsed properly:
+
+                    '--colors "#cccccc","#ffffff"'
+    --order         EV order for plotting (row-wise)
+    --func          Reuse existing csv-file (<output_dir>/<base_name>/<base_name>_desc-tcs.csv)
+    --peak          Extract parameters from a particular peak of the curve (default = 1, first peak)
+    --dec           Set parameters for deconvolution. The defaults are set to:
+
+                    ```
+                    dec_defaults = {
+                        "interval": [-2,25],
+                        "basis_sets": "canonical_hrf_with_time_derivative_dispersion",
+                        "TR": 2
+                    }
+                    ```
+
+                    The format should be as follows (different parameters comma-separated, and parameter-value pair separated by '='):
+                    "--dec <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                    In case you want to change the interval over which the profiles are deconvolved, use "interval=t1>t2" (separated by '>').
+
+                    You can specify all parameters that the :class:`linescanning.fitting.NideconvFitter`-object accepts. For options, see this link:
+                    https://github.com/gjheij/lazyfmri/blob/main/lazyfmri/fitting.py#L943
+
+    --plot          Set parameters for plotting. The idea is similar to the "--dec" flag. The defaults are set to:
+
+                    ```
+                    plot_defaults = {
+                        "line_width": 3,    # thickness of the lines of profiles
+                        "y_dec": 2,         # number of decimals on y-axes (ensures correct spacing)
+                        "add_hline": 0,     # horizontal line at 0
+                        "sns_offset": 4,    # distance between y-axis and first bar in bar plot
+                        "error": "se"       # error type (standard error of mean) for bar plot,
+                        "cmap": "Set1"      # colormap Set1
+                    }
+                    ```
+
+                    You can specify all parameters that the :class:`linescanning.plotting.Defaults`-object accepts. For
+                    options, see this link:
+                    https://github.com/gjheij/lazyfmri/blob/main/lazyfmri/plotting.py#L12
+
+    --lut           Define colors for plotting in a categorical manner. If your ROIs contain certain identifiers,
+                    e.g., "GS", "IC", these can be used to sort all ROIs in your list and shade them according
+                    to your requested color. By default, the following colors are used for different identifiers:
+
+                    The format should be as follows (different parameters comma-separated, and parameter-value pair separated
+                    by '='):
+                    "--lut <identifier1>=<color1>,<identifier1>=<color1>,<identifierX>=<colorX>"
+
+    --include_pars  List of parameters to plot as bar plots below the profiles. Can be any of the parameters present in the
+                    dataframe: 
+                    ['magnitude', 'fwhm', 'time_to_peak', 'half_rise_time',	'half_max',	'rise_slope', 'rise_slope_t',
+                    'positive_area', 'undershoot']. Must be comma-separated string e.g,. --include_pars magnitude,time_to_peak
+
+                    Defaults = [
+                        "magnitude",
+                        "time_to_peak",
+                        "1st_deriv_time_to_peak",
+                        "2nd_deriv_time_to_peak",
+                        "rise_slope",
+                        "positive_area"
+                    ]
+
+Options (flag only)
+----------
+    -h|--help       print this help info
+    --lowest        Select lowest voxels in a given ROI. Use "--n_vox" to set the number of voxels to select (default = 15)
+    --verbose       turn on verbose
+    --skip_points   do not plot the individual datapoints in the bar plot
+    --subjects      Use the parameters from subject-specific profiles. These are more volatile, but do give insights in the
+                    distributions. 
+                    Default is to use the parameters extracted from the averaged profiles (same as line plot).
+                    Advantage of this is that they match the profiles much, but you lose the subject distribution
+    --no_fit        Do not perform deconvolution, just extract data and exit
+
+Returns
+----------
+    The following files are created:
+        - <output_dir>/<base_name>/<base_name>_desc-hrfs.csv: dataframe representing the deconvolved profiles for the full HRF
+        and its individual basis sets
+        - <output_dir>/<base_name>/<base_name>_desc-onsets.csv: dataframe representing the onsets for all subjects
+        - <output_dir>/<base_name>/<base_name>_desc-pars_avg.csv: dataframe representing the HRF parameters extracted after
+        averaging over runs
+        - <output_dir>/<base_name>/<base_name>_desc-pars_run.csv: dataframe representing the HRF parameters extracted per run
+        - <output_dir>/<base_name>/<base_name>_desc-plot*: figure containing the profiles of the full HRF and its basis sets
+        for each EV, colored by ROI, with 'magnitude' as bar plots in parameters bar plots
+        - <output_dir>/<base_name>/<base_name>_desc-settings.json: json files containing some useful information about
+        settings used in a given process
+        - <output_dir>/<base_name>/<base_name>_desc-tcs.csv: dataframe representing the extracted percent-changed timecourses
+        that were entered in the deconvolution method
+        
+Notes
+----------
+This script is designed to do basic time series extraction using existing ROIs. If you want atlas extraction, you can use the
+`nilearn.maskers.NiftiLabelsMasker()` or `nilearn.maskers.NiftiMapsMasker()` functions. These are also wrapper in the
+`nideconv.tools.roi.get_fmriprep_timeseries()`-function.
+
+Links:
+    - `maskers.NiftiLabelMasker()`: https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiLabelsMasker.html
+    - `maskers.NiftiMapsMasker()`: https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiMapsMasker.html#nilearn.maskers.NiftiMapsMasker
+    - `get_fmriprep_timeseries()`: https://github.com/VU-Cog-Sci/nideconv/blob/master/nideconv/utils/roi.py#L140
+
+Example
+----------
+>>> call_extract --rois file1.nii.gz,file2.nii.gz --dec interval=-3>15
+>>> call_extract \
+>>>     --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
+>>>     --base test7 \
+>>>     --verbose \
+>>>     --n_jobs 1 \
+>>>     --colors "#1B9E77","#D95F02" \
+>>>     --par time_to_peak
+>>> qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no_fit
+    """
+
+    proj_dir = os.environ.get("DIR_DATA_HOME")
+    ft_dir = opj(proj_dir, "derivatives", "feat", "level1")
+    n_jobs = None
+    verbose = False
+    cmap = "Set1"
+    colors = None
+    output_base = None
+    output_dir = opj(proj_dir, "derivatives", "roi_extract")
+    incl_subjs = None
+    func = None
+    n_vox = 15
+    highest_vox = True
+    peak = 1
+    dec_kws = {}
+    order = None
+    plot_kws = {}
+    include_pars = [
+        "magnitude",
+        "time_to_peak",
+        "1st_deriv_time_to_peak",
+        "2nd_deriv_time_to_peak",
+        "rise_slope",
+        "positive_area"
+    ]
+    rois = None
+    color_lut = {}
+    use_subjects = False
+    do_fit = True
+
+    try:
+        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit"])[0]
+    except getopt.GetoptError:
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
+        print(main.__doc__, flush=True)
+        sys.exit(2)
+
+    for opt, arg in opts: 
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-p", "--proj"):
+            proj_dir = arg
+        elif opt in ("-f", "--ft_dir"):
+            ft_dir = arg
+        elif opt in ("-o", "--out"):
+            output_dir = arg    
+        elif opt in ("-b", "--base"):
+            output_base = arg                        
+        elif opt in ("-j", "--n_jobs"):
+            n_jobs = int(arg) 
+        elif opt in ("-n", "--n_vox"):
+            n_vox = int(arg)
+        elif opt in ("--verbose"):
+            verbose = True 
+        elif opt in ("--subjects"):
+            use_subjects = True        
+        elif opt in ("--func"):
+            func = arg      
+        elif opt in ("--lowest"):
+            highest_vox = False
+        elif opt in ("--no_fit"):
+            do_fit = False            
+        elif opt in ("--include_pars"):
+            include_pars = arg
+
+            # parse into list
+            if "," in dec:
+                include_pars = utils.string2list(include_pars)
+            else:
+                include_pars = [include_pars]              
+        elif opt in ("--dec"):
+            dec = arg
+
+            # parse into list
+            if "," in dec:
+                dec = utils.string2list(dec)
+            else:
+                dec = [dec]
+
+            # and into dictionary
+            dec_kws = {}
+            for i in dec:
+                spl = i.split("=")
+                val = spl[1]
+                if ">" in val:
+                    val = [float(i) for i in val.split(">")]
+                elif val == "True":
+                    val = True
+                elif val == "False":
+                    val = False
+                else:
+                    if val.isnumeric():
+                        if "." in val:
+                            val = float(val)
+                        else:
+                            val = int(val)
+                
+                dec_kws[spl[0]] = val
+
+        elif opt in ("--lut"):
+
+            lut = arg
+            
+            # option to turn off color LUT
+            if lut == "none":
+                color_lut = {}
+            else:
+                # parse into list
+                if "," in lut:
+                    lut = utils.string2list(lut)
+                else:
+                    lut = [lut]
+
+                # and into dictionary
+                for i in lut:
+                    spl = i.split("=")
+                    color_lut[spl[0]] = spl[1]
+                
+        elif opt in ("--plot"):
+            plot = arg
+
+            # parse into list
+            if "," in plot:
+                plot = utils.string2list(plot)
+            else:
+                plot = [plot]
+
+            # and into dictionary
+            plot_kws = {}
+            for i in plot:
+                spl = i.split("=")
+                
+                val = spl[-1]
+                if val == "True":
+                    val = True
+                elif val == "False":
+                    val = False
+                else:
+                    if val.isnumeric():
+                        if "." in val:
+                            val = float(val)
+                        else:
+                            val = int(val)
+                
+                plot_kws[spl[0]] = val
+
+        elif opt in ("-r", "--rois"):
+            rois = arg
+            
+            # parse into list
+            if "," in rois:
+                rois = utils.string2list(rois)
+            else:
+                rois = [rois]
+
+            rois = [os.path.abspath(i) for i in rois]
+
+        elif opt in ("-i", "--incl"):
+            incl_subjs = arg
+
+            # parse into list
+            if "," in incl_subjs:
+                incl_subjs = utils.string2list(incl_subjs)
+            else:
+                incl_subjs = [incl_subjs]
+
+        elif opt in ("--cmap"):
+            cmap = arg 
+        elif opt in ("--peak"):
+            peak = int(arg)             
+        elif opt in ("--order"):
+            order = arg             
+        elif opt in ("--colors"):
+            colors = arg      
+
+            # parse into list
+            if "," in colors:
+                colors = utils.string2list(colors)
+
+    if isinstance(colors, (str,list)):
+        plot_kws["color"] = colors
+    else:
+        plot_kws["cmap"] = cmap
+    
+    plot_dict = {
+        "subjects": use_subjects,
+        "cdict": color_lut,
+        "include_pars": include_pars
+    }
+
+    for key,val in plot_dict.items():
+        utils.update_kwargs(
+            plot_kws,
+            key,
+            val
+        )
+
+    _ = roi.FullExtractionPipeline(
+        func=func,
+        proj_dir=proj_dir,
+        ft_dir=ft_dir,
+        rois=rois,
+        output_dir=output_dir,
+        output_base=output_base,
+        verbose=verbose,
+        plot_kws=plot_kws,
+        n_jobs=n_jobs,
+        incl_subjs=incl_subjs,
+        order=order,
+        do_fit=do_fit,
+        highest=highest_vox,
+        nr=n_vox,
+        peak=peak,
+        dec_kws=dec_kws,
+    )
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
