@@ -169,7 +169,7 @@ else
   cmd="call_antsbias ${in_file} ${bias_file} -x ${mask_file} ${kwargs}"
 fi
 
-echo " Bias correction with ${software}}.."
+echo " Bias correction with ${software}.."
 eval ${cmd}
 
 if [[ ! -f "${bias_file}" ]]; then
