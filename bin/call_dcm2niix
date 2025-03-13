@@ -109,7 +109,7 @@ function fix_compression {
         if [[ -n "$filename" ]]; then
           if [[ -f "$filename" ]]; then
             echo "Compressing: $filename"
-            gzip "${filename}"
+            gzip -f "${filename}"
           else
             echo "Warning: File does not exist: $filename"
           fi

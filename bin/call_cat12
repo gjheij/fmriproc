@@ -232,15 +232,15 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
   
   # copy file 
   mv "$file" "${OUTPUT}/"
+  out_file="${OUTPUT}/$(basename "$file").gz"
   if [[ ${ext} == "gz" ]]; then
     # compress
-    out_file="${OUTPUT}/$(basename "$file").gz"
     echo " Compressing $(basename "$file") to .nii.gz"
-    gzip --force "${OUTPUT}/$(basename "$file")"
+    gzip -f "${OUTPUT}/$(basename "$file")"
   fi
 
   # copy geometry from input file
-  cmd="fslcpgeom "${INPUT}" "${OUTPUT}/$(basename "$file").gz""
+  cmd="call_copyheader "${INPUT}" "${out_file}""
   eval ${cmd}
   if [[ $? -ne 0 ]]; then
     echo "ERROR in $(basename ${0}): fslcpgeom exited with non-zero status"

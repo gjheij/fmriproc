@@ -90,12 +90,12 @@ if [[ ${ext_mag} == "gz" ]]; then
   nii_mag=".nii.gz"
 else
   nii_mag=".nii"
-  gzip ${fn_mag}
+  gzip -f ${fn_mag}
 fi
 
 ext_ph=`fetch_extension ${IMG_PHASE}`
 if [[ ${ext_ph} == "nii" ]]; then
-  gzip ${fn_phase}
+  gzip -f ${fn_phase}
 fi
 
 # check if datatype != FLOAT64; might crash..
@@ -168,7 +168,7 @@ fi
 
 if [[ ${ext_nordic} == "gz" ]]; then
   echo "Compressing NORDIC'ed output"
-  gzip ${fn_nordic}.nii 2>/dev/null
+  gzip -f ${fn_nordic}.nii 2>/dev/null
   nord_file=${fn_nordic}${nii_ext}
 
   if [ -f ${fn_nordic}.nii ]; then
