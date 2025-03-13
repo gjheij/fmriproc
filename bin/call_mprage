@@ -145,8 +145,11 @@ fi
 #-----------------------------------------------------------------------------
 # Generate brain mask
 mask_file="${out_file}_desc-spm_mask.nii.gz"
-cmd="call_spmmask --clean ${in_file} ${mask_file}"
 
+# remove old versions
+rm $(dirname ${mask_file})/$(basename ${mask_file} .gz)* 2>/dev/null
+
+cmd="call_spmmask --clean ${in_file} ${mask_file}"
 echo " Generating brain mask with SPM.."
 eval ${cmd}
 
@@ -171,6 +174,7 @@ eval ${cmd}
 
 if [[ ! -f "${bias_file}" ]]; then
   echo "ERROR in $(basename ${0}): bias correction failed"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
@@ -196,7 +200,7 @@ fi
 #-----------------------------------------------------------------------------
 # truncate intensities and rescale
 if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
-  echo "Truncating image intensities [0.01,0.99] with 256 bins"
+  echo " Truncating image intensities [0.01,0.99] with 256 bins"
   cmd="call_winsorize ${final_file}"
   eval ${cmd}
 
