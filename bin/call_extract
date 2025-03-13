@@ -43,7 +43,7 @@ Parameters
     -t|--task       List or string representing task IDs to include in the processing. Default is to take everything it can
                     find, but it's useful to have some control if you have multiple distinct paradigms in your session (e.g.,
                     HRF mapper & pRF mapper)
-                    
+
     --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want custom colors, use the
                     "--colors" flag. This function is used before "--colors" in case both as specified.
     --filters       additional filters to search for ROI files. For instance, you have specified a directory with "--rois
@@ -113,6 +113,7 @@ Parameters
                         "rise_slope",
                         "positive_area"
                     ]
+    --tr            Repetition time to use for the dataframe formation, by default 2
 
 Options (flag only)
 ----------
@@ -205,9 +206,10 @@ Example
     filters = None
     task = None
     space = None
+    tr = None
 
     try:
-        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni"])[0]
+        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         print(main.__doc__, flush=True)
@@ -380,7 +382,9 @@ Example
         elif opt in ("--peak"):
             peak = int(arg)             
         elif opt in ("--order"):
-            order = arg             
+            order = arg         
+        elif opt in ("--tr"):
+            tr = arg                     
         elif opt in ("--colors"):
             colors = arg      
 
@@ -425,7 +429,8 @@ Example
         peak=peak,
         dec_kws=dec_kws,
         space=space,
-        task=task
+        task=task,
+        TR=tr
     )
 
 if __name__ == "__main__":
