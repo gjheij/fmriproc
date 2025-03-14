@@ -150,19 +150,15 @@ fi
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
 if [[ ${is_niigz} -eq 1 ]]; then
   gzip -f ${tmp_out} 2>/dev/null
-
-  # cp geom
-  if [[ -f ${out_file} ]]; then
-    call_copyheader ${INPUT} ${out_file}
-  else
-    echo "ERROR: gzip did not create \"${out_file}\""
-    exit 1
-  fi
+  rm ${in_file} 2>/dev/null
 fi
 
-# clean up created .nii file
-if [[ ${ext} == "gz" ]]; then
-  rm ${in_file} 2>/dev/null
+# cp geom
+if [[ -f ${out_file} ]]; then
+  call_copyheader ${INPUT} ${out_file}
+else
+  echo "ERROR: gzip did not create \"${out_file}\""
+  exit 1
 fi
 
 # clean up files

@@ -129,11 +129,11 @@ if [[ ! -z ${filter_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
     gzip -fc ${filter_img} > ${OUTPUT} 2>/dev/null
 
-    call_copyheader ${INPUT} ${OUTPUT}
     rm -r ${in_file} 2>/dev/null
   
   else
     mv ${filter_img} ${OUTPUT}
   fi
   rm -r ${filter_img} 2>/dev/null
+  call_copyheader ${INPUT} ${OUTPUT}
 fi

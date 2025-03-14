@@ -141,9 +141,11 @@ mask_img=`find $(dirname ${in_file}) -type f -name "m$(basename ${in_file})*" 2>
 if [[ ! -z ${mask_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
     gzip -cf ${mask_img} > ${OUTPUT} 2>/dev/null
-    call_copyheader ${in_file} ${OUTPUT}
     rm -r ${in_file} ${mask_img} ${INPUT} 2>/dev/null
   else
     mv ${mask_img} ${OUTPUT}
   fi
 fi
+
+# copy header
+call_copyheader ${in_file} ${OUTPUT}
