@@ -10,8 +10,6 @@ build:
 python:
     install:
         - requirements: doc/requirements.txt
-        - pip:
-            - .
 
 sphinx:
     configuration: doc/source/conf.py
