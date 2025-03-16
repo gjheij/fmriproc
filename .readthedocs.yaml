@@ -7,7 +7,7 @@ build:
 
 python:
   install:
-    - requirements: doc/requirements.txt
+    - requirements_file: doc/requirements.txt
     - pip:
         - git+https://github.com/gjheij/lazyfmri.git
         - git+https://github.com/VU-Cog-Sci/prfpy.git
