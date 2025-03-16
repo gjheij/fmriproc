@@ -4,7 +4,6 @@ matplotlib
 scipy
 joblib
 pyyaml
-pickle
 nibabel
 nipype
 sklearn
