@@ -6,5 +6,5 @@ joblib
 pyyaml
 nibabel
 nipype
-sklearn
+scikit-learn
 nbsphinx
