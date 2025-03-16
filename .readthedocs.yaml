@@ -1,22 +1,15 @@
 version: 2
 
+# Set the OS, Python version and other tools you might need
 build:
   os: ubuntu-22.04
   tools:
-    python: "3.10"
+    python: "3.11"
 
+# Explicitly set the version of Python and its requirements
 python:
   install:
-    - requirements_file: doc/requirements.txt
-    - pip:
-        - git+https://github.com/gjheij/lazyfmri.git
-        - git+https://github.com/VU-Cog-Sci/prfpy.git
-        - pip list
-        - python --version
-        - ls -l doc/
-        - ls -l doc/source/
-        - ls -l doc/requirements.txt
-        - cat doc/requirements.txt
+    - requirements: doc/requirements.txt
 
 sphinx:
   configuration: doc/source/conf.py
