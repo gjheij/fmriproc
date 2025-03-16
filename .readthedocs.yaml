@@ -2,14 +2,16 @@ version: 2
 
 # Set the OS, Python version and other tools you might need
 build:
-  os: ubuntu-22.04
-  tools:
-    python: "3.11"
+    os: ubuntu-22.04
+    tools:
+        python: "3.11"
 
 # Explicitly set the version of Python and its requirements
 python:
-  install:
-    - requirements: doc/requirements.txt
+    install:
+        - requirements: doc/requirements.txt
+        - pip:
+            - .
 
 sphinx:
-  configuration: doc/source/conf.py
+    configuration: doc/source/conf.py
