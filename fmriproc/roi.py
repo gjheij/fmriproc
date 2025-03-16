@@ -29,7 +29,7 @@ class ExtractFromROIs():
     Extract timecourses given a list of ROIs from functional files. Assumes the ROI and functional files are in the same space,
     e.g., both in native functional space (in case of single-subject processing), or all in MNI-space (in which case multi-
     subject processing is permitted). If the ROIs represent float data (e.g., zstat/tstat), it will extract the 15 highest
-    voxels within that ROI. If ROI is binary, all voxels will be used. See also **kwargs.
+    voxels within that ROI. If ROI is binary, all voxels will be used. See also :func:`fmriproc.roi.ExtractFromROIs.extract_data`.
 
     Parameters
     ----------
@@ -42,51 +42,43 @@ class ExtractFromROIs():
     filters: str, list, optional
         additional filters to search for ROI files. For instance, you have specified a directory with "--rois /path/to/ROIs",
         but that directory contains a bunch of ROIs that you're not necessarily interested in. If you're only interested in
-        the files starting with "conv-*", you can specify that here.        
+        the files starting with "conv-\*", you can specify that here.        
     roi_names, list, str, optional
         If empty, we will try to derive the ROI name from the filename (if they are strings).
         E.g., from "bin.thr.ACC_L.nii.gz", it would extract the last elements after ".", so "ACC_L".
         If the inputs are not strings, we will default to "roi_{}", so it's highly encouraged to use the *roi_names*-input
         for non-string functional files.
     ses: int, optional
-        Specify session ID; will be read from filename if possible using `:func:lazyfmri.utils.split_bids_components`
+        Specify session ID; will be read from filename if possible using :func:`lazyfmri.utils.split_bids_components`
     task: str, optional
-        Specify task ID; will be read from filename if possible using `:func:lazyfmri.utils.split_bids_components`
+        Specify task ID; will be read from filename if possible using :func:`lazyfmri.utils.split_bids_components`
     TR: int, optional
         Repetition time to use for the dataframe formation, by default 2
     subject: int, optional
         Subject ID to use for the dataframe formation, by default 1
     verbose: bool, optional
         Make some noise, by default False
-    **kwargs
-        Arguments passed to `:func:fmriproc.roi.ExtractFromROIs.extract_data`:
-
-        nr: int, optional
-            number of voxels to extract from data in case the input is float, by default 15.
-            if the input is binary, we will take the entire ROI.
-        bsl: int, optional
-            amount of time to use to calculate baseline for percent signal change conversion, by default 15s.
-        highest: bool, optional
-            If True, we select *nr* HIGHEST voxels from roi. If False, we select the *nr* LOWEST. By default True
-        psc: bool, optional
-            Normalize to percent signal change. Default is True.
-        zscore: bool, optional
-            Normalize using z-scoring. Default = False
+    **kwargs: dict
+        Same as :func:`fmriproc.roi.ExtractFromROIs.extract_data`
 
     Example
     ----------
-    >>> from fmriproc import roi
-    >>> obj = roi.ExtractFromROIs(
-    >>>     "/path/to/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-task1_space-MNI152NLin6Asym_bold.nii.gz",
-    >>>     rois=[
-    >>>         "/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_L.nii.gz,
-    >>>         "/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_R.nii.gz
-    >>>         "/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_L.nii.gz
-    >>>         "/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_R.nii.gz
-    >>>     ],
-    >>>     TR=1.5,
-    >>>     subject="01"
-    >>> )
+
+    .. code-block:: python
+
+        from fmriproc import roi
+        obj = roi.ExtractFromROIs(
+            "/path/to/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-task1_space-MNI152NLin6Asym_bold.nii.gz",
+            rois=[
+                "/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_L.nii.gz,
+                "/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_R.nii.gz
+                "/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_L.nii.gz
+                "/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_R.nii.gz
+            ],
+            TR=1.5,
+            subject="01"
+        )
+
     """
 
     def __init__(
@@ -169,7 +161,7 @@ class ExtractFromROIs():
         **kwargs
         ):
 
-        """Loop through functional files to extract data using `:func:fmriproc.roi.ExtractFromROIs.extract_data`"""
+        """Loop through functional files to extract data using :func:`fmriproc.roi.ExtractFromROIs.extract_data`"""
         df = []
         # loop through functionals
         for ix,func in enumerate(self.func):
@@ -366,18 +358,18 @@ class ExtractSubjects(ExtractFromROIs):
     """ExtractSubjects
 
     Loop through all subjects in a FEAT-directory to extract timecourses from a set of ROIs using
-    `:class:fmriproc.roi.ExtractFromROIs()`.
+    :class:`fmriproc.roi.ExtractFromROIs()`.
 
     Parameters
     ----------
     ft_dir: str
         path to 1st level FEAT, fMRIprep, or Pybest directory. For FEAT, We're explicitly searching for the
-        "filtered_func_data" files; for fMRIprep, we will look for "*desc-preproc_bold.nii.gz" using the
+        "filtered_func_data" files; for fMRIprep, we will look for "\*desc-preproc_bold.nii.gz" using the
         native functional files as default. Use e.g., `space=MNI152NLin6Asym` to select FSL's MNI files.
         For Pybest, we will either look in the "unzscored"-folder if you want surface-based files (e.g.,
-        'fsnative' or 'fsaverage') for "*desc-denoised_bold.npy". For volumetric files, we will look in
-        the "masked" folder for "*desc-denoised_bold.nii.gz". For both fMRIprep and Pybest, you can select
-        specific tasks with 'task=["task1", "task3"]'. Otherwise all files will be considered. This can be
+        'fsnative' or 'fsaverage') for "\*desc-denoised_bold.npy". For volumetric files, we will look in
+        the "masked" folder for "\*desc-denoised_bold.nii.gz". For both fMRIprep and Pybest, you can select
+        specific tasks with *task=["task1", "task3"]*. Otherwise all files will be considered. This can be
         particularly problematic for surface-based files from Pybest, as there's extra files being outputted
         by Pybest that make selection using these criteria difficult. For instance, if you have multiple runs,
         it saves out an average without "run"-identifier. However, it outputs the same file if you only have
@@ -391,25 +383,9 @@ class ExtractSubjects(ExtractFromROIs):
     n_jobs: int, optional
         Number of jobs to use for the extraction, by default set to the number of subjects present
     verbose: bool, optional
-        _description_, by default False
-    **kwargs
-        Arguments passed to `:func:fmriproc.roi.ExtractFromROIs.extract_data`:
-        
-        nr: int, optional
-            number of voxels to extract from data in case the input is float, by default 15.
-            if the input is binary, we will take the entire ROI.
-        bsl: int, optional
-            amount of time to use to calculate baseline for percent signal change conversion, by default 15s.
-        highest: bool, optional
-            If True, we select *nr* HIGHEST voxels from roi. If False, we select the *nr* LOWEST. By default True
-        psc: bool, optional
-            Normalize to percent signal change. Default is True.
-        zscore: bool, optional
-            Normalize using z-scoring. Default = False
-
-    Example
-    ----------
-    >>> 
+        Make some noise, by default False
+    **kwargs: dict
+        Same as :func:`fmriproc.roi.ExtractFromROIs.extract_data`
     """
 
     def __init__(
@@ -600,7 +576,7 @@ class ExtractSubjects(ExtractFromROIs):
         self, 
         **kwargs
         ):
-        """Wrapper around `:func:fmriproc.roi.ExtractSubjects.extract_single_subject` to loop through subjects"""
+        """Wrapper around :func:`fmriproc.roi.ExtractSubjects.extract_single_subject` to loop through subjects"""
         output = Parallel(n_jobs=self.n_jobs, verbose=True)(
             delayed(self.extract_single_subject)(
                 utils.get_file_from_substring([sub], self.all_files),
@@ -628,7 +604,7 @@ class ExtractSubjects(ExtractFromROIs):
         self, 
         files,
         **kwargs):
-        """Wrapper around `:class:fmriproc.roi.ExtractFromROIs` to extract data from a single subject"""
+        """Wrapper around :class:`fmriproc.roi.ExtractFromROIs` to extract data from a single subject"""
         super().__init__(
             files,
             **kwargs
@@ -704,32 +680,32 @@ class FullExtractionPipeline(ExtractSubjects):
         peak while extracting parameters.
     dec_kws: dict, optional
         Extra parameters for the deconvolution, by default:
-        
-        ```
-        dec_defaults = {
-            "interval": [-2,25],
-            "basis_sets": "canonical_hrf_with_time_derivative_dispersion",
-            "TR": 2
-        }
-        ```
 
-    The format should be as follows (different parameters comma-separated, and parameter-value pair separated by '='):
-    "--dec <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
-    In case you want to change the interval over which the profiles are deconvolved, use "interval=t1>t2" (separated by '>').
+        .. code-block:: python
+
+            dec_defaults = {
+                "interval": [-2,25],
+                "basis_sets": "canonical_hrf_with_time_derivative_dispersion",
+                "TR": 2
+            }
+
+        The format should be as follows (different parameters comma-separated, and parameter-value pair separated by '='):
+        "--dec <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+        In case you want to change the interval over which the profiles are deconvolved, use "interval=t1>t2" (separated by '>').
 
     plot_kws: dict, optional
         Set parameters for plotting. The idea is similar to the "--dec" flag. The defaults are set to:
 
-        ```
-        plot_defaults = {
-            "line_width": 3,    # thickness of the lines of profiles
-            "y_dec": 2,         # number of decimals on y-axes (ensures correct spacing)
-            "add_hline": 0,     # horizontal line at 0
-            "sns_offset": 4,    # distance between y-axis and first bar in bar plot
-            "error": "se"       # error type (standard error of mean) for bar plot,
-            "cmap": "Set1"      # colormap Set1
-        }
-        ```
+        .. code-block:: python
+
+            plot_defaults = {
+                "line_width": 3,    # thickness of the lines of profiles
+                "y_dec": 2,         # number of decimals on y-axes (ensures correct spacing)
+                "add_hline": 0,     # horizontal line at 0
+                "sns_offset": 4,    # distance between y-axis and first bar in bar plot
+                "error": "se",      # error type (standard error of mean) for bar plot
+                "cmap": "Set1"      # colormap Set1
+            }
 
     output_dir: str, optional
         path to output directory (default = $DIR_DATA_DERIV/roi_extract)
@@ -742,10 +718,6 @@ class FullExtractionPipeline(ExtractSubjects):
         Switch to different plotting function, by default False.
     do_fit: bool, optional
         If False, we'll only extract the data and will not perform deconvolution, by default True
-
-    Example
-    ----------
-    >>> 
     """
     def __init__(
         self, 

@@ -174,10 +174,10 @@ def bin_fov(img, thresh=0,out=None, fsl=False):
     
     Example
     ---------
-    >>> from fmriproc.image import bin_fov
-    >>> file = bin_fov("/path/to/image.nii.gz")
-    >>> bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
-    >>> bin_fov("/path/to/image.nii.gz", thres=2)
+    from fmriproc.image import bin_fov
+    file = bin_fov("/path/to/image.nii.gz")
+    bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
+    bin_fov("/path/to/image.nii.gz", thres=2)
     """
 
     img_file = nb.load(img)                                     # load file
@@ -225,9 +225,9 @@ def reorient_img(img, code="RAS", out=None, qform="orig"):
 
     Examples
     ----------
-    >>> reorient_img("input.nii.gz", code="RAS", out="output.nii.gz")
-    >>> reorient_img("input.nii.gz", code="AIL", qform=1)
-    >>> reorient_img("input.nii.gz", code="AIL", qform='orig')
+    reorient_img("input.nii.gz", code="RAS", out="output.nii.gz")
+    reorient_img("input.nii.gz", code="AIL", qform=1)
+    reorient_img("input.nii.gz", code="AIL", qform='orig')
     """
 
     if out != None:
@@ -310,10 +310,10 @@ def create_line_from_slice(
 
     Examples
     ----------
-    >>> img = create_line_from_slice("input.nii.gz")
-    >>> img
+    img = create_line_from_slice("input.nii.gz")
+    img
     <nibabel.nifti1.Nifti1Image at 0x7f5a1de00df0>
-    >>> img.to_filename('sub-001_ses-2_task-LR_run-8_bold.nii.gz')
+    img.to_filename('sub-001_ses-2_task-LR_run-8_bold.nii.gz')
     """
 
     img = False
@@ -385,7 +385,7 @@ def create_ribbon_from_beam(
 
     """create_ribbon_from_beam
 
-    This creates a binary image of the outline of the ribbon based on the beam image (see :func:`linescanning.image.create_line_from_slice`). The line's dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. We then select only the voxels from `ribbon`.
+    This creates a binary image of the outline of the ribbon based on the beam image (see :func:`fmriproc.image.create_line_from_slice`). The line's dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. We then select only the voxels from `ribbon`.
 
     Parameters
     ----------
@@ -440,10 +440,17 @@ def get_max_coordinate(in_img):
 
     Examples
     ----------
-    >>> get_max_coordinate('sub-001_space-ses1_hemi-L_vert-875.nii.gz')
-    array([142,  48, 222])
-    >>> get_max_coordinate('sub-001_space-ses1_hemi-R_vert-6002.nii.gz')
-    [array([139,  35, 228]), array([139,  36, 228])]
+
+    .. code-block:: python
+
+        get_max_coordinate('sub-001_space-ses1_hemi-L_vert-875.nii.gz')
+        array([142,  48, 222])
+
+    .. code-block:: python        
+
+        get_max_coordinate('sub-001_space-ses1_hemi-R_vert-6002.nii.gz')
+        [array([139,  35, 228]), array([139,  36, 228])]
+
     """
 
     if isinstance(in_img, np.ndarray):
@@ -488,9 +495,12 @@ def get_isocenter(img):
 
     Example
     ----------
-    >>> img = 'sub-001_space-ses1_hemi-R_vert-6002.nii.gz'
-    >>> get_isocenter(img)
-    array([  0.27998984,   1.49000375, -15.34000604])
+    .. code-block:: python
+
+        img = 'sub-001_space-ses1_hemi-R_vert-6002.nii.gz'
+        get_isocenter(img)
+        array([  0.27998984,   1.49000375, -15.34000604])
+
     """
 
     # get origin in RAS
@@ -531,9 +541,13 @@ def bin_fov(img, thresh=0, out=None, fsl=False):
 
     Example
     ----------
-    >>> file = bin_fov("/path/to/image.nii.gz")
-    >>> bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
-    >>> bin_fov("/path/to/image.nii.gz", thres=2)
+
+    .. code-block:: python
+
+        file = bin_fov("/path/to/image.nii.gz")
+        bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
+        bin_fov("/path/to/image.nii.gz", thres=2)
+
     """
 
     img_file = nb.load(img)                                     # load file
@@ -743,8 +757,12 @@ def clip_image(img, thr=None, val=None, return_type="image", out_file=None):
 
     Example
     ----------
-    >>> new_img = clip_image("input.nii.gz", thr=0.005, return_type="nib")
-    >>> clip_image("input.nii.gz", return_type='file', out_file='output.nii.gz')
+
+    .. code-block:: python
+
+        new_img = clip_image("input.nii.gz", thr=0.005, return_type="nib")
+        clip_image("input.nii.gz", return_type='file', out_file='output.nii.gz')
+
     """
 
     if not img:
@@ -817,7 +835,11 @@ def tsnr(img,file_name=None, clip=None):
 
     Example
     ----------
-    >>> tsnr = tsnr('path/to/func.nii.gz')
+    
+    .. code-block:: python
+
+        tsnr = tsnr('path/to/func.nii.gz')
+
     """
 
     # ignore divide-by-zero error
@@ -1008,18 +1030,29 @@ def massp_to_table(label_file, out=None, nr_structures=31, unit="vox"):
 
     Example
     ----------
-    >>> file = massp_to_table('sub-001_desc-massp_label.nii.gz', out='massp_lut.json')
-    >>> file
-    'massp_lut.json'
-    >>> massp_to_table('sub-001_desc-massp_label.nii.gz', unit="mm")
-    {'Str-l': 10702.2163,
-    'Str-r': 10816.1125,
-    'STN-l': 136.6179,
-    'STN-r': 149.2731,
-    'SN-l': 540.4317,
-    'SN-r': 532.9537,
-    ...
-    }
+
+    .. code-block:: python
+
+        file = massp_to_table('sub-001_desc-massp_label.nii.gz', out='massp_lut.json')
+        file
+        'massp_lut.json'
+
+    .. code-block:: python
+
+        massp_to_table(
+        'sub-001_desc-massp_label.nii.gz',
+        unit="mm"
+        )
+
+        {'Str-l': 10702.2163,
+        'Str-r': 10816.1125,
+        'STN-l': 136.6179,
+        'STN-r': 149.2731,
+        'SN-l': 540.4317,
+        'SN-r': 532.9537,
+        ...
+        }
+
     """
 
     try:
@@ -1098,20 +1131,28 @@ def massp_mask_img(label_file, img_to_mask, out=None, nr_structures=31):
     dict
         dictionary containing the average value of each ROI in the units of `img_to_mask`
 
-    Examples
+    Example
     ----------
-    >>> file = massp_mask_img(sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
-    >>> file
-    'massp_t1map.json'
-    >>> massp_mask_img('sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
-    {'Str-l': 1502,234,
-    'Str-r': 1081.1125,
-    'STN-l': 1326.6179,
-    'STN-r': 1492.2731,
-    'SN-l': 1540.4317,
-    'SN-r': 1532.9537,
-    ...
-    }
+
+    .. code-block:: python
+
+        file = massp_mask_img(sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
+        file
+        'massp_t1map.json'
+
+    .. code-block:: python
+
+        massp_mask_img('sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
+
+        {'Str-l': 1502,234,
+        'Str-r': 1081.1125,
+        'STN-l': 1326.6179,
+        'STN-r': 1492.2731,
+        'SN-l': 1540.4317,
+        'SN-r': 1532.9537,
+        ...
+        }
+        
     """
 
     try:

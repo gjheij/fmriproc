@@ -53,12 +53,16 @@ class Scanner(object):
 
     Example
     ----------
-    >>> scan = scanner.Scanner(
-    >>>     optimal.target_vertex('sub-001'),
-    >>>     fs2ses='genaff.mat',
-    >>>     hemi='left',
-    >>>     new_anat='path/to/sub-001_ses-2_T1w.nii.gz'
-    >>> )
+    
+    .. code-block:: python
+
+        scan = scanner.Scanner(
+            optimal.target_vertex('sub-001'),
+            fs2ses='genaff.mat',
+            hemi='left',
+            new_anat='path/to/sub-001_ses-2_T1w.nii.gz'
+        )
+
     """
 
     def __init__(
@@ -402,7 +406,11 @@ class Scanner(object):
 
         Example
         ----------
-        >>> self.warp_normal = self.warp_normals()
+
+        .. code-block:: python
+
+             self.warp_normal = self.warp_normals()
+             
         """
 
         if hemi == "both":
