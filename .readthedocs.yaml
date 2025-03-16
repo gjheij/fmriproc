@@ -10,7 +10,7 @@ python:
     - requirements: doc/requirements.txt
     - pip:
         - git+https://github.com/gjheij/lazyfmri.git  # Manually install Git-based package
-        - git+https://github.com/https://github.com/VU-Cog-Sci/prfpy.git  # Manually install Git-based package
+        - git+https://github.com/VU-Cog-Sci/prfpy.git  # Manually install Git-based package
 
 sphinx:
   configuration: doc/source/conf.py
