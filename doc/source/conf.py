@@ -3,7 +3,7 @@ import os
 from unittest.mock import MagicMock
 import importlib
 
-sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
+sys.path.insert(0, os.path.abspath(".."))
 try:
     version_module = importlib.import_module("fmriproc.version")
     release = version = version_module.__version__  # Use the dynamic version
