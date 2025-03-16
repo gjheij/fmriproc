@@ -1,0 +1,16 @@
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.10"
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - pip:
+        - git+https://github.com/gjheij/lazyfmri.git  # Manually install Git-based package
+        - git+https://github.com/https://github.com/VU-Cog-Sci/prfpy.git  # Manually install Git-based package
+
+sphinx:
+  configuration: doc/source/conf.py

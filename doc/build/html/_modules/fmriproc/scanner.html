@@ -1,0 +1,636 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fmriproc.scanner &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../classes/index.html">Python modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">fmriproc.scanner</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for fmriproc.scanner</h1><div class="highlight"><pre>
+<span></span><span class="c1"># pylint: disable=no-member,E1130,E1137</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fmriproc</span><span class="w"> </span><span class="kn">import</span> <span class="n">transform</span><span class="p">,</span> <span class="n">planning</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lazyfmri</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">nibabel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nb</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s1">&#39;ignore&#39;</span><span class="p">)</span>
+<span class="n">opj</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span>
+
+<div class="viewcode-block" id="Scanner">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Scanner</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Scanner</span>
+
+<span class="sd">    This object combines the information from the CalcBestVertex and pRFCalc classes to fetch the best vertex and related</span>
+<span class="sd">    information from the surfaces. In fact, it runs these classes internally, so you&#39;d only have to specify this class in</span>
+<span class="sd">    order to run the others as well. At the minimum, you need to specify the subject ID as defined in the FreeSurfer/pycortex/</span>
+<span class="sd">    BIDS-anat directory, the dictionary resulting from CalcBestVertex, the matrix mapping session 1 to session 2 (the</span>
+<span class="sd">    &#39;fs2ses=&#39; flag), the hemisphere you&#39;re interested in, and the FreeSurfer directory.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the</span>
+<span class="sd">        image has been moved when imported from FreeSurfer to Pycortex)</span>
+<span class="sd">    df: dict</span>
+<span class="sd">        output from optimal.target_vertex; a dictionary containing the result from :class:`linescanning.optimal.CalcBestVertex`</span>
+<span class="sd">    fs2ses: str, numpy.ndarray</span>
+<span class="sd">        (4,4) array or path to matrix file mapping FreeSurfer to the new session. It sort of assumes the matrix has been</span>
+<span class="sd">        created with ANTs, so make sure the have run `call_antsregistration`. Enter &#39;identity&#39; to use an identity matrix; this</span>
+<span class="sd">        is useful if you want to plan the line in FreeSurfer-space (before session 2)</span>
+<span class="sd">    new_anat: str</span>
+<span class="sd">        string pointing to the new anatomy file. Generally this is in `&lt;project&gt;/sourcedata/&lt;subject&gt;/&lt;ses&gt;/planning/nifti`,</span>
+<span class="sd">        if you&#39;ve ran `spinoza_lineplanning`. Should be the **fixed** input for call_antsregistration to create `fs2ses`</span>
+<span class="sd">    hemisphere: str</span>
+<span class="sd">        hemisphere you&#39;re interested in. Should be &#39;right&#39; or &#39;left&#39;. It will do all operations on both hemispheres anyway,</span>
+<span class="sd">        but only print the actual values you need to insert in the MR console for the specified hemisphere</span>
+<span class="sd">    fs_dir: str</span>
+<span class="sd">        path to FreeSurfer directory; will default to SUBJECTS_DIR if left empty.</span>
+<span class="sd">    ses: int, optional</span>
+<span class="sd">        session ID of new session. Generally this will be `ses-2`, pointing to a line-scanning session. Should be &gt;1</span>
+<span class="sd">    print_to_console: bool</span>
+<span class="sd">        boolean whether to print the translation/rotations that should be inserted in the console to the terminal. Can be</span>
+<span class="sd">        turned off for debugging reasons</span>
+<span class="sd">    debug: bool</span>
+<span class="sd">        boolean for debugging mode; if True, we&#39;ll print more information about the (converted) angles/normal vectors</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Attr</span>
+<span class="sd">        sets attributes in an instantiation of `:class:fmriproc.scanner.Scanner` and will lead to printing of information for the MR-console</span>
+<span class="sd">        (if `print_to_console=True`)</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    </span>
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        scan = scanner.Scanner(</span>
+<span class="sd">            optimal.target_vertex(&#39;sub-001&#39;),</span>
+<span class="sd">            fs2ses=&#39;genaff.mat&#39;,</span>
+<span class="sd">            hemi=&#39;left&#39;,</span>
+<span class="sd">            new_anat=&#39;path/to/sub-001_ses-2_T1w.nii.gz&#39;</span>
+<span class="sd">        )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">df</span><span class="p">,</span>
+        <span class="n">fs2ses</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">new_anat</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">hemi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">ses</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">print_to_console</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fs_dir</span> <span class="o">=</span> <span class="n">fs_dir</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span> <span class="o">=</span> <span class="n">df</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs2ses</span> <span class="o">=</span> <span class="n">fs2ses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">new_anat</span> <span class="o">=</span> <span class="n">new_anat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="o">.</span><span class="n">subject</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses</span> <span class="o">=</span> <span class="n">ses</span>
+
+        <span class="c1"># set reference anatomy to orig</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ref_anat</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span><span class="s1">&#39;mri&#39;</span><span class="p">,</span><span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">hemi</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">hemi</span> <span class="o">=</span> <span class="s2">&quot;left&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hemi</span> <span class="o">=</span> <span class="n">hemi</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="p">,</span> <span class="s1">&#39;infofile&#39;</span><span class="p">):</span>
+         
+            <span class="c1"># assuming I got an infofile dataframe from utils.VertexInfo</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;normal&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ctx_coords</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;position&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># assuming I got entire dataframe from CalcBestVertex</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normals</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">_normal&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ctx_coords</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">_best_vertex_coord&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pycortex</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">side</span><span class="si">}</span><span class="s2">_best_vertex&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+        
+        <span class="c1"># set default anatomies</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_orig</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ref_anat</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_raw</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Account for offset induced by pycortex&quot;</span><span class="p">)</span>
+        <span class="c1"># correct Pycortex coordinate with &#39;surfmove&#39; to get TKR coordinate</span>
+        <span class="n">tkr</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">ctx2tkr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span><span class="n">coord</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ctx_coords</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tkr_coords</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;lh&#39;</span><span class="p">:</span> <span class="n">tkr</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s1">&#39;rh&#39;</span><span class="p">:</span> <span class="n">tkr</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Convert FreeSurfer TKR to Freesurfer&quot;</span><span class="p">)</span>
+        <span class="c1"># convert TKR coordinate to FS coordinate</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">tkr2fs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span><span class="n">coord</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tkr_coords</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">tkr_coords</span><span class="p">[</span><span class="s1">&#39;rh&#39;</span><span class="p">]],</span> <span class="n">fs_dir</span><span class="o">=</span><span class="n">fs_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;lh&#39;</span><span class="p">:</span> <span class="n">fs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s1">&#39;rh&#39;</span><span class="p">:</span> <span class="n">fs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="c1"># convert FS directly to session 2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_chicken</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span><span class="s2">&quot;rh&quot;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fs_chicken</span><span class="p">[</span><span class="n">h</span><span class="p">]</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">make_chicken_csv</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">h</span><span class="p">],</span>
+                <span class="n">output_file</span><span class="o">=</span><span class="n">opj</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_raw</span><span class="p">),</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="si">}</span><span class="s2">_space-fs_hemi-</span><span class="si">{</span><span class="n">h</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">_vert-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">_desc-lps.csv&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+            
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs2ses</span> <span class="o">!=</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Convert FreeSurfer straight to session </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses2_chicken</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span><span class="s2">&quot;rh&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ses2_chicken</span><span class="p">[</span><span class="n">h</span><span class="p">]</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">ants_applytopoints</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fs_chicken</span><span class="p">[</span><span class="n">h</span><span class="p">],</span>
+                    <span class="n">utils</span><span class="o">.</span><span class="n">replace_string</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">fs_chicken</span><span class="p">[</span><span class="n">h</span><span class="p">],</span>
+                        <span class="s2">&quot;space-fs&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;space-ses</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">fs2ses</span>
+                <span class="p">)</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Identity-matrix was specified, using existing chicken files&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses2_chicken</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs_chicken</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># get coordinate in ses-2 (RAS/LPS/VOX convention)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses2_ras</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">read_chicken_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_chicken</span><span class="p">[</span><span class="n">side</span><span class="p">],</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;ras&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses2_lps</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">utils</span><span class="o">.</span><span class="n">read_chicken_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_chicken</span><span class="p">[</span><span class="n">side</span><span class="p">])</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses2_vox</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_vox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_ras</span><span class="p">[</span><span class="n">side</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">new_anat</span><span class="p">)</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+
+        <span class="c1"># warp the normal vector (= IN RAS SPACE!!)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs2ses</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Applying rotation matrix to normal vector&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warp_normals</span><span class="p">(</span><span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">WARNING: could not warp normal vector!&quot;</span><span class="p">)</span>
+
+        <span class="c1"># get angles and correct</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Converting normals to angles and correct for scanner-interpretation of angles&quot;</span><span class="p">)</span>
+
+        <span class="c1"># session 1 angles are relative to RAS-axis ([1,0,0],[0,1,0],[0,0,1])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">normal2angle</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">normals</span><span class="p">[</span><span class="n">side</span><span class="p">],</span>
+            <span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;rad&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 1 normal: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">normals</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 1 angles: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Angles calculated like above are not coplanar, which is defined as: &quot;A group of points </span>
+        <span class="c1"># that don&#39;t all lie in the same plane are non-coplanar.&quot; To make them coplanar, we first </span>
+        <span class="c1"># consider the normal vector without Z-component, flattening the vector into the XY plane.</span>
+        <span class="c1"># We can then recalculate the angles properly.</span>
+        <span class="c1">#</span>
+        <span class="c1"># We can project the normal vector to the XY-plane by multiplying the vector with the sin</span>
+        <span class="c1"># over the angle with the Z-axis</span>
+        <span class="c1">#</span>
+        <span class="c1"># See: https://www.youtube.com/watch?v=vVPwQgoSG2g</span>
+        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">,</span><span class="s1">&#39;rh&#39;</span><span class="p">]:</span>
+            <span class="c1"># now get the angles for all axes in radians so we can push the vector to the XY-plane with the Z-angle            </span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">planning</span><span class="o">.</span><span class="n">normal2angle</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">normals</span><span class="p">[</span><span class="n">ii</span><span class="p">][:</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">normals</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span> 
+                <span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">,</span> 
+                <span class="n">return_axis</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="c1"># convert the z-angle to degrees</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">180</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">ii</span> <span class="o">==</span> <span class="s2">&quot;lh&quot;</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coplanar angles 1: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;ses1_angles_raw&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_corr</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">correct_angle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses1_angles_raw</span><span class="p">[</span><span class="n">side</span><span class="p">])</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;warped_normals&#39;</span><span class="p">):</span>
+
+            <span class="c1"># convert the vector to LPS too</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warped_normals_lps</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">transform</span><span class="o">.</span><span class="n">ras2lps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warped_normals</span><span class="p">[</span><span class="n">side</span><span class="p">])</span> <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]}</span>
+
+            <span class="c1"># now get the angles for all axes in radians so we can push the vector to the XY-plane with the Z-angle</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span> <span class="o">=</span> <span class="p">{</span><span class="n">side</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">normal2angle</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">warped_normals_lps</span><span class="p">[</span><span class="n">side</span><span class="p">],</span> 
+                <span class="n">system</span><span class="o">=</span><span class="s2">&quot;LPS&quot;</span><span class="p">,</span> 
+                <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;rad&quot;</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">side</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;rh&quot;</span><span class="p">]</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warped normal LPS </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">warped_normals_lps</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warped normal RAS </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">warped_normals</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses</span><span class="si">}</span><span class="s2"> angles: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+            <span class="c1"># Get component of normal that is in XY-plane and calculate angles with that vector.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">,</span><span class="s1">&#39;rh&#39;</span><span class="p">]:</span>
+
+                <span class="c1"># initiate dictionary</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,))</span>
+
+                <span class="c1"># If we have a 90 degree with the Y-axis, this immediately means coronal slice. No need to correct for coplanar</span>
+                <span class="c1"># angles:</span>
+                <span class="k">if</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">90</span><span class="p">:</span>
+                    <span class="c1"># angles are coplanar</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">elif</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="mi">1</span><span class="p">]))</span> <span class="o">==</span> <span class="mi">90</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># calculate coplanar angles</span>
+                    <span class="n">vector</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">warped_normals_lps</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+                    <span class="n">vector_xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="o">*</span><span class="n">vector</span><span class="p">[:</span><span class="mi">2</span><span class="p">],</span><span class="mi">0</span><span class="p">))</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">planning</span><span class="o">.</span><span class="n">normal2angle</span><span class="p">(</span>
+                        <span class="n">vector_xy</span><span class="p">,</span> 
+                        <span class="n">system</span><span class="o">=</span><span class="s2">&quot;LPS&quot;</span><span class="p">,</span> 
+                        <span class="n">return_axis</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">])</span>
+                    
+                    <span class="c1"># vector_yz = np.array((0,*vector[-2:]))*np.sin(self.ses2_angles_nonCoPlanar[ii][1])</span>
+                    <span class="c1"># self.ses2_angles_raw[ii][-1] = normal2angle(vector_yz, </span>
+                    <span class="c1">#                                             system=&quot;LPS&quot;, </span>
+                    <span class="c1">#                                             return_axis=[&#39;z&#39;])</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rad2deg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_nonCoPlanar</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="c1">#np.rad2deg(vector[-1])</span>
+
+                    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">ii</span> <span class="o">==</span> <span class="s2">&quot;lh&quot;</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Coplanar angles </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># self.ses2_angles_raw[ii][-1] = self.ses2_angles_nonCoPlanar[ii][-1] * (180/np.pi)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;ses2_angles_raw&#39;</span><span class="p">):</span>
+            <span class="c1"># turn on verbose for left hemisphere</span>
+            <span class="c1"># turn OFF &#39;only_angles&#39; to also know what z-axis angle means</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Angles in:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;lh&#39;</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">correct_angle</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">],</span> 
+                    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> 
+                    <span class="n">only_angles</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">),</span>
+                <span class="s1">&#39;rh&#39;</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">correct_angle</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_raw</span><span class="p">[</span><span class="s1">&#39;rh&#39;</span><span class="p">],</span> 
+                    <span class="n">only_angles</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+            <span class="p">}</span>
+            
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Angles out: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">])</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;ses2_angles_corr&#39;</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fetch console settings&quot;</span><span class="p">)</span> 
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">foldover</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;lh&#39;</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">get_console_settings</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> 
+                    <span class="s2">&quot;left&quot;</span><span class="p">,</span> 
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">],</span>
+                    <span class="n">z_axis_meaning</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span><span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="p">),</span>
+                <span class="s1">&#39;rh&#39;</span><span class="p">:</span> <span class="n">planning</span><span class="o">.</span><span class="n">get_console_settings</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span><span class="p">[</span><span class="s1">&#39;rh&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="s2">&quot;right&quot;</span><span class="p">,</span> 
+                    <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="s1">&#39;rh&#39;</span><span class="p">],</span>
+                    <span class="n">z_axis_meaning</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_angles_corr</span><span class="p">[</span><span class="s1">&#39;rh&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="p">}</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
+            
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;hemi&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">hemi</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">print_to_console</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">print_to_console</span><span class="p">(</span><span class="n">hemi</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hemi</span><span class="p">)</span>
+                <span class="k">except</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Missing attributes to print MR-console values&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Hemisphere is not specified. Please start again with &#39;hemi=left&#39; or something alike&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Scanner.to_vox">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.to_vox">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_vox</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="n">ref</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;get RAS coordinate from voxel&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">native_to_scanner</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">coord</span><span class="p">,</span> <span class="n">inv</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Scanner.to_ras">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.to_ras">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_ras</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="n">ref</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;get voxel coordinate from RAS&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">native_to_scanner</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">coord</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Scanner.write_nifti">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.write_nifti">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write_nifti</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="n">ref</span><span class="p">,</span><span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;create nifti image from voxel coordinate&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="p">(</span><span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">,</span><span class="n">nb</span><span class="o">.</span><span class="n">freesurfer</span><span class="o">.</span><span class="n">mghformat</span><span class="o">.</span><span class="n">MGHImage</span><span class="p">)):</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">ref</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># convert mgz to nifti</span>
+            <span class="k">if</span> <span class="n">ref</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;mgz&#39;</span><span class="p">):</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">freesurfer</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">ref</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">ref</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;ref&#39; = None..&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;Unknown file-type.. Either use an nibabel.Nifti1Image, .nii.gz, or .mgz image (the latter will</span>
+<span class="s2">                             be converted to nifti)&quot;&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">empty_fs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">())</span>
+        <span class="c1"># empty_fs[coord[0]-1,coord[1]-1,coord[2]-1] = 1</span>
+        <span class="n">empty_fs</span><span class="p">[</span><span class="n">coord</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">coord</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">coord</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span> <span class="o">=</span> <span class="mi">1</span>      
+        <span class="k">if</span> <span class="n">output</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.nii&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">output</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.nii.gz&#39;</span><span class="p">):</span>
+                <span class="n">empty_fs</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">(</span><span class="n">empty_fs</span><span class="p">,</span> <span class="n">affine</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">affine</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">header</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">output</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;.mgz&#39;</span><span class="p">):</span>
+                <span class="n">empty_fs</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">freesurfer</span><span class="o">.</span><span class="n">MGHImage</span><span class="p">(</span><span class="n">empty_fs</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">affine</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">header</span><span class="p">)</span>
+            <span class="n">empty_fs</span><span class="o">.</span><span class="n">to_filename</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">empty_fs</span></div>
+
+
+<div class="viewcode-block" id="Scanner.get_fs_coord">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.get_fs_coord">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_fs_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;lh&quot;</span> <span class="ow">and</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;rh&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;hemi&#39; should be either &#39;lh&#39; or &#39;rh&#39;, not </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">coord</span></div>
+
+
+<div class="viewcode-block" id="Scanner.get_ses1_coord">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.get_ses1_coord">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_ses1_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;lh&quot;</span> <span class="ow">and</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;rh&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;hemi&#39; should be either &#39;lh&#39; or &#39;rh&#39;, not </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">coord</span></div>
+
+
+<div class="viewcode-block" id="Scanner.get_ses2_coord">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.get_ses2_coord">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_ses2_coord</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;lh&quot;</span> <span class="ow">and</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;rh&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;hemi&#39; should be either &#39;lh&#39; or &#39;rh&#39;, not </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">coord</span></div>
+
+
+<div class="viewcode-block" id="Scanner.warp_normals">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.warp_normals">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">warp_normals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">,</span> <span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;warp_normals</span>
+<span class="sd">    </span>
+<span class="sd">        Apply a rigid-body transformation on a vector. Important here is that the coordinate systems used are the same: e.g.,</span>
+<span class="sd">        only warp an RAS-vector with an RAS-matrix, and a LPS-vector with an LPS-matrix. ANTs outputs per definition an</span>
+<span class="sd">        LPS-matrix, so we&#39;d need to convert that with ConvertTransformFile first.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        hemi: str (default = &#39;both&#39;)</span>
+<span class="sd">            the dataframe has a normal vector for the left hemisphere and right hemisphere. Easiest to leave this to what it</span>
+<span class="sd">            is.</span>
+<span class="sd">        system: str (default = &#39;ras&#39;)</span>
+<span class="sd">            if we warp an RAS-vector we need an RAS matrix, if we warp an LPS vector we need an LPS matrix. The function</span>
+<span class="sd">            totate_normal will actually deal with this problem</span>
+
+<span class="sd">        Example</span>
+<span class="sd">        ----------</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">             self.warp_normal = self.warp_normals()</span>
+<span class="sd">             </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">hemi</span> <span class="o">==</span> <span class="s2">&quot;both&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;normals&quot;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">warped_normals</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;lh&#39;</span><span class="p">,</span> <span class="s1">&#39;rh&#39;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warped_normals</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">planning</span><span class="o">.</span><span class="n">rotate_normal</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">normals</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">fs2ses</span><span class="p">,</span>
+                        <span class="n">system</span><span class="o">=</span><span class="n">system</span>
+                    <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Im lazy, sorry.. Just to both hemi&#39;s please&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Scanner.get_all_coords">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.get_all_coords">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_all_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="s2">&quot;both&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Just print all coordinates to the terminal&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;vox&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FreeSurfer VOX:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_vox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_orig</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 1 VOX:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 2 VOX:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ras&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FreeSurfer RAS:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 1 RAS:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_ras</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_raw</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 2 RAS:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_ras</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">new_anat</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;both&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;FreeSurfer VOX:  </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_vox</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_orig</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">; RAS = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 1 VOX:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">; RAS = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_ras</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rawavg_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_raw</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session 2 VOX:   </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">; RAS = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">to_ras</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_coords</span><span class="p">[</span><span class="n">hemi</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">new_anat</span><span class="p">)[:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Scanner.print_to_console">
+<a class="viewcode-back" href="../../classes/scanner.html#fmriproc.scanner.Scanner.print_to_console">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">print_to_console</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;left&quot;</span><span class="p">,</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span><span class="s2">&quot;l&quot;</span><span class="p">]:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;lh&quot;</span>
+        <span class="k">elif</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">,</span><span class="s2">&quot;rh&quot;</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">]:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="s2">&quot;rh&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;Unknown input for &#39;hemi&#39;: </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">. Must be of the format &#39;lh&#39;,&#39;left&#39;, or &#39;l&#39; (same for right</span>
+<span class="s2">                             hemisphere)&quot;&quot;&quot;</span><span class="p">)</span>
+
+        <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">foldover</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span>
+
+        <span class="n">textList</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;# Created on </span><span class="si">{date}</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">date</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2">/%m/%Y %H:%M:%S&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;---------------------------------------------------------------------------------------------------</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;ENTER THE FOLLOWING VALUES IN THE MR-CONSOLE</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;set orientation to &quot;</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">BOLD</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">RED</span> <span class="o">+</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">END</span> <span class="o">+</span> <span class="s2">&quot; and foldover to &quot;</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">BOLD</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">RED</span> <span class="o">+</span> <span class="n">info</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">utils</span><span class="o">.</span><span class="n">color</span><span class="o">.</span><span class="n">END</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot; FH: </span><span class="si">{angle}</span><span class="s2"> deg</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="mi">5</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot; AP: </span><span class="si">{angle}</span><span class="s2"> deg</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="mi">4</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot; RL: </span><span class="si">{angle}</span><span class="s2"> deg</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="mi">3</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;set translation to:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot; AP: </span><span class="si">{angle}</span><span class="s2"> mm</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_lps</span><span class="p">[</span><span class="n">tag</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot; RL: </span><span class="si">{angle}</span><span class="s2"> mm</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_lps</span><span class="p">[</span><span class="n">tag</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot; FH: </span><span class="si">{angle}</span><span class="s2"> mm&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">angle</span><span class="o">=</span><span class="nb">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_lps</span><span class="p">[</span><span class="n">tag</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span><span class="mi">2</span><span class="p">)),</span>
+            <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;Targeted hemisphere: </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;Vertex number:       </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;Isocenter RAS:       </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_ras</span><span class="p">[</span><span class="n">tag</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;Isocenter LPS:       </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses2_lps</span><span class="p">[</span><span class="n">tag</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">]</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cx_dir</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CTX&quot;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;ses-</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ses</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">log_file</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">cx_dir</span><span class="p">,</span> <span class="s2">&quot;console.o</span><span class="si">{ext}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ext</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()))</span>
+            <span class="n">outF</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">log_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+            <span class="n">outF</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">textList</span><span class="p">)</span>
+            <span class="n">outF</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fs_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">)</span>
+            <span class="n">log_file</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="s2">&quot;console.o</span><span class="si">{ext}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ext</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getpid</span><span class="p">()))</span>
+            <span class="n">outF</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">log_file</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+            <span class="n">outF</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="n">textList</span><span class="p">)</span>
+            <span class="n">outF</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">textList</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,627 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fmriproc.planning &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../classes/index.html">Python modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">fmriproc.planning</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for fmriproc.planning</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lazyfmri</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<div class="viewcode-block" id="correct_angle">
+<a class="viewcode-back" href="../../classes/planning.html#fmriproc.planning.correct_angle">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">correct_angle</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">only_angles</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;correct_angle</span>
+
+<span class="sd">    This function converts the angles obtained with normal2angle to angles that we can use on the scanner. The scanner doesn&#39;t like angles &gt;45 degrees. If inserted, it will flip  all kinds of parameters such as slice orientation and foldover.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x: float, numpy.ndarray</span>
+<span class="sd">        generally this should be literally the output from normal2angle, a (3,) array containing the angles relative to each axis.</span>
+<span class="sd">    verbose: bool </span>
+<span class="sd">        print messages during the process (default = False)</span>
+<span class="sd">    only_angles: bool </span>
+<span class="sd">        if we are getting the angles for real, we need to decide what the angle with the z-axis means. We do this by returning an additional variable &#39;z_axis_represents_angle_around&#39; so that we know in :func:`fmriproc.planning.get_console_settings` where to place this angle. By default this is false, and it will only return converted angles. When doing the final conversion, the real one, turn this off (default = True).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        scanner representation of the input angles</span>
+
+<span class="sd">    str</span>
+<span class="sd">        if &lt;only_angles&gt; is set to False, it additionally returns an &quot;X&quot; or &quot;Y&quot;, which specifies around which axis (X or Y) the angle with the z-axis is to be used</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span><span class="nb">list</span><span class="p">)):</span>
+
+        <span class="n">scanner_angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,))</span>
+
+        <span class="c1"># set boolean for flipping RL angle in case of sagittal slice</span>
+        <span class="n">flip</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># flag for true coronal slice (i.e., angle with Y is already set to zero in scanner.Scanner())</span>
+        <span class="n">true_cor</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">true_sag</span> <span class="o">=</span> <span class="kc">False</span>
+        
+        <span class="c1"># the angle with the z-axis can be interpreted in terms of angle AROUND Y (AP) AND AROUND X (RL)</span>
+        <span class="c1"># If the slice is in the sweetspot of coronal slices, we can interpret the angle WITH the z-axis</span>
+        <span class="c1"># as angle AROUND the Y (AP) axis. Otherwise we need to interpret it as the angle AROUND the X</span>
+        <span class="c1"># axis (RL)</span>
+        <span class="n">z_axis_represents_angle_around</span> <span class="o">=</span> <span class="s2">&quot;Y&quot;</span>
+
+        <span class="c1"># for good coronal slices, there are basically for options:</span>
+        <span class="c1"># 1) Large X | Large Y &gt; vector = center to top-left        (use angle as is)</span>
+        <span class="c1"># 2) Small X | small Y &gt; vector = center to bottom-right    (use angle as is)</span>
+        <span class="c1"># 3) Small X | Large Y &gt; vector = center to top-right       (flip sign)</span>
+        <span class="c1"># 4) Large X | Small Y &gt; vector = center to bottom-left     (flip sign)</span>
+
+        <span class="c1">#-------------------------------------------------------------------------------------------------------------------------------</span>
+        <span class="c1"># deal with x-axis</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">45</span><span class="p">:</span> <span class="c1"># here we can decide on case 2 and 3 (small X&#39;s)</span>
+            <span class="c1"># 1) angles living between 0 deg and 45 deg can freely do so, nothing to update &gt; most likely coronal slice</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># case 3) Small X | Large Y &gt;&gt; flip angle</span>
+            <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">90</span><span class="p">:</span>
+                <span class="c1"># in this situation, we can have two lines, mirrored over the RL-axis. The only thing that separates them is the angle with </span>
+                <span class="c1"># the Y-axis. If this is a large angle, we should have a negative value for the X-angle. If this is a small angle, this means</span>
+                <span class="c1"># we should have a positive value for the X-angle</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Case 3 holds: Small X (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">) | Large Y (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># case 2) Small X | small Y &gt;&gt; use angle as is</span>
+
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Case 2 holds: Small X (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">) | Small Y (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+        <span class="k">elif</span> <span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">:</span>
+            <span class="c1"># 2) these angles are a bit tricky. This means we&#39;re outside of the range for coronal slices, so we insert </span>
+            <span class="c1">#    the corrected value into the second position and set position 1 to 0</span>
+
+            <span class="c1"># theoretically we could have a bang on coronal slice. In that case the y-axis angle </span>
+            <span class="c1"># has been set to zero and the angle with the x-axis represents the angle around the AP </span>
+            <span class="c1"># axis.</span>
+            <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">999</span> <span class="c1"># code for sag slice</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mi">90</span>
+                
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; No coronal cases hold: we&#39;ll get a sagittal slice&quot;</span><span class="p">)</span>
+                    
+                <span class="n">sag_slice</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># if the y-angle is already set to zero, it means we have a coronal slice. This means the only</span>
+                <span class="c1"># angle we need it this angle. It will deal with the foldover in utils.get_console_settings</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">998</span> <span class="c1"># code for fully 90 deg slice</span>
+                <span class="n">true_cor</span> <span class="o">=</span> <span class="kc">True</span>
+
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; We&#39;re dealing with a purely coronal slice. Only X-angle is required&quot;</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">:</span> <span class="c1"># here we can decide on case 1 and 4 (large X&#39;s)</span>
+            <span class="c1"># 3) such angles would mean we have a vector pointing in the opposite direction of case 1). We simply subtract</span>
+            <span class="c1">#    it from 180 degrees</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">180</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># case 1) Large X | Large Y &gt;&gt; use angle as is</span>
+            <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">90</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Case 1 holds: Large X (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">) | Large Y (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># case 4) Large X | Small Y &gt;&gt; flip angle</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Case 4 holds: Large X (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">) | Small Y (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="c1"># in case we have a sagittal slice, the RL-angle decides the direction of the vector. A center-topright</span>
+            <span class="c1"># vector is created with a positive value. This is decided by the RL-angle: a large RL angle means we have a </span>
+            <span class="c1"># center-topleft vector, a small RL angle means we have a center-topright vector.</span>
+            <span class="n">flip</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># if the above resulted in a sagittal slice, we need to convert the angles relative to the AP-axis. We have the</span>
+        <span class="c1"># angle with the RL-axis, scanner_angles[0], and the angle with the AP-axis then is 90-angle_RL. Because of the</span>
+        <span class="c1"># way the scanner interprets this, a center-topleft vector is created with the -(90-angle_RL).</span>
+        <span class="c1">#</span>
+        <span class="c1"># First we check if we have a sagittal slice; if so, the XY-angles are already sorted</span>
+        <span class="k">if</span> <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">999</span><span class="p">:</span>
+            <span class="n">z_axis_represents_angle_around</span> <span class="o">=</span> <span class="s2">&quot;X&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">:</span>
+                <span class="c1"># Convert angle with x-axis to be compatible with sagittal slice</span>
+                <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">90</span><span class="o">-</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">999</span> <span class="c1"># code for sagittal</span>
+
+                    <span class="c1"># overwrite the angle around the axis that is represented by the angle with the Z-axis</span>
+                    <span class="n">z_axis_represents_angle_around</span> <span class="o">=</span> <span class="s2">&quot;X&quot;</span>
+                    
+                    <span class="c1"># decide on the direction of the sagittal slice, center-topleft or center-topright depending on what the </span>
+                    <span class="c1"># initial angle with the x-axis was. Big angle means center-topleft, small angle means center-topright</span>
+                    <span class="k">if</span> <span class="n">flip</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; X angle was large (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">), inverting </span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Z angle = angle around RL-axis&quot;</span><span class="p">)</span>
+                        <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; X angle was small (</span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">), using </span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2"> as is&quot;</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Z angle = angle around AP-axis&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+
+        <span class="c1">#-------------------------------------------------------------------------------------------------------------------------------</span>
+        <span class="c1"># now, if we found a suitable angle for X, we can ignore Y because we only need one of the two to get our line</span>
+        <span class="c1"># we could&#39;ve obtained the Y-angle above if the X-angle was in the 45-90 range. In that case the first two positions</span>
+        <span class="c1"># are already filled.</span>
+        <span class="c1">#</span>
+        <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># set straight to true sagittal slice</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">true_sag</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">998</span> <span class="c1"># code for full sagittal</span>
+
+            <span class="c1"># overwrite the angle around the axis that is represented by the angle with the Z-axis</span>
+            <span class="n">z_axis_represents_angle_around</span> <span class="o">=</span> <span class="s2">&quot;X&quot;</span>
+            <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; We&#39;re dealing with a purely sagittal slice. Only Y-angle is required&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">45</span><span class="p">:</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">999</span><span class="p">:</span>
+            <span class="c1"># we&#39;ve already corrected this angle if we have a sagittal slice</span>
+            <span class="k">pass</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># deal with y-axis; same rules as for the x-axis apply</span>
+            <span class="c1"># we did not manage to get a good angle for X, so we need to convert the angle of Y relative to the AP axis</span>
+            
+            <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">45</span><span class="p">:</span>
+                <span class="c1"># 1) angles living between 0 deg and 45 deg can freely do so, nothing to update &gt; most likely coronal slice</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">:</span>
+                <span class="c1"># 2) these angles are a bit tricky. </span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">90</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">:</span>
+                <span class="c1"># 3) such angles would mean we have a vector pointing in the opposite direction of case 1). We simply subtract</span>
+                <span class="c1">#    it from 180 degrees</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">180</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1">#-------------------------------------------------------------------------------------------------------------------------------</span>
+        <span class="c1"># deal with z-axis &gt; this is a special angle as it can reflect an angle around the Z-axis OR the Y-axis, depending on </span>
+        <span class="c1"># the slice orientation. If slice == coronal &gt; z-axis = angle AROUND Y-axis. If slice == sagittal &gt; z-axis is angle</span>
+        <span class="c1"># around X-axis. Previously we&#39;ve also flattened this angle to the YZ-plane, so it&#39;s now a planar angle.</span>
+
+        <span class="c1"># The angle with the z-axis starts at 0, where it points in the superior direction [0,0,1]. It then starts to rotate</span>
+        <span class="c1"># down towards the inferior axis [0,0,-1]. The start = 0 deg, the y-axis is the 90 deg mark, and inferior axis = 180.</span>
+        <span class="c1"># The scanner interprets these angles from -45 (DOWN/UP lines) to 45 (UP/DOWN) degrees. Other angles will be wrapped.</span>
+        <span class="k">if</span> <span class="n">true_cor</span> <span class="o">==</span> <span class="kc">False</span> <span class="ow">and</span> <span class="n">true_sag</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="c1"># we need to do something with the z-axis</span>
+            <span class="k">if</span> <span class="o">-</span><span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">45</span><span class="p">:</span>
+                <span class="c1"># 1) angles living between 0 deg and 45 deg can freely do so, nothing to update &gt; most likely coronal slice</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">:</span>
+                
+                <span class="c1"># 2) these angles are a bit tricky. Here is means that the foldover direction is changed too</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">90</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">:</span>
+                <span class="c1"># 3) such angles would mean we have a vector pointing in the opposite direction of case 1). We simply subtract</span>
+                <span class="c1">#    it from 180 degrees</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">180</span><span class="o">-</span><span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="c1"># flip = True</span>
+
+            <span class="c1"># check if we should have the opposite angle of the one we got.</span>
+            <span class="k">if</span> <span class="mi">45</span> <span class="o">&lt;=</span> <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">:</span>
+                
+                <span class="c1"># this means we got the angle proximal to the vector and Z-axis. We need to opposite one</span>
+                <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">90</span><span class="o">-</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">flip</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+                    <span class="c1"># depending on whether the initial angle was big, we need to invert the sign to be compatible</span>
+                    <span class="c1"># with the scanner</span>
+                    <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scanner_angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># return the result</span>
+        <span class="k">if</span> <span class="n">only_angles</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scanner_angles</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scanner_angles</span><span class="p">,</span> <span class="n">z_axis_represents_angle_around</span></div>
+
+
+
+<div class="viewcode-block" id="normal2angle">
+<a class="viewcode-back" href="../../classes/planning.html#fmriproc.planning.normal2angle">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">normal2angle</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;deg&quot;</span><span class="p">,</span> <span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">,</span> <span class="n">return_axis</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;z&#39;</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;normal2angle</span>
+
+<span class="sd">    Convert the normal vector to angles representing the angle with the x,y,z axis. This can be done by taking the arc cosine over the dot product of the normal vector and a vector representing the axis of interest. E.g., the vector for x would be [1,0,0], for y it would be [0,1,0], and for z it would be [0,0,1]. Using these vector representations of the axis we can calculate the angle between these vectors and the normal vector. This results in radians, so we convert it to degrees by multiplying it with 180/pi.</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        normal: numpy.ndarray, list</span>
+<span class="sd">            array or list-like representation of the normal vector as per output of pycortex or FreeSurfer (they will return the same normals)</span>
+<span class="sd">        unit: str</span>
+<span class="sd">            unit of angles: &quot;deg&quot;rees or &quot;rad&quot;ians (default = &quot;deg&quot;)</span>
+<span class="sd">        system: str</span>
+<span class="sd">            coordinate system used as reference for calculating the angles. A right-handed system is default (RAS)</span>
+<span class="sd">            see: http://www.grahamwideman.com/gw/brain/orientation/orientterms.html. The scanner works in LPS, so we&#39;d need to define the x/y-axis differently to get correct angles (default = &quot;RAS&quot;).</span>
+<span class="sd">        return_axis: list </span>
+<span class="sd">            List of axes to return the angles for. For some functions we only need the first two axes, which we can retrieve by specifying &#39;return_axes=[&#39;x&#39;, &#39;y&#39;]&#39; (default = [&#39;x&#39;,&#39;y&#39;,&#39;z&#39;]).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    list</span>
+<span class="sd">        list-like representation of the angles with each axis, first being the x axis, second the y axis, and third the z-axis.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Convert angles to sensible plane: https://www.youtube.com/watch?v=vVPwQgoSG2g: angles obtained with this method are not coplanar; they don&#39;t live in the same space. So an idea would be to decompose the normal vector into it&#39;s components so it lives in the XY-plane, and then calculate the angles.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">vector</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">))</span>
+    <span class="n">vector</span><span class="p">[:</span><span class="nb">len</span><span class="p">(</span><span class="n">normal</span><span class="p">)]</span> <span class="o">=</span> <span class="n">normal</span>
+
+    <span class="c1"># convert to a unit vector in case we received an array with 2 values</span>
+    <span class="n">vector</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">convert2unit</span><span class="p">(</span><span class="n">vector</span><span class="p">)</span>
+    <span class="c1"># print(f&quot;Vector = {vector}&quot;)</span>
+    
+    <span class="c1"># Define empty 3x3 array to be filled with 1&#39;s or -1&#39;s depending on requested coordinate system</span>
+    <span class="n">COORD_SYS</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">system</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;RAS&quot;</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">COORD_SYS</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">system</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;LPS&quot;</span><span class="p">:</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">COORD_SYS</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;You requested a(n) </span><span class="si">{</span><span class="n">system</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2"> system, but I can only deal with &#39;LPS&#39; or &#39;RAS&#39; for now&quot;</span><span class="p">)</span>
+
+    <span class="c1"># this works if both vectors are normal vectors; otherwise this needs to be scaled by the dot-product of both vector</span>
+    <span class="c1"># magnitudes</span>
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">vector</span> <span class="o">@</span> <span class="n">COORD_SYS</span><span class="p">)</span>
+
+    <span class="c1"># convert to degree or radian</span>
+    <span class="k">if</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">&quot;deg&quot;</span><span class="p">:</span>    
+        <span class="n">angles</span> <span class="o">=</span> <span class="n">angles</span><span class="o">*</span><span class="p">(</span><span class="mi">180</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+
+    <span class="c1"># we don&#39;t always need all axes to be returned, but we do so by default. </span>
+    <span class="c1"># Specify some options below.</span>
+    <span class="k">if</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;z&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span>
+    <span class="k">elif</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">,</span><span class="s1">&#39;z&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>        
+    <span class="k">elif</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">return_axis</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>   
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Requested angles were &#39;</span><span class="si">{</span><span class="n">return_axis</span><span class="si">}</span><span class="s2">&#39;, this has not yet been implemented&quot;</span><span class="p">)</span>     </div>
+
+
+
+<div class="viewcode-block" id="get_console_settings">
+<a class="viewcode-back" href="../../classes/planning.html#fmriproc.planning.get_console_settings">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_console_settings</span><span class="p">(</span><span class="n">angles</span><span class="p">,</span> <span class="n">hemi</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">z_axis_meaning</span><span class="o">=</span><span class="s2">&quot;Y&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;get_console_settings</span>
+
+<span class="sd">    Function that outputs what is to be inserted in the MR console. This function is the biggest source of misery during my PhD so far. Needs thorough investigation. The idea is pretty simple: we have a set of angles obtained from normal2angle, we have converted them to angles that the scanner can understand (i.e., angles &lt;45 degrees), and now we need to derive which ones to use in order to place the line along the normal vector.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">        angles: np.ndarray</span>
+<span class="sd">            literally the output from correct_angles, a (3,) numpy array with the &#39;corrected&#39; angles</span>
+<span class="sd">        hemi: str</span>
+<span class="sd">            should be &quot;L&quot; or &quot;R&quot;, is mainly for info reason. It&#39;s stored in the dataframe so we can use it to index</span>
+<span class="sd">        idx: int</span>
+<span class="sd">            this should be the integer representing the selected vertex. This is also only stored in the dataframe. No operations are executed on it</span>
+<span class="sd">        z_axis: str</span>
+<span class="sd">            this string specifies how to interpret the angle with the z-axis: as angle around the X (RL) or Y (AP) axis. This can be obtained by turning off &lt;only_angles&gt; in :func:`fmriproc.planning.correct_angle`. By default it&#39;s set to &#39;Y&#39;, as that means we&#39;re dealing with a coronal slice; the most common one. Though we can also get sagittal slices, so make sure to do this dilligently.</span>
+<span class="sd">        foldover: str</span>
+<span class="sd">            foldover direction of the OVS bands. Generally this will be FH, but there are instances where that does not apply. It can be returned by :func:`fmriproc.planning.correct_angle(foldover=True)`</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    pd.DataFrame</span>
+<span class="sd">        a dataframe containing the information needed to place the line accordingly. It tells you the foldover direction, slice orientation, and angles</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Get index of smallest angle</span>
+    <span class="c1"># min_angle = np.argmin(abs(angles))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dealing with hemisphere: </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">foldover</span> <span class="o">=</span> <span class="s2">&quot;FH&quot;</span>
+    <span class="c1"># print(min_angle)</span>
+    <span class="n">angle_x</span><span class="p">,</span><span class="n">angle_y</span><span class="p">,</span><span class="n">angle_z</span> <span class="o">=</span> <span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="c1"># also see comments in &#39;correct_angle&#39; for an explanation of what is happening, but in short:</span>
+    <span class="c1"># - based on the angle between the normal vector and the x-axis [-1,0,0] we decided whether</span>
+    <span class="c1">#   we have a coronal or sagittal slice. Is the angle between 0-45, then we have a coronal</span>
+    <span class="c1">#   slice, if it&#39;s between 45-90 degrees, we have a sagittal slice and the first angle is </span>
+    <span class="c1">#   set to zero</span>
+    <span class="c1">#</span>
+    <span class="c1"># - here we will first check if the first angle is zero. As said, if that&#39;s the case we have</span>
+    <span class="c1">#   a sagittal slice.</span>
+    <span class="c1">#</span>
+    <span class="c1"># - because the scanner flips the use of (counter)clockwise-ness, we need to flip the angles</span>
+    <span class="c1">#   for the XY-angles. The Z-angles are interpreted correctedly (negative = UP, positive =</span>
+    <span class="c1">#   DOWN)</span>
+    <span class="c1">#</span>
+    <span class="c1"># Decide on the slice</span>
+    <span class="k">if</span> <span class="n">angle_x</span> <span class="o">!=</span> <span class="mi">999</span><span class="p">:</span>
+
+        <span class="c1"># coronal slice</span>
+        <span class="n">orientation</span> <span class="o">=</span> <span class="s1">&#39;coronal&#39;</span>
+        <span class="n">angle_fh</span> <span class="o">=</span> <span class="n">angle_x</span>
+
+        <span class="c1"># check if we should do something with the foldover in a coronal slice. This happens when the angle with the</span>
+        <span class="c1"># z-axis is lower than -45 or larger than 45. We should then flip the angle and change the foldover.</span>
+        <span class="k">if</span> <span class="n">angle_fh</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">45</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Angle around Y-axis = </span><span class="si">{</span><span class="n">angle_fh</span><span class="si">}</span><span class="s2">; adding 90 deg &amp; setting orientation to sagittal&quot;</span><span class="p">)</span>
+            <span class="n">angle_fh</span> <span class="o">+=</span> <span class="mi">90</span>
+            <span class="n">orientation</span> <span class="o">=</span> <span class="s2">&quot;sagittal&quot;</span>
+        <span class="k">elif</span> <span class="n">angle_fh</span> <span class="o">&gt;=</span> <span class="mi">45</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Angle around Y-axis = </span><span class="si">{</span><span class="n">angle_fh</span><span class="si">}</span><span class="s2">; substracting 90 deg &amp; setting orientation to sagittal&quot;</span><span class="p">)</span>
+            <span class="n">angle_fh</span> <span class="o">-=</span> <span class="mi">90</span>
+            <span class="n">orientation</span> <span class="o">=</span> <span class="s2">&quot;sagittal&quot;</span>
+
+        <span class="c1"># if the angle with the z-axis was large, we need to invert the angle (means right-pointing vector)</span>
+        <span class="k">if</span> <span class="n">angle_z</span> <span class="o">&gt;=</span> <span class="mi">90</span><span class="p">:</span>
+            <span class="n">angle_fh</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">angle_fh</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">orientation</span> <span class="o">=</span> <span class="s1">&#39;sagittal&#39;</span>
+        <span class="n">angle_fh</span> <span class="o">=</span> <span class="n">angle_y</span>
+        <span class="c1"># print(f&quot;Angle FH = {round(angle_y,2)}&quot;)</span>
+
+        <span class="c1"># check if we should do something with the foldover in a sagittal slice. This happens when the angle with the</span>
+        <span class="c1"># z-axis is lower than -45 or larger than 45. We should then flip the angle and change the foldover.</span>
+        <span class="k">if</span> <span class="n">angle_fh</span> <span class="o">&lt;=</span> <span class="o">-</span><span class="mi">45</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Angle around X-axis = </span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">angle_fh</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">; adding 90 deg &amp; setting foldover to AP&quot;</span><span class="p">)</span>
+            <span class="n">angle_fh</span> <span class="o">+=</span> <span class="mi">90</span>
+            <span class="n">foldover</span> <span class="o">=</span> <span class="s2">&quot;AP&quot;</span>
+        <span class="k">elif</span> <span class="n">angle_fh</span> <span class="o">&gt;=</span> <span class="mi">45</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Angle around X-axis = </span><span class="si">{</span><span class="nb">round</span><span class="p">(</span><span class="n">angle_fh</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">; adding 90 deg &amp; setting foldover to AP&quot;</span><span class="p">)</span>
+            <span class="c1"># angle_fh -= 90</span>
+            <span class="n">foldover</span> <span class="o">=</span> <span class="s2">&quot;AP&quot;</span>
+
+        <span class="c1"># if the angle with the z-axis was large, we need to invert the angle (means down-pointing vector)</span>
+        <span class="k">if</span> <span class="n">angle_z</span> <span class="o">&gt;=</span> <span class="mi">90</span><span class="p">:</span>
+            <span class="n">angle_fh</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">reverse_sign</span><span class="p">(</span><span class="n">angle_fh</span><span class="p">)</span>
+
+    <span class="c1"># if we have a sagittal slice, the angle with the z-axis represents the angle around the x-axis</span>
+    <span class="c1"># if we have a coronal slice, the angle with the z-axis represents the angle around the y-axis</span>
+    <span class="c1"># you can see how this makes sense by using your phone and place is coronally, and sagittally, </span>
+    <span class="c1"># then rotate with the angle with the z-axis that invisibly points to your ceiling</span>
+    <span class="c1">#</span>
+    <span class="c1"># Sometimes we also give a big angle as z-axis to know what way the vector is pointing. In that</span>
+    <span class="c1"># case the angle is not actually used for the console.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">998</span> <span class="ow">in</span> <span class="n">angles</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">z_axis_meaning</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;Y&quot;</span><span class="p">:</span>
+            <span class="n">angle_ap</span> <span class="o">=</span> <span class="n">angle_z</span>
+            <span class="n">angle_lr</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">elif</span> <span class="n">z_axis_meaning</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;X&quot;</span><span class="p">:</span>
+            <span class="n">angle_ap</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">angle_lr</span> <span class="o">=</span> <span class="n">angle_z</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Z-axis means an angle around the </span><span class="si">{</span><span class="n">z_axis_meaning</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2"> axis?? Needs to be &#39;X&#39; or &#39;Y&#39;&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">angle_lr</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">angle_ap</span> <span class="o">=</span> <span class="mi">0</span>
+
+
+    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;parameter&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;orientation&quot;</span><span class="p">,</span> <span class="s2">&quot;foldover&quot;</span><span class="p">,</span> <span class="s2">&quot;vertex&quot;</span><span class="p">,</span> <span class="s2">&quot;LR_rot&quot;</span><span class="p">,</span> <span class="s2">&quot;AP_rot&quot;</span><span class="p">,</span> <span class="s2">&quot;FH_rot&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">orientation</span><span class="p">,</span> <span class="n">foldover</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">angle_lr</span><span class="p">,</span> <span class="n">angle_ap</span><span class="p">,</span> <span class="n">angle_fh</span><span class="p">]}</span>    
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;hemi&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">hemi</span>
+
+    <span class="k">return</span> <span class="n">df</span></div>
+
+
+
+<div class="viewcode-block" id="rotate_normal">
+<a class="viewcode-back" href="../../classes/planning.html#fmriproc.planning.rotate_normal">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rotate_normal</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="n">xfm</span><span class="p">,</span> <span class="n">system</span><span class="o">=</span><span class="s2">&quot;RAS&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;rotate_normal</span>
+
+<span class="sd">    Applies the rotation part of an affine matrix to the normal vectorself.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    norm: numpy.ndarray</span>
+<span class="sd">        (3,) or (4,) array; If (4,) array, the last value should be set to zero to avoid translations</span>
+<span class="sd">    xfm: numpy.ndarray, str</span>
+<span class="sd">        (4,4) affine numpy array or string pointing to the matrix-file, can also be &#39;identity&#39;, in which case np.eye(4) will be used. This is handy for planning the line in session 1/FreeSurfer space</span>
+<span class="sd">    system: str</span>
+<span class="sd">        use RAS (freesurfer) or LPS (ITK) coordinate system. This is important as we need to apply the matrix in the coordinate system that the vector is living in. e.g., RAS vector = RAS matrix (not ANTs&#39; default), LPS vector = LPS matrix. If LPS, then :func:`lazyfmri.utils.get_matrixfromants` is used, otherwise the matrix is first converted to ras with `ConvertTransformFile` and then read in with `np.loadtxt`.</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    </span>
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        rotate_normal(normal_vector, xfm, system=&quot;LPS&quot;)</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    The results of LPS_vector @ LPS_matrix is the same as RAS_vector @ RAS_matrix</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">xfm</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="n">system</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;RAS&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">xfm</span> <span class="o">!=</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
+                <span class="n">xfm_tmp</span> <span class="o">=</span> <span class="n">xfm</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="s2">&quot;_ras.txt&quot;</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ConvertTransformFile 3 </span><span class="si">{</span><span class="n">xfm</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">xfm_tmp</span><span class="si">}</span><span class="s2"> --ras --hm&quot;</span><span class="p">)</span>
+                <span class="n">xfm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">xfm_tmp</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">xfm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+            <span class="c1"># os.remove(xfm_tmp)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xfm</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_matrixfromants</span><span class="p">(</span><span class="n">xfm</span><span class="p">)</span>
+
+    <span class="c1"># if len(norm) == 3:</span>
+    <span class="c1">#     norm =  np.append(norm,[0])</span>
+    <span class="c1"># elif len(norm) == 4:</span>
+    <span class="c1">#     if norm[3] != 0:</span>
+    <span class="c1">#         raise ValueError(&quot;The last value of array is not zero; this results in translations in the normal vector. Should be set to 0!&quot;)</span>
+    <span class="c1"># else:</span>
+    <span class="c1">#     raise ValueError(f&quot;Odd number of elements in array.. Vector = {norm}&quot;)</span>
+
+    <span class="n">rot_norm</span> <span class="o">=</span> <span class="n">norm</span><span class="nd">@xfm</span><span class="p">[:</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">rot_norm</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="single_hemi_line_pycortex">
+<a class="viewcode-back" href="../../classes/planning.html#fmriproc.planning.single_hemi_line_pycortex">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">single_hemi_line_pycortex</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="n">hemi</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;create the line_pycortex portion of 1 hemisphere&quot;&quot;&quot;</span>
+
+    <span class="n">angles</span> <span class="o">=</span> <span class="n">normal2angle</span><span class="p">(</span><span class="n">normal</span><span class="p">)</span>
+
+    <span class="c1"># Write the rotations describing the orientation of the line in the first session anatomy to a text file</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;hemi&quot;</span><span class="p">:</span>     <span class="p">[</span><span class="n">hemi</span><span class="p">],</span>
+                <span class="s2">&quot;index&quot;</span><span class="p">:</span>    <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span><span class="mi">0</span><span class="p">))],</span>
+                <span class="s2">&quot;LR_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+                <span class="s2">&quot;AP_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+                <span class="s2">&quot;FH_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span>
+                <span class="s2">&quot;normal&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">normal</span><span class="p">],</span>
+                <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">coord</span><span class="p">]}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;hemi&quot;</span><span class="p">:</span>     <span class="p">[</span><span class="n">hemi</span><span class="p">],</span>
+                <span class="s2">&quot;index&quot;</span><span class="p">:</span>    <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span><span class="mi">0</span><span class="p">))],</span>
+                <span class="s2">&quot;LR_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span>
+                <span class="s2">&quot;AP_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span>
+                <span class="s2">&quot;FH_rot&quot;</span><span class="p">:</span>   <span class="p">[</span><span class="n">angles</span><span class="p">[</span><span class="mi">2</span><span class="p">]],</span>
+                <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">coord</span><span class="p">]}</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df</span>    </div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

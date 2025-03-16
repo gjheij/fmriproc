@@ -1,0 +1,11 @@
+numpy
+pandas
+matplotlib
+scipy
+joblib
+yaml
+pickle
+nibabel
+nipype
+sklearn
+nbsphinx
