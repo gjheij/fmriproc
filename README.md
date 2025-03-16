@@ -1,6 +1,8 @@
 ---
 # fMRIproc repository
 
+[![Documentation Status](https://readthedocs.org/projects/fmriproc/badge/?version=latest)](https://fmriproc.readthedocs.io/en/latest/?badge=latest)
+
 ![plot](https://github.com/gjheij/fmriproc/blob/main/imgs/overview.png)
 
 This repository contains all of the tools used during the acquisition and postprocessing of line scanning data at the Spinoza Centre for Neuroimaging in Amsterdam.
@@ -27,7 +29,7 @@ This also ensures a consistent folder-structure across projects - further promot
 ---
 ## In active development
 This package is still in development and its API might change. 
-Documentation for this package can be found at [readthedocs](https://linescanning.readthedocs.io/en/latest/) (not up to date)
+Documentation for this package can be found at [readthedocs](https://fmriproc.readthedocs.io/en/latest/) (not up to date)
 
 ---
 ## Installation
