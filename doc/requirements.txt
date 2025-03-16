@@ -3,7 +3,7 @@ pandas
 matplotlib
 scipy
 joblib
-yaml
+pyyaml
 pickle
 nibabel
 nipype
