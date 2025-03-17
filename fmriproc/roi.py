@@ -1305,3 +1305,197 @@ class FullExtractionPipeline(ExtractSubjects):
         fname = opj(self.output_dir, f"{self.output_base}_desc-settings.json")
         with open(fname, "w") as outfile:
             outfile.write(settings_for_json)
+
+class ROI():
+
+    """ROI
+
+    Generate a mask from FreeSurfer atlases or Label-files. The input can be a string/list of strings representing ROIs
+    present in FreeSurfer's aparc-files or in the 'label' folder. In case the input should be read from the segmentation
+    files, set *mask_type="aparc"* (default). If they are label-files, set *mask_type="surf"*. The class rests on functions
+    from the `cxutils <https://github.com/gjheij/cxutils>`_-toolbox, and will through an error if it is not installed.
+
+    Parameters
+    ----------
+    roi: str, list
+        String or list of strings representing ROIs in the aparc-files or files from the label-folder as per the output of
+        FreeSurfer. For instance, *V1_exvivo.thresh*. By default, both hemispheres will be considered, so *?h.* can be omit-
+        ted.
+    mask_type: str, optional
+        Type of segmentation to use, by default "aparc". "aparc" represents the volumetric segmentations, whereas "surf"
+        will represent the surface based ROIs (e.g., files in 'labels'-folder)
+    subject: str, optional
+        FreeSurfer-subject to use, by default "fsaverage"
+
+    Returns
+    ----------
+    np.ndarray
+        The actual masks will be stored as attribute "self.roi_mask", which can be accesss with :func:`fmriproc.image.ROI.return_mask()`
+    
+    Example
+    ----------
+
+    .. code-block:: python
+        
+        # get motor cortex from FSAverage
+        from fmriproc import roi
+        some_roi = roi.ROI(
+            "precentral",
+            mask_type="surf",
+            subject="fsaverage"
+        ).return_mask()
+
+    .. code-block:: python
+        
+        # get V1 from sub-01
+        from fmriproc import roi
+        some_roi = roi.ROI(
+            "V1_exvivo.thresh",
+            mask_type="surf",
+            subject="sub-01"
+        ).return_mask()
+
+
+    .. code-block:: python
+        
+        # get precuneus from sub-01
+        from fmriproc import roi
+        some_roi = roi.ROI(
+            "inferiorparietal",
+            mask_type="aparc",
+            subject="sub-01"
+        ).return_mask()
+
+    """
+
+    def __init__(
+        self,
+        roi,
+        mask_type="aparc",
+        subject="fsaverage",
+        ):
+        self.roi = roi
+        self.mask_type = mask_type
+        self.subject = subject
+
+        # force list
+        if isinstance(self.roi, str):
+            self.roi = [self.roi]
+
+        # make mask from aparc segmentation
+        if self.mask_type == "aparc":
+            self.aparc_mask()
+        else:
+            # make mask from surf-labels
+            self.surf_mask()
+
+        # merge list of masks
+        self.merge_masks()
+        
+    def surf_mask(self):
+        """Generate mask from label-file using `cxutils <https://github.com/gjheij/cxutils>`_"""
+        try:
+            from cxutils import optimal
+        except ImportError:
+            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
+
+        self.surf_calcs = optimal.SurfaceCalc(subject=self.subject)
+
+        # loop through list and merge
+        self.individual_masks = {}
+        if isinstance(self.roi, list):
+            for roi in self.roi:
+
+                self.mask_obj = self.surf_calcs.read_fs_label(
+                    self.subject, 
+                    fs_label=roi
+                )
+                
+                self.individual_masks[roi] = self.surf_calcs.label_to_mask(
+                    subject=self.subject, 
+                    rh_arr=self.mask_obj['rh'],
+                    lh_arr=self.mask_obj['lh']
+                )["whole_roi"]
+
+    def aparc_mask(self):
+        
+        """Generate mask from label-file using :func:`fmriproc.roi.ROI.make_roi_mask()`"""
+
+        # read parc data once even for multiple ROIs
+        self.read_aparc()
+        self.roi_list = self.read_roi_list()
+
+        # loop through list and merge
+        self.individual_masks = {}
+        if isinstance(self.roi, list):
+            for roi in self.roi:
+                if roi not in self.roi_list:
+                    raise ValueError(f"'{roi}' is not part of the aparc atlas. Options are {self.roi_list}")
+                
+                self.individual_masks[roi] = self.make_roi_mask(roi=roi)
+
+    def merge_masks(self):
+        
+        # merge
+        if len(self.individual_masks)>1:
+            self.roi_mask = np.zeros_like(self.individual_masks[self.roi[0]])
+            for _,val in self.individual_masks.items():
+                self.roi_mask[val>0] = 1
+        else:
+            self.roi_mask = self.individual_masks[self.roi[0]].copy()
+
+    def get_rois(self):
+        return self.read_roi_list()
+    
+    def return_mask(self):
+        return self.roi_mask
+    
+    def read_aparc(self):
+        """Generate mask from aparc-file using `cxutils <https://github.com/gjheij/cxutils>`_"""
+        try:
+            from cxutils import optimal
+        except ImportError:
+            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")        
+
+        # GET VERICES FOR A SPECIFIC ROI 
+        self.parc_data = optimal.SurfaceCalc.read_fs_annot(
+            subject='fsaverage',
+            fs_annot="aparc",
+            hemi="both"
+        )
+
+    def read_roi_list(self):
+        """Read all rois present in the aparc-file"""
+        if not hasattr(self, "parc_data"):
+            self.read_aparc()
+
+        roi_list = []
+        for i in self.parc_data["lh"][-1]:
+            roi_list.append(i.decode())
+
+        roi_list = [i for i in roi_list if i != "unknown"]
+        return roi_list
+    
+    def make_roi_mask(self, roi=None):
+        
+        """Make ROI mask from aparc-file"""
+        if not isinstance(roi, str):
+            raise ValueError(f"Please specify an ROI to extract")
+
+        tmp = {}
+        for ii in ['lh', 'rh']:
+            
+            # get data
+            parc_hemi = self.parc_data[ii][0]
+
+            # get index of specified ROI in list | hemi doesn't matter here
+            for ix,i in enumerate(self.parc_data[ii][2]):
+                if roi.encode() in i:
+                    break
+            
+            tmp[ii] = (parc_hemi == ix).astype(int)
+
+        # Concat Hemis
+        concat_hemis = np.hstack((tmp['lh'],tmp['rh']))
+
+        return concat_hemis
