@@ -2,7 +2,7 @@ Pipeline Steps
 ==============
 
 Step-by-step run-through
-
+------------------------
 
 The input dataset is required to be in valid **BIDS (Brain Imaging Data Structure)** format.
 The directory pointing to the project should be specified in the ``spinoza_setup`` file as ``$DIR_PROJECTS``.
@@ -366,6 +366,22 @@ Once anatomical preprocessing is complete, FreeSurfer reconstruction can be run 
 **Running fMRIPrep**
 Once FreeSurfer has finished, fMRIPrep can be run:
 
+.. note::
+
+    **Running fMRIPrep**
+
+    The pipeline allows for three ways to run fMRIprep_:
+
+    - `Singularity Image <https://www.nipreps.org/apps/singularity/>`_: Recommended for HPC clusters.
+    - `fMRIPrep-Docker <https://fmriprep.org/en/latest/installation.html#the-fmriprep-docker-wrapper>`_: A Docker wrapper around ``fmriprep``.
+      
+      For installation of Docker, see `here <https://www.nipreps.org/apps/docker/>`_.
+      This is the recommended approach for local laptop/PC usage.
+    - **fMRIPrep Executable**: When you install fMRIprep_ via ``pip``, it includes an ``fmriprep`` executable.
+      
+      If you choose this method, consider installing `fpreputils <https://reproducibility.stanford.edu/fmriprep-tutorial-running-the-docker-image/>`_,
+      which provides the ``fmriprep`` executable along with additional functions for handling **partial FOV** acquisitions (such as **surface coil acquisitions**).
+
 .. code-block:: bash
 
     master -m 15 --func  # Include functional data
@@ -463,3 +479,113 @@ Below is a **step-by-step guide** on how to execute the preprocessing pipeline.
 
       master -m 16 -s <subjectID> -n <sessionID> --sge
 
+Tips for FSL's FEAT
+-------------------
+
+Format fMRIprep_-Confounds for FEAT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you don't want to denoise your data using **pybest**, but instead want to include the confounds from fMRIprep_ in the **FEAT** analysis, use ``call_fprep2feat``.
+This generates ``txt`` files compatible with **FEAT** based on the confound file.
+
+These are the available options:
+
+.. code-block:: none
+
+    ---------------------------------------------------------------------------------------------------
+    call_fprep2feat
+
+    Convert the confound regressor files as per output of fMRIprep to FEAT-compatible text files. Be-
+    cause the file from fmriprep has a loooot of regressors, we'll filter them by default. Use 'motion'
+    [default] to include just the motion parameters; 'motion+acompcor' for motion + anatomical component regres-
+    sors, or 'full' for everything (excluding 'global signal').
+
+    Usage:
+      call_fprep2feat <fprep_directory> <type>
+
+    Example:
+      call_fprep2feat <derivatives>/fmriprep/<subject>/<ses->/func motion
+
+    ---------------------------------------------------------------------------------------------------
+
+---
+
+Case: Using MNI152NLin6Asym Files from fMRIPrep in FEAT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have data from fMRIprep_ in **MNI152NLin6Asym** (**FSL MNI**) space, you can directly use those files in the **first-level analysis**.
+For a **subsequent group analysis**, you will need the **registration files**.
+Since the data is already in **MNI space**, you need to inject the **identity matrix** and define the ``mean_func`` as ``standard``.
+
+To do this quickly for an entire folder containing ``.feat`` directories, use ``call_injectmatrices``:
+
+.. code-block:: none
+
+    ---------------------------------------------------------------------------------------------------
+    call_injectmatrices
+
+    Follow workflow https://mumfordbrainstats.tumblr.com/post/166054797696/feat-registration-workaround
+    To use fMRIprep output in FEAT. Uses the mean of the functional run as 'standard', rather than the
+    MNI152-image.
+
+    Args:
+      -p <project dir>  project root folder (defaults to DIR_DATA_HOME)
+      -l <level1 tag>   tag for level1 analysis (e.g., 'level1' [default] or 'level1_confounds')
+      -f <feat dir>     directory where your subject-specific feat-directories live (defaults to DIR-
+                        DATA_HOME/derivatives/feat/<level1_tag>)
+
+    Example:
+      call_injectmatrices # run script for all .feat-folders in DIR_DATA_HOME/derivatives/feat/<level1_tag>
+      call_injectmatrices -p feat_dir/sub-01 # run script for all feat-folders in 'feat_dir/sub-01'
+
+    ---------------------------------------------------------------------------------------------------
+
+Case: Using fMRIPrep Registration Files for FEAT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also use the **registration files** from fMRIprep_ (generated via ANTs_) in FSL_.
+This requires additional steps, which are detailed in the 
+`ants2fsl guide <https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md>`_.
+
+This guide describes how to **convert ITK warps to FSL-compatible warps**, including the **non-linear field**.
+It uses functions from:
+- C3D_-suite
+- FSL_
+- **wb_command** (from the `Human Connectome Project <https://www.humanconnectome.org/software/get-connectome-workbench>`_).
+
+To install `wb_command`, follow these steps:
+
+1. Download the correct file for your distribution.
+2. Extract the file and place it in ``~/local_bin`` (create this folder if it doesn’t exist).
+3. Locate the ``wb_command`` inside ``workbench/bin*linux64``:
+    
+    .. code-block:: bash
+
+        (fmriproc) [heij@minerva local_bin]$ tree -L 2 workbench/
+        workbench/
+        ├── bin_rh_linux64
+        │   ├── mesagl_wb_view
+        │   ├── wb_command
+        │   ├── wb_import
+        │   ├── wb_shortcuts
+        │   └── wb_view
+
+4. Add the full path of ``wb_command`` to your ``~/.bash_profile``:
+
+    .. code-block:: bash
+
+        WB=`readlink -f ~/local_bin/workbench/bin_rh_linux64`
+        export PATH=${PATH}:${WB}
+
+5. Run ``source ~/.bash_profile`` or restart your terminal for changes to take effect.
+6. Follow the conversion steps in the `ants2fsl guide <https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md>`_.
+   - Filepaths, subject IDs, session IDs, and task IDs may differ, but the general workflow is outlined in the guide.
+
+Case: Running fMRIPrep on Extremely Partial FOV Data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fMRIprep_ does not handle **severely limited FOVs** well, such as data from **surface coils**.
+To address this, the `fpreputils repository <https://github.com/gjheij/fpreputils/tree/main>`_ describes a workflow that:
+- Runs parts of fMRIprep_ on partial FOV data.
+- Performs **motion/distortion correction**, **registration**, and **confound extraction**.
+- Requires a **whole-brain acquisition** for brain masks and tissue segmentation.
