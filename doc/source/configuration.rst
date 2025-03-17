@@ -5,7 +5,7 @@ fMRIproc requires a `spinoza_config` file for specifying project paths, processi
 
 .. _spinoza_config_example:
 
-Example `spinoza_config` File
+Example `spinoza_config`
 -----------------------------
 
 .. code-block:: bash
