@@ -2,7 +2,7 @@ Pipeline Steps
 ==============
 
 Step-by-step run-through
-------------------------
+
 
 The input dataset is required to be in valid **BIDS (Brain Imaging Data Structure)** format.
 The directory pointing to the project should be specified in the ``spinoza_setup`` file as ``$DIR_PROJECTS``.
@@ -43,11 +43,8 @@ Using the ``-m`` flag, different modules can be executed.
 Since all file paths have been set using the setup file, this doesn’t require much input.
 Type ``master`` in the command line to see the different modules.
 The modules mostly depend on previous steps, but some (especially for preprocessing anatomical images) can be skipped.
-In general, the pipeline is as follows:
 
----
-
-## **Data Conversion**
+**Data Conversion**
 First, we need to convert our **DICOMs/PARRECs** to NIfTI files. We do this by placing the raw files in the ``sourcedata`` folder of our project:
 
 .. code-block:: bash
@@ -81,7 +78,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
     ├── su_31032023_1105288_19_1_task-scenes_run-1_acq-3depi_epiV4.par
     └── su_31032023_1105288_19_1_task-scenes_run-1_acq-3depi_epiV4.rec
 
----
+
 
 .. note::
 
@@ -121,56 +118,76 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     This modifies metadata by specifying key-value pairs.
 
----
+.. code-block:: bash
 
-## **Populating JSON Sidecars**
-Additionally, the pipeline attempts to read the **phase-encoding direction** from the PAR/DCM file, though this is not always reliable.
-There are multiple ways to populate the `PhaseEncodingDirection` field in your JSON files:
+    # standard options
+    master -m 02a -s 01,02 -n 2
 
-### **Phase Encoding Direction Options**
-1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
-2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
-   - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
-3. Use one of the following flags when calling ``master``:
-   - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
-   - These specify the **BOLD** phase-encoding direction.
-4. Manually edit the JSON files after processing (less recommended).
+    # submit to cluster
+    master -m 02a -s 01,02 -n 2 --sge
 
-### **IntendedFor Field**
-The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
-1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
-2. One **fieldmap** is used for every two **BOLD** acquisitions.
-3. A single **fieldmap** is used for all **BOLD** runs.
+    # use specific TR (see NOTE below)
+    master -m 02a -s 01,02 -t 2.9
 
-If your dataset follows a different structure, you may need to manually edit the ``IntendedFor`` field.
+    # use specific PhaseEncodingDirection for BOLD (will be inverted for FMAP) (see NOTE below)
+    master -m 02a -s 01,02 -n 2 --ap/--pa/--lr/--rl
 
-### **SliceTiming Calculation**
-If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
-It determines this information from:
-- **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
-- Assumes **interleaved acquisition**.
+.. admonition:: Populating JSON Sidecars
+    :class: note 
 
-For further details, see the `slicetiming <https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14>`_ function.
+    Additionally, the pipeline attempts to read the **phase-encoding direction** from the PAR/DCM file, though this is not always reliable.
+    There are multiple ways to populate the `PhaseEncodingDirection` field in your JSON files:
 
-### **Repetition Time (TR) Handling**
-The **Repetition Time (TR)** can be determined using several strategies:
+    **Phase Encoding Direction Options**
+    ------------------------------------
+    
+    1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
+    2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
+    - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
+    3. Use one of the following flags when calling ``master``:
+    - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
+    - These specify the **BOLD** phase-encoding direction.
+    4. Manually edit the JSON files after processing (less recommended).
 
-1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
-2. **For DICOM files**, the pipeline applies:
-   - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
-   - Extracting TR from the **DICOM header** (sometimes unreliable).
-   - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
-   - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
+    **IntendedFor Field**
+    ---------------------
 
-3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
-   - Using the **first interval**, or
-   - Averaging across the entire run.
+    The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
+    1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
+    2. One **fieldmap** is used for every two **BOLD** acquisitions.
+    3. A single **fieldmap** is used for all **BOLD** runs.
 
-The pipeline then **corrects the NIfTI headers** accordingly.
+    If your dataset follows a different structure, you may need to manually edit the ``IntendedFor`` field.
 
----
+    **SliceTiming Calculation**
+    ---------------------------
 
-## **MRI Quality Control (MRIqc)**
+    If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
+    It determines this information from:
+    - **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
+    - Assumes **interleaved acquisition**.
+
+    For further details, see the `slicetiming <https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14>`_ function.
+
+    **Repetition Time (TR) Handling**
+    ---------------------------------
+    
+    The **Repetition Time (TR)** can be determined using several strategies:
+
+    1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
+    2. **For DICOM files**, the pipeline applies:
+    - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
+    - Extracting TR from the **DICOM header** (sometimes unreliable).
+    - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
+    - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
+
+    3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
+    - Using the **first interval**, or
+    - Averaging across the entire run.
+
+    The pipeline then **corrects the NIfTI headers** accordingly.
+
+**MRI Quality Control (MRIqc)**
 Once data has been converted to NIfTI, **basic QC** can be performed using `MRIqc`.
 This generates a report for all BOLD and anatomical images.
 
@@ -192,21 +209,21 @@ To limit processing to a **specific session**:
 
     master -m 02b -n 1
 
----
 
-## **Anatomical Preprocessing with Pymp2rage**
+**Anatomical Preprocessing with Pymp2rage**
 The next step involves **creating T1w/T1map images** from the **first and second inversion images** using **Pymp2rage**.
 
-.. tip::
-
-    ### Multiple Anatomical Images in a Session
-
+.. admonition:: Multiple Anatomical Images in a Session
+    :class: tip
+    
     Most regular sessions will have an **MP2RAGE** or **MPRAGE** as the anatomical reference.
     The pipeline can handle these cases automatically.
     However, in more complex cases with **multiple MPRAGEs**, **MPRAGE + T1map**, or **MP2RAGE + MP2RAGEME**, 
     additional considerations are needed.
 
-    #### Multiple MPRAGEs
+    **Multiple MPRAGEs**
+    --------------------
+
     If you have multiple **MPRAGE** acquisitions, they should include a **run-<runID>** identifier (e.g., ``run-1`` will be used as the reference).
     In this case, set ``DATA=AVERAGE``.
 
@@ -235,7 +252,9 @@ The next step involves **creating T1w/T1map images** from the **first and second
             ├── sub-04_ses-1_acq-MPRAGE_run-2_desc-spm_mask.nii.gz
             └── sub-04_ses-1_acq-MPRAGE_run-2_space-run1_T1w.nii.gz
 
-    #### MPRAGE + T1map
+    **MPRAGE + T1map**
+    ------------------
+    
     With **MP2RAGE**, a **T1map** is generated, but **MPRAGE** does not produce one.
     However, you can still include a separate **T1map**, which will be registered to the **T1w** image.
 
@@ -249,7 +268,9 @@ The next step involves **creating T1w/T1map images** from the **first and second
                 ├── sub-03_ses-1_acq-MPRAGE_T1w.nii.gz
                 └── sub-03_ses-1_acq-VFA_T1map.nii.gz
 
-    #### MP2RAGEME + MP2RAGE
+    **MP2RAGE + MP2RAGEME**
+    -----------------------
+
     **MP2RAGEME** is an extension of **MP2RAGE**, introducing additional echoes for multi-contrast imaging.
     In this case, the **MP2RAGEME** images are registered to **MP2RAGE**.
     Additional parametric maps can be warped using:
@@ -298,42 +319,29 @@ If you have multiple acquisitions (e.g., **MP2RAGE + MP2RAGEME**, or multiple **
 
 This step only applies if **DATA=AVERAGE** is specified in the setup file.
 
----
-
-## **Registering Anatomical Images to MNI Space**
+**Registering Anatomical Images to MNI Space**
 To register anatomical images to **MNI space**, use:
 
 .. code-block:: bash
 
     master -m 05b  # spinoza_registration (anat-to-MNI)
-
-For **affine registration** instead of **SyN (nonlinear)**:
-
-.. code-block:: bash
-
+    
+    # use affine registration
     master -m 05b --affine
 
 This generates transformation matrices and MNI-aligned images.
 
----
-
-## **Bias Correction & Brain Extraction**
+**Bias Correction & Brain Extraction**
 Bias correction is applied to remove **intensity inhomogeneities**. To apply **bias correction and denoising**:
 
 .. code-block:: bash
 
     master -m 08  # spinoza_biassanlm
 
-To **use SPM for bias correction**:
-
-.. code-block:: bash
-
+    # use spm
     master -m 08 --spm
 
-To **use ANTs' N4BiasFieldCorrection**:
-
-.. code-block:: bash
-
+    # use N4BiasFieldCorrection
     master -m 08 --n4
 
 To perform **brain extraction** using CAT12:
@@ -342,105 +350,65 @@ To perform **brain extraction** using CAT12:
 
     master -m 09  # spinoza_brainextraction
 
-For **enhanced denoising**:
-
-.. code-block:: bash
-
+    # full processing including Bias correction & SANLM
     master -m 09 --full
 
----
-
-## **Running FreeSurfer**
+**Running FreeSurfer**
 Once anatomical preprocessing is complete, FreeSurfer reconstruction can be run **outside** of fMRIPrep:
 
 .. code-block:: bash
 
     master -m 14  # spinoza_freesurfer
 
-To **process manual edits** (e.g., brainmask, white matter, pial edits):
-
-.. code-block:: bash
-
+    # brainmask, white matter, pial edits
     master -m 14 -s 00 -r 23 -e {wm,pial,cp,aseg}  
 
-To **use an expert options file**:
-
-.. code-block:: bash
-
+    # expert options
     master -m 14 -s 00 -x expert.opts
 
----
-
-## **Running fMRIPrep**
+**Running fMRIPrep**
 Once FreeSurfer has finished, fMRIPrep can be run:
 
 .. code-block:: bash
 
     master -m 15 --func  # Include functional data
 
-To **process only a specific task**:
-
-.. code-block:: bash
-
+    # run specific task
     master -m 15 -t <task_name>
 
-To **run with a specific configuration file**:
-
-.. code-block:: bash
-
+    # use configuration file
     master -m 15 --func -u $DIR_SCRIPTS/misc/fmriprep_config.json
 
-To **skip fMRIPrep and only create new bold-reference images**:
-
-.. code-block:: bash
-
+    # skip fMRIPrep entirely and only fetch transformation files
     master -m 15 --warp-only
 
----
-
-## **Denoising Functional Data (Pybest)**
+**Denoising Functional Data (Pybest)**
 To apply **Pybest denoising** on the functional data:
 
 .. code-block:: bash
 
     master -m 16  # spinoza_denoising
 
-To disable **unzscoring**:
-
-.. code-block:: bash
-
+    # do not use unzscoring
     master -m 16 --no_raw
 
-To **submit the job to the cluster**:
-
-.. code-block:: bash
-
+    # submit to cluster
     master -m 16 --sge -j 10
 
----
-
-## **pRF Fitting**
+**pRF Fitting**
 To run **pRF fitting** with **pRFpy**, use:
 
 .. code-block:: bash
 
     master -m 17  # spinoza_fitprfs
 
-To run the **Divisive Normalization (DN) model**:
-
-.. code-block:: bash
-
+    # use DN-model
     master -m 17 --norm
 
-To **cut the first 4 volumes**, use:
-
-.. code-block:: bash
-
+    # cut the first 4 volumes
     master -m 17 -s 006 --norm -v 4 -j 25
 
----
-
-## **Final Steps: Nighres-Based Segmentations**
+**Final Steps: Nighres-Based Segmentations**
 These modules **optimize cortical segmentations** and should be run in sequence:
 
 .. code-block:: bash
@@ -458,7 +426,7 @@ To use **Wagstyl's equivolumetric layering**, instead of **Nighres' volumetric l
 
 
 Vanilla pipeline
-----------------
+-
 
 Below is a **step-by-step guide** on how to execute the preprocessing pipeline.
 
