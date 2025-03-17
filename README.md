@@ -180,6 +180,9 @@ Several other software packages need to be accessible from the command line for 
 - [FSL](https://fsl.fmrib.ox.ac.uk/fsl/docs/#/) [recommended]: used for various manipulations of nifti-files, so this is recommended to have
 - [ITK-Snap](https://linescanning.readthedocs.io/en/latest/installation.html) [optional/recommended]: very good for viewing 3D data and drawing masks/ROIs
 - [ANTs](https://stnava.github.io/ANTs/) [recommended]: main registration method, so very useful to have
+    ```bash
+    conda install -c conda-forge ants
+    ``` 
 - [CAT12](https://neuro-jena.github.io/cat//index.html#DOWNLOAD) [recommended]: generates high quality tissue segmentations of anatomical files. Also used to generate accurate brain masks
 - [SPM](https://www.fil.ion.ucl.ac.uk/spm/software/spm12/) (r1113 has been used most) [recommended]: houses CAT12 and allows for great bias correction
 - [c3d](https://sourceforge.net/projects/c3d/) [optional]: useful for translation of transformation files between `ANTs` and `FSL`
