@@ -5,7 +5,7 @@ Step-by-step run-through
 ------------------------
 
 The input dataset is required to be in valid **BIDS (Brain Imaging Data Structure)** format.
-The directory pointing to the project should be specified in the ``spinoza_setup`` file as ``$DIR_PROJECTS``.
+The directory pointing to the project should be specified in the ``~/.spinoza_config`` file (see :ref:`spinoza_config_example`) as ``$DIR_PROJECTS``.
 Then specify the project name as ``$PROJECT``. It is assumed your converted data lives in:
 
 .. code-block:: bash    
@@ -549,6 +549,7 @@ This requires additional steps, which are detailed in the
 
 This guide describes how to **convert ITK warps to FSL-compatible warps**, including the **non-linear field**.
 It uses functions from:
+
 - C3D_-suite
 - FSL_
 - **wb_command** (from the `Human Connectome Project <https://www.humanconnectome.org/software/get-connectome-workbench>`_).
@@ -586,6 +587,7 @@ Case: Running fMRIPrep on Extremely Partial FOV Data
 
 fMRIprep_ does not handle **severely limited FOVs** well, such as data from **surface coils**.
 To address this, the `fpreputils repository <https://github.com/gjheij/fpreputils/tree/main>`_ describes a workflow that:
+
 - Runs parts of fMRIprep_ on partial FOV data.
 - Performs **motion/distortion correction**, **registration**, and **confound extraction**.
 - Requires a **whole-brain acquisition** for brain masks and tissue segmentation.

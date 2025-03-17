@@ -3,6 +3,8 @@ Configuration Setup
 
 fMRIproc requires a `spinoza_config` file for specifying project paths, processing parameters, and software dependencies.
 
+.. _spinoza_config_example:
+
 Example `spinoza_config` File
 -----------------------------
 
