@@ -171,7 +171,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     **Repetition Time (TR) Handling**
     ---------------------------------
-    
+
     The **Repetition Time (TR)** can be determined using several strategies:
 
     1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
@@ -221,8 +221,7 @@ The next step involves **creating T1w/T1map images** from the **first and second
     However, in more complex cases with **multiple MPRAGEs**, **MPRAGE + T1map**, or **MP2RAGE + MP2RAGEME**, 
     additional considerations are needed.
 
-    **Multiple MPRAGEs**
-    --------------------
+    .. rubric:: **Multiple MPRAGEs**
 
     If you have multiple **MPRAGE** acquisitions, they should include a **run-<runID>** identifier (e.g., ``run-1`` will be used as the reference).
     In this case, set ``DATA=AVERAGE``.
@@ -252,8 +251,7 @@ The next step involves **creating T1w/T1map images** from the **first and second
             ├── sub-04_ses-1_acq-MPRAGE_run-2_desc-spm_mask.nii.gz
             └── sub-04_ses-1_acq-MPRAGE_run-2_space-run1_T1w.nii.gz
 
-    **MPRAGE + T1map**
-    ------------------
+    .. rubric:: **MPRAGE + T1map**
     
     With **MP2RAGE**, a **T1map** is generated, but **MPRAGE** does not produce one.
     However, you can still include a separate **T1map**, which will be registered to the **T1w** image.
@@ -268,8 +266,7 @@ The next step involves **creating T1w/T1map images** from the **first and second
                 ├── sub-03_ses-1_acq-MPRAGE_T1w.nii.gz
                 └── sub-03_ses-1_acq-VFA_T1map.nii.gz
 
-    **MP2RAGE + MP2RAGEME**
-    -----------------------
+    .. rubric:: **MP2RAGE + MP2RAGEME**
 
     **MP2RAGEME** is an extension of **MP2RAGE**, introducing additional echoes for multi-contrast imaging.
     In this case, the **MP2RAGEME** images are registered to **MP2RAGE**.
@@ -426,7 +423,7 @@ To use **Wagstyl's equivolumetric layering**, instead of **Nighres' volumetric l
 
 
 Vanilla pipeline
--
+----------------
 
 Below is a **step-by-step guide** on how to execute the preprocessing pipeline.
 
