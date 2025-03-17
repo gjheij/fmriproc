@@ -579,8 +579,7 @@ To install `wb_command`, follow these steps:
         export PATH=${PATH}:${WB}
 
 5. Run ``source ~/.bash_profile`` or restart your terminal for changes to take effect.
-6. Follow the conversion steps in the `ants2fsl guide <https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md>`_.
-   - Filepaths, subject IDs, session IDs, and task IDs may differ, but the general workflow is outlined in the guide.
+6. Follow the conversion steps in the `ants2fsl guide <https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md>`_. Filepaths, subject IDs, session IDs, and task IDs may differ, but the general workflow is outlined in the guide.
 
 Case: Running fMRIPrep on Extremely Partial FOV Data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -31,7 +31,7 @@ This installs the core Python package and scripts.
 Configuring the Environment
 ---------------------------
 
-To ensure smooth execution, **fMRIproc** uses a `spinoza_config` file for paths and settings.
+To ensure smooth execution, **fMRIproc** uses a `spinoza_config` file for paths and settings (see :doc:`configuration`).
 
 After installation, run:
 
