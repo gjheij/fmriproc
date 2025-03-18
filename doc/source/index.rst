@@ -26,8 +26,8 @@ HRF estimation, plotting, and other analysis approaches performed in my line-sca
    :maxdepth: 1
    :caption: Example gallery
 
-   ../../fmriproc/notebooks/prfmodelfitter
-   ../../fmriproc/notebooks/prfviewer
+   nbs/prfmodelfitter
+   nbs/prfviewer
 
 .. toctree::
    :maxdepth: 1
