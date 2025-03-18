@@ -142,26 +142,25 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     .. rubric:: **Phase Encoding Direction Options**
     
-    1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
-    2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
+        1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
+        2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
 
-        - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
+            - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
 
-    3. Use one of the following flags when calling ``master``:
+        3. Use one of the following flags when calling ``master``:
 
-        - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
-        - These specify the **BOLD** phase-encoding direction.
+            - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
+            - These specify the **BOLD** phase-encoding direction.
 
-    4. Manually edit the JSON files after processing (less recommended).
+        4. Manually edit the JSON files after processing (less recommended).
 
     .. rubric:: **IntendedFor Field**
-    ---------------------
 
     The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
 
-    1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
-    2. One **fieldmap** is used for every two **BOLD** acquisitions.
-    3. A single **fieldmap** is used for all **BOLD** runs.
+        1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
+        2. One **fieldmap** is used for every two **BOLD** acquisitions.
+        3. A single **fieldmap** is used for all **BOLD** runs.
 
     If your dataset follows a different structure, you may need to manually edit the ``IntendedFor`` field.
 
@@ -179,18 +178,18 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     The **Repetition Time (TR)** can be determined using several strategies:
 
-    1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
-    2. **For DICOM files**, the pipeline applies:
+        1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
+        2. **For DICOM files**, the pipeline applies:
 
-        - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
-        - Extracting TR from the **DICOM header** (sometimes unreliable).
-        - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
-        - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
+            - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
+            - Extracting TR from the **DICOM header** (sometimes unreliable).
+            - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
+            - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
 
-    3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
-    
-        - Using the **first interval**, or
-        - Averaging across the entire run.
+        3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
+        
+            - Using the **first interval**, or
+            - Averaging across the entire run.
 
     The pipeline then **corrects the NIfTI headers** accordingly.
 
