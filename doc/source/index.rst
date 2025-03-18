@@ -26,6 +26,7 @@ HRF estimation, plotting, and other analysis approaches performed in my line-sca
    :maxdepth: 1
    :caption: Example gallery
 
+   nbs/lazyfmri
    nbs/prfmodelfitter
    nbs/prfviewer
 
