@@ -14,12 +14,40 @@ opj = os.path.join
 
 def get_minmax(file):
 
+    """get_minmax
+
+    Compute the minimum and maximum intensity values of a neuroimaging file using FSL's ImageStats.
+
+    Parameters
+    ----------
+    file: str
+        Path to the neuroimaging file (e.g., NIfTI format).
+
+    Returns
+    ----------
+    list: A list containing two float values:
+        - The minimum intensity value in the image.
+        - The maximum intensity value in the image.
+
+    Example
+    ----------
+    >>> minmax = get_minmax("path/to/image.nii.gz")
+    >>> print(minmax)
+    [0.0, 255.0]
+
+    Notes:
+    - Requires Nipype and FSL to be installed and configured.
+    - The function uses the '-R' option in ImageStats, which returns the range of intensity values.
+    - Ensure the input file is in a format supported by FSL, such as .nii or .nii.gz.
+    """
+
     from nipype.interfaces import fsl
     stats = fsl.ImageStats(in_file=file, op_string="-R")
     res = stats.run()
     return res.outputs.out_stat
 
 def write_pymp2rage_json(file, params):
+    """Write json file for pymp2rage output"""
     json_file = file.replace('.nii.gz', '.json')
     if os.path.isfile(json_file):
         print(f" {os.path.basename(json_file)} already exists")
@@ -37,8 +65,41 @@ def write_pymp2rage_nifti(
     input_files,
     is_mp2rageme=False
     ):
-    """Calculate and write multiparametric maps to outputdir."""
+    """write_pymp2rage_nifti
 
+    Calculate and write multiparametric maps to an output directory.
+
+    Parameters
+    ----------
+    file: str
+        Path to the output NIfTI file.
+    descriptor: str
+        The type of map to be generated (e.g., "t1map", "r2starmap").
+    obj: pymp2rage.MP2RAGE or pymp2rage.MEMP2RAGE object
+        An object containing the computed map attributes.
+    input_files: list or str
+        List of input file paths used for computation.
+    is_mp2rageme: bool, optional 
+        Indicates whether the MEMP2RAGE sequence is used. Defaults to False (MP2RAGE).
+
+    Returns
+    ----------
+    dict: A dictionary containing:
+        - "nifti" (str): Path to the saved NIfTI file.
+        - "json" (str): Path to the corresponding JSON metadata file.
+
+    Notes
+    ----------
+    - Uses `pymp2rage` for processing and writing multiparametric maps.
+    - The `descriptor` determines the algorithm and estimation method.
+    - Ensures output files are written only if they do not already exist.
+    - Writes metadata to a JSON file with details on estimation methodology and input data.
+
+    Parameters
+    ----------
+    >>> output = write_pymp2rage_nifti("output.nii.gz", "t1map", obj, input_files)
+    >>> print(output["nifti"], output["json"])
+    """
     from pymp2rage import version
     if os.path.isfile(file):
         print(f" {os.path.basename(file)} already exists")
@@ -110,6 +171,45 @@ def slice_timings_to_json(
     tr=None,
     mb_factor=1):
 
+    """slice_timings_to_json
+
+    Compute and update slice timing information in a JSON file or dictionary.
+
+    Parameters
+    ----------
+    json_file: str, dict
+        Path to the JSON file containing metadata or a dictionary.
+    nr_slices: int, optional
+        Number of slices in the acquisition. Defaults to None.
+    tr: float, optional
+        Repetition time (TR) of the sequence. Defaults to None.
+    mb_factor: int, optional
+        Multi-band acceleration factor. Defaults to 1.
+
+    Returns
+    ----------
+    dict or None: 
+        - If `json_file` is a dictionary, returns the updated dictionary with slice timings.
+        - If `json_file` is a file, updates the file in place and returns None.
+
+    Raises
+    ----------
+    ValueError: If the input is neither a JSON file path nor a dictionary.
+
+    Notes
+    ----------
+    - If `tr` is provided but differs from the TR in the JSON file, the function logs a warning 
+      and takes the TR from the JSON file.
+    - Uses the `slice_timings` function to compute slice timings.
+    - If `json_file` is a string (file path), the function updates the file in place.
+    - If `json_file` is a dictionary, it returns the updated dictionary.
+    
+    Example
+    ----------
+    >>> updated_data = slice_timings_to_json("metadata.json", nr_slices=32, tr=2.0)
+    >>> print(updated_data["SliceTiming"])
+    """
+    
     write_file = True
     if isinstance(json_file, str):
         with open(json_file) as f:
@@ -153,7 +253,50 @@ def slice_timings(
     tr=None,
     mb_factor=1):
 
-    return list(np.tile(np.linspace(0, tr, int(nr_slices/mb_factor), endpoint=False), mb_factor))
+    """slice_timings
+
+    Compute slice timing values for an fMRI acquisition sequence.
+
+    Parameters
+    ----------
+    nr_slices: int
+        Total number of slices in the acquisition.
+    tr: float
+        Repetition time (TR) of the sequence in seconds.
+    mb_factor: int, optional
+        Multi-band acceleration factor. Defaults to 1.
+
+    Returns
+    ----------
+    list: A list of slice timing values in seconds.
+
+    Raises
+    ----------
+    ValueError: If `nr_slices` or `tr` is not provided.
+
+    Notes
+    ----------
+    - Uses `np.linspace` to generate evenly spaced slice timing values.
+    - Tiles the slice timing values to account for multi-band acquisition.
+    - The number of slice timings generated is `nr_slices / mb_factor`, repeated `mb_factor` times.
+
+    Example
+    ----------
+    >>> slice_timing_values = slice_timings(nr_slices=32, tr=2.0, mb_factor=2)
+    >>> print(slice_timing_values)
+    """
+
+    return list(
+        np.tile(
+            np.linspace(
+                0,
+                tr,
+                int(nr_slices/mb_factor),
+                endpoint=False
+            ),
+            mb_factor
+        )
+    )
 
 def bin_fov(img, thresh=0,out=None, fsl=False):
     """bin_fov
