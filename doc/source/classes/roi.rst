@@ -1,6 +1,6 @@
 .. include:: ../links.rst
 
-Roi
+ROI
 ===========================================
 
 This file contains functions and classes related to the extraction of timecourses.
