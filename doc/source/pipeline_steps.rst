@@ -145,10 +145,14 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
     
     1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
     2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
-    - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
+    
+        - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
+
     3. Use one of the following flags when calling ``master``:
-    - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
-    - These specify the **BOLD** phase-encoding direction.
+
+        - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
+        - These specify the **BOLD** phase-encoding direction.
+
     4. Manually edit the JSON files after processing (less recommended).
 
     **IntendedFor Field**
@@ -167,8 +171,9 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
     It determines this information from:
-    - **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
-    - Assumes **interleaved acquisition**.
+
+        - **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
+        - Assumes **interleaved acquisition**.
 
     For further details, see the `slicetiming <https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14>`_ function.
 
