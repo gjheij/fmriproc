@@ -145,7 +145,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
     
     1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
     2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
-    
+
         - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
 
     3. Use one of the following flags when calling ``master``:
@@ -205,20 +205,14 @@ To run **MRIqc for functional images only**:
 
 .. code-block:: bash
 
+    # only functional files
     master -m 02b --func_only
 
-To run **MRIqc for anatomical images only**:
-
-.. code-block:: bash
-
+    # MRIqc for anatomical images only
     master -m 02b --anat_only
 
-To limit processing to a **specific session**:
-
-.. code-block:: bash
-
+    # specific session
     master -m 02b -n 1
-
 
 **Anatomical Preprocessing with Pymp2rage**
 The next step involves **creating T1w/T1map images** from the **first and second inversion images** using **Pymp2rage**.
