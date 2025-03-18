@@ -142,56 +142,56 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     .. rubric:: **Phase Encoding Direction Options**
     
-        1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
-        2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
+    1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
+    2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
 
-            - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
+        - This sets the **BOLD** phase-encoding direction, and the pipeline assumes the opposite for fieldmaps.
 
-        3. Use one of the following flags when calling ``master``:
+    3. Use one of the following flags when calling ``master``:
 
-            - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
-            - These specify the **BOLD** phase-encoding direction.
+        - ``--ap``, ``--pa``, ``--lr``, or ``--rl``
+        - These specify the **BOLD** phase-encoding direction.
 
-        4. Manually edit the JSON files after processing (less recommended).
+    4. Manually edit the JSON files after processing (less recommended).
 
     .. rubric:: **IntendedFor Field**
 
-        The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
+    The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
 
-            1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
-            2. One **fieldmap** is used for every two **BOLD** acquisitions.
-            3. A single **fieldmap** is used for all **BOLD** runs.
+    1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
+    2. One **fieldmap** is used for every two **BOLD** acquisitions.
+    3. A single **fieldmap** is used for all **BOLD** runs.
 
     If your dataset follows a different structure, you may need to manually edit the ``IntendedFor`` field.
 
     .. rubric:: **SliceTiming Calculation**
 
-        If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
-        It determines this information from:
+    If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
+    It determines this information from:
 
-            - **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
-            - Assumes **interleaved acquisition**.
+        - **TR**, **number of slices**, and **multiband factor** (from the PAR-file).
+        - Assumes **interleaved acquisition**.
 
-        For further details, see the `slicetiming <https://fmriproc.readthedocs.io/en/latest/classes/image.html#fmriproc.image.slice_timings>`_ function.
+    For further details, see the `slicetiming <https://fmriproc.readthedocs.io/en/latest/classes/image.html#fmriproc.image.slice_timings>`_ function.
 
     .. rubric:: **Repetition Time (TR) Handling**
 
-        The **Repetition Time (TR)** can be determined using several strategies:
+    The **Repetition Time (TR)** can be determined using several strategies:
 
-            1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
-            2. **For DICOM files**, the pipeline applies:
+    1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
+    2. **For DICOM files**, the pipeline applies:
 
-                - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
-                - Extracting TR from the **DICOM header** (sometimes unreliable).
-                - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
-                - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
+        - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
+        - Extracting TR from the **DICOM header** (sometimes unreliable).
+        - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
+        - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
 
-            3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
-            
-                - Using the **first interval**, or
-                - Averaging across the entire run.
+    3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
+    
+        - Using the **first interval**, or
+        - Averaging across the entire run.
 
-        The pipeline then **corrects the NIfTI headers** accordingly.
+    The pipeline then **corrects the NIfTI headers** accordingly.
 
 **MRI Quality Control (MRIqc)**
 Once data has been converted to NIfTI, **basic QC** can be performed using `MRIqc`.
@@ -223,80 +223,80 @@ The next step involves **creating T1w/T1map images** from the **first and second
 
     .. rubric:: **Multiple MPRAGEs**
 
-        If you have multiple **MPRAGE** acquisitions, they should include a **run-<runID>** identifier (e.g., ``run-1`` will be used as the reference).
-        In this case, set ``DATA=AVERAGE``.
+    If you have multiple **MPRAGE** acquisitions, they should include a **run-<runID>** identifier (e.g., ``run-1`` will be used as the reference).
+    In this case, set ``DATA=AVERAGE``.
 
-        **Example Folder Structure (Raw Data):**
+    **Example Folder Structure (Raw Data):**
 
-        .. code-block:: bash
+    .. code-block:: bash
 
-            /path/to/projects/some_project/sub-04
-            └── ses-1
-                └── anat
-                    ├── sub-04_ses-1_acq-MPRAGE_run-1_T1w.nii.gz
-                    └── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
-
-        **Example Folder Structure (Processed Output):**
-
-        .. code-block:: bash
-
-            /path/to/projects/some_project/derivatives/pymp2rage/sub-04
-            └── ses-1
-                ├── spm_mask.m
-                ├── sub-04_ses-1_acq-AVERAGE_T1w.nii.gz
-                ├── sub-04_ses-1_acq-AVERAGE_desc-spm_mask.nii.gz
+        /path/to/projects/some_project/sub-04
+        └── ses-1
+            └── anat
                 ├── sub-04_ses-1_acq-MPRAGE_run-1_T1w.nii.gz
-                ├── sub-04_ses-1_acq-MPRAGE_run-1_desc-spm_mask.nii.gz
-                ├── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
-                ├── sub-04_ses-1_acq-MPRAGE_run-2_desc-spm_mask.nii.gz
-                └── sub-04_ses-1_acq-MPRAGE_run-2_space-run1_T1w.nii.gz
+                └── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
+
+    **Example Folder Structure (Processed Output):**
+
+    .. code-block:: bash
+
+        /path/to/projects/some_project/derivatives/pymp2rage/sub-04
+        └── ses-1
+            ├── spm_mask.m
+            ├── sub-04_ses-1_acq-AVERAGE_T1w.nii.gz
+            ├── sub-04_ses-1_acq-AVERAGE_desc-spm_mask.nii.gz
+            ├── sub-04_ses-1_acq-MPRAGE_run-1_T1w.nii.gz
+            ├── sub-04_ses-1_acq-MPRAGE_run-1_desc-spm_mask.nii.gz
+            ├── sub-04_ses-1_acq-MPRAGE_run-2_T1w.nii.gz
+            ├── sub-04_ses-1_acq-MPRAGE_run-2_desc-spm_mask.nii.gz
+            └── sub-04_ses-1_acq-MPRAGE_run-2_space-run1_T1w.nii.gz
 
     .. rubric:: **MPRAGE + T1map**
     
-        With **MP2RAGE**, a **T1map** is generated, but **MPRAGE** does not produce one.
-        However, you can still include a separate **T1map**, which will be registered to the **T1w** image.
+    With **MP2RAGE**, a **T1map** is generated, but **MPRAGE** does not produce one.
+    However, you can still include a separate **T1map**, which will be registered to the **T1w** image.
 
-        **Example Folder Structure:**
+    **Example Folder Structure:**
 
-        .. code-block:: bash
+    .. code-block:: bash
 
-            /path/to/projects/some_project/sub-03
-            └── ses-1
-                └── anat
-                    ├── sub-03_ses-1_acq-MPRAGE_T1w.nii.gz
-                    └── sub-03_ses-1_acq-VFA_T1map.nii.gz
+        /path/to/projects/some_project/sub-03
+        └── ses-1
+            └── anat
+                ├── sub-03_ses-1_acq-MPRAGE_T1w.nii.gz
+                └── sub-03_ses-1_acq-VFA_T1map.nii.gz
 
     .. rubric:: **MP2RAGE + MP2RAGEME**
 
-        **MP2RAGEME** is an extension of **MP2RAGE**, introducing additional echoes for multi-contrast imaging.
-        In this case, the **MP2RAGEME** images are registered to **MP2RAGE**.
-        Additional parametric maps can be warped using:
+    **MP2RAGEME** is an extension of **MP2RAGE**, introducing additional echoes for multi-contrast imaging.
+    In this case, the **MP2RAGEME** images are registered to **MP2RAGE**.
+    Additional parametric maps can be warped using:
 
-        .. code-block:: bash
+    .. code-block:: bash
 
-            export WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
+        export WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
 
-        **Example Folder Structure:**
+    **Example Folder Structure:**
 
-        .. code-block:: bash
+    .. code-block:: bash
 
-            /path/to/projects/some_project/sub-05
-            └── ses-1
-                └── anat
-                    ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-mag.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-phase.nii.gz
-                    ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-mag.nii.gz
-                    └── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-phase.nii.gz
+        /path/to/projects/some_project/sub-05
+        └── ses-1
+            └── anat
+                ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGE_inv-1_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGE_inv-2_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-1_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-1_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-2_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-mag.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-3_part-phase.nii.gz
+                ├── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-mag.nii.gz
+                └── sub-05_ses-1_acq-MP2RAGEME_inv-2_echo-4_part-phase.nii.gz
 
 
 To run this step:
@@ -482,7 +482,7 @@ Below is a **step-by-step guide** on how to execute the preprocessing pipeline.
 Tips for FSL's FEAT
 -------------------
 
-Format fMRIprep_-Confounds for FEAT
+Case: Use fMRIprep_-Confounds for FEAT
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you don't want to denoise your data using **pybest**, but instead want to include the confounds from fMRIprep_ in the **FEAT** analysis, use ``call_fprep2feat``.
