@@ -128,15 +128,19 @@ def read_par_file(prf_file, key="pars"):
 
     Example
     ----------
-    >>> # read in pRF-estimates file
-    >>> from fmriproc import prf
-    >>> prf_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
-    >>> pars = prf.read_par_file(prf_file)
 
-    >>> # read design matrix
-    >>> from fmriproc import prf
-    >>> dm_file = "design_task-2R.mat"
-    >>> dm = prf.read_par_file(dm_file)
+    .. code-block:: python
+
+        # read in pRF-estimates file
+        from fmriproc import prf
+        prf_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
+        pars = prf.read_par_file(prf_file)
+
+        # read design matrix
+        from fmriproc import prf
+        dm_file = "design_task-2R.mat"
+        dm = prf.read_par_file(dm_file)
+
     """
 
     if isinstance(prf_file, str):
@@ -195,7 +199,15 @@ def get_prfdesign(screenshot_path, n_pix=40, dm_edges_clipping=[0,0,0,0]):
 
     Example
     ----------
-    >>> dm = get_prfdesign('path/to/dir/with/pngs', n_pix=270, dm_edges_clipping=[6,1,0,1])
+
+    .. code-block:: python
+        
+        dm = get_prfdesign(
+            'path/to/dir/with/pngs',
+            n_pix=270,
+            dm_edges_clipping=[6,1,0,1]
+        )
+
     """
 
     image_list = os.listdir(screenshot_path)
@@ -322,32 +334,36 @@ def make_stims(
     factor=4, 
     concentric_size=0.65, 
     loc=(0,0),
-    dt="fill"):
+    dt="fill"
+    ):
+    """
+    Create a list of stimuli to generate size/response curves.
 
-    """make_stims
-    Creates a list of stimuli to create size/response curves.
     Parameters
     ----------
-    x: array
-        visual field delineation
-    prf_object: prfpy.stimulus.PRFStimulus2D
-        representation the pRF in visual space
-    dim_stim: int
-        number of dimensions to use: 2 for circle, 1 for bar
-    factor: int
-        factor with which to increase stimulus size
-    loc: tuple, optional
-        location to center stimuli on. Default is (0,0)
-    dt: str
-        Set the type of stimulus that needs to be created. by default 'fill', other options are 'full' [fullscreen stimulus],
-        'concentric' [circles with holes], 'hole' [fullscreen with growing hole]
-    concentric_size: float
-        proportion of stimulus size that needs to be masked out again
+    x : array
+        Visual field delineation.
+    prf_object : prfpy.stimulus.PRFStimulus2D
+        Representation of the pRF in visual space.
+    dim_stim : int
+        Number of dimensions to use: 2 for circle, 1 for bar.
+    factor : int
+        Factor by which to increase stimulus size.
+    loc : tuple, optional
+        Location to center stimuli on. Default is (0,0).
+    dt : str, optional
+        Type of stimulus to create. Default is 'fill'. Other options:
+        - 'full' : fullscreen stimulus
+        - 'concentric' : circles with holes
+        - 'hole' : fullscreen with growing hole.
+    concentric_size : float, optional
+        Proportion of stimulus size that needs to be masked out again.
+
     Returns
-    ----------
-    list
-        list of numpy.ndarrays with meshgrid-size containing the stimuli. Can be plotted with
-        :func:`fmriproc.prf.plot_stims`
+    -------
+    list of numpy.ndarray
+        List of arrays with meshgrid-size containing the stimuli.
+        Can be plotted with :func:`fmriproc.prf.plot_stims`.
     """
 
     if not isinstance(xy,tuple):
@@ -773,12 +789,16 @@ def select_stims(settings_dict, stim_library, frames=225, baseline_frames=15, ra
     settings_dict: dict
         dictionary containing the number of stimuli and index of stimuli (as per the library) that you would like to include.
         An example is:
-
-        >>> use_settings = {'hori': [0, 18],
-        >>>                 'vert': [4, 25],
-        >>>                 'rot_45': [4, 18],
-        >>>                 'rot_135': [0, 5]}
         
+        .. code-block:: python
+
+            use_settings = {
+            'hori': [0, 18],
+            'vert': [4, 25],
+            'rot_45': [4, 18],
+            'rot_135': [0, 5]
+            }
+
         this selects 0 horizontal stimuli, 4x the 25th vertical stimulus in 'lib', 4x the 18th stimulus of the 45 degree
         rotated stimuli, and 0 of the 135 degree rotated stimuli.
     stim_library: dict
@@ -2016,10 +2036,10 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         <1,time_points> describing the HRF. Can be created with :func:`lazyfmri.glm.double_gamma`, then add an axis before the
         timepoints:
 
-        >>> dt = 1
-        >>> time_points = np.linspace(0,36,np.rint(float(36)/dt).astype(int))
-        >>> hrf_custom = lazyfmri.glm.double_gamma(time_points, lag=6)
-        >>> hrf_custom = hrf_custom[np.newaxis,...]
+        dt = 1
+        time_points = np.linspace(0,36,np.rint(float(36)/dt).astype(int))
+        hrf_custom = lazyfmri.glm.double_gamma(time_points, lag=6)
+        hrf_custom = hrf_custom[np.newaxis,...]
 
         Can also be a list of three parameters for the SPM-functions. Defaults to [1,1,0], for the HRF, and the time
         derivative. 
@@ -2068,20 +2088,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
     Example
     ----------
-    >>> from fmriproc.prf import pRFmodelFitting
-    >>> fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
 
-    >>> # we can use this class to read in existing parameter files
-    >>> prf_pfov = opj(prf_new, "sub-003_ses-3_task-pRF_acq-3DEPI_model-norm_stage-iter_desc-prf_params.npy")
-    >>> modelling_pfov = prf.pRFmodelFitting(
-    >>>     partial_nan.T,
-    >>>     design_matrix=design_pfov,
-    >>>     stage="iter",
-    >>>     model="norm",
-    >>>     output_dir=prf_new,
-    >>>     output_base="sub-003_ses-3_task-pRF_acq-3DEPI")
-    >>> #
-    >>> modelling_pfov.load_params(np.load(prf_pfov), model='norm', stage='iter')
+    .. code-block:: python
+
+        from fmriproc.prf import pRFmodelFitting
+        fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
+
+        # we can use this class to read in existing parameter files
+        prf_pfov = opj(prf_new, "sub-003_ses-3_task-pRF_acq-3DEPI_model-norm_stage-iter_desc-prf_params.npy")
+        modelling_pfov = prf.pRFmodelFitting(
+            partial_nan.T,
+            design_matrix=design_pfov,
+            stage="iter",
+            model="norm",
+            output_dir=prf_new,
+            output_base="sub-003_ses-3_task-pRF_acq-3DEPI")
+        #
+        modelling_pfov.load_params(np.load(prf_pfov), model='norm', stage='iter')
 
     Notes
     ----------
@@ -2587,14 +2610,17 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         Example
         ----------
-        >>> # we initiate the model as per usual
-        >>> gauss_load = prf.pRFmodelFitting(
-        >>>     data.T,
-        >>>     design_matrix=design,
-        >>>     TR=1.5,
-        >>>     verbose=True)
-        >>> #
-        >>> gauss_load.load_params("sub-01_ses-1_model-norm_stage-iter_desc-prf_params.pkl", model="gauss", stage="iter")
+
+        .. code-block:: python
+
+            # we initiate the model as per usual
+            gauss_load = prf.pRFmodelFitting(
+                data.T,
+                design_matrix=design,
+                TR=1.5,
+                verbose=True)
+
+            gauss_load.load_params("sub-01_ses-1_model-norm_stage-iter_desc-prf_params.pkl", model="gauss", stage="iter")
 
         Notes
         ----------
@@ -2795,11 +2821,23 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             - "marker": marker type of the timecourse. Default = None
             - "label": label to add to the legend. Default = "extra"
 
-            Some examples:            
-            >>> add_tc=np.array([]) # simplest
-            >>> add_tc={"tc": np.array([]), "label": "grid", "marker": "."} # set some extra options
+            Some examples:
+
+            .. code-block:: python
+
+                add_tc=np.array([]) # simplest
+
+            .. code-block:: python
+
+                # set some extra options
+                add_tc={
+                    "tc": np.array([]),
+                    "label": "grid",
+                    "marker": "."
+                }
+
         normalize: bool, optional
-            Normalize the prediction to the max amplitude. Default = False
+        Normalize the prediction to the max amplitude. Default = False
 
         Returns
         ----------
@@ -2814,25 +2852,34 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
 
         Example
         ----------
-        >>> from fmriproc.prf import pRFmodelFitting
-        >>> #
-        >>> # define the model
-        >>> fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
-        >>> #
-        >>> # fit
-        >>> fitting.fit()
-        >>> #
-        >>> # plot the 1st voxel
-        >>> fitting.plot_vox(
-        >>>     vox_nr=0,
-        >>>     title='pars',
-        >>>     model='gauss',
-        >>>     stage='iter')
+
+        .. code-block:: python
+
+            from fmriproc.prf import pRFmodelFitting
+            
+            # define the model
+            fitting = pRFmodelFitting(func, design_matrix=dm, model='gauss')
+
+            # fit
+            fitting.fit()
+            
+            # plot the 1st voxel
+            fitting.plot_vox(
+                vox_nr=0,
+                title='pars',
+                model='gauss',
+                stage='iter'
+            )
 
         Notes
         ----------
         
-        - To silence output, use `_,_,_,_= fitting.plot_vox()`
+        - To silence output, use:
+        
+            .. code-block:: python
+            
+                _= fitting.plot_vox()
+
         - Also check https://fmriproc.readthedocs.io/en/latest/examples/prfmodelfitter.html for more examples
         """
 
@@ -3168,68 +3215,73 @@ class SizeResponse():
 
     Example
     ----------
-    >>> from fmriproc import prf
-    >>> # define file with pRF estimates
-    >>> in_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
-    >>> #
-    >>> # read the input file into a dataframe
-    >>> df_for_srfs = prf.Parameters(in_file, model="norm").to_df()
-    >>> #
-    >>> # initialize class
-    >>> SR_ = prf.SizeResponse(
-    >>>     params=df_for_srfs, 
-    >>>     model="norm",
-    >>>     screen_distance_cm=196,
-    >>>     screen_size_cm=[70,39.3],
-    >>>     screen_size_px=[1920,1080])
 
-    >>> from lazyfmri import utils
-    >>> # Collect subject-relevant information in class
-    >>> subject = "sub-001"
-    >>> hemi = "lh"
-    >>> #
-    >>> if hemi == "lh":
-    >>>     hemi_tag = "hemi-L"
-    >>> elif hemi == "rh":
-    >>>     hemi_tag = "hemi-R"
-    >>> #
-    >>> subject_info = prf.CollectSubject(
-    >>>     subject, 
-    >>>     prf_dir=prf_dir, 
-    >>>     cx_dir=cx_dir, 
-    >>>     hemi=hemi, 
-    >>>     resize_pix=270,
-    >>>     verbose=False)
-    >>> #
-    >>> # Get and plot fMRI signal
-    >>> data_fn = utils.get_file_from_substring(f"avg_bold_{hemi_tag}.npy", subject_info.prfdir)
-    >>> data = np.load(data_fn)[...,subject_info.return_target_vertex(hemi=hemi)]
-    >>> #
-    >>> # insert old parameters
-    >>> insert_params = subject_info.target_params
-    >>> #
-    >>> # initiate class
-    >>> fitting = prf.pRFmodelFitting(
-    >>>     data[...,np.newaxis].T, 
-    >>>     design_matrix=subject_info.design_matrix, 
-    >>>     TR=subject_info.settings['TR'], 
-    >>>     model="norm", 
-    >>>     stage="grid", 
-    >>>     old_params=insert_params, 
-    >>>     verbose=False, 
-    >>>     output_dir=subject_info.prfdir, 
-    >>>     nr_jobs=1)
-    >>> #
-    >>> # fit
-    >>> fitting.fit()
-    >>> #
-    >>> new_params = fitting.norm_grid[0]
-    >>> #
-    >>> # size response functions
-    >>> SR = prf.SizeResponse(fitting.prf_stim, new_params)
+    .. code-block:: python
 
-    >>> # add subject info object
-    >>> SR = prf.SizeResponse(fitting.prf_stim, new_params, subject_info=subject_info)        
+        from fmriproc import prf
+        # define file with pRF estimates
+        in_file = "sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl"
+        #
+        # read the input file into a dataframe
+        df_for_srfs = prf.Parameters(in_file, model="norm").to_df()
+        #
+        # initialize class
+        SR_ = prf.SizeResponse(
+            params=df_for_srfs,
+            model="norm",
+            screen_distance_cm=196,
+            screen_size_cm=[70,39.3],
+            screen_size_px=[1920,1080])
+    
+    .. code-block:: python
+
+        from lazyfmri import utils
+        # Collect subject-relevant information in class
+        subject = "sub-001"
+        hemi = "lh"
+        #
+        if hemi == "lh":
+            hemi_tag = "hemi-L"
+        elif hemi == "rh":
+            hemi_tag = "hemi-R"
+        #
+        subject_info = prf.CollectSubject(
+            subject, 
+            prf_dir=prf_dir, 
+            cx_dir=cx_dir, 
+            hemi=hemi, 
+            resize_pix=270,
+            verbose=False)
+        #
+        # Get and plot fMRI signal
+        data_fn = utils.get_file_from_substring(f"avg_bold_{hemi_tag}.npy", subject_info.prfdir)
+        data = np.load(data_fn)[...,subject_info.return_target_vertex(hemi=hemi)]
+        #
+        # insert old parameters
+        insert_params = subject_info.target_params
+        #
+        # initiate class
+        fitting = prf.pRFmodelFitting(
+            data[...,np.newaxis].T, 
+            design_matrix=subject_info.design_matrix, 
+            TR=subject_info.settings['TR'], 
+            model="norm", 
+            stage="grid", 
+            old_params=insert_params, 
+            verbose=False, 
+            output_dir=subject_info.prfdir, 
+            nr_jobs=1)
+        #
+        # fit
+        fitting.fit()
+        #
+        new_params = fitting.norm_grid[0]
+        #
+        # size response functions
+        SR = prf.SizeResponse(fitting.prf_stim, new_params)
+
+        # add subject info object
+        SR = prf.SizeResponse(fitting.prf_stim, new_params, subject_info=subject_info)        
     """
     
     def __init__(
@@ -3528,11 +3580,15 @@ class SizeResponse():
 
         Example
         ----------
-        >>> # follows up on example in *fmriproc.prf.SizeResponse*
-        >>> SR.make_stimuli()
-        >>> sr_curve1 = SR.make_sr_function(center_prf=True)
-        >>> sr_curve2 = SR.make_sr_function(center_prf=True, scale_factor=0.8) # decrease pRF size of second pRF by 20%
-        >>> use_stim_sizes = SR.find_stim_sizes(sr_curve1, sr_curve2)
+
+        .. code-block:: python
+
+            # follows up on example in *fmriproc.prf.SizeResponse*
+            SR.make_stimuli()
+            sr_curve1 = SR.make_sr_function(center_prf=True)
+            sr_curve2 = SR.make_sr_function(center_prf=True, scale_factor=0.8) # decrease pRF size of second pRF by 20%
+            use_stim_sizes = SR.find_stim_sizes(sr_curve1, sr_curve2)
+
         """
 
         # find the peaks of individual curves
@@ -3739,8 +3795,12 @@ class CollectSubject(pRFmodelFitting):
 
     Example
     ----------
-    >>> from lazyfmri import utils
-    >>> subject_info = utils.CollectSubject(subject, derivatives=<path_to_derivatives>, settings='recent', hemi="lh")
+
+    .. code-block:: python
+    
+        from lazyfmri import utils
+        subject_info = utils.CollectSubject(subject, derivatives=<path_to_derivatives>, settings='recent', hemi="lh")
+
     """
 
     def __init__(

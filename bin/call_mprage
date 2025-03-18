@@ -1,0 +1,276 @@
+#!/bin/bash
+#$ -S /bin/bash
+#$ -cwd
+#$ -j Y
+#$ -V
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_mprage
+
+Workflow for the preprocessing of MPRAGE data so that it is compatible with the fMRIproc-pipeline.
+Steps include:
+- Brain masking using 'call_spmmask', which will create *desc-spm_mask
+- Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
+  brain mask too; seems to work well.
+- Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
+
+Options:
+    -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+    --spm           use SPM for bias correction (default is ANTs)
+    --no_sanlm      do not apply SANLM filtering
+    --no_winsor     do not apply winsoring of image intensities; would recommend this though..
+    -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
+                    separated flags as follows: 
+                      - if you specify a flag and values | <flag>=<value>
+                      - if you specify a flag only | <flag>
+
+                    combine as:
+                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                    e.g.,
+                    "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+    --no_reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
+                    packages such as Nighres. This allows you to generate layerification in 
+                    voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-
+                    rate T1map. By default, we'll register that file to the MPRAGE T1w. If
+                    this flag is specified, we'll assume they are in the same space. Note that
+                    the output will have the same filenaming as the T1w, although that is not
+                    entirely fair. For instance, the output could be:
+                    "sub-<subID>_ses-<sesID>_acq-MPRAGE_T1map"; the T1map is not derived from
+                    the MPRAGE file, so the "acq-*" tag is a bit misleading. However, this is
+                    necessary to be compatible with subsequent steps of the pipeline.
+
+Positional arguments
+    <input image>   input image
+    <output image>	output base. Base name (including directory) for the output. 
+                    "*_T1w.nii.gz" and "*_desc-spm_mask" will be appended.
+                    E.g., "DIR_DATA_DERIV/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MPRAGE"
+
+Usage:
+ call_mprage sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE             # standard
+ call_mprage --spm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE       # run with SPM
+ call_mprage --no_sanlm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # skip SANLM
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+if [[ $# -lt 1 ]] ; then
+  Usage >&2
+  exit 1
+fi
+
+OW=0
+RUN_WITH_ANTS=1
+RUN_SANLM=1
+REG_T1=1
+WINSORIZE_INTENSITIES=1
+# Check for subject & session flags
+while getopts hdl:s:x: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in     
+        spm)
+          RUN_WITH_ANTS=0
+          ;;          
+        no_sanlm)
+          RUN_SANLM=0
+          ;;
+        no_reg)
+          REG_T1=0
+          ;;       
+        no_winsor)
+          WINSORIZE_INTENSITIES=0
+          ;;                 
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;; 
+  
+    l)  LOG=${OPTARG}
+          ;;
+    s)  SPM=${OPTARG}
+          ;;
+    x)  kwargs=${OPTARG}
+          ;;             
+  esac
+done
+
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+
+# parse kwargs
+if [[ ! -z ${kwargs} ]]; then
+  kwargs=`echo ${kwargs} | tr '=' ' ' | tr ':' ' '`
+fi
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Define default SPM-path
+if [[ -z ${SPM} ]]; then
+  if [[ -z ${SPM_PATH} ]]; then
+    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+    exit 1
+  else
+    SPM_PATH=${SPM_PATH}
+  fi
+else
+  SPM_PATH=${SPM}
+fi
+
+# if file specified is in current directory, add entire path
+in_file=`fetch_filepath ${INPUT}`
+out_file=`fetch_filepath ${OUTPUT}`
+final_file="${out_file}_T1w.nii.gz"
+
+if [[ ! -d $(dirname ${OUTPUT}) ]]; then
+    mkdir -p $(dirname ${OUTPUT})
+fi
+
+#-----------------------------------------------------------------------------
+# Generate brain mask
+mask_file="${out_file}_desc-spm_mask.nii.gz"
+
+# remove old versions
+rm $(dirname ${mask_file})/$(basename ${mask_file} .gz)* 2>/dev/null
+
+cmd="call_spmmask --clean ${in_file} ${mask_file}"
+echo " Generating brain mask with SPM.."
+eval ${cmd}
+
+if [[ ! -f "${mask_file}" ]]; then  
+  echo "ERROR in $(basename ${0}): call_spmmask failed, mask-file not created"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Run bias correction
+bias_file="$(dirname ${out_file})/tmp_bias.nii.gz"
+if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
+  cmd="call_spmbias -s ${SPM_PATH} ${in_file} ${bias_file}"
+  software="SPM"
+else
+  software="ANTs"
+  cmd="call_antsbias ${in_file} ${bias_file} -x ${mask_file} ${kwargs}"
+fi
+
+echo " Bias correction with ${software}.."
+eval ${cmd}
+
+if [[ ! -f "${bias_file}" ]]; then
+  echo "ERROR in $(basename ${0}): bias correction failed"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# SANLM
+if [[ ${RUN_SANLM} -eq 1 ]]; then
+  cmd="call_spmsanlm -s ${SPM_PATH} ${bias_file} ${final_file}"
+  echo " Denoising with SANLM.."
+  eval ${cmd}
+
+  if [[ ! -f ${final_file} ]]; then
+    echo "ERROR in $(basename ${0}): call_spmsanlm failed, final output file not created"
+    exit 1
+  fi
+
+  # clean up
+  rm ${bias_file} 2>/dev/null
+else
+  # simply copy bias-corrected file as final output
+  echo " SANLM turned off: simply copy bias-corrected file as final output"
+  mv "${bias_file}" "${final_file}"
+fi
+
+#-----------------------------------------------------------------------------
+# truncate intensities and rescale
+if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
+  echo " Truncating image intensities [0.01,0.99] with 256 bins"
+  cmd="call_winsorize ${final_file}"
+  eval ${cmd}
+
+  echo " Rescaling T1w to [0,4095]"
+  cmd="call_rescale ${final_file} 0 4095"
+  eval ${cmd}
+else
+  echo " Winsorizing turned off.. will not touch image intensities"
+fi
+
+#-----------------------------------------------------------------------------
+# set dtype to uint16
+echo "Set dtype to UINT16"
+cmd="call_setdtype ${final_file}"
+eval ${cmd}
+
+#-----------------------------------------------------------------------------
+# check for separate T1map, probably needs to be registered; give same output name for consistency sake
+t1map=`find "$(dirname ${INPUT})" -maxdepth 1 -type f \( -name "*T1map.nii.gz" \) 2>/dev/null`
+if [[ ! -z ${t1map} ]]; then
+  
+  t1_reg="${out_file}_T1map.nii.gz"
+  if [[ ${REG_T1} -eq 1 ]]; then
+    genaff="${out_file}_from-T1map_to-T1w_genaff.mat"
+    if [[ ! -f "${genaff}" ]]; then
+      cmd="""call_antsregistration \
+        --rigid
+        ${final_file} \
+        ${t1map} \
+        ${out_file}_from-T1map_to-T1w_"""
+
+      echo " Registering $(basename ${t1map}) to $(basename ${final_file}).."
+      eval ${cmd}
+    else  
+      echo " Using matrix: \"${genaff}\".."
+    fi
+
+    # applying warp
+    cmd="call_antsapplytransforms ${final_file} ${t1map} ${t1_reg} ${genaff}"
+    echo " Applying warp.."
+    eval ${cmd}
+    
+    if [[ ! -f ${t1_reg} ]]; then
+      echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+      exit 1
+    fi
+  else
+    echo " Not registering T1map, simply copy existing file to output folder"
+    cp "${t1map}" "${t1_reg}" 2>/dev/null
+  fi
+
+  #-----------------------------------------------------------------------------
+  # truncate intensities and rescale
+  if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
+    echo "Truncating T1map intensities [0.01,0.99] with 256 bins"
+    cmd="call_winsorize ${t1_reg}"
+    eval ${cmd}
+
+    echo " Rescaling T1map to [0,5050]"
+    cmd="call_rescale ${t1_reg} 0 5050"
+    eval ${cmd}
+  else
+    echo " Winsorizing turned off.. will not touch image intensities"
+  fi
+
+  #-----------------------------------------------------------------------------
+  # set dtype to uint16
+  echo "Set dtype to UINT16"
+  cmd="call_setdtype ${t1_reg}"
+  eval ${cmd}
+fi
+
+echo " Done"

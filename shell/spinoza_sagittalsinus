@@ -2,7 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -10,36 +11,28 @@ function Usage {
     cat <<USAGE
 
 ---------------------------------------------------------------------------------------------------
-spinoza_sagittalsinus
+spinoza_sinusfrommni
 
-This script creates the sagittal sinus mask based on the R2*-map from pymp2rage. It requires the user
-to refine the mask a bit, because the R2*-map is imperfect especially around the putamen and other
-iron-rich regions inside the brain. It will start ITKsnap for the user to do the editing.
-
-It can be run on a cluster, but then we need to have X-forwarding. If you're on a different SGE than
-the Spinoza Centre cluster, change the 'if [[ hostname != *"login-01"* ]]; then' line to your SGE's
-login node (where you can't open GUIs). It will try to open a GUI for everything other than that spe-
-cified node-name. For instance, if you're running this on your local system, your hostname will be
-that of your system, and will therefore attempt to open the specified GUI (default = ITKsnap, it will
-check if that exists. Other options are 'FSL' or 'FV' for freeview).
-If you have MEMP2RAGE-data, then the script will look for the R2*-file in the specified ANAT folder.
-If this is somewhere else, just copy it into that directory.
+This script takes the registration matrix from MNI to subject space to warp the sagittal sinus mask
+in MNI-space to the subject space. We then multiply this image with the T1w/T2w ratio to get a de-
+cent initial estimate of the sagittal sinus
 
 Usage:
-  spinoza_sagittalsinus [options] <anat folder> <mask folder> <software [itk|fv]>
+  spinoza_sinusfrommni [options] <anat folder> <registration folder> <mask folder>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
-  -o                  overwrite existing files
-  <input directory>   folder where anatomical files live
-  <skullstrip>        output folder for masks
-  <software>          which software to use: FreeSurfer|FSL|ITK
+  -n <session>        session ID (e.g., 1, 2, or none)
+  -o|--ow             Overwrite existing output
+  --itk               open itksnap to verify mask procedure
+  <anat directory>    directory containing the T1w and T2w files; should generally be pymp2rage-
+                      folder
+  <registration>      path to directory where registration file is (output from spinoza_registration)
+  <mask directory>    path to output mask directory (to put final 'sinus'-mask)
 
-Example:
-  spinoza_sagittalsinus DIR_ANAT DIR_MASKS SOFTWARE
-  spinoza_sagittalsinus $DIR_DATA_DERIV/pymp2rage $DIR_DATA_DERIV/manual_masks itk
-  spinoza_sagittalsinus -s 001 -n 1 $DIR_DATA_DERIV/pymp2rage $DIR_DATA_DERIV/manual_masks itk
+Eample:
+  spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
+  spinoza_sinusfrommni -s 001 -n 1 DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
 
 ---------------------------------------------------------------------------------------------------
 
@@ -48,26 +41,43 @@ USAGE
 }
 
 # Check for subject & session flags
-while getopts os:n: argument
+OW=0
+open_itk=0
+while getopts :-:os:n:m: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        itk)
+          open_itk=1
+          ;;
+        ow)
+          OW=1
+          ;;
+    *)
+      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
+        exit 1
+      fi
+      ;;
+      esac;;            
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
-          ;;
-    o)  OW=${OPTARG}
-          ;;          
+          ;; 
+    o)  OW=1
+          ;;                      
   esac
 done
 
-if [[ $# -lt 3 ]] ; then
+if [[ $# -lt 2 ]] ; then
   Usage >&2
   exit 1
 fi
 
 ANAT=${@:$OPTIND:1}
-MASKS=${@:$OPTIND+1:1}
-SOFTWARE=${@:$OPTIND+2:1}
+MATRIX=${@:$OPTIND+1:1}
+OUTPUT=${@:$OPTIND+2:1}
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -80,196 +90,216 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "CREATE NEW SAGITTAL SINUS MASK\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Generate sagittal sinus mask from MNI and T1w/T2w"
 
 #-----------------------------------------------------------------------------
 # Run it
+
 for subID in ${search}; do
 
   # collect subject name
   if [[ ! -z ${sub} ]]; then
     sub_name=${SUBJECT_PREFIX}${subID}
+    sub_id=${subID}
   else
     sub_name=$(basename ${subID})
+    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
   fi
 
   if [[ ! -z ${ses} ]]; then
     nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
+    base_dir=${sub_name}/ses-${nr}
     base=${sub_name}_ses-${nr}
   else
-    base_path=${sub_name}
+    base_dir=${sub_name}
     base=${sub_name}
   fi
 
-  input_dir=${ANAT}/${base_path}
-  mask_dir=${MASKS}/${base_path}
+  pn_anat=${ANAT}/${base_dir}
+  pn_matrix=${MATRIX}/${base_dir}
+  pn_masks=${OUTPUT}/${base_dir}
 
-  if [[ ! -d ${mask_dir} ]]; then
-    mkdir -p ${mask_dir}
+  if [[ ! -d ${pn_masks} ]]; then
+    mkdir -p ${pn_masks}
   fi
 
-  # R2starmap is only present with MP2RAGEME
-  if [[ " ${ACQ[*]} " =~ " MP2RAGEME " ]]; then
-    r2star=`find "${input_dir}" -type f \( -name "*acq-${DATA^^}_*" -and -name "*R2starmap.nii.gz" \) 2>/dev/null`
-    if [[ ! -z ${r2star} ]]; then
+  if [[ -d ${pn_anat} ]]; then
 
-      sinus_mask=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
-      if [[ ! -f ${sinus_mask} ]]; then
+    fn_ratio=${pn_anat}/${base}_acq-${DATA^^}_desc-ratio.nii.gz
+    fn_nuisance=${pn_anat}/${base}_acq-${DATA^^}_desc-nuisance.nii.gz
+    fn_mni=${pn_masks}/${base}_acq-${DATA^^}_space-MNI152NLin6Asym_desc-sinus.nii.gz
+    fn_out=${pn_masks}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz
 
-        echo
-        echo "**************************************** Processing ${sub_name} ***************************************"
+    if [[ ${OW} -eq 1 ]]; then
+      rm ${fn_ratio} ${fn_nuisance} ${fn_out} ${fn_mni} 2>/dev/null
+    fi
 
-        if [[ -f $(dirname ${r2star})/tmp_$(basename ${r2star}) ]]; then
-          rm -r $(dirname ${r2star})/tmp_$(basename ${r2star})
+    if [[ ! -f ${fn_out} ]]; then
+
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+
+      # calculate T1w/T2w ratio
+      t1=$(find "${pn_anat}" -type f \( \
+        -name "${base}*" -and \
+        -name "*acq-${DATA}*" -and \
+        -name "*T1w.nii.gz" -and \
+        ! -name "*space*" \
+      \) 2>/dev/null)
+
+      t2=$(find "${pn_anat}" -type f \( \
+        -name "${base}*" -and \
+        -name "*T2w.nii.gz" -and \
+        ! -name "*space*" -and \
+        ! -name "*tmp*" \
+      \) 2>/dev/null)   
+
+      mask=`find "${pn_anat}" -type f \( \
+        -name "*acq-${DATA}*" -and \
+        -name "*spm_mask.nii.gz" \
+      \) 2>/dev/null`
+      if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
+
+        if [[ ! -z ${t1} && ! -z ${t2} ]]; then
+
+          # if we have a mask-image, we can create a sinus mask directly from the T2-image. Use ratio otherwise
+          if [[ ! -z ${mask} ]]; then
+            echo "Creating sinus mask directly from T2-image"
+
+            # mask t2 with brain mask
+            cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              exit 1
+            fi
+
+            # threshold
+            cmd="""fslmaths $(dirname ${t2})/tmp_$(basename ${t2}) -uthr 10000 -bin ${fn_nuisance}"""
+            echo
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              exit 1
+            fi
+
+            # delete tmp files          
+            rm $(dirname ${t2})/tmp_$(basename ${t2}) 2>/dev/null
+          else
+            echo "Creating T1w/T2w + thresholded image"
+            cmd="""call_t12ratio \
+              --t1 ${t1} \
+              --t2 ${t2} \
+              -o ${pn_anat}/${base}_acq-${DATA^^}"""
+            echo ${cmd}
+            ${cmd}
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_t12ratio exited with non-zero status"
+              exit 1
+            fi
+          fi
+
+        else
+          # Check if T1w file exists
+          if [[ -z "$t1" ]]; then
+            echo "Error: No T1w file found matching criteria: ${base}*, *acq-${DATA}*, *T1w.nii.gz (excluding *space*)" >&2
+          fi
+
+          # Check if T2w file exists
+          if [[ -z "$t2" ]]; then
+            echo "Error: No T2w file found matching criteria: ${base}*, and *T2w.nii.gz (excluding *space* and *tmp*)" >&2
+          fi
+          continue
         fi
 
-        # threshold R2star mask and binarize mask
-        echo "Thresholding and binarizing `basename ${r2star}`"
-        fslmaths ${r2star} -thr 0.07 $(dirname ${r2star})/tmp_$(basename ${r2star})
-        fslmaths $(dirname ${r2star})/tmp_$(basename ${r2star}) -bin ${sinus_mask}
-        fslmaths ${sinus_mask} -fillh ${sinus_mask}
+      fi
 
-        # now manually edit the file
-        t1w=`find "${input_dir}" -type f \( -name "*T1w*" -and -name "*${DATA}*" -and -name "*.nii.gz" \) 2>/dev/null`
-        if [[ ! -z ${t1w}  ]]; then
+      if [[ ! -f ${fn_mni} ]]; then
 
-          # install itksnap from here: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation
-          call_checkfunction itksnap
-          if [[ $? -eq 0 ]]; then
-            echo "Starting ITKsnap. Fill in the sagittal sinus where needed and save the image"
-            itksnap -g ${t1w} -s ${sinus_mask} 2>/dev/null
+        if [[ -f ${fn_nuisance} ]]; then
+
+          # fetch template and warp files created with spinoza_registration in step before
+          mni_mask=${REPO_DIR}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
+          mat_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null`
+          warp_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null`
+          
+          if [[ ! -z ${mat_file} && ! -z ${warp_file} ]]; then
+            # got SyN registration
+            call_antsapplytransforms -i "1 0" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} "${mat_file} ${warp_file}"
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              exit 1
+            fi
+          elif [[ ! -z ${mat_file} && -z ${warp_file} ]]; then
+            # got affine registration
+            cmd="""call_antsapplytransforms --gen ${fn_nuisance} ${mni_mask} ${fn_mni} ${mat_file}"""
+            echo
+            echo ${cmd}
+            ${cmd}
+
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              exit 1
+            fi          
           else
-            echo "call_checkfunction itksnap exited with non-zero status. Make sure you have ITKsnap installed!"
-            echo "see: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation"
+            echo "${sub_name}: missing warp-files for call_antsapplytransforms"
+            continue
+          fi
+
+        else
+          echo "${sub_name}: missing ${fn_nuisance}"
+          continue
+        fi
+      fi
+
+      if [[ ! -f ${fn_out} ]]; then
+        if [[ -f ${fn_mni} ]]; then
+          echo
+          echo "Multiplying template mask with nuisance-image"
+          cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
+          echo ${cmd}
+          ${cmd}
+
+          if [[ $? -ne 0 ]]; then
+            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
+            exit 1
+          fi
+
+          rm ${fn_mni} 2>/dev/null
+          echo; echo "Created ${fn_out}"
+          if [[ ! -z ${t1} ]]; then
+            cmd="""itksnap -g ${t1} -s ${fn_out}"""
+            if [[ ${open_itk} -eq 0 ]]; then
+              echo "check with following command:"
+              echo "\"${cmd}\""
+            else
+              echo "Openening ITK-Snap for verification"
+              ${cmd}
+            fi
+          fi
+
+          if [[ $? -ne 0 ]]; then
+            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
             exit 1
           fi
 
         else
-          echo "Could not find T1w image. Cant start ITKsnap"
-          continue
+          echo "${sub_name}: Could not find file of MNI-mask in subject space. Check previous step!"
         fi
-
-        inv2_mask=`find "${mask_dir}" -type f \( -name "*inv-2*" -and -name "*bet_mask*" \) 2>/dev/null`
-        if [[ ! -z ${inv2_mask} ]]; then
-          echo "Applying mask to `basename ${sinus_mask}`"
-          fslmaths ${sinus_mask} -mas ${inv2_mask} ${sinus_mask}
-        else
-          echo "Could not find INV2 mask. Run BET on the 2nd inversion time first."
-          echo "Otherwise you get an inaccurate segmentation of sagittal sinus"
-          continue
-        fi
-
-      else
-        echo "${sub_name}: R2*-mask is already present"
       fi
-
     else
-      echo "Could not find R2star image in \"${input_dir}\". Please make sure you've run pymp2rage and registered the image to mp2rage space"
-      echo " -spinoza_qmrimaps"
-      echo " -spinoza_registration"
-      continue
+      echo "${sub_name}: `basename ${fn_out}` already exists"
     fi
-
   else
-
-    sinus_mask=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
-    if [[ ! -f ${sinus_mask} ]]; then
-
-      t1w=`find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}_*" -and -not -iname "*space-*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-
-      if [[ ! -z ${t1w} ]]; then
-
-        echo
-        echo "**************************************** Processing ${sub_name} ***************************************"
-
-        echo "Creating `basename ${sinus_mask} `"
-
-        # install itksnap from here: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation
-        if [[ ${SOFTWARE} == "itk" ]] || [[ -z ${SOFTWARE} ]]; then
-          call_checkfunction itksnap
-          if [[ $? -eq 0 ]]; then
-            echo "Starting ITKsnap. Edit, then close and save it"
-
-            # create empty image so we can load it as segmentation
-            call_createimg ${t1w} ${sinus_mask}
-            itksnap -g ${t1w} -s ${sinus_mask} 2>/dev/null
-          else
-            echo "call_checkfunction itksnap exited with non-zero status. Make sure you have ITKsnap installed!"
-            echo "see: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation"
-            exit 1
-          fi
-        elif [[ ${SOFTWARE} == "fv" ]]; then
-          echo "Starting FreeView. Press add new segmentation and draw the sagittal sinus, save it as:"
-          freeview -v ${t1w} 2>/dev/null
-        elif [[ ${SOFTWARE} == "fsl" ]]; then
-          echo "Starting FSLeyes. Press add new segmentation and draw the sagittal sinus, save it as:"
-          echo "\"${sinus_mask}\" in the \"manual_masks\" directory"
-          fsleyes --scene ortho ${t1w} 2>/dev/null
-        else
-          echo "Unknown option specified: ${SOFTWARE}. I can deal with:"
-          echo " \"itk\": ITK-Snap"
-          echo " \"fv\":  FreeView"
-          echo " \"fsl\": FSLeyes"
-          continue
-        fi
-
-      else
-
-        echo "Could not find T1w image in \"${input_dir}\""
-        continue
-
-      fi
-
-      if [[ -f ${sinus_mask} ]]; then
-        inv2_mask=`find "${mask_dir}" -type f \( -name "*inv-2*" -and -name "*${DATA^^}*" -and -name "*bet_mask*" \) 2>/dev/null`
-        if [[ ! -z ${inv2_mask} ]]; then
-          echo "Applying mask to `basename ${sinus_mask}`"
-          fslmaths ${sinus_mask} -mas ${inv2_mask} ${sinus_mask}
-        else
-          echo "Could not find INV2 mask. Run BET on the 2nd inversion time first."
-          echo "Otherwise you get an inaccurate segmentation of sagittal sinus"
-          continue
-        fi
-
-      else
-
-        echo "You didn't save it in the correct directory"
-        continue
-
-      fi
-
-    else
-
-      echo "${sub_name}: sagittal sinus mask is already present"
-
-    fi
-
+    echo "${sub_name}: Could not find directory \"${pn_anat}\""
+    continue
   fi
 
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

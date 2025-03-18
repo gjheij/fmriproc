@@ -1,6 +1,11 @@
 #!/bin/bash
 
 #---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+source "${SETUP_FILE}"
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -22,7 +27,7 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or n)
-  -o                  overwrite existing files
+  -o|--ow             overwrite existing files including CAT12-segmentation (takes long!)
   --full              do full processing with CAT12 including iterative SANLM filtering and bias 
                       correction. Default is just tissue segmentation. 
   --fs                use rawavg.mgz from FreeSurfer; overwrites the specified input
@@ -63,6 +68,9 @@ do
         fprep)
           use_fprep=1
           ;;           
+        ow)
+          OW=1
+          ;;            
     *)
       if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
         echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
@@ -105,17 +113,8 @@ if [[ ${SOFTWARE,,} != "ants" ]] && [[ ${SOFTWARE,,} != "fsl" ]] && [[ ${SOFTWAR
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "NEW BRAIN EXTRACTION WITH ${SOFTWARE^^}\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# Intro
+start_timer "New brain extraction using \"${SOFTWARE^^}\""
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -529,7 +528,7 @@ for subID in ${search}; do
       fi
 
     else
-      echo "${sub_name}: CAT12 already executed. Use \"--ow\" to overwrite"
+      echo "${sub_name}: T1w-file present. Skipping CAT12. Use \"--ow\" to overwrite CAT12/*cat_mask.nii.gz"
     fi
 
     # still copy SPM-mask even if heavy CAT12-processing was turned off
@@ -574,16 +573,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

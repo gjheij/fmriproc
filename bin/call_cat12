@@ -79,15 +79,15 @@ source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Define default SPM-path
-if [[ -z ${SPM} ]]; then
-  if [[ -z ${SPM_PATH} ]]; then
+if [[ -z "${SPM}" ]]; then
+  if [[ -z "${SPM_PATH}" ]]; then
     echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
     exit 1
   else
-    SPM_PATH=${SPM_PATH}
+    SPM_PATH="${SPM_PATH}"
   fi
 else
-  SPM_PATH=${SPM}
+  SPM_PATH="${SPM}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -96,39 +96,39 @@ if [[ -z ${MODE} ]]; then
   MODE='brain'
 else
   if [[ ${MODE,,} != 'full' && ${MODE,,} != 'brain' ]]; then
-    echo "ERROR in `basename ${0}`: MODE must be \"full\" or \"brain\", got \"${MODE}\""
+    echo "ERROR in basename ${0}: MODE must be \"full\" or \"brain\", got \"${MODE}\""
     exit 1
   fi
 fi
 
 # if file specified is in current directory, add entire path
-INPUT=`fetch_filepath ${INPUT}`
+INPUT=$(fetch_filepath "${INPUT}")
 
-ext=`fetch_extension ${INPUT}`
+ext=$(fetch_extension "${INPUT}")
 if [[ ${ext} == "gz" ]]; then
-  in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
-  gunzip -c ${INPUT} > ${in_file}
+  in_file=$(dirname "${INPUT}")/$(basename "${INPUT}" .gz)
+  gunzip -c "${INPUT}" > "${in_file}"
 else
-  in_file=${INPUT}
+  in_file="${INPUT}"
 fi
 
 #-----------------------------------------------------------------------------
 # Define default LOG-path
 if [[ -z ${LOG} ]]; then
-  LOG_DIR=$(dirname ${in_file})
+  LOG_DIR="$(dirname "${in_file}")"
 else
-  LOG_DIR=${LOG}
+  LOG_DIR="${LOG}"
 fi
 
-if [[ ! -d ${LOG_DIR} ]]; then
-  mkdir -p ${LOG_DIR}
+if [[ ! -d "${LOG_DIR}" ]]; then
+  mkdir -p "${LOG_DIR}"
 fi
 
 #-----------------------------------------------------------------------------
 # Create new script
-new_script=${LOG_DIR}/catscript.m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
+new_script="${LOG_DIR}/catscript.m"
+if [[ -f "${new_script}" ]]; then
+  rm -r "${new_script}"
 fi
 
 if [[ ! -d ${OUTPUT} ]]; then
@@ -138,94 +138,130 @@ fi
 # Only run stuff if we can't find 'mri'-directory in the directory from the input
 # file or in the specified output-directory. Mind you, it therefore does NOT over-
 # write stuff from CAT12..
-if [[ -d ${OUTPUT}/mri ]]; then
-  if [[ `ls ${OUTPUT}/mri | wc -l` -eq 0 ]]; then
+if [[ -d "${OUTPUT}/mri" ]]; then
+  if [[ $(ls "${OUTPUT}/mri" | wc -l) -eq 0 ]]; then
     RUN=1
+    verdict="Running CAT12:"
+    reason="${OUTPUT}/mri is empty"
   else
+    verdict="Not running CAT12:"
+    reason="${OUTPUT}/mri is not empty"  
     RUN=0
   fi
 else
-  if [[ -d $(dirname ${in_file})/mri ]]; then
-    if [[ `ls $(dirname ${in_file})/mri | wc -l` -eq 0 ]]; then
+  if [[ -d $(dirname "${in_file}")/mri ]]; then
+    if [[ `ls $(dirname "${in_file}")/mri | wc -l` -eq 0 ]]; then
       RUN=1
+      verdict="Running CAT12"
+      reason="input folder contains empty \"mri\"-folder"
     else
       RUN=0
+      verdict="Not running CAT12"
+      reason="input folder contains non-empty \"mri\"-folder"      
     fi
   else
-    RUN=1
+    # some CAT versions might not have mri/ report/ folders
+    if ls "${OUTPUT}"/p[0-4]sub* &>/dev/null; then
+      RUN=0
+      verdict="Not running CAT12"
+      reason="p[0-4]-files (probability maps) present in output folder"
+    else
+      if ls "$(dirname "${in_file}")"/p[0-4]sub* &>/dev/null; then
+        RUN=0
+        verdict="Not running CAT12"
+        reason="input folder contains p[0-4]-files"
+      else
+        RUN=1
+        verdict="Running CAT12"
+        reason="output folder does not contain p[0-4]-files"
+      fi
+    fi
   fi
 fi
 
+echo "${verdict}: ${reason}"
 if [[ ${RUN} -eq 1 ]]; then
 
   # make_cat_script = in call_bashhelper
-  make_cat_script ${SPM_PATH} ${in_file} ${MODE} ${new_script}
+  make_cat_script "${SPM_PATH}" "${in_file}" ${MODE} "${new_script}"
   
   # call_matlab = in call_bashhelper
   echo "Starting CAT12.."
 
   # store output in log file so we can check for errors
-  log_file=${OUTPUT}/catlog.txt
-  if [ -f ${log_file} ]; then
-    rm -r ${log_file} 2>/dev/null
+  log_file="${OUTPUT}/catlog.txt"
+  if [ -f "${log_file}" ]; then
+    rm -r "${log_file}" 2>/dev/null
   fi
 
-  call_matlab ${new_script} >> ${log_file}
+  call_matlab "${new_script}" >> "${log_file}"
+
+  # we should have p* files by now
+  ff=$(find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" \))
+  if [[ -z ${ff} ]]; then
+    echo "ERROR: could not find segmentation files in $(dirname ${in_file}). Matlab must have exited with non-zero status"
+    exit 1
+  fi
 
   # check if matlab succeeded
-  ff=`cat ${log_file} | grep "Failed: CAT12: Segmentation" | cut -d"." -f2 | xargs | sed 's/\r$//'`
+  ff=$(cat "${log_file}" | grep "Failed: CAT12: Segmentation" | cut -d"." -f2 | xargs | sed 's/\r$//')
   if [[ ! -z ${ff} ]]; then
-    mv ${log_file} $(dirname ${in_file})/$(basename ${in_file} .nii)_error.log
-    echo "ERROR in `basename ${0}`: matlab exited with non-zero status"
+    mv "${log_file}" $(dirname "${in_file}")/$(basename "${in_file}" .nii)_error.log
+    echo "ERROR in $(basename ${0}): matlab exited with non-zero status"
     exit 1
   else
-    mv ${log_file} $(dirname ${in_file})/$(basename ${in_file} .nii).log
+    mv "${log_file}" $(dirname "${in_file}")/$(basename "${in_file}" .nii).log
   fi
 
   # check for error-directory
-  if [[ -d $(dirname ${in_file})/err ]]; then
-    echo "ERROR in `basename ${0}`: CAT12 encountered an error"
-    rm -r $(dirname ${in_file})/err # info is in the report-file; delete this directory
+  if [[ -d $(dirname "${in_file}")/err ]]; then
+    echo "ERROR in basename ${0}: CAT12 encountered an error"
+    exit 1
+    rm -r $(dirname "${in_file}")/err # info is in the report-file; delete this directory
   fi
-    
-else
-  echo "Found CAT12-output"
 fi
 
-# Move 'mri'/'report'-directory to specified output directory
-if [[ -d $(dirname ${in_file})/mri ]]; then
-  echo "Move directories to ${OUTPUT}"
-  mv $(dirname ${in_file})/mri ${OUTPUT}
-fi
+# Copy relevant files to OUTPUT
+echo "Finding and copying CAT12 log and report files..."
+find "$(dirname "${in_file}")" -type f \( -name "catlog*" -o -name "catreport*" -o -name "*.log" \) -print0 | while IFS= read -r -d '' file; do
+  mv "$file" "${OUTPUT}/"
+done
 
-if [[ -d $(dirname ${in_file})/report ]]; then
-  mv $(dirname ${in_file})/report ${OUTPUT}
-fi
+echo "Finding and processing segmentation output files..."
+find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*.nii" \) -print0 | sort -z | while IFS= read -r -d '' file; do
+  
+  # copy file 
+  mv "$file" "${OUTPUT}/"
+  out_file="${OUTPUT}/$(basename "$file").gz"
+  if [[ ${ext} == "gz" ]]; then
+    # compress
+    echo " Compressing $(basename "$file") to .nii.gz"
+    gzip -f "${OUTPUT}/$(basename "$file")"
+  fi
 
-# Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
-if [[ ${ext} == "gz" ]]; then
-  echo "Convert files back to nii.gz"
-  gzip ${OUTPUT}/mri/*.nii 2>/dev/null
-  rm -r ${in_file}
-fi
-
-# make sure header matches input image
-if [[ -d ${OUTPUT}/mri ]]; then
-  echo "Copying header from input image"
-  for i in ${OUTPUT}/mri/*; do
-    fslcpgeom ${INPUT} ${i}
-  done
-fi
+  # copy geometry from input file
+  cmd="call_copyheader "${INPUT}" "${out_file}""
+  eval ${cmd}
+  if [[ $? -ne 0 ]]; then
+    echo "ERROR in $(basename ${0}): fslcpgeom exited with non-zero status"
+    echo "${cmd}"
+    exit 1
+  fi
+done
 
 # create binary mask from p0-segmentation (= brain extracted image)
-bet_img=`find ${OUTPUT}/mri -type f -name "p0*" 2>/dev/null`
-if [ ! -z ${bet_img} ]; then
+img_for_mask=$(find ${OUTPUT} -type f -name "p0*") 2>/dev/null
+if [ ! -z ${img_for_mask} ]; then
   echo "Create mask from brain extracted segmentation image \"p0\""
-  fslmaths ${bet_img} -bin ${OUTPUT}/mri/mask$(basename ${bet_img})
-  # fslorient -copyqform2sform ${OUTPUT}/mri/mask$(basename ${bet_img})
+  fslmaths ${img_for_mask} -bin ${OUTPUT}/mask$(basename ${img_for_mask})
 fi
 
-cp ${OUTPUT}/mri/*.nii.gz ${OUTPUT} 2>/dev/null
-cp ${OUTPUT}/report/catreport* ${OUTPUT} 2>/dev/null 
+# clean up if folders exists (depending on version)
+find "$(dirname "${INPUT}")" -type f \( -name "*T1w.mat" -o -name "*T1w.xml" \) -exec rm {} \; 2>/dev/null
+rm -r "${OUTPUT}/mri" "${OUTPUT}/err" "${OUTPUT}/report" 2>/dev/null
+rm -r "$(dirname "${INPUT}")/mri" "$(dirname "${INPUT}")/err" "$(dirname "${INPUT}")/report" 2>/dev/null
 
-rm -r ${OUTPUT}/mri ${OUTPUT}/report 2>/dev/null
+# remove created T1w.nii files
+if [[ ${ext} == "gz" ]]; then
+  rm -r "${in_file}" 2>/dev/null
+fi

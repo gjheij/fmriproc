@@ -1,0 +1,235 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planning &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="pRF" href="prf.html" />
+    <link rel="prev" title="Image" href="image.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="image.html">Image</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Planning</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.planning.correct_angle"><code class="docutils literal notranslate"><span class="pre">correct_angle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.planning.get_console_settings"><code class="docutils literal notranslate"><span class="pre">get_console_settings()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.planning.normal2angle"><code class="docutils literal notranslate"><span class="pre">normal2angle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.planning.rotate_normal"><code class="docutils literal notranslate"><span class="pre">rotate_normal()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.planning.single_hemi_line_pycortex"><code class="docutils literal notranslate"><span class="pre">single_hemi_line_pycortex()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="prf.html">pRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="roi.html">Roi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scanner.html">Scanner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transform.html">Transform</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Python modules</a></li>
+      <li class="breadcrumb-item active">Planning</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/classes/planning.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="planning">
+<h1>Planning<a class="headerlink" href="#planning" title="Link to this heading"></a></h1>
+<p>This file contains functions and classes related to the planning of the line</p>
+<dl class="py function" id="module-fmriproc.planning">
+<dt class="sig sig-object py" id="fmriproc.planning.correct_angle">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.planning.</span></span><span class="sig-name descname"><span class="pre">correct_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">only_angles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/planning.html#correct_angle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.planning.correct_angle" title="Link to this definition"></a></dt>
+<dd><p>This function converts the angles obtained with normal2angle to angles that we can use on the scanner. The scanner doesn’t like angles &gt;45 degrees. If inserted, it will flip  all kinds of parameters such as slice orientation and foldover.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>float</em><em>, </em><em>numpy.ndarray</em>) – generally this should be literally the output from normal2angle, a (3,) array containing the angles relative to each axis.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – print messages during the process (default = False)</p></li>
+<li><p><strong>only_angles</strong> (<em>bool</em>) – if we are getting the angles for real, we need to decide what the angle with the z-axis means. We do this by returning an additional variable ‘z_axis_represents_angle_around’ so that we know in <a class="reference internal" href="#fmriproc.planning.get_console_settings" title="fmriproc.planning.get_console_settings"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.planning.get_console_settings()</span></code></a> where to place this angle. By default this is false, and it will only return converted angles. When doing the final conversion, the real one, turn this off (default = True).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>numpy.ndarray</em> – scanner representation of the input angles</p></li>
+<li><p><em>str</em> – if &lt;only_angles&gt; is set to False, it additionally returns an “X” or “Y”, which specifies around which axis (X or Y) the angle with the z-axis is to be used</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.planning.get_console_settings">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.planning.</span></span><span class="sig-name descname"><span class="pre">get_console_settings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">angles</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hemi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_axis_meaning</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Y'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/planning.html#get_console_settings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.planning.get_console_settings" title="Link to this definition"></a></dt>
+<dd><p>Function that outputs what is to be inserted in the MR console. This function is the biggest source of misery during my PhD so far. Needs thorough investigation. The idea is pretty simple: we have a set of angles obtained from normal2angle, we have converted them to angles that the scanner can understand (i.e., angles &lt;45 degrees), and now we need to derive which ones to use in order to place the line along the normal vector.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>angles</strong> (<em>np.ndarray</em>) – literally the output from correct_angles, a (3,) numpy array with the ‘corrected’ angles</p></li>
+<li><p><strong>hemi</strong> (<em>str</em>) – should be “L” or “R”, is mainly for info reason. It’s stored in the dataframe so we can use it to index</p></li>
+<li><p><strong>idx</strong> (<em>int</em>) – this should be the integer representing the selected vertex. This is also only stored in the dataframe. No operations are executed on it</p></li>
+<li><p><strong>z_axis</strong> (<em>str</em>) – this string specifies how to interpret the angle with the z-axis: as angle around the X (RL) or Y (AP) axis. This can be obtained by turning off &lt;only_angles&gt; in <a class="reference internal" href="#fmriproc.planning.correct_angle" title="fmriproc.planning.correct_angle"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.planning.correct_angle()</span></code></a>. By default it’s set to ‘Y’, as that means we’re dealing with a coronal slice; the most common one. Though we can also get sagittal slices, so make sure to do this dilligently.</p></li>
+<li><p><strong>foldover</strong> (<em>str</em>) – foldover direction of the OVS bands. Generally this will be FH, but there are instances where that does not apply. It can be returned by <code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.planning.correct_angle(foldover=True)()</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a dataframe containing the information needed to place the line accordingly. It tells you the foldover direction, slice orientation, and angles</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.planning.normal2angle">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.planning.</span></span><span class="sig-name descname"><span class="pre">normal2angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'deg'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">system</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RAS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['x',</span> <span class="pre">'y',</span> <span class="pre">'z']</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/planning.html#normal2angle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.planning.normal2angle" title="Link to this definition"></a></dt>
+<dd><p>Convert the normal vector to angles representing the angle with the x,y,z axis. This can be done by taking the arc cosine over the dot product of the normal vector and a vector representing the axis of interest. E.g., the vector for x would be [1,0,0], for y it would be [0,1,0], and for z it would be [0,0,1]. Using these vector representations of the axis we can calculate the angle between these vectors and the normal vector. This results in radians, so we convert it to degrees by multiplying it with 180/pi.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>normal</strong> (<em>numpy.ndarray</em><em>, </em><em>list</em>) – array or list-like representation of the normal vector as per output of pycortex or FreeSurfer (they will return the same normals)</p></li>
+<li><p><strong>unit</strong> (<em>str</em>) – unit of angles: “deg”rees or “rad”ians (default = “deg”)</p></li>
+<li><p><strong>system</strong> (<em>str</em>) – coordinate system used as reference for calculating the angles. A right-handed system is default (RAS)
+see: <a class="reference external" href="http://www.grahamwideman.com/gw/brain/orientation/orientterms.html">http://www.grahamwideman.com/gw/brain/orientation/orientterms.html</a>. The scanner works in LPS, so we’d need to define the x/y-axis differently to get correct angles (default = “RAS”).</p></li>
+<li><p><strong>return_axis</strong> (<em>list</em>) – List of axes to return the angles for. For some functions we only need the first two axes, which we can retrieve by specifying ‘return_axes=[‘x’, ‘y’]’ (default = [‘x’,’y’,’z’]).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list-like representation of the angles with each axis, first being the x axis, second the y axis, and third the z-axis.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>Convert angles to sensible plane: <a class="reference external" href="https://www.youtube.com/watch?v=vVPwQgoSG2g">https://www.youtube.com/watch?v=vVPwQgoSG2g</a>: angles obtained with this method are not coplanar; they don’t live in the same space. So an idea would be to decompose the normal vector into it’s components so it lives in the XY-plane, and then calculate the angles.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.planning.rotate_normal">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.planning.</span></span><span class="sig-name descname"><span class="pre">rotate_normal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">norm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xfm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">system</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RAS'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/planning.html#rotate_normal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.planning.rotate_normal" title="Link to this definition"></a></dt>
+<dd><p>Applies the rotation part of an affine matrix to the normal vectorself.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>norm</strong> (<em>numpy.ndarray</em>) – (3,) or (4,) array; If (4,) array, the last value should be set to zero to avoid translations</p></li>
+<li><p><strong>xfm</strong> (<em>numpy.ndarray</em><em>, </em><em>str</em>) – (4,4) affine numpy array or string pointing to the matrix-file, can also be ‘identity’, in which case np.eye(4) will be used. This is handy for planning the line in session 1/FreeSurfer space</p></li>
+<li><p><strong>system</strong> (<em>str</em>) – use RAS (freesurfer) or LPS (ITK) coordinate system. This is important as we need to apply the matrix in the coordinate system that the vector is living in. e.g., RAS vector = RAS matrix (not ANTs’ default), LPS vector = LPS matrix. If LPS, then <code class="xref py py-func docutils literal notranslate"><span class="pre">lazyfmri.utils.get_matrixfromants()</span></code> is used, otherwise the matrix is first converted to ras with <cite>ConvertTransformFile</cite> and then read in with <cite>np.loadtxt</cite>.</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">rotate_normal</span><span class="p">(</span><span class="n">normal_vector</span><span class="p">,</span> <span class="n">xfm</span><span class="p">,</span> <span class="n">system</span><span class="o">=</span><span class="s2">&quot;LPS&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="rubric">Notes</p>
+<p>The results of LPS_vector &#64; LPS_matrix is the same as RAS_vector &#64; RAS_matrix</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.planning.single_hemi_line_pycortex">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.planning.</span></span><span class="sig-name descname"><span class="pre">single_hemi_line_pycortex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">normal</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hemi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/planning.html#single_hemi_line_pycortex"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.planning.single_hemi_line_pycortex" title="Link to this definition"></a></dt>
+<dd><p>create the line_pycortex portion of 1 hemisphere</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="image.html" class="btn btn-neutral float-left" title="Image" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="prf.html" class="btn btn-neutral float-right" title="pRF" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -140,10 +140,12 @@ fi
 mask_img=`find $(dirname ${in_file}) -type f -name "m$(basename ${in_file})*" 2>/dev/null`
 if [[ ! -z ${mask_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
-    gzip -c ${mask_img} > ${OUTPUT} 2>/dev/null
-    call_resample ${OUTPUT} ${in_file}
-    rm -r ${in_file} ${mask_img} ${INPUT}
+    gzip -cf ${mask_img} > ${OUTPUT} 2>/dev/null
+    rm -r ${in_file} ${mask_img} ${INPUT} 2>/dev/null
   else
     mv ${mask_img} ${OUTPUT}
   fi
 fi
+
+# copy header
+call_copyheader ${in_file} ${OUTPUT}

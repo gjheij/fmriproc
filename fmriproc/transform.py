@@ -188,7 +188,7 @@ def ants_applytrafo(
 def ants_applytopoints(chicken_file, output_file, trafo_file, invert=1):
     """ants_applytopoints
 
-    Wrapper for antsApplyTransformToPoints to warp a coordinate specified in `chicken_file` to a new space using `trafo_file`. Run :func:`linescanning.utils.make_chicken_csv` and `call_antsregistration` from 1 space to another first.
+    Wrapper for antsApplyTransformToPoints to warp a coordinate specified in `chicken_file` to a new space using `trafo_file`. Run :func:`lazyfmri.utils.make_chicken_csv` and `call_antsregistration` from 1 space to another first.
 
     Parameters
     ----------
@@ -308,7 +308,7 @@ def fs2tkr(subject, coord=None, ref="orig.mgz", fs_dir=None, strip_lead=True):
 def tkr2ctx(subject, coord=None):
     """tkr2ctx
 
-    Add the surfmove-correction that Pycortex internally applies to FreeSurfer coordinates (see :func:`linescanning.pycortex.get_ctxsurfmove`)
+    Add the surfmove-correction that Pycortex internally applies to FreeSurfer coordinates (see :func:`cxutils.pycortex.get_ctxsurfmove`)
 
     Parameters
     -----------
@@ -382,7 +382,7 @@ def ctx2vert(surf,coord=None,rtol=0.015):
 def fs2vert(subject, coord=None, hemi="lh"):
     """ctx2vert
 
-    Warp a CRS-point from orig.mgz to Pycortex as described in :func:`linescanning.transform.ctx2vert`.
+    Warp a CRS-point from orig.mgz to Pycortex as described in :func:`fmriproc.transform.ctx2vert`.
 
     Parameters
     -----------
@@ -399,7 +399,7 @@ def fs2vert(subject, coord=None, hemi="lh"):
         Dictionary collecting outputs under the following keys
 
         * vert_nr (int): vertex number corresponding to the input coordinate `coord`
-        * vert_obj (dict): output from :func:`linescanning.optimal.CalcBestVert.label_to_mask`, consisting of numpy.ndarrays representing a boolean mask of the vertex
+        * vert_obj (dict): output from :func:`cxutils.optimal.CalcBestVert.label_to_mask`, consisting of numpy.ndarrays representing a boolean mask of the vertex
     """
 
     try:
@@ -626,7 +626,7 @@ def rawavg2fs(subject, coord=None, fs_dir=None):
 def fs2rawavg(subject, coord=None, fs_dir=None):
     """fs2rawavg
 
-    Inverse of :func:`linescanning.transform.rawavg2fs`
+    Inverse of :func:`fmriproc.transform.rawavg2fs`
 
     Parameters
     -----------
@@ -740,7 +740,7 @@ def tkr2rawavg(subject,matrix=None,coord=None,reg=True,fs_dir=None, inv=False, o
 def rawavg2lowres(fixed, moving, matrix, inv=False, out_file=None):
     """rawavg2lowres
 
-    Transform a file from `rawavg` in another session (e.g., `lowres`) via a registration matrix. Uses :func:`linescanning.transform.ants_applytransform`
+    Transform a file from `rawavg` in another session (e.g., `lowres`) via a registration matrix. Uses :func:`fmriproc.transform.ants_applytransform`
 
     Parameters
     -----------

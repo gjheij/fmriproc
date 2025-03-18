@@ -77,16 +77,13 @@
 Options:
 --affine          use 'affine'-registration (spinoza_registration).
 
---anat            used for:
-                    - spinoza_denoising: overwrite PYBEST_SPACE to use T1w-space.
+--anat            overwrite PYBEST_SPACE to use T1w-space.
 
 --aparc           use ROIs from ?h.aparc.annot atlas.
 
 --ap|pa|lr|rl     specify phase-encoding direction for BOLD run.
 
 --bgfs            use L-BGFS minimization for both Gaussian and extended models.
-
---biascorr        don't perform bias correction after denoising.
 
 --bold            re-calculate the BOLD timecourses.
 
@@ -127,8 +124,6 @@ Options:
 --gallery         save all cortex-objects in a figure.
 
 --gdh             use custom MGDM (call_gdhmgdm).
-
---ge              set MRI_SYSTEM to 'ge'. Other options include '--philips' or '--siemens'
 
 --grid            runs gridfit only (spinoza_fitprfs).
 
@@ -176,13 +171,17 @@ Options:
 
 --no_nordic       disable NORDIC denoising.
 
+--no_raw          do NOT unzscore the output from pybest (default is to do so)
+
+--no_reg          do not register separate T1map in case you have MPRAGE image
+
 --no_t2           disable T2 reuse.
 
 --no_tsnr         disable tSNR calculation.
 
---ofsl            output FSL-compatible matrix.
+--no_winsor       do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so, though..
 
---philips         set MRI_SYSTEM to 'philips'. Other options include '--ge' or '--siemens'
+--ofsl            output FSL-compatible matrix.
 
 --phys            run physiology-only conversion.
 
@@ -191,6 +190,11 @@ Options:
 --pre_only        run only pre-processing step.
 
 --pyb_only        run only pybest step.
+
+--raw             use the raw, un-zscore'd output from pybest, rather than percent signal change
+
+--refit           refit existing data; uses a simplified call to fmriproc.prf.pRFmodelFitting 
+                  using call_prfrefit
 
 --remove_surf_wf  remove surface reconstruction workflow.
 
@@ -205,8 +209,6 @@ Options:
 --separate_hrf    fit HRF in two stages.
 
 --sge             submit jobs to cluster.
-
---siemens         set MRI_SYSTEM to 'siemens'. Other options include '--ge' or '--philips'
 
 --skip_tr         do not overwrite the TR in the header during call_bids. Generally not recommended,
                   but exists for debugging purposes.

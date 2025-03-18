@@ -47,7 +47,7 @@ USAGE
 
 invert=0
 verbose=""
-SGE=0
+run_local=1
 n_cpus=1
 search_depth=3
 QUEUE="short.q"
@@ -62,7 +62,10 @@ do
           invert=1
           ;;
         sge)
-          SGE=1
+          run_local=0
+          if [[ ! -d ${DIR_LOGS} ]]; then
+            mkdir -p ${DIR_LOGS} 2>/dev/null
+          fi
           ;;          
         verbose)
           verbose="--verbose"
@@ -148,9 +151,10 @@ if [[ ${clear} -eq 1 ]]; then
 fi
 
 # define job execution
-if [[ ${SGE} -eq 1 ]]; then
+if [[ ${run_local} -eq 0 ]]; then
+  submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${aff}) ${DIR_LOGS})
   call_=`which call_antsregistration`
-  job="qsub -q ${QUEUE} -o ${log_file} -pe smp ${n_cpus} -N $(basename ${aff}) ${call_}"
+  job="${submit} ${call_}"
   verbose="--verbose"
 else
   job="call_antsregistration"
@@ -165,7 +169,7 @@ cmd="""${job} \
   $(dirname ${aff})/$(basename ${aff} genaff.mat)"""
 
 # echo command
-if [[ ${SGE} -eq 0 || ${debug} -eq 1 ]]; then
+if [[ ${run_local} -eq 1 || ${debug} -eq 1 ]]; then
   echo ${cmd}
 fi
 

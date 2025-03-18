@@ -2,8 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -86,7 +86,7 @@ ADD_INV=""
 ORIENT_FLAG=""
 PROT_FLAG=""
 PE_FLAG=""
-SGE_FLAG=0
+run_local=1
 DEBUG_MODE=0
 PHYS_FLAG=""
 SEARCH_DEPTH=0
@@ -134,20 +134,11 @@ do
           FULL_OW=1
           ;;  
         sge)
-          SGE_FLAG=1
+          run_local=0
           if [[ ! -d ${DIR_LOGS} ]]; then
             mkdir -p ${DIR_LOGS} 2>/dev/null
           fi
-          ;;
-        philips)
-          MRI_SYSTEM_FLAG="--philips"
-          ;;    
-        siemens)
-          MRI_SYSTEM_FLAG="--siemens"
-          ;;
-        ge)
-          MRI_SYSTEM_FLAG="--ge"
-          ;;              
+          ;;     
         debug)
           DEBUG_MODE=1
           ;;       
@@ -186,6 +177,9 @@ fi
 PROJECT_ROOT=${@:$OPTIND:1}
 SOURCEDATA=${@:$OPTIND+1:1}
 
+[[ -z "$PROJECT_ROOT" || -z "$SOURCEDATA" ]] && Usage
+
+# If no subjects specified, process all found in sourcedata
 if [[ -z ${sub} ]]; then
   # loop through subjects
   search="${SOURCEDATA}/${SUBJECT_PREFIX}*"
@@ -196,20 +190,10 @@ else
   unset IFS
 fi
 
-# 'import' some bash functions
-source call_bashhelper
-
 #-----------------------------------------------------------------------------
 # Start clock
 #-----------------------------------------------------------------------------
-echo
-echo "==================================================================================================="
-printf "Convert raw data to nifti using dcm2niix/parrec2nii\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+start_timer "Convert raw data to NIFTI using dcm2niix/parrec2nii"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -238,77 +222,73 @@ for subID in ${search}; do
   bids_dir=${PROJECT_ROOT}/${base_path}
 
   # full overwrite
-  if [[ ${FULL_OW} -eq 1 ]]; then
-    rm -r ${output_dir} 2>/dev/null
-    rm -r ${bids_dir} 2>/dev/null
-  fi
+  [[ $FULL_OW -eq 1 ]] && rm -rf "$output_dir" "$bids_dir"
   
-  # check if input directory exists
-  if [[ ! -d ${input_dir} ]]; then
-    echo "${sub_name}: could not find input directory \"${input_dir}\""
+  if [[ ! -d "$input_dir" ]]; then
+    echo "Missing $input_dir, skipping $sub"
     continue
-  else
+  fi
 
-    if [[ ! -d ${bids_dir}/anat || ! -d ${bids_dir}/func || ! -z ${OW} || ${DEBUG_MODE} -eq 1 || ! -z ${PHYS_FLAG} ]]; then
+  # check if input directory exists
+  if [[ ! -d "$bids_dir/anat" || ! -d "$bids_dir/func" || -n "$OW" || $DEBUG_MODE -eq 1 || -n "$PHYS_FLAG" ]]; then
 
-      if [[ ${SES_TYPE} == "lines" ]]; then
-        intro_txt="Exotic session (e.g., line-scanning); using call_dcm2niix"
-      else
-        intro_txt="Regular session, but with call_parrec2nii fix for big PAR/REC files"
-      fi
-
-      if [[ ${SGE_FLAG} -eq 1 ]]; then
-        if [[ ! -z ${SGE_QUEUE} ]]; then
-          QUEUE=${SGE_QUEUE}
-        else
-          QUEUE=${SGE_QUEUE_LONG}
-        fi        
-        job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp 1 -N ${base}_desc-dcm2bids"
-      else
-        job="bash"
-        echo
-        echo "**************************************** Processing ${sub_name} ***************************************"
-        echo ${intro_txt}
-      fi
-
-      if [[ ${DEBUG_MODE} -eq 1 ]]; then
-        echo " OW          = ${OW}"
-        echo " FULL_OW     = ${FULL_OW}"
-        echo " SES_FLAG    = ${SES_FLAG}"
-        echo " ADD_INV     = ${ADD_INV}"
-        echo " ORIENT_FLAG = ${ORIENT_FLAG}"
-        echo " PROT_FLAG   = ${PROT_FLAG}"
-        echo " PE_FLAG     = ${PE_FLAG}"
-        echo " RUNS FLAG   = ${RUNS}"
-        echo " PHYS FLAG   = ${PHYS_FLAG}"
-        echo " TR FLAG     = ${TR_FLAG}"
-      fi
-
-      call_=`which call_bids`
-      cmd="""${job} ${call_} \
-        ${SES_FLAG} \
-        ${ADD_INV} \
-        ${ORIENT_FLAG} \
-        ${PROT_FLAG} \
-        ${PE_FLAG} \
-        ${OW} \
-        ${PHYS_FLAG} \
-        ${TR_FLAG} \
-        ${MRI_SYSTEM_FLAG} \
-        ${SKIP_TR} \
-        -i ${input_dir} -o ${output_dir} -b ${bids_dir} -n ${base} -d ${SEARCH_DEPTH} ${RUNS}"""
-
-      # echo command if running locally
-      if [[ ${SGE_FLAG} -eq 0 ]]; then
-        echo
-        echo ${cmd}
-      fi
-
-      ${cmd}
-        
+    if [[ ${SES_TYPE} == "lines" ]]; then
+      intro_txt="Exotic session (e.g., line-scanning); using call_dcm2niix"
     else
-      echo "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"
+      intro_txt="Regular session, but with call_parrec2nii fix for big PAR/REC files"
     fi
+
+    if [[ ${run_local} -eq 0 ]]; then
+      if [[ ! -z ${SGE_QUEUE} ]]; then
+        QUEUE=${SGE_QUEUE}
+      else
+        QUEUE=${SGE_QUEUE_LONG}
+      fi
+
+      job=$(generate_submission_command ${QUEUE} 1 ${base}_desc-dcm2bids ${DIR_LOGS})
+    else
+      job="bash"
+      echo
+      echo "**************************************** Processing ${sub_name} ***************************************"
+      echo ${intro_txt}
+    fi
+
+    if [[ ${DEBUG_MODE} -eq 1 ]]; then
+      echo " OW          = ${OW}"
+      echo " FULL_OW     = ${FULL_OW}"
+      echo " SES_FLAG    = ${SES_FLAG}"
+      echo " ADD_INV     = ${ADD_INV}"
+      echo " ORIENT_FLAG = ${ORIENT_FLAG}"
+      echo " PROT_FLAG   = ${PROT_FLAG}"
+      echo " PE_FLAG     = ${PE_FLAG}"
+      echo " RUNS FLAG   = ${RUNS}"
+      echo " PHYS FLAG   = ${PHYS_FLAG}"
+      echo " TR FLAG     = ${TR_FLAG}"
+    fi
+
+    call_=`which call_bids`
+    cmd="""${job} ${call_} \
+      ${SES_FLAG} \
+      ${ADD_INV} \
+      ${ORIENT_FLAG} \
+      ${PROT_FLAG} \
+      ${PE_FLAG} \
+      ${OW} \
+      ${PHYS_FLAG} \
+      ${TR_FLAG} \
+      ${SKIP_TR} \
+      -i ${input_dir} -o ${output_dir} -b ${bids_dir} -n ${base} -d ${SEARCH_DEPTH} ${RUNS}"""
+
+    # echo command if running locally
+    if [[ ${SGE_FLAG} -eq 0 ]]; then
+      echo
+      echo ${cmd}
+    fi
+
+    ${cmd}
+      
+  else
+    echo "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"
   fi
 
 done
@@ -316,48 +296,21 @@ done
 #---------------------------------------------------------------------------------------------------------
 # make dataset_description file if it doesn't exist. User enters a line for the description
 
-if [[ ! -f ${DIR_DATA_HOME}/dataset_description.json ]]; then
-
-  cd ${DIR_DATA_HOME}
-  echo "enter the name of the project and press [ENTER]: " && read DESCRIPTION
-
-  (
-  echo "{"
-  echo "    \"Name\": \"${DESCRIPTION}\","
-  echo "    \"BIDSVersion\": \"1.2.2\","
-  echo "    \"License\": \"RECOMMENDED. What license is this dataset distributed under?. The use of license name abbreviations is suggested for specifying a license\","
-  echo "    \"Authors\": ["
-  echo "        \"G.J. Heij\""
-  echo "    ],"
-  echo "    \"Acknowledgements\": \"OPTIONAL. List of individuals who contributed to the creation/curation of the dataset\","
-  echo "    \"HowToAcknowledge\": \"OPTIONAL. Instructions how researchers using this dataset should acknowledge the original authors. This field can also be used to define a publication that should be cited in publications that use the dataset\","
-  echo "    \"Funding\": ["
-  echo "        \"OPTIONAL. List of sources of funding (grant numbers)\""
-  echo "    ],"
-  echo "    \"ReferencesAndLinks\": ["
-  echo "        \"OPTIONAL. List of references to publication that contain information on the dataset, or links\","
-  echo "        \"https://github.com/Donders-Institute/bidscoin\""
-  echo "    ],"
-  echo "    \"DatasetDOI\": \"OPTIONAL. The Document Object Identifier of the dataset (not the corresponding paper)\""
-  echo "}"
-  ) > dataset_description.json
-
-  cd $OLDPWD
-
+#---------------------------------------------------------------------------------------------------------
+# Dataset description
+if [[ ! -f "${PROJECT_ROOT}/dataset_description.json" ]]; then
+  cd "$PROJECT_ROOT"
+  echo "Enter project name for dataset_description.json: "
+  read -r DESCRIPTION
+  cat > dataset_description.json <<EOF
+{
+    "Name": "$DESCRIPTION",
+    "BIDSVersion": "1.2.2",
+    "Authors": ["G.J. Heij"]
+}
+EOF
+  cd - > /dev/null
 fi
 
-#-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
-echo
+#---------------------------------------------------------------------------------------------------------
+end_timer

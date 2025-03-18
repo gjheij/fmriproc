@@ -17,25 +17,13 @@
 from pymp2rage import MEMP2RAGE
 import os
 import pathlib
-import sys, getopt
+import sys
+import getopt
 import json
-import warnings
 from bids import BIDSLayout
-from nilearn import image
-import platform
-from bids import BIDSLayout
-import numpy as np
-from nipype.interfaces import fsl
 from lazyfmri.utils import get_file_from_substring, remove_files
-warnings.filterwarnings("ignore")
+from fmriproc import image
 opj = os.path.join
-osj = os.sep.join
-opb = os.path.basename
-
-def get_minmax(file):
-    stats = fsl.ImageStats(in_file=file, op_string="-R")
-    res = stats.run()
-    return res.outputs.out_stat
 
 def main(argv):
 
@@ -127,7 +115,14 @@ Notes:
         sys.exit(1)
 
     # Define paths to images
-    bids_fn = BIDSLayout(opj(inputdir), validate=False).get(extension=['nii.gz'], return_type='file')
+    bids_fn = BIDSLayout(
+        inputdir,
+        validate=False
+    ).get(
+        extension=['nii.gz'],
+        return_type='file'
+    )
+
     select_fn = get_file_from_substring(['inv', 'acq-MP2RAGEME'], bids_fn)
     select_fn.sort()
 
@@ -171,236 +166,58 @@ Notes:
         FLASH_tr=pars["FLASH_tr"], # TRs of the first and second GRE block are
         inv1=select_fn[0],
         inv1ph=select_fn[1],
-        inv2=[select_fn[2],select_fn[4],select_fn[6],select_fn[8]],
-        inv2ph=[select_fn[3],select_fn[5],select_fn[7],select_fn[9]]
+        inv2=[
+            select_fn[2],
+            select_fn[4],
+            select_fn[6],
+            select_fn[8]
+        ],
+        inv2ph=[
+            select_fn[3],
+            select_fn[5],
+            select_fn[7],
+            select_fn[9]
+        ]
     )
 
     # create output directory
     pathlib.Path(outputdir).mkdir(parents=True, exist_ok=True)
 
-    # Calculate and right multiparametric maps to outputdir
-    OUTPUT  = {
-        'r2starmap':   opj(outputdir, f'{outputbase}_R2starmap.nii.gz'),
-        't1w_uni':     opj(outputdir, f'{outputbase}_T1w.nii.gz'),
-        't1map':       opj(outputdir, f'{outputbase}_T1map.nii.gz'),
-        't2starw':     opj(outputdir, f'{outputbase}_T2starw.nii.gz'),
-        't2starmap':   opj(outputdir, f'{outputbase}_T2starmap.nii.gz'),
-        's0':          opj(outputdir, f'{outputbase}_S0.nii.gz')
-        }
+    # Define output file types
+    file_types = ["R2starmap", "T1w", "T1map", "T2starw", "T2starmap", "S0"]
+    
+    # Define output file types
+    file_types = {
+        "suffix": ["R2starmap", "T1w", "T1map", "T2starw", "T2starmap", "S0"],
+        "attr": ["r2starmap", "t1w_uni", "t1map", "t2starw", "t2starmap", "s0"]
+    }
 
-    def write_nifti(FILE, DESC):
-        if os.path.isfile(FILE):
-            print(" {} already exists".format(opb(FILE)))
-        else:
-            print(" writing " + opb(FILE))
-
-            base_path = None
-            sp = select_fn[0].split(os.sep)
-            for i in sp:
-
-                # try to read prefix
-                try:
-                    pref = os.environ.get("SUBJECT_PREFIX")
-                except:
-                    pref = "sub-"
-
-                if i.startswith(pref) and not i.endswith('.nii.gz'):
-                    base_path = osj(sp[sp.index(i)+1:-1])
-                    break
-
-            if DESC == 'r2starmap':
-                memp2rage.r2starmap.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in np.arange(2,10,2)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "Ordinary Least Squares in Log-space",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(f" writing {opb(JSON_FILE)}")
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
-
-            elif DESC == 't1w_uni':
-                memp2rage.t1w_uni.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in range(4)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "memp2rage unified T1-weighted image",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(f" writing {opb(JSON_FILE)}")
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
-
-            elif DESC == 't1map':
-                memp2rage.t1map.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in range(4)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "memp2rage T1 map",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(f" writing {opb(JSON_FILE)}")
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
-
-            elif DESC == 't2starw':
-                pass
-                memp2rage.t2starw.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in np.arange(2,10,2)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "Ordinary Least Squares in Log-space",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(" writing " + opb(JSON_FILE))
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
-
-            elif DESC == 't2starmap':
-                memp2rage.t2starmap.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in range(4)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "MP2RAGE unified T1-weighted image",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(f" writing {opb(JSON_FILE)}")
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
-
-            elif DESC == 's0':
-                pass
-                memp2rage.s0.to_filename(FILE)
-                params = {
-                    "BasedOn": [opj(base_path, opb(select_fn[i])) for i in np.arange(2,10,2)],
-                    "EstimationReference": "Caan et al., 2019",
-                    "EstimationAlgorithm": "Ordinary Least Squares in Log-space",
-                    "EstimationSoftwareName": "pymp2rage",
-                    "EstimationSoftwareVer": "v0.1",
-                    "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                    "EstimationSoftwareEnv": "{}".format(platform.platform())
-                }
-
-                JSON_FILE = FILE.split('.')[0]+'.json'
-                if os.path.isfile(JSON_FILE):
-                    print(f" {opb(JSON_FILE)} already exists")
-                else:
-                    print(f" writing {opb(JSON_FILE)}")
-
-                with open(JSON_FILE, "w+") as file:
-                    json.dump(params, file, indent=4)
+    # Generate the OUTPUT dictionary dynamically
+    output_dict = {attr.lower(): opj(outputdir, f"{outputbase}_{suff}.nii.gz") for attr, suff in zip(file_types["attr"], file_types["suffix"])}
 
     print("Creating output files")
-    for p in OUTPUT:
-        write_nifti(OUTPUT[p], p)
-        
+    for key, val in output_dict.items():
+        _ = image.write_pymp2rage_nifti(
+            val,
+            key,
+            memp2rage,
+            select_fn,
+            is_mp2rageme=True
+        )
+    
+    # copy original pymp2rage output which has proper intensity histograms
+    src = output_dict["t1w_uni"]
+    trg = opj(os.path.dirname(src), "orig.nii.gz")
+    shutil.copyfile(src, trg)
+
+    # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
-        brainmask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        print(brainmask)
-        if not os.path.exists(brainmask):
-
-            try:
-                print(f"Make FSL mask from {select_fn[2]}")
-                cmd = f"bet2 {select_fn[2]} {opj(outputdir, 'tmp')} -m -f 0.2"
-                os.system(cmd)
-            except:
-                pass
-            
-            try:
-                print(f"Make SPM mask from {select_fn[2]}")
-                cmd = f'call_spmmask --clean {select_fn[2]} {brainmask}'
-                os.system(cmd)
-            except:
-                pass
-            
-            # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
-            # but also leaves in more dura. This will be removed, however, during the CAT12 stage
-            if os.path.exists(brainmask) and os.path.exists(opj(outputdir, 'tmp_mask.nii.gz')):
-                
-                print("Combining SPM & FSL mask to include cerebellum too")
-
-                new_mask = image.math_img('(spm + fsl) > 0', spm=brainmask, fsl=opj(outputdir, 'tmp_mask.nii.gz'))
-                new_mask.to_filename(brainmask)
-
-                # remove files starting with 'tmp'
-                remove_files(outputdir, 'tmp', ext=False)
-
-        # remove pepper noise pattern around brain
-        print("Removing noise pattern around the brain")
-        os.system(f"call_rmbackground -t {OUTPUT['t1w_uni']} -m {brainmask} -i {select_fn[2]} -o {OUTPUT['t1w_uni']}")
-        print("TIP: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
-
-        # truncate image intensities
-        t1_file = OUTPUT['t1w_uni']
-        tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-        cmd = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
-        try:
-            print("Truncating image intensities [0,0.999] with 256 bins")
-            os.system(cmd)
-
-            out_ = get_minmax(tmp_file)
-            clip_value = out_[1]
-
-            # clip positive values if mininum value != 0
-            if out_[0] != 0:
-                print(f"Clipping original output at {clip_value}")
-                cmd = f"call_clipimage {t1_file} {clip_value}"
-                os.system(cmd)
-                
-                # remove tmp file
-                os.remove(tmp_file)
-            else:
-                # minimum values are zero
-                os.rename(tmp_file, t1_file)
-
-        except:
-            print("Could not run 'ImageMath' to truncate image intensities. Check the contrast and use 'call_clipimage' if the image is too dark..")
+        spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose"""
+        
+        os.system(cmd)
+        if not os.path.exists(spm_mask):
+            raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")
 
     print("Done")
 

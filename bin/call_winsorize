@@ -41,7 +41,7 @@ VERB=0
 lower=0.01
 upper=0.99
 n_bins=256
-while getopts :-:vl:u:t: argument
+while getopts :-:vl:u:t:-: argument
 do
   case ${argument} in
     -)
@@ -88,14 +88,19 @@ fi
 
 # set output to input if no output is specified
 if [[ -z ${out} ]]; then
-  out_file=${in_file}
+  out_file="${in_file}"
 else
-  out_file=`fetch_filepath ${out}`
+  out_file="${out}"
 fi
 
 # set dimensions and define command
 dim=`fslval ${in_file} dim0`
 cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} ${upper} ${n_bins}"""
+
+if [[ $? -ne 0 ]]; then
+  echo "ERROR in $(basename ${0}): ImageMath exited with non-zero status"
+  exit 1
+fi
 
 # echo cmd
 if [[ ${VERB} -eq 1 ]]; then

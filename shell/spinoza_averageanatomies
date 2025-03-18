@@ -2,8 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-echo
 source ${SETUP_FILE}
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -73,16 +73,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo "==================================================================================================="
-printf "AVERAGE `for ii in ${ACQ[@]}; do echo $ii; done` images\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+#intro
+start_timer "Averaging `for ii in ${ACQ[@]}; do echo $ii; done` images"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -140,70 +132,61 @@ for subID in ${search}; do
   for i in ${OUTPUTS[@]}; do
 
     out=${output_dir}/${base}_acq-${DATA}_${i}.nii.gz
-
     if [[ ! -f ${out} ]]; then
 
-      in_1=`find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
-      in_2=`find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[1]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
-      
-      in_3=""
-      if [[ ${#ACQ[@]} -gt 2 ]]; then
-        in_3=`find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[2]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
-      fi
-
-      if [[ ! -z ${in_1} && ! -z ${in_2} ]]; then
-        if [[ ! -z ${in_3} ]]; then
-          echo "Calculate mean over `basename ${in_1}`, `basename ${in_2}`, and `basename ${in_3}`"
-          call_calculatemean ${in_1} ${in_2} ${in_3} ${out}
+      # look for warped files
+      in_files=(`find "${input_dir}" -type f \( -name "*space-*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null`)
+      if [[ ! -z ${in_files} ]]; then
+        # MP2RAGE+MP2RAGEME if number of "space-" files is 1
+        if [[ ${#in_files[@]} -eq 1 ]]; then
+          in_1=`find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
+          in_2=`find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[1]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
+          cmd="call_calculatemean ${in_1} ${in_2} ${out}"
         else
-        echo "Calculate mean over `basename ${in_1}` & `basename ${in_2}`"
-          call_calculatemean ${in_1} ${in_2} ${out}
+          # Multiple MP(2)RAGE(S) if number of "space-" files >1
+          ref=$(find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*run-1*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null)
+          cmd="call_calculatemean ${ref} ${in_files[@]} ${out}"
         fi
+        
+        eval $cmd
       else
-        if [[ -z ${in_1} ]]; then
-          echo "ERROR in `basename ${0}`: Couldn't find ANTs registered ${i} image"
-        elif [[ -z ${in_2} ]]; then
-          echo "ERROR in `basename ${0}`: Couldn't pymp2rage ${i} image"
-        else
-          echo "ERROR in `basename ${0}`: Missing both ANTs registered and pymp2rage image"
-        fi
-        continue
+        echo "ERROR in $(basename ${0}): could not find files with \"*acq-${ACQ[0]^^}_*\", \"*space-*\", and \"*${i}.nii.gz\" in \"${input_dir}\""
+        exit 1
       fi
 
-      if [[ ${i} == "T1w" ]] || [[ ${i} == "T1map" ]]; then
+      if [[ ! -f ${out} ]]; then
+        echo "ERROR in $(basename ${0}): \"${out}\" not created.."
+        exit 1
+      fi
+      
+      # check if registration induced NANs
+      NAN=`fslstats ${out} -R | awk '{print $1}'`
+      if [[ ${NAN} == "-nan" ]]; then
+        echo "Found NaNs, replacing these values with zeroes"
+        fslmaths ${out} -nan ${out}
+      fi
 
-        # check if registration induced NANs
-        NAN=`fslstats ${out} -R | awk '{print $1}'`
-        if [[ ${NAN} == "-nan" ]]; then
-          echo "Found NaNs, replacing these values with zeroes"
-          fslmaths ${out} -nan ${out}
+      # check if registration induced NANs
+      ZERO=`fslstats ${out} -R | awk '{print $1}'`
+      if [[ ${ZERO} != "0" ]]; then
+
+        if [[ ${i} == "T1w" ]]; then
+          max=${MAX[0]}
+        elif [[ ${i} == "T1map" ]]; then
+          max=${MAX[1]}
         fi
 
-        # check if registration induced NANs
-        ZERO=`fslstats ${out} -R | awk '{print $1}'`
-        if [[ ${ZERO} != "0" ]]; then
+        echo "Rescaling ${i}-image to [0, ${max}] with ImageMath"
+        call_rescale ${out} 0 ${max}
 
-          if [[ ${i} == "T1w" ]]; then
-            max=${MAX[0]}
-          elif [[ ${i} == "T1map" ]]; then
-            max=${MAX[1]}
-          fi
-
-          echo "Rescaling ${i}-image to [0, ${max}] with ImageMath"
-          call_rescale ${out} 0 ${max}
-
-        fi
       fi
     else
       echo "`basename ${out}` already present"
     fi
-
-    # check if we can copy SPM mask from MP2RAGE
-    spm_mask=`find ${input_dir} -type f \( -name "*acq-MP2RAGE_*" -and -name "*desc-spm_mask.nii.gz" \) 2>/dev/null`
-
   done
 
-  # copy spm mask
+  # check if we can copy SPM mask from MP2RAGE
+  spm_mask=`find ${input_dir} -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*desc-spm_mask.nii.gz" \) 2>/dev/null`
   if [ ! -z ${spm_mask} ]; then
   
     # sort so we can verify there's only 1 file
@@ -226,16 +209,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

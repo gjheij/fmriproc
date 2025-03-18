@@ -37,5 +37,6 @@ from . import prf
 from . import scanner
 from . import simulate
 from . import transform
+from . import roi
 
-__all__ = ["image", "planning", "prf", "scanner", "simulate", "transform"]
+__all__ = ["image", "planning", "prf", "scanner", "simulate", "transform", "roi"]

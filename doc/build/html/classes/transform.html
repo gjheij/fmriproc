@@ -1,0 +1,645 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transform &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Bash modules" href="../bash.html" />
+    <link rel="prev" title="Scanner" href="scanner.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="image.html">Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="planning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="prf.html">pRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="roi.html">Roi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scanner.html">Scanner</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Transform</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ants_applytopoints"><code class="docutils literal notranslate"><span class="pre">ants_applytopoints()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ants_applytrafo"><code class="docutils literal notranslate"><span class="pre">ants_applytrafo()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ants_registration"><code class="docutils literal notranslate"><span class="pre">ants_registration()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ctx2tkr"><code class="docutils literal notranslate"><span class="pre">ctx2tkr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ctx2vert"><code class="docutils literal notranslate"><span class="pre">ctx2vert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.fs2rawavg"><code class="docutils literal notranslate"><span class="pre">fs2rawavg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.fs2tkr"><code class="docutils literal notranslate"><span class="pre">fs2tkr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.fs2vert"><code class="docutils literal notranslate"><span class="pre">fs2vert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.get_ras2vox"><code class="docutils literal notranslate"><span class="pre">get_ras2vox()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.get_tkrreg"><code class="docutils literal notranslate"><span class="pre">get_tkrreg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.get_vox2ras"><code class="docutils literal notranslate"><span class="pre">get_vox2ras()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.get_vox2ras_tkr"><code class="docutils literal notranslate"><span class="pre">get_vox2ras_tkr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.mri_surf2surf"><code class="docutils literal notranslate"><span class="pre">mri_surf2surf()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.native_to_scanner"><code class="docutils literal notranslate"><span class="pre">native_to_scanner()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ras2las"><code class="docutils literal notranslate"><span class="pre">ras2las()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ras2lpi"><code class="docutils literal notranslate"><span class="pre">ras2lpi()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.ras2lps"><code class="docutils literal notranslate"><span class="pre">ras2lps()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.rawavg2fs"><code class="docutils literal notranslate"><span class="pre">rawavg2fs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.rawavg2lowres"><code class="docutils literal notranslate"><span class="pre">rawavg2lowres()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.tkr2ctx"><code class="docutils literal notranslate"><span class="pre">tkr2ctx()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.tkr2fs"><code class="docutils literal notranslate"><span class="pre">tkr2fs()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.tkr2rawavg"><code class="docutils literal notranslate"><span class="pre">tkr2rawavg()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.transform.vert2coord"><code class="docutils literal notranslate"><span class="pre">vert2coord()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Python modules</a></li>
+      <li class="breadcrumb-item active">Transform</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/classes/transform.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="transform">
+<h1>Transform<a class="headerlink" href="#transform" title="Link to this heading"></a></h1>
+<p>This file contains functions and classes related to translating coordinates across various coordinate systems, such as <a class="reference external" href="https://surfer.nmr.mgh.harvard.edu/">FreeSurfer</a>, <a class="reference external" href="https://github.com/gallantlab/pycortex">Pycortex</a>, scanner, and <a class="reference external" href="http://www.itksnap.org/pmwiki/pmwiki.php?n=Downloads.SNAP3">ITK-Snap</a>.</p>
+<dl class="py function" id="module-fmriproc.transform">
+<dt class="sig sig-object py" id="fmriproc.transform.ants_applytopoints">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ants_applytopoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chicken_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trafo_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ants_applytopoints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ants_applytopoints" title="Link to this definition"></a></dt>
+<dd><p>Wrapper for antsApplyTransformToPoints to warp a coordinate specified in <cite>chicken_file</cite> to a new space using <cite>trafo_file</cite>. Run <code class="xref py py-func docutils literal notranslate"><span class="pre">lazyfmri.utils.make_chicken_csv()</span></code> and <cite>call_antsregistration</cite> from 1 space to another first.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>chicken_file</strong> (<em>str</em>) – output from lazyfmri.utils.make_chicken_csv containing the coordinate that needs to be warped</p></li>
+<li><p><strong>output_file</strong> (<em>str</em>) – output csv file containing the warped point in LPS-convention! Swap the first and second dimensions to make the coordinate RAS</p></li>
+<li><p><strong>trafo_file</strong> (<em>str</em>) – ANTs-transformation file mapping between the spaces. You can also specify ‘identity’, in which case ‘call_createident’ will be called</p></li>
+<li><p><strong>invert</strong> (<em>int</em><em>, </em><em>optional</em>) – invert the specified transformation; this is the case where you have a coordinate in space A, and the transformation is from space A-to-B, and you’d like the coordinate in space B. This might seem counterintuitive, but this is how the transformations are applied within <cite>antsApplyTransformsToPoints</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>filename of output csv file containing the warped point in LPS-convention, <cite>output_file</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fn</span> <span class="o">=</span> <span class="n">ants_applytopoints</span><span class="p">(</span><span class="s2">&quot;input.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;output.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;trafo.mat&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fn</span>
+<span class="go">&#39;output.csv&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ants_applytrafo">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ants_applytrafo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fixed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moving</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trafo</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interp</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'nn'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'file'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ants_applytrafo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ants_applytrafo" title="Link to this definition"></a></dt>
+<dd><p>Python wrapper for call_antsapplytransforms to apply a given transformation, and a set fixed/moving
+images. See call_antsapplytransforms for more information on the actual call.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fixed</strong> (<em>str</em><em>|</em><em>nibabel.Nifti1Image</em>) – string to nifti reference image (.nii.gz) or nibabel.Nifti1Image that will be con-verted temporarily to a file (fixed.nii.gz) in the working directory</p></li>
+<li><p><strong>moving</strong> (<em>str</em><em>|</em><em>nibabel.Nifti1Image</em>) – moving (to-be-registered) image (.nii.gz) or nibabel.Nifti1Image that will be converted temporarily to a file (moving.nii.gz) in the working directory</p></li>
+<li><p><strong>trafo</strong> (<em>str</em><em>|</em><em>list</em>) – list or single path to transformation files in order of application</p></li>
+<li><p><strong>interp</strong> (<em>str</em>) – interpolation type: ‘lin’ (linear), ‘nn’ (NearestNeighbor), gau (Gaussian), bspl&lt;order&gt;, cws  CosineWindowedSinc), wws (WelchWindowedSinc), hws (HammingWindowed-Sinc), lws (LanczosWindowedSinc); default = ‘nn’</p></li>
+<li><p><strong>invert</strong> (<em>int</em><em>|</em><em>list</em>) – list or single integer with the length of trafo-list to specify which transformations to invert or not. Default = 0 for all, meaning use as they are specified: do not invert</p></li>
+<li><p><strong>output</strong> (<em>str</em>) – output name for warped file</p></li>
+<li><p><strong>return_type</strong> (<em>str</em>) – whether you’d like the <cite>filename</cite> returned (return_type=’file’) or a <cite>nibabel.Nifti1Image</cite> (return_type=”nb”)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>str</em> – if <cite>return_type=”str”</cite>, then a filename is returned</p></li>
+<li><p><em>nibabel.Nifti1Image</em> – if <cite>return_type=”nb”</cite>, a <cite>nibabel.Nifti1Image</cite> is returned</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ants_applytrafo</span><span class="p">(</span><span class="n">fixed</span><span class="o">.</span><span class="n">nii</span><span class="o">.</span><span class="n">gz</span><span class="p">,</span> <span class="n">moving</span><span class="o">.</span><span class="n">nii</span><span class="o">.</span><span class="n">gz</span><span class="p">,</span> <span class="n">trafo</span><span class="o">=</span><span class="p">[</span><span class="n">f1</span><span class="o">.</span><span class="n">mat</span><span class="p">,</span><span class="n">f2</span><span class="o">.</span><span class="n">mat</span><span class="p">],</span> <span class="n">invert</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;outputfile.nii.gz&quot;</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>
+<span class="go">&#39;outputfile.nii.gz&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ants_registration">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ants_registration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fixed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moving</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rigid'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ants_registration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ants_registration" title="Link to this definition"></a></dt>
+<dd><p>python wrapper for call_antsregistration to perform registration with ANTs in the python
+environment. Requires the same input as call_antsregistration</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fixed</strong> (<em>str</em>) – string to nifti reference image (.nii.gz)</p></li>
+<li><p><strong>moving</strong> (<em>str</em>) – moving (to-be-registered) image (.nii.gz)</p></li>
+<li><p><strong>reg_type</strong> (<em>str</em>) – type of transformation (default = ‘rigid’)</p></li>
+<li><p><strong>base</strong> (<em>output</em>) – output basename (stuff will be appended)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>path to transform file</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">trafo</span> <span class="o">=</span> <span class="n">ants_registration</span><span class="p">(</span><span class="n">fixed</span><span class="o">=</span><span class="s2">&quot;fixed.nii.gz&quot;</span><span class="p">,</span> <span class="n">moving</span><span class="o">=</span><span class="s2">&quot;moving.nii.gz&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="s2">&quot;output_&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">trafo</span>
+<span class="go">&#39;/path/to/output_genaff.mat&#39;</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ctx2tkr">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ctx2tkr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">correct</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hm</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ret</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_ones</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ctx2tkr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ctx2tkr" title="Link to this definition"></a></dt>
+<dd><p>Convert a coordinate from Pycortex to FreeSurfer’s TKR (surface) definition. Basically it adds the offset back (<a class="reference external" href="https://gallantlab.github.io/pycortex/_modules/cortex/freesurfer.html">https://gallantlab.github.io/pycortex/_modules/cortex/freesurfer.html</a>) that is added by Pycortex. With this particular function, you can apply that offset matrix to a given image, or enter a list of coordinate to which to apply the offset to. To just get the offset, specify the subject (needed for all operations), with ‘hm’ set to False (3x1 coordinate array) or True (4x4 homogenous matrix with offset in translation column).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</p></li>
+<li><p><strong>img</strong> (<em>nb.Nifti1Image</em><em>, </em><em>str</em>) – nifti image or path to nifti image to which to apply the offset to</p></li>
+<li><p><strong>coord</strong> (<em>list</em>) – one or multiple coordinates to apply the offset to (e.g., left|right hemisphere) in list format (also when entering just 1 coordinate)</p></li>
+<li><p><strong>correct</strong> (<em>bool</em>) – actually apply the matrix to an input image and return the nifti image with padded affine matrix. Should be used in combination with ‘img’</p></li>
+<li><p><strong>hm</strong> (<em>bool</em>) – if <cite>True</cite>: output a homogenous (4,4) matrix with the offset in the translation column
+if <cite>False</cite>: just the offset values (3,)</p></li>
+<li><p><strong>ret</strong> (<em>bool</em>) – used in combination with the list of coordinates to return the corrected coordinates in a list. Artifact from when this was part of a class and included the corrected coordinates in the class object itself</p></li>
+<li><p><strong>pad_ones</strong> (<em>bool</em>) – pad the coordinates with a ‘1’ if the length does not match the (4,4) <cite>surf2orig</cite> matrix to ensure proper dot product</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>np.ndarray</em> – offset coordinates; 4x4 or 3x1 (depending on the ‘hm’ flag) array containing the offset values</p></li>
+<li><p><em>list</em> – corrected coordinates if <cite>coord</cite>-input was a list</p></li>
+<li><p><em>nb.Nifti1Image</em> – new nifti image with corrected affine matrix</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">offset</span> <span class="o">=</span> <span class="n">ctx2tkr</span><span class="p">(</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="n">hm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">corr_coordinates</span> <span class="o">=</span> <span class="n">ctx2tkr</span><span class="p">(</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="p">[</span><span class="n">coord1</span><span class="p">,</span><span class="n">coord2</span><span class="p">],</span> <span class="n">ret</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">corr_nifti</span> <span class="o">=</span> <span class="n">ctx2trk</span><span class="p">(</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="n">img</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">nii</span><span class="o">.</span><span class="n">gz</span><span class="p">,</span> <span class="n">correct</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ctx2vert">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ctx2vert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">surf</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rtol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.015</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ctx2vert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ctx2vert" title="Link to this definition"></a></dt>
+<dd><p>Finds the closest vertices given an RAS coordinate as defined by pycortex. It uses np.closeall with a customizable rtol-value. If this function does not return anything, increase the rtol. If the original coordinate is not on the surface, results might differ.</p>
+<p>Procedure to view CRS in orig.mgz on the surface in Pycortex (also see fs2vert):
+&gt;&gt;&gt; from cxutils import optimal
+&gt;&gt;&gt; from fmriproc import transform
+&gt;&gt;&gt; pp = optimal.CalcBestVertex(subject)
+&gt;&gt;&gt; fs_coord = np.array([187,177,41])
+&gt;&gt;&gt; fs2tkr = transform.fs2tkr(‘sub-001’, coord=fs_coord)
+&gt;&gt;&gt; tkr2ctx = transform.tkr2ctx(‘sub-001’, coord=fs2tkr)
+&gt;&gt;&gt; vert = transform.ctx2vert(pp.surface.lh_surf_data[0], coord=tkr2ctx)
+&gt;&gt;&gt; import cortex
+&gt;&gt;&gt; mm = pp.surface.label_to_mask(subject=’sub-001’, lh_arr=vert, hemi=’lh’)
+&gt;&gt;&gt; cortex.webview(mm[‘whole_roi_v’])</p>
+<p>It runs through the surface-array and calculates the similarity between the RAS coordinates in there and the specified coordinate with a given tolerance. All elements of the coordinate should be as close to 1 as possible, showing more similarities between the given coordinate and the coordinate that has a vertex attached to it. Because of this iterative nature, the process takes a few seconds, so it’s not that your system is slow per se.
+Returns a list of indices where the coordinate has passed the tolerance test. You can verify this by entering the indices in FreeView on the given surface. E.g., if you used lh.fiducial, enter the vertex in that box.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>surf</strong> (<em>str</em>) – surface to extract the vertex from (e.g., <cite>lh.fiducial</cite>)</p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – numpy array or list containing the <cite>coord</cite> in Pycortex convention</p></li>
+<li><p><strong>rtol</strong> (<em>float</em>) – error margin in <cite>mm</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>vertex number corresponding to <cite>coord</cite> in surface <cite>surf</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.fs2rawavg">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">fs2rawavg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#fs2rawavg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.fs2rawavg" title="Link to this definition"></a></dt>
+<dd><p>Inverse of <a class="reference internal" href="#fmriproc.transform.rawavg2fs" title="fmriproc.transform.rawavg2fs"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.transform.rawavg2fs()</span></code></a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – containing the coordinate in <cite>FreeSurfer</cite> rawavg convention (voxels)</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy array containing the <cite>coord</cite> in <cite>rawavg.mgz</cite> voxel convention</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.fs2tkr">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">fs2tkr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'orig.mgz'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">strip_lead</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#fs2tkr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.fs2tkr" title="Link to this definition"></a></dt>
+<dd><p>Option [4] from <a class="reference external" href="https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems">https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems</a>: “<em>I have a CRS from a voxel in the orig.mgz volume and want to compute the RAS in surface space (tkrRAS) for this point</em>”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – containing the coordinate in <cite>FreeSurfer</cite> RAS convention</p></li>
+<li><p><strong>ref</strong> (<em>str</em><em>, </em><em>optional</em>) – reference image to use for translation to <cite>Surface</cite> RAS convention (default = <cite>orig.mgz</cite>)</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+<li><p><strong>strip_lead</strong> (<em>bool</em>) – if <cite>True</cite>, a numpy array with shape (4,) with the last element being 1 is returned. If <cite>False</cite>, a numpy array with shape (3,) is returned</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy array containing the <cite>coord</cite> in Surface RAS convention</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.fs2vert">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">fs2vert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hemi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'lh'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#fs2vert"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.fs2vert" title="Link to this definition"></a></dt>
+<dd><p>ctx2vert</p>
+<p>Warp a CRS-point from orig.mgz to Pycortex as described in <a class="reference internal" href="#fmriproc.transform.ctx2vert" title="fmriproc.transform.ctx2vert"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.transform.ctx2vert()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – numpy array or list containing the <cite>coord</cite> in Pycortex convention</p></li>
+<li><p><strong>hemi</strong> (<em>str</em>) – hemisphere to extract the vertex from (should be <cite>lh</cite> or <cite>rh</cite>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Dictionary collecting outputs under the following keys</p>
+<ul class="simple">
+<li><p>vert_nr (int): vertex number corresponding to the input coordinate <cite>coord</cite></p></li>
+<li><p>vert_obj (dict): output from <code class="xref py py-func docutils literal notranslate"><span class="pre">cxutils.optimal.CalcBestVert.label_to_mask()</span></code>, consisting of numpy.ndarrays representing a boolean mask of the vertex</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.get_ras2vox">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">get_ras2vox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#get_ras2vox"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.get_ras2vox" title="Link to this definition"></a></dt>
+<dd><p>fetch the ras2vox matrix from an image (Rorig on the FreeSurfer wiki)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.get_tkrreg">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">get_tkrreg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mov</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">targ</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'arr'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#get_tkrreg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.get_tkrreg" title="Link to this definition"></a></dt>
+<dd><p>Implementation of <cite>tkregister2</cite> by sending a command to the command line.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</p></li>
+<li><p><strong>mov</strong> (<em>str</em>) – moving image</p></li>
+<li><p><strong>targ</strong> (<em>str</em>) – reference image (will default to <cite>orig.mgz</cite> if left empty)</p></li>
+<li><p><strong>out_file</strong> (<em>str</em>) – output file of transformation file</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+<li><p><strong>return_type</strong> (<em>str</em>) – if <cite>file</cite>, <cite>out_file</cite> is returned
+if <cite>arr</cite>, <cite>out_file</cite> will be read into a numpy.ndarray</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>str</em> – if <cite>return_type==”file”, `out_file</cite> is returned</p></li>
+<li><p><em>numpy.ndarray</em> – if <cite>return_type==”arr”, `out_file</cite> is returned</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.get_vox2ras">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">get_vox2ras</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#get_vox2ras"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.get_vox2ras" title="Link to this definition"></a></dt>
+<dd><p>fetch the vox2ras matrix from an image (Norig on the FreeSurfer wiki)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.get_vox2ras_tkr">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">get_vox2ras_tkr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#get_vox2ras_tkr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.get_vox2ras_tkr" title="Link to this definition"></a></dt>
+<dd><p>fetch the vox2ras-tkr matrix from an image (Torig/Tmov on the FreeSurfer wiki)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.mri_surf2surf">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">mri_surf2surf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">src_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">src_subj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trg_subj</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hemi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#mri_surf2surf"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.mri_surf2surf" title="Link to this definition"></a></dt>
+<dd><p>From <a class="reference external" href="https://nipype.readthedocs.io/en/latest/api/generated/nipype.interfaces.freesurfer.utils.html#surfacetransform">https://nipype.readthedocs.io/en/latest/api/generated/nipype.interfaces.freesurfer.utils.html#surfacetransform</a>:
+Wrapped executable: mri_surf2surf. Transform a surface file from one subject to another via a spherical registration. Both the source and target subject must reside in your Subjects Directory, and they must have been processed with recon-all, unless you are transforming to one of the icosahedron meshes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>src_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Surface file with source values. Maps to a command-line argument: <cite>–sval %s</cite>, by default None</p></li>
+<li><p><strong>src_subj</strong> (<em>str</em><em>, </em><em>optional</em>) – Subject id for source surface. Maps to a command-line argument: <cite>–srcsubject %s</cite>, by default None</p></li>
+<li><p><strong>trg_subj</strong> (<em>str</em><em>, </em><em>optional</em>) – Subject id of target surface. Maps to a command-line argument: <cite>–trgsubject %s</cite>, by default None</p></li>
+<li><p><strong>out_file</strong> (<em>str</em><em>, </em><em>optional</em>) – Surface file to write. Maps to a command-line argument: <cite>–tval %s</cite>, by default None</p></li>
+<li><p><strong>hemi</strong> (<em>str</em><em>, </em><em>optional</em>) – Hemisphere to transform. Maps to a command-line argument: <cite>–hemi %s</cite>, by default None</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">fmriproc.transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">mri_surf2surf</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">surf_file</span> <span class="o">=</span> <span class="n">mri_surf2surf</span><span class="p">(</span><span class="n">src_file</span><span class="o">=</span><span class="s2">&quot;lh.V1_fsaverage&quot;</span><span class="p">,</span> <span class="n">src_subj</span><span class="o">=</span><span class="s2">&quot;fsaverage&quot;</span><span class="p">,</span> <span class="n">trg_subj</span><span class="o">=</span><span class="s2">&quot;sub-001&quot;</span><span class="p">,</span> <span class="n">out_file</span><span class="o">=</span><span class="s2">&quot;lh.V1_fsnative&quot;</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.native_to_scanner">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">native_to_scanner</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">anat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">addone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#native_to_scanner"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.native_to_scanner" title="Link to this definition"></a></dt>
+<dd><p>This function returns the RAS coordinates in scanner space given a coordinate in native anatomy space. Required inputs are an anatomical image to derive the VOX-to-RAS conversion from and a voxel coordinate. Conversely, if you have a RAS coordinate, you can set the ‘inv’ flag to True to get the voxel coordinate corresponding to that RAS-coordinate. To make the output 1x4, the addone-flag is set to true. Set to false if you’d like 1x3 coordinate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>anat</strong> (<em>str</em>) – nifti image to derive the ras2vox (and vice versa) conversion</p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em>) – numpy array containing a coordinate to convert</p></li>
+<li><p><strong>inv</strong> (<em>bool</em>) – False if ‘coord’ is voxel, True if <cite>coord</cite> is RAS</p></li>
+<li><p><strong>addone</strong> (<em>bool</em>) – False if you don’t want a trailing <em>1</em>, returning a 1x3 array, or True if you want a trailing <em>1</em> to make a matrix homogenous</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(3,) or (4,) array containing the input coordinate <cite>coord</cite> in scanner convention (if <cite>coord</cite> is in voxel convention and <cite>inv==False</cite>) or voxel convention (if <cite>coord</cite> is in scanner convention and <cite>inv==True</cite>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># vox2ras</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">native_to_scanner</span><span class="p">(</span><span class="s1">&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">142</span><span class="p">,</span>  <span class="mi">48</span><span class="p">,</span> <span class="mi">222</span><span class="p">]))</span>
+<span class="go">array([ -7.42000937, -92.96745521, -15.27866316,   1.        ])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># ras2vox</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">native_to_scanner</span><span class="p">(</span><span class="s1">&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="o">-</span><span class="mf">7.42000937</span><span class="p">,</span> <span class="o">-</span><span class="mf">92.96745521</span><span class="p">,</span> <span class="o">-</span><span class="mf">15.27866316</span><span class="p">]),</span> <span class="n">inv</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="go">array([142,  48, 222,   1])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># disable trailing &#39;1&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">native_to_scanner</span><span class="p">(</span><span class="s1">&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">142</span><span class="p">,</span>  <span class="mi">48</span><span class="p">,</span> <span class="mi">222</span><span class="p">]),</span> <span class="n">addone</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="go">array([ -7.42000937, -92.96745521, -15.27866316])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ras2las">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ras2las</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coord</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ras2las"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ras2las" title="Link to this definition"></a></dt>
+<dd><p>represent an RAS coordinate in LAS convention</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ras2lpi">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ras2lpi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coord</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ras2lpi"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ras2lpi" title="Link to this definition"></a></dt>
+<dd><p>represent an RAS coordinate in LPO+I convention</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.ras2lps">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">ras2lps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coord</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#ras2lps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.ras2lps" title="Link to this definition"></a></dt>
+<dd><p>represent an RAS coordinate in LPS convention</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.rawavg2fs">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">rawavg2fs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#rawavg2fs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.rawavg2fs" title="Link to this definition"></a></dt>
+<dd><p>Option [6] from <a class="reference external" href="https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems">https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems</a>: “<em>I have a CRS from a voxel in my functional/diffusion/ASL/rawavg/etc “mov” volume and want to compute the CRS for the corresponding point in the orig.mgz</em>”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – containing the coordinate in <cite>FreeSurfer</cite> rawavg convention (voxels)</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy array containing the <cite>coord</cite> in <cite>orig.mgz</cite> voxel convention</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.rawavg2lowres">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">rawavg2lowres</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fixed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">moving</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#rawavg2lowres"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.rawavg2lowres" title="Link to this definition"></a></dt>
+<dd><p>Transform a file from <cite>rawavg</cite> in another session (e.g., <cite>lowres</cite>) via a registration matrix. Uses <code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.transform.ants_applytransform()</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fixed</strong> (<em>str</em>) – reference image (e.g., <cite>lowres</cite>)</p></li>
+<li><p><strong>moving</strong> (<em>str</em>) – moving image (e.g., <cite>rawavg</cite>)</p></li>
+<li><p><strong>matrix</strong> (<em>str</em>) – transformation file mapping <cite>moving</cite> to <cite>fixed</cite></p></li>
+<li><p><strong>inv</strong> (<em>bool</em>) – if transformation file maps <cite>fixed</cite> to <cite>moving</cite>, we can invert the matrix by setting <cite>inv=True</cite></p></li>
+<li><p><strong>out_file</strong> (<em>str</em>) – output file representing <cite>moving</cite> in <cite>fixed</cite>-space</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>filename of output file representing <cite>moving</cite> in <cite>fixed</cite>-space</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.tkr2ctx">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">tkr2ctx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#tkr2ctx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.tkr2ctx" title="Link to this definition"></a></dt>
+<dd><p>Add the surfmove-correction that Pycortex internally applies to FreeSurfer coordinates (see <code class="xref py py-func docutils literal notranslate"><span class="pre">cxutils.pycortex.get_ctxsurfmove()</span></code>)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>coord</strong> (<em>numpy.ndarray</em><em>|</em><em>list</em>) – numpy array or list containing the <cite>coord</cite> in Surface RAS convention</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy array containing the <cite>coord</cite> in Pycortex convention</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.tkr2fs">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">tkr2fs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_ones</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#tkr2fs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.tkr2fs" title="Link to this definition"></a></dt>
+<dd><p>Convert a coordinate from FreeSurfer’s TKR (surface) definition to FreeSurfer’s anatomical (volume) definition. This involves the procedure described here: <a class="reference external" href="https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems">https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems</a> scenario [3]: “I have a point on the surface (“Vertex RAS” in tksurfer) and want to compute the Scanner RAS in orig.mgz that corresponds to this point”.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</p></li>
+<li><p><strong>img</strong> (<em>nb.Nifti1Image</em><em>, </em><em>str</em>) – nifti image or path to nifti image to which to apply the offset to</p></li>
+<li><p><strong>coord</strong> (<em>list</em>) – one or multiple coordinates to apply the offset to (e.g., left|right hemisphere) in list format (also when entering just 1 coordinate)</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+<li><p><strong>pad_ones</strong> (<em>bool</em>) – pad the coordinates with a ‘1’ if the length does not match the (4,4) <cite>surf2orig</cite> matrix to ensure proper dot product</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>np.ndarray</em> – (4,4) array containing the transformation from Surface RAS to Scanner RAS</p></li>
+<li><p><em>list</em> – corrected coordinates if <cite>coord</cite>-input was a list</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">off</span><span class="p">,</span><span class="n">coord</span> <span class="o">=</span> <span class="n">tkr2fs</span><span class="p">(</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="p">[</span><span class="n">tkr_coord1</span><span class="p">,</span><span class="n">tkr_coord2</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.tkr2rawavg">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">tkr2rawavg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">matrix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fs_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'voxel'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#tkr2rawavg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.tkr2rawavg" title="Link to this definition"></a></dt>
+<dd><p>Computes the transformation from FreeSurfer TKR space (orig.mgz) to the native space (rawavg.nii.gz). It a ssumes the FreeSurfer and native space differ, which is not necessarily the case if you already have isotropic native data. You can either specify the registration file as per the output of tkregister2 or have this function create that file (register.dat by default)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</p></li>
+<li><p><strong>matrix</strong> (<em>str</em>) – path to ANTs-format registration file (either the .txt or .mat file, doesn’t really matter for ants_applytrafo)</p></li>
+<li><p><strong>reg</strong> (<em>bool</em>) – create the matrix mapping FreeSurfer to native instead of specifying a matrix. Only one or the other is needed.</p></li>
+<li><p><strong>fs_dir</strong> (<em>str</em>) – <cite>FreeSurfer</cite> directory (default = SUBJECTS_DIR)</p></li>
+<li><p><strong>inv</strong> (<em>bool</em>) – if the matrix file you specify with ‘matrix’ is actually mapping native to FreeSurfer, set this flag to True to invert the matrix</p></li>
+<li><p><strong>out_type</strong> (<em>str</em>) – output either the voxel (‘voxel’) or RAS (‘ras’) coordinate</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>np.ndarray</em> – (4,4) array containing the transformation from Surface RAS to Scanner RAS</p></li>
+<li><p><em>list</em> – corrected coordinates if <cite>coord</cite>-input was a list</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">off</span><span class="p">,</span><span class="n">coord</span> <span class="o">=</span> <span class="n">tkr2rawavg</span><span class="p">(</span><span class="s1">&#39;sub-001&#39;</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="s2">&quot;register.dat&quot;</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="p">[</span><span class="n">tkr_coord1</span><span class="p">,</span><span class="n">tkr_coord2</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.transform.vert2coord">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.transform.</span></span><span class="sig-name descname"><span class="pre">vert2coord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vert</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/transform.html#vert2coord"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.transform.vert2coord" title="Link to this definition"></a></dt>
+<dd><p>Fetch TKR coordinate of surface vertex using mris_info.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>subject</strong> (<em>str</em>) – subject ID as used in <cite>SUBJECTS_DIR</cite></p></li>
+<li><p><strong>vert</strong> (<em>int</em>) – surface vertex in TKR space that we want to extract information from</p></li>
+<li><p><strong>surf</strong> (<em>str</em>) – surface from which to extract <cite>vert</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>numpy array containing the coordinate of <cite>vert</cite> in surface <cite>surf</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="scanner.html" class="btn btn-neutral float-left" title="Scanner" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../bash.html" class="btn btn-neutral float-right" title="Bash modules" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

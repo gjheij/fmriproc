@@ -17,26 +17,14 @@
 from pymp2rage import MP2RAGE
 import os
 import pathlib
-import sys, getopt
-import json
-import warnings
-import numpy as np
-from nilearn import image
-import nibabel as nb
-import platform
+import sys
+import getopt
 from bids import BIDSLayout
 from lazyfmri import utils
 import shutil
 import json
-from nipype.interfaces import fsl
-warnings.filterwarnings("ignore")
+from fmriproc import image
 opj = os.path.join
-opb = os.path.basename
-
-def get_minmax(file):
-    stats = fsl.ImageStats(in_file=file, op_string="-R")
-    res = stats.run()
-    return res.outputs.out_stat
 
 def main(argv):
 
@@ -162,9 +150,22 @@ Notes:
     if inputdir != None:
         # we got an input directory; look for files with "acq-MP2RAGE"
         if inputdir.endswith("anat"):
-            bids_fn = BIDSLayout(inputdir, validate=False).get(datatype='anat', extension=['nii.gz'], return_type='file')
+            bids_fn = BIDSLayout(
+                inputdir,
+                validate=False
+            ).get(
+                datatype='anat',
+                extension=['nii.gz'],
+                return_type='file'
+            )
         else:
-            bids_fn = BIDSLayout(inputdir, validate=False).get(extension=['nii.gz'], return_type='file')
+            bids_fn = BIDSLayout(
+                inputdir,
+                validate=False
+            ).get(
+                extension=['nii.gz'],
+                return_type='file'
+            )
             
         select_fn = utils.get_file_from_substring(['acq-MP2RAGE_', 'inv'], bids_fn)
     else:
@@ -242,130 +243,38 @@ Notes:
 
     pathlib.Path(outputdir).mkdir(parents=True, exist_ok=True)
 
-    # Calculate and right multiparametric maps to outputdir
-    OUTPUT = {
-        't1w_uni': opj(outputdir, f'{outputbase}_T1w.nii.gz'),
-        't1map': opj(outputdir, f'{outputbase}_T1map.nii.gz')
+    # Define output file types
+    file_types = {
+        "suffix": ["T1w", "T1map"],
+        "attr": ["t1w_uni", "t1map"]
     }
-    
-    # for json file
-    TAG = ["MP2RAGE unified T1-weighted image", "MP2RAGE T1 map"]
+
+    # Generate the OUTPUT dictionary dynamically
+    output_dict = {attr.lower(): opj(outputdir, f"{outputbase}_{suff}.nii.gz") for attr, suff in zip(file_types["attr"], file_types["suffix"])}
 
     print("Creating output files")
-    for r,p in enumerate(OUTPUT):
-        
-        if not os.path.exists(OUTPUT[p]):
-
-            print(" writing {}-image: {}".format(p, os.path.basename(OUTPUT[p])))
-            tmp = getattr(mp2rage, p)
-            data = np.nan_to_num(tmp.get_fdata())
-            nb.Nifti1Image(
-                data.astype(int),
-                affine=tmp.affine, 
-                header=tmp.header).to_filename(OUTPUT[p])
-            
-            try:
-                os.system('fslorient -setqformcode 1 {}'.format(OUTPUT[p]))
-                os.system('fslorient -setsformcode 2 {}'.format(OUTPUT[p]))
-            except:
-                pass
-
-        else:
-
-            print(" {} already exists".format(os.path.basename(OUTPUT[p])))
-
-        json_file = OUTPUT[p].split('.')[0]+'.json'
-        base_path = None
-        if not os.path.exists(json_file):
-            
-            base_path = utils.BIDSFile(json_file).get_bids_basepath()
-            if not base_path:
-                base_path = os.path.dirname(select_fn[0])
-
-            params = {
-                "BasedOn": [opj(base_path, opb(select_fn[i])) for i in range(4)],
-                "EstimationReference": 'Marques et al., 2010',
-                "EstimationAlgorithm": f'{TAG[r]}',
-                "EstimationSoftwareName": "pymp2rage",
-                "EstimationSoftwareVer": "v0.1",
-                "EstimationSoftwareLang": "python {}".format(platform.python_version()),
-                "EstimationSoftwareEnv": "{}".format(platform.platform()),
-            }
-
-            with open(json_file, "w+") as file:
-                json.dump(params, file, indent=4)
+    for key, val in output_dict.items():
+        _ = image.write_pymp2rage_nifti(
+            val,
+            key,
+            mp2rage,
+            select_fn,
+            is_mp2rageme=False
+        )
 
     # copy original pymp2rage output which has proper intensity histograms
-    src = OUTPUT["t1w_uni"]
+    src = output_dict["t1w_uni"]
     trg = opj(os.path.dirname(src), "orig.nii.gz")
-    shutil.copyfile(src,trg)
+    shutil.copyfile(src, trg)
 
+    # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
-        brainmask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        if not os.path.exists(brainmask):
-
-            try:
-                print("Make mask with FSL from INV2-image")
-                cmd = f"bet2 {select_fn[2]} {opj(inputdir, 'tmp')} -m -f 0.2"
-                print(cmd)
-                os.system(cmd)
-            except:
-                pass
-            
-            try:
-                print("Make mask with SPM from INV2-image")
-                cmd = f'call_spmmask --clean {select_fn[2]} {brainmask}'
-                print(cmd)
-                os.system(cmd)
-            except:
-                pass
-            
-            # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
-            # but also leaves in more dura. This will be removed, however, during the CAT12 stage
-            if os.path.exists(brainmask) and os.path.exists(opj(inputdir, 'tmp_mask.nii.gz')):
-                
-                print("Combining SPM & FSL mask to include cerebellum too")
-
-                new_mask = image.math_img('(spm + fsl) > 0', spm=brainmask, fsl=opj(inputdir, 'tmp_mask.nii.gz'))
-                new_mask.to_filename(brainmask)
-
-                # remove files starting with 'tmp'
-                utils.remove_files(inputdir, 'tmp', ext=False)
-
-        # remove pepper noise pattern around brain
-        print("Removing noise pattern around the brain")
-        cmd = f"call_rmbackground -t {OUTPUT['t1w_uni']} -m {brainmask} -i {select_fn[2]} -o {OUTPUT['t1w_uni']}"
-        print(cmd)
+        spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose"""
+        
         os.system(cmd)
-        print("TIP: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
-
-        # truncate image intensities
-        t1_file = OUTPUT['t1w_uni']
-        tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-        cmd = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
-        try:
-            print("Truncating image intensities [0,0.999] with 256 bins")
-            print(cmd)
-            os.system(cmd)
-
-            out_ = get_minmax(tmp_file)
-            clip_value = out_[1]
-
-            # clip positive values if mininum value != 0
-            if out_[0] != 0:
-                print(f"Clipping original output at {clip_value}")
-                cmd = f"call_clipimage {t1_file} {clip_value}"
-                print(cmd)
-                os.system(cmd)
-
-                # remove tmp file
-                os.remove(tmp_file)
-            else:
-                # minimum values are zero
-                os.rename(tmp_file, t1_file)
-
-        except:
-            print("Could not run 'ImageMath' to truncate image intensities. Check the contrast and use 'call_clipimage' if the image is too dark..")
+        if not os.path.exists(spm_mask):
+            raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")
 
     print("Done")
 

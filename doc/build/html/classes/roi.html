@@ -1,0 +1,471 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roi &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Scanner" href="scanner.html" />
+    <link rel="prev" title="pRF" href="prf.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="image.html">Image</a></li>
+<li class="toctree-l2"><a class="reference internal" href="planning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="prf.html">pRF</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Roi</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.roi.DateTimeEncoder"><code class="docutils literal notranslate"><span class="pre">DateTimeEncoder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.DateTimeEncoder.default"><code class="docutils literal notranslate"><span class="pre">DateTimeEncoder.default()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_data"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs.extract_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_run_identifier"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs.extract_run_identifier()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.load_file"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs.load_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.main_extractor"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs.main_extractor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.set_rois_input"><code class="docutils literal notranslate"><span class="pre">ExtractFromROIs.set_rois_input()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.extract_single_subject"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.extract_single_subject()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.extract_subjects"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.extract_subjects()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.find_feat_files"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.find_feat_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.find_fmriprep_files"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.find_fmriprep_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.find_pybest_files"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.find_pybest_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.read_tcs_file"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.read_tcs_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.search_for_files"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.search_for_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.ExtractSubjects.set_subjects"><code class="docutils literal notranslate"><span class="pre">ExtractSubjects.set_subjects()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.generate_plot"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.generate_plot()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.generate_plot2"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.generate_plot2()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.run_fitter"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.run_fitter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.sort_dataframe"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.sort_dataframe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.sort_rois"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.sort_rois()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.write_csv_files"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.write_csv_files()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.roi.FullExtractionPipeline.write_settings"><code class="docutils literal notranslate"><span class="pre">FullExtractionPipeline.write_settings()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.roi.format_onsets"><code class="docutils literal notranslate"><span class="pre">format_onsets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="scanner.html">Scanner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transform.html">Transform</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Python modules</a></li>
+      <li class="breadcrumb-item active">Roi</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/classes/roi.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="roi">
+<h1>Roi<a class="headerlink" href="#roi" title="Link to this heading"></a></h1>
+<p>This file contains functions and classes related to the extraction of timecourses.</p>
+<dl class="py class" id="module-fmriproc.roi">
+<dt class="sig sig-object py" id="fmriproc.roi.DateTimeEncoder">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fmriproc.roi.</span></span><span class="sig-name descname"><span class="pre">DateTimeEncoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skipkeys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ensure_ascii</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">check_circular</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_nan</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_keys</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indent</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">separators</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#DateTimeEncoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.DateTimeEncoder" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">JSONEncoder</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.DateTimeEncoder.default">
+<span class="sig-name descname"><span class="pre">default</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#DateTimeEncoder.default"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.DateTimeEncoder.default" title="Link to this definition"></a></dt>
+<dd><p>Implement this method in a subclass such that it returns
+a serializable object for <code class="docutils literal notranslate"><span class="pre">o</span></code>, or calls the base implementation
+(to raise a <code class="docutils literal notranslate"><span class="pre">TypeError</span></code>).</p>
+<p>For example, to support arbitrary iterators, you could
+implement default like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">o</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">iterable</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+    <span class="c1"># Let the base class default method raise the TypeError</span>
+    <span class="k">return</span> <span class="n">JSONEncoder</span><span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fmriproc.roi.</span></span><span class="sig-name descname"><span class="pre">ExtractFromROIs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rois</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi_names</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ses</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TR</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subject</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Extract timecourses given a list of ROIs from functional files. Assumes the ROI and functional files are in the same space,
+e.g., both in native functional space (in case of single-subject processing), or all in MNI-space (in which case multi-
+subject processing is permitted). If the ROIs represent float data (e.g., zstat/tstat), it will extract the 15 highest
+voxels within that ROI. If ROI is binary, all voxels will be used. See also <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_data" title="fmriproc.roi.ExtractFromROIs.extract_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs.extract_data()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> (<em>str</em><em>, </em><em>nibabel.Nifti1Image</em><em>, </em><em>nibabel.GiftiImage</em><em>, </em><em>np.ndarray</em>) – Input functional data, either a string representing a path, a nibabel.Nifti1Image-object, a nibabel.GiftiImage-object,
+or a numpy array</p></li>
+<li><p><strong>rois</strong> (<em>list</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – List of ROIs, either strings representing a path, nibabel.Nifti1Image-objects, or a numpy arrays or a directory con-
+taining a bunch of ROIs. Use the “filters=”-flag to further specify the input.</p></li>
+<li><p><strong>filters</strong> (<em>str</em><em>, </em><em>list</em><em>, </em><em>optional</em>) – additional filters to search for ROI files. For instance, you have specified a directory with “–rois /path/to/ROIs”,
+but that directory contains a bunch of ROIs that you’re not necessarily interested in. If you’re only interested in
+the files starting with “conv-*”, you can specify that here.</p></li>
+<li><p><strong>roi_names</strong> – If empty, we will try to derive the ROI name from the filename (if they are strings).
+E.g., from “bin.thr.ACC_L.nii.gz”, it would extract the last elements after “.”, so “ACC_L”.
+If the inputs are not strings, we will default to “roi_{}”, so it’s highly encouraged to use the <em>roi_names</em>-input
+for non-string functional files.</p></li>
+<li><p><strong>list</strong> – If empty, we will try to derive the ROI name from the filename (if they are strings).
+E.g., from “bin.thr.ACC_L.nii.gz”, it would extract the last elements after “.”, so “ACC_L”.
+If the inputs are not strings, we will default to “roi_{}”, so it’s highly encouraged to use the <em>roi_names</em>-input
+for non-string functional files.</p></li>
+<li><p><strong>str</strong> – If empty, we will try to derive the ROI name from the filename (if they are strings).
+E.g., from “bin.thr.ACC_L.nii.gz”, it would extract the last elements after “.”, so “ACC_L”.
+If the inputs are not strings, we will default to “roi_{}”, so it’s highly encouraged to use the <em>roi_names</em>-input
+for non-string functional files.</p></li>
+<li><p><strong>optional</strong> – If empty, we will try to derive the ROI name from the filename (if they are strings).
+E.g., from “bin.thr.ACC_L.nii.gz”, it would extract the last elements after “.”, so “ACC_L”.
+If the inputs are not strings, we will default to “roi_{}”, so it’s highly encouraged to use the <em>roi_names</em>-input
+for non-string functional files.</p></li>
+<li><p><strong>ses</strong> (<em>int</em><em>, </em><em>optional</em>) – Specify session ID; will be read from filename if possible using <code class="xref py py-func docutils literal notranslate"><span class="pre">lazyfmri.utils.split_bids_components()</span></code></p></li>
+<li><p><strong>task</strong> (<em>str</em><em>, </em><em>optional</em>) – Specify task ID; will be read from filename if possible using <code class="xref py py-func docutils literal notranslate"><span class="pre">lazyfmri.utils.split_bids_components()</span></code></p></li>
+<li><p><strong>TR</strong> (<em>int</em><em>, </em><em>optional</em>) – Repetition time to use for the dataframe formation, by default 2</p></li>
+<li><p><strong>subject</strong> (<em>int</em><em>, </em><em>optional</em>) – Subject ID to use for the dataframe formation, by default 1</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Make some noise, by default False</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em>) – Same as <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_data" title="fmriproc.roi.ExtractFromROIs.extract_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs.extract_data()</span></code></a></p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fmriproc</span><span class="w"> </span><span class="kn">import</span> <span class="n">roi</span>
+<span class="n">obj</span> <span class="o">=</span> <span class="n">roi</span><span class="o">.</span><span class="n">ExtractFromROIs</span><span class="p">(</span>
+    <span class="s2">&quot;/path/to/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-task1_space-MNI152NLin6Asym_bold.nii.gz&quot;</span><span class="p">,</span>
+    <span class="n">rois</span><span class="o">=</span><span class="p">[</span>
+        <span class="s2">&quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_L.nii.gz,</span>
+        <span class="s2">&quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_R.nii.gz</span>
+        <span class="s2">&quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_L.nii.gz</span>
+        <span class="s2">&quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_R.nii.gz</span>
+    <span class="p">],</span>
+    <span class="n">TR</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span>
+    <span class="n">subject</span><span class="o">=</span><span class="s2">&quot;01&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs.extract_data">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extract_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bsl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">highest</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zscore</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs.extract_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs.extract_data" title="Link to this definition"></a></dt>
+<dd><p>Extractor function depending on ROI input. If the ROI represents a zstat/tstat file (or file with float) values,
+we will select by default the 15 highest values within the roi. To select the 15 lowest, set <em>highest=False</em>.
+To change the number of voxels to extract, use the <em>nr</em>-input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> (<em>np.ndarray</em>) – 4D timeseries representing the functional data</p></li>
+<li><p><strong>roi</strong> (<em>np.ndarray</em>) – int/float np.ndarray representing the ROI data</p></li>
+<li><p><strong>nr</strong> (<em>int</em><em>, </em><em>optional</em>) – number of voxels to extract from data in case the input is float, by default 15.
+if the input is binary, we will take the entire ROI.</p></li>
+<li><p><strong>bsl</strong> (<em>int</em><em>, </em><em>optional</em>) – amount of time to use to calculate baseline for percent signal change conversion, by default 15s.</p></li>
+<li><p><strong>highest</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, we select <em>nr</em> HIGHEST voxels from roi. If False, we select the <em>nr</em> LOWEST. By default True</p></li>
+<li><p><strong>psc</strong> (<em>bool</em><em>, </em><em>optional</em>) – Normalize to percent signal change. Default is True.</p></li>
+<li><p><strong>zscore</strong> (<em>bool</em><em>, </em><em>optional</em>) – Normalize using z-scoring. Default = False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>extracted data (either normalized or not)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs.extract_run_identifier">
+<span class="sig-name descname"><span class="pre">extract_run_identifier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs.extract_run_identifier"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs.extract_run_identifier" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs.load_file">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs.load_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs.load_file" title="Link to this definition"></a></dt>
+<dd><p>Load file based on whether it is a string, numpy array, or nibabel.Nifti1Image object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs.main_extractor">
+<span class="sig-name descname"><span class="pre">main_extractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'_'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs.main_extractor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs.main_extractor" title="Link to this definition"></a></dt>
+<dd><p>Loop through functional files to extract data using <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_data" title="fmriproc.roi.ExtractFromROIs.extract_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs.extract_data()</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractFromROIs.set_rois_input">
+<span class="sig-name descname"><span class="pre">set_rois_input</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractFromROIs.set_rois_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractFromROIs.set_rois_input" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fmriproc.roi.</span></span><span class="sig-name descname"><span class="pre">ExtractSubjects</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ft_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">excl_subjs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">incl_subjs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs" title="fmriproc.roi.ExtractFromROIs"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtractFromROIs</span></code></a></p>
+<p>Loop through all subjects in a FEAT-directory to extract timecourses from a set of ROIs using
+<a class="reference internal" href="#fmriproc.roi.ExtractFromROIs" title="fmriproc.roi.ExtractFromROIs"><code class="xref py py-class docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ft_dir</strong> (<em>str</em>) – path to 1st level FEAT, fMRIprep, or Pybest directory. For FEAT, We’re explicitly searching for the
+“filtered_func_data” files; for fMRIprep, we will look for “*desc-preproc_bold.nii.gz” using the
+native functional files as default. Use e.g., <cite>space=MNI152NLin6Asym</cite> to select FSL’s MNI files.
+For Pybest, we will either look in the “unzscored”-folder if you want surface-based files (e.g.,
+‘fsnative’ or ‘fsaverage’) for “*desc-denoised_bold.npy”. For volumetric files, we will look in
+the “masked” folder for “*desc-denoised_bold.nii.gz”. For both fMRIprep and Pybest, you can select
+specific tasks with <em>task=[“task1”, “task3”]</em>. Otherwise all files will be considered. This can be
+particularly problematic for surface-based files from Pybest, as there’s extra files being outputted
+by Pybest that make selection using these criteria difficult. For instance, if you have multiple runs,
+it saves out an average without “run”-identifier. However, it outputs the same file if you only have
+a single runs..</p></li>
+<li><p><strong>func</strong> (<em>str</em><em>, </em><em>list</em><em>, </em><em>optional</em>) – Reuse existing csv-file (&lt;output_dir&gt;/&lt;base_name&gt;/&lt;base_name&gt;_desc-tcs.csv)</p></li>
+<li><p><strong>excl_subjs</strong> (<em>list</em><em>, </em><em>optional</em>) – Exclude particular subjects present in the <em>ft_dir</em>, by default None</p></li>
+<li><p><strong>incl_subjs</strong> (<em>str</em><em>, </em><em>optional</em>) – Include particular subjects present in the <em>ft_dir</em>, by default None</p></li>
+<li><p><strong>n_jobs</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of jobs to use for the extraction, by default set to the number of subjects present</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – Make some noise, by default False</p></li>
+<li><p><strong>**kwargs</strong> (<em>dict</em>) – Same as <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs.extract_data" title="fmriproc.roi.ExtractFromROIs.extract_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs.extract_data()</span></code></a></p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.extract_single_subject">
+<span class="sig-name descname"><span class="pre">extract_single_subject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.extract_single_subject"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.extract_single_subject" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around <a class="reference internal" href="#fmriproc.roi.ExtractFromROIs" title="fmriproc.roi.ExtractFromROIs"><code class="xref py py-class docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractFromROIs</span></code></a> to extract data from a single subject</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.extract_subjects">
+<span class="sig-name descname"><span class="pre">extract_subjects</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.extract_subjects"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.extract_subjects" title="Link to this definition"></a></dt>
+<dd><p>Wrapper around <a class="reference internal" href="#fmriproc.roi.ExtractSubjects.extract_single_subject" title="fmriproc.roi.ExtractSubjects.extract_single_subject"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.roi.ExtractSubjects.extract_single_subject()</span></code></a> to loop through subjects</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.find_feat_files">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">find_feat_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.find_feat_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.find_feat_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.find_fmriprep_files">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">find_fmriprep_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'func'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.find_fmriprep_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.find_fmriprep_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.find_pybest_files">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">find_pybest_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">space</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.find_pybest_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.find_pybest_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.read_tcs_file">
+<span class="sig-name descname"><span class="pre">read_tcs_file</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.read_tcs_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.read_tcs_file" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.search_for_files">
+<span class="sig-name descname"><span class="pre">search_for_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.search_for_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.search_for_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.ExtractSubjects.set_subjects">
+<span class="sig-name descname"><span class="pre">set_subjects</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#ExtractSubjects.set_subjects"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.ExtractSubjects.set_subjects" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fmriproc.roi.</span></span><span class="sig-name descname"><span class="pre">FullExtractionPipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">proj_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">peak</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dec_kws</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_kws</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'roi_extract'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos_neg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_fit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#fmriproc.roi.ExtractSubjects" title="fmriproc.roi.ExtractSubjects"><code class="xref py py-class docutils literal notranslate"><span class="pre">ExtractSubjects</span></code></a></p>
+<p>Given a list of ROIs, extract the timecourses from all subjects’ preprocessed data in a level1 feat folder. If these ROIs
+are binary, the timecourses will be averaged across this entire area. If the ROIs are values (e.g., z-stat values), the n
+(default = 15) highest (default) /lowest (–lowest) values will be selected and averaged. These timecourses are entered in
+a deconvolution model using the canonical HRF and its derivatives as basis sets (default). From this model, parameters are
+extracted from the individual basis sets as well as the full HRF. Results are plotted and stored in a figure where the
+rows denote EVs (stimulus conditions. There’s a couple of default settings that you can generally leave alone, but there’s
+flags to changed them nonetheless.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>proj_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – Root of the project folder, defaults to os.environ.get(“DIR_DATA_HOME”). Mainly necessary for fetching onset files.</p></li>
+<li><p><strong>order</strong> (<em>list</em><em>, </em><em>optional</em>) – If performing deconvolution, a plot can be generated. This flag sets the order (rows). By default, we’ll take the order
+in the onset dataframe (unsorted).</p></li>
+<li><p><strong>peak</strong> (<em>int</em><em>, </em><em>optional</em>) – Deconvolution can sometimes cause exotic HRF shapes. This flag specifically tells the algorithm to select the first
+peak while extracting parameters.</p></li>
+<li><p><strong>dec_kws</strong> (<em>dict</em><em>, </em><em>optional</em>) – <p>Extra parameters for the deconvolution, by default:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">dec_defaults</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="mi">25</span><span class="p">],</span>
+    <span class="s2">&quot;basis_sets&quot;</span><span class="p">:</span> <span class="s2">&quot;canonical_hrf_with_time_derivative_dispersion&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;TR&quot;</span><span class="p">:</span> <span class="mi">2</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The format should be as follows (different parameters comma-separated, and parameter-value pair separated by ‘=’):
+“–dec &lt;parameter1&gt;=&lt;value1&gt;,&lt;parameter2&gt;=&lt;value2&gt;,&lt;parameterX&gt;=&lt;valueX&gt;”
+In case you want to change the interval over which the profiles are deconvolved, use “interval=t1&gt;t2” (separated by ‘&gt;’).</p>
+</p></li>
+<li><p><strong>plot_kws</strong> (<em>dict</em><em>, </em><em>optional</em>) – <p>Set parameters for plotting. The idea is similar to the “–dec” flag. The defaults are set to:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">plot_defaults</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;line_width&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>    <span class="c1"># thickness of the lines of profiles</span>
+    <span class="s2">&quot;y_dec&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>         <span class="c1"># number of decimals on y-axes (ensures correct spacing)</span>
+    <span class="s2">&quot;add_hline&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>     <span class="c1"># horizontal line at 0</span>
+    <span class="s2">&quot;sns_offset&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>    <span class="c1"># distance between y-axis and first bar in bar plot</span>
+    <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;se&quot;</span><span class="p">,</span>      <span class="c1"># error type (standard error of mean) for bar plot</span>
+    <span class="s2">&quot;cmap&quot;</span><span class="p">:</span> <span class="s2">&quot;Set1&quot;</span>      <span class="c1"># colormap Set1</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</p></li>
+<li><p><strong>output_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – path to output directory (default = $DIR_DATA_DERIV/roi_extract)</p></li>
+<li><p><strong>output_base</strong> (<em>str</em><em>, </em><em>optional</em>) – basename for output. Will also be used to create a subfolder in &lt;output_dir&gt;. “_desc-&lt;description&gt;” will
+be appended automatically. Defaults to “roi_extract” (very insightful, I know..)</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – print progress to the terminal</p></li>
+<li><p><strong>pos_neg</strong> (<em>bool</em><em>, </em><em>optional</em>) – Switch to different plotting function, by default False.</p></li>
+<li><p><strong>do_fit</strong> (<em>bool</em><em>, </em><em>optional</em>) – If False, we’ll only extract the data and will not perform deconvolution, by default True</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.generate_plot">
+<span class="sig-name descname"><span class="pre">generate_plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">include_pars</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['magnitude',</span> <span class="pre">'time_to_peak',</span> <span class="pre">'1st_deriv_time_to_peak',</span> <span class="pre">'2nd_deriv_time_to_peak',</span> <span class="pre">'rise_slope',</span> <span class="pre">'positive_area']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'time'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cdict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.generate_plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.generate_plot" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.generate_plot2">
+<span class="sig-name descname"><span class="pre">generate_plot2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">use_colors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">['#D97F75',</span> <span class="pre">'#9ABDD4']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_col</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'time'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">write_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cdict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subjects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.generate_plot2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.generate_plot2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.run_fitter">
+<span class="sig-name descname"><span class="pre">run_fitter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.run_fitter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.run_fitter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.sort_dataframe">
+<span class="sig-name descname"><span class="pre">sort_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.sort_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.sort_dataframe" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.sort_rois">
+<span class="sig-name descname"><span class="pre">sort_rois</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ddict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'#ffffff'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.sort_rois"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.sort_rois" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.write_csv_files">
+<span class="sig-name descname"><span class="pre">write_csv_files</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.write_csv_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.write_csv_files" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.roi.FullExtractionPipeline.write_settings">
+<span class="sig-name descname"><span class="pre">write_settings</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#FullExtractionPipeline.write_settings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.FullExtractionPipeline.write_settings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.roi.format_onsets">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.roi.</span></span><span class="sig-name descname"><span class="pre">format_onsets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">subject_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/roi.html#format_onsets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.roi.format_onsets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="prf.html" class="btn btn-neutral float-left" title="pRF" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="scanner.html" class="btn btn-neutral float-right" title="Scanner" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,5 +1,76 @@
 #!/usr/bin/env bash
 
+# ---------------------------------------------------------------------------------------------------
+# Get full path without the requirement that it exists
+generate_submission_command() {
+    local queue="$1"
+    local n_cpus="$2"
+    local job_name="$3"
+    local workdir="$4"   # This can be either a directory or a file
+
+    local system="unknown"
+    local command=""
+    local log_path=""
+
+    # Check scheduler type
+    system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
+
+    # Determine if workdir is a file or a directory
+    if [[ -d "$workdir" ]]; then
+      if [[ "$system" == "slurm" ]]; then
+        # SLURM auto appends filename if only directory is given
+        log_path="${workdir}/%x_%j.out"
+      else
+        # SoGE requires explicit filename
+        log_path="${workdir}/${job_name}.log"
+      fi
+    else
+      # Assume full file path is given
+      log_path="$workdir"
+    fi
+
+    # Build submission command
+    if [[ "$system" == "soge" ]]; then
+        command="qsub -q ${queue} -pe smp ${n_cpus} -N ${job_name} -o ${log_path} -j Y -V"
+    elif [[ "$system" == "slurm" ]]; then
+        command="sbatch --partition=${queue} --cpus-per-task=${n_cpus} --job-name=${job_name} --output=${log_path} --export=ALL"
+    fi
+
+    # Output the result
+    echo "$command"
+}
+
+
+# ---------------------------------------------------------------------------------------------------
+# Start timing a process
+function start_timer() {
+    echo
+    echo "==================================================================================================="
+    printf "${1}\n"
+    start=$(date +%s)
+    start_date=$(date)
+    printf "Started at ${start_date}\n"
+    echo "==================================================================================================="
+}
+
+# ---------------------------------------------------------------------------------------------------
+# End timing a process
+function end_timer() {
+    echo
+    echo "---------------------------------------------------------------------------------------------------"
+    end=$(date +%s)
+    end_date=$(date)
+    printf "Done at ${end_date}\n"
+
+    local deltatime=$((end - start))
+    local hours=$((deltatime / 3600))
+    local minutes=$(((deltatime / 60) % 60))
+    local seconds=$((deltatime % 60))
+
+    printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+    echo "---------------------------------------------------------------------------------------------------"
+}
+
 function conda2jupyter {
   conda activate ${1}
   python -m ipykernel install --user --name=${1}
@@ -943,7 +1014,7 @@ function add_prefix {
 }
 
 function get_id {
-  func=$(basename `readlink -f ${1}`)
+  func=$(basename $(readlink -f "${1}"))
   tag=${2}
   if [[ ${func} != *"${tag}"* ]]; then
     tag=""
@@ -988,7 +1059,7 @@ function start_ssh {
     ssh-add ${SSH_KEY}
     ssh -T git@github.com
   else
-    echo "${SSH_KEY} key not found!"
+    echo "${SSH_KEY} key not found! Confirm file exists or set SSH_KEY variable in ~/.bash_profile"
   fi
 }
 
@@ -1002,44 +1073,74 @@ function check_function {
   fi
 }
 
-# function to wait for a submitted job
-function wait_for_qsub {
+detect_scheduler() {
+  if command -v qsub >/dev/null 2>&1; then
+    echo "soge"
+  elif command -v sbatch >/dev/null 2>&1; then
+    echo "slurm"
+  else
+    echo "Error: Neither SoGE (qsub) nor SLURM (sbatch) detected. Remove --sge flag from call" >&2
+    return 1
+  fi
+}
+
+# Function to wait for a submitted job (supports both qsub (SGE) and sbatch (SLURM))
+function wait_for_job {
 
   if [[ $# -eq 0 ]]; then
     echo
     echo "---------------------------------------------------------------------------------------------------"
-    echo "wait_for_qsub"
+    echo "wait_for_job"
     echo
-    echo "This function waits until the execution of a submitted job has finished before continuing"
+    echo "This function waits until the execution of a submitted job has finished before continuing."
     echo
-    echo "Usage"
-    echo "  wait_for_qsub <job_name>"
+    echo "Usage:"
+    echo "  wait_for_job <job_name>"
     echo
-    echo "Examples"
-    echo "  wait_for_qsub \"sub-003_all\"    > waits for recon-all for sub-003 to finish"
+    echo "Examples:"
+    echo "  wait_for_job \"sub-003_all\"    # waits for job 'sub-003_all' to finish (SGE or SLURM)"
     echo "---------------------------------------------------------------------------------------------------"
     echo
-  else
-
-    # cut job to 9 characters
-    PID=$(qstat | grep -A0 "${1}" | awk '{print $1}')
-    
-    if [[ -z ${PID} ]]; then
-      echo "ERROR: could not find job!"
-      exit 1
-    fi
-
-    # PID=$(qstat | grep -A0 "qsub_test" | awk '{print $1}')
-    echo "Waiting for job to finish.."
-    while true; do
-      JOBRUNNING=$(qstat -u "`whoami`" | awk '$1 == '"${PID}"'' | wc -l)
-      if [[ ${JOBRUNNING} == "0" ]]; then
-        echo "Job done"
-        break
-      fi
-    done
+    return
   fi
 
+  JOB_NAME="$1"
+
+  # Detect scheduler: SGE/qsub or SLURM/sbatch
+  system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
+
+  # Handle job waiting for SGE (qsub)
+  if [[ "${system}" == "soge" ]]; then
+    # Find job ID based on job name
+    JOB_ID=$(qstat | grep -m1 -F "${JOB_NAME}" | awk '{print $1}')
+    
+    if [[ -z "${JOB_ID}" ]]; then
+      echo "ERROR: Could not find job '${JOB_NAME}' in SGE queue!"
+      return 1
+    fi
+
+    echo "Waiting for SGE job '${JOB_NAME}' (ID: ${JOB_ID}) to finish..."
+    while qstat -u "$(whoami)" | awk '$1 == '"${JOB_ID}"'' | grep -q .; do
+      sleep 10  # Check every 10 seconds
+    done
+    echo "SGE Job '${JOB_NAME}' finished."
+
+  # Handle job waiting for SLURM (sbatch)
+  elif [[ "${system}" == "slurm" ]]; then
+    # Find job ID based on job name
+    JOB_ID=$(squeue --name="${JOB_NAME}" --format="%A" | tail -n 1)
+
+    if [[ -z "${JOB_ID}" || "${JOB_ID}" == "JOBID" ]]; then
+      echo "ERROR: Could not find job '${JOB_NAME}' in SLURM queue!"
+      return 1
+    fi
+
+    echo "Waiting for SLURM job '${JOB_NAME}' (ID: ${JOB_ID}) to finish..."
+    while squeue -u "$(whoami)" --job "${JOB_ID}" | grep -q "${JOB_ID}"; do
+      sleep 10  # Check every 10 seconds
+    done
+    echo "SLURM Job '${JOB_NAME}' finished."
+  fi
 }
 
 
@@ -1054,9 +1155,8 @@ function get_module_nr() {
     echo "get_module_nr"
     echo
     echo "Function to get the module number given an input string. It reads the help-text of the master script"
-    echo "in fmriproc/shell/master from line 56 to 100 and looks for the module corresponding to the input"
-    echo "string. I have this because module numbers tend to change and I don't feel like looking that up every"
-    echo "time.."
+    echo "in REPO_DIR/misc/modules.txt and looks for the module corresponding to the input string. I have this"
+    echo "because module numbers tend to change and I don't feel like looking that up every time.."
     echo
     echo "The more specific you are with your string, the more stable the result will be. Important is that the"
     echo "format as specified in the master-script is maintained. This is because it looks for the leading semi-"
@@ -1071,18 +1171,27 @@ function get_module_nr() {
     echo "---------------------------------------------------------------------------------------------------"
     echo
   else
-    # Function to fetch the module number by reading the 'help' info from the master-script. It
-    # accepts a string to look for as argument.
-    start=`sed -n '/Available modules/=' ${DIR_SCRIPTS}/shell/master`
-    end=`sed -n '/--END--/=' ${DIR_SCRIPTS}/shell/master`
-    mods=`sed -n "${start},${end}p" ${DIR_SCRIPTS}/shell/master | grep -A0 "${1}"  | awk '{print $1}' | cut -d"-" -f2 | cut -d':' -f1`
+    # Path to the modules.txt file
+    modules_txt="${REPO_DIR}/misc/modules.txt"
 
-    # store in array and sort
-    IFS=$'\n' mods_sort=($(sort <<<"${mods[*]}"))
-    unset IFS
-    echo ${mods_sort[@]}
+    # Read file safely (works on macOS and Linux)
+    if [[ ! -f "$modules_txt" ]]; then
+      echo "Error: Modules file not found at $modules_txt" >&2
+      return 1
+    fi
+
+    # Process file to extract module numbers that match the search string(s)
+    mods=$(grep "$1" "$modules_txt" | awk '{print $1}' | cut -d"-" -f2 | cut -d':' -f1)
+
+    # Sort and return results (space-separated)
+    if [[ -n "$mods" ]]; then
+      echo "$mods" | sort | tr '\n' ' '
+      echo
+    else
+      echo "No matching module found for \"$1\"" >&2
+      return 1
+    fi
   fi
-
 }
 
 # get extension from file
@@ -1098,7 +1207,7 @@ function fetch_filepath {
 
   # if file specified is in current directory, add entire path
   if [[ `echo ${1:0:1}` != "/" ]]; then
-    INPUT=`readlink -f ${1}`
+    INPUT=$(readlink -f "${1}")
   else
     INPUT=${1}
   fi
@@ -1109,16 +1218,15 @@ function fetch_filepath {
 #-----------------------------------------------------------------------------
 # Define function to call matlab given a script
 function call_matlab {
-
   if [[ $# -ne 1 ]]; then
-    echo "Received 0 arguments, need the path to the matlab script"
+    echo "Received 0 arguments, need the path to the MATLAB script"
     echo
     echo "---------------------------------------------------------------------------------------------------"
     echo "call_matlab"
     echo
-    echo "Wrapper to call matlab from the command line. It'll need a full path to the script and will read"
-    echo "from the SKIP_LINES variable how many lines should be skipped during start up. Seeing all those"
-    echo "module that are added is rather redundant."
+    echo "Wrapper to call MATLAB from the command line. It'll need a full path to the script and will read"
+    echo "from the SKIP_LINES variable how many lines should be skipped during start-up. Seeing all those"
+    echo "modules that are added is rather redundant."
     echo
     echo "Usage:"
     echo "  call_matlab <string_to_matlab_script>"
@@ -1127,19 +1235,40 @@ function call_matlab {
     echo "  call_matlab /path/to/my/matlab_script.m"
     echo "---------------------------------------------------------------------------------------------------"
     echo
-  else
-    if [[ ! -z ${SKIP_LINES} ]]; then
-      skip_lines=${SKIP_LINES}
-    else
-      skip_lines=0
-    fi
+    return 1
+  fi
 
-    MATLAB_SCRIPT=`fetch_filepath ${1}`
-    ${MATLAB_CMD} "addpath('$(dirname ${MATLAB_SCRIPT})'); $(basename ${MATLAB_SCRIPT} .m); quit" | tail -n +${skip_lines} # suppress intro text
-    if [[ $? -ne 0 ]]; then
-      exit 1
-    fi
-  fi  
+  # Check if SKIP_LINES is set; otherwise, default to 0
+  local skip_lines=${SKIP_LINES:-0}
+
+  # Fetch the absolute path of the MATLAB script
+  local MATLAB_SCRIPT=$(fetch_filepath "${1}")
+  
+  # Check if MATLAB_CMD contains 'spm_mcr' or 'run_spm12.sh'
+  if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+    # If using MCR, do NOT modify the path
+    echo "Running with MCR command: ${MATLAB_CMD}"
+    
+    # Save the current LD_LIBRARY_PATH
+    local OLD_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+
+    # add the libraries
+    export PATH=$MCRROOT/bin:$PATH
+    export LD_LIBRARY_PATH=$MCRROOT/runtime/glnxa64:$MCRROOT/bin/glnxa64:$MCRROOT/sys/os/glnxa64
+    ${MATLAB_CMD} "${MATLAB_SCRIPT}" | tail -n +${skip_lines}
+
+    # unset LD_LIBRARY_PATH
+     export LD_LIBRARY_PATH="$OLD_LD_LIBRARY_PATH"
+
+  else
+    # If using standard MATLAB, add path and execute
+    ${MATLAB_CMD} "addpath('$(dirname "${MATLAB_SCRIPT}")'); $(basename "${MATLAB_SCRIPT}" .m); quit" | tail -n +${skip_lines}
+  fi
+
+  # Check exit status and return appropriately
+  if [[ $? -ne 0 ]]; then
+    return 1
+  fi
 }
 
 #-----------------------------------------------------------------------------
@@ -1184,7 +1313,14 @@ function make_sanlm_script {
     echo "% Created on `date`. SANLM-filtering with CAT12"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.data = {'${2},1'};"
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.prefix = 'sanlm_';"
     echo "matlabbatch{1}.spm.tools.cat.tools.sanlm.NCstr = Inf;"
@@ -1232,7 +1368,14 @@ function make_suit_script {
     echo "% Created on `date`. Cerebellum segmentation with SUIT"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
+    
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+
     echo "matlabbatch{1}.spm.tools.suit.isolate_seg.source = {{'${2},1'}};"
     echo "matlabbatch{1}.spm.tools.suit.isolate_seg.bb = [-76 76"
     echo "                                                -108 -6"
@@ -1283,7 +1426,7 @@ function make_nordic_script {
     echo "% Created on `date`. Nordic on $(basename ${1})"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
+    echo "addpath(genpath('${REPO_DIR}/misc'));"
     echo "ARG.DIROUT              = '$(dirname ${3})/';"
     # echo "ARG.temporal_phase      = 1;"
     # echo "ARG.phase_filter_width  = 10;"
@@ -1326,7 +1469,7 @@ Example:
 USAGE
 }
 
-  in_file=`readlink -f ${1}`
+  in_file=$(readlink -f "${1}")
   interp=${2}
   output_dir=${3}
   base_name=${4}
@@ -1365,9 +1508,9 @@ USAGE
     echo "% Created on `date`. Projecting $(basename ${in_file}) to FSAverage"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
-    echo "lh_map = '${DIR_SCRIPTS}/misc/CBIG_lh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
-    echo "rh_map = '${DIR_SCRIPTS}/misc/CBIG_rh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
+    echo "addpath(genpath('${REPO_DIR}/misc'));"
+    echo "lh_map = '${REPO_DIR}/misc/CBIG_lh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
+    echo "rh_map = '${REPO_DIR}/misc/CBIG_rh.avgMapping_allSub_RF_ANTs_MNI152_orig_to_fsaverage.mat';"
     echo "input = MRIread('${in_file}');"
     echo "[lh_proj_data, rh_proj_data] = CBIG_RF_projectMNI2fsaverage('${in_file}', '${interp}', lh_map, rh_map);"
     echo ""
@@ -1395,6 +1538,8 @@ function make_bias_script {
     echo "make_bias_script"
     echo
     echo "Make a matlab script to be called with call_matlab to bias correct your image with SPM".
+    echo "Uses: \"${REPO_DIR}/misc/spm_batch_bias.m\"."
+    echo "This file can be changed according to your needs."
     echo ""
     echo "Args:"
     echo "  <spm_path>  path to the desired SPM-installation"
@@ -1414,42 +1559,21 @@ function make_bias_script {
     echo "% Created on `date`. Bias field correction with SPM12"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.vols = {'${2},1'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.biasreg = 0.001;"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.biasfwhm = 60;"
-    echo "matlabbatch{1}.spm.spatial.preproc.channel.write = [1 1];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).tpm = {'${1}/tpm/TPM.nii,1'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).ngaus = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(1).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).tpm = {'${1}/tpm/TPM.nii,2'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).ngaus = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(2).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).tpm = {'${1}/tpm/TPM.nii,3'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).ngaus = 2;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(3).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).tpm = {'${1}/tpm/TPM.nii,4'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).ngaus = 3;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(4).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).tpm = {'${1}/tpm/TPM.nii,5'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).ngaus = 4;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(5).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).tpm = {'${1}/tpm/TPM.nii,6'};"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).ngaus = 2;"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).native = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.tissue(6).warped = [0 0];"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.mrf = 1;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.cleanup = 0;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.reg = [0 0.001 0.5 0.05 0.2];"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.affreg = 'mni';"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.fwhm = 0;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.samp = 3;"
-    echo "matlabbatch{1}.spm.spatial.preproc.warp.write = [0 0];"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    ) >> "${3}"
+
+    batch_file="${REPO_DIR}/misc/spm_batch_bias.m"
+    cat "${batch_file}" >> "${3}"
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${3}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${3}"
+
+    (
     echo ""
     echo "spm_jobman('initcfg');"
     echo "spm('defaults','fMRI')"
@@ -1475,14 +1599,14 @@ function make_physio_script {
     echo "dings from the scanner using the PhysIO-toolbox as part of TAPAS"
     echo ""
     echo "Args:"
-    echo "  <spm_path>  path to the desired SPM-installation"
-    echo "  <input>     input file; assumed to be the output from \"scanphyslog2bids\" (.tsv.gz-file)"
-    echo "  <tr>        repetition time of acquisition"
-    echo "  <volumes>   number of volumes in the functional run"
-    echo "  <output>    directory+basename for output files (extensions will be appended)"
-    echo "  <dummies>   number of dummy volumes"
-    echo "  <n_slices>  number of slices in the volume"
-    echo "  <script>    script name"
+    echo "  <spm_path>  (1) path to the desired SPM-installation"
+    echo "  <input>     (2) input file; assumed to be the output from \"scanphyslog2bids\" (.tsv.gz-file)"
+    echo "  <tr>        (3) repetition time of acquisition"
+    echo "  <volumes>   (4) number of volumes in the functional run"
+    echo "  <output>    (5) directory+basename for output files (extensions will be appended)"
+    echo "  <dummies>   (6) number of dummy volumes"
+    echo "  <n_slices>  (7) number of slices in the volume"
+    echo "  <script>    (8) script name"
     echo ""
     echo "Usage:"
     echo "  make_physio_script <path/to/spm12> <physio.tsv.gz> <tr> <volumes> <output> <string_to_matlab_script>"
@@ -1493,7 +1617,16 @@ function make_physio_script {
     echo
   else
 
-    ext=`fetch_extension ${2}`
+    local spm_path="${1}"
+    local input_file="${2}"
+    local tr=${3}
+    local vols=${4}
+    local output="${5}"
+    local dummies=${6}
+    local n_slices=${7}
+    local job_name="${8}"
+
+    ext=`fetch_extension "${input_file}"`
     if [[ ${ext,,} == "log" ]]; then
       vendor="philips"
     else
@@ -1505,53 +1638,35 @@ function make_physio_script {
     echo "% Created on `date`. Create PhysIO regressors from SCANPHYSLOG"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo "matlabbatch{1}.spm.tools.physio.save_dir = {''};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.vendor = '${vendor}';"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.cardiac = {'${2}'};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.respiration = {'${2}'};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.scan_timing = {''};"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.sampling_interval = [];"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.relative_start_acquisition = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.log_files.align_scan = 'first';"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nslices = ${7};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.NslicesPerBeat = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.TR = ${3};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Ndummies = ${6};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nscans = ${4};"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.onset_slice = 1;"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.time_slice_to_slice = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sqpar.Nprep = [];"
-    echo "matlabbatch{1}.spm.tools.physio.scan_timing.sync.nominal = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.modality = 'PPU';"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.filter.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.min = 0.4;"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.file = 'initial_cpulse_kRpeakfile.mat';"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.initial_cpulse_select.auto_matched.max_heart_rate_bpm = 120;"
-    echo "matlabbatch{1}.spm.tools.physio.preproc.cardiac.posthoc_cpulse_select.off = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.output_multiple_regressors = '${5}.tsv';"
-    echo "matlabbatch{1}.spm.tools.physio.model.output_physio = '${5}.mat';"
-    echo "matlabbatch{1}.spm.tools.physio.model.orthogonalise = 'none';"
-    echo "matlabbatch{1}.spm.tools.physio.model.censor_unreliable_recording_intervals = false;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.c = 3;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.r = 4;"
-    echo "matlabbatch{1}.spm.tools.physio.model.retroicor.yes.order.cr = 1;"
-    echo "matlabbatch{1}.spm.tools.physio.model.rvt.yes.delays = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.model.hrv.yes.delays = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.model.noise_rois.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.movement.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.model.other.no = struct([]);"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.level = 0;"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.fig_output_file = '';"
-    echo "matlabbatch{1}.spm.tools.physio.verbose.use_tabs = false;"
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${spm_path}'));"
+    fi
+    ) >> "${job_name}"
+
+    batch_file=${REPO_DIR}/misc/spm_batch_phys.m
+    cat "${batch_file}" >> "${job_name}"
+
+    call_replace CHANGE_THIS_INPUT "${input_file}" "${job_name}"
+    call_replace CHANGE_THIS_VENDOR "${vendor}" "${job_name}"
+    call_replace CHANGE_THIS_N_SLICES ${n_slices} "${job_name}"
+    call_replace CHANGE_THIS_TR ${tr} "${job_name}"
+    call_replace CHANGE_THIS_N_DUMMIES ${dummies} "${job_name}"
+    call_replace CHANGE_THIS_N_VOLS ${vols} "${job_name}"
+    call_replace CHANGE_THIS_OUTPUT ${output} "${job_name}"
+
+    (
     echo ""
     echo "spm_jobman('initcfg');"
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('run', matlabbatch);"
     echo "exit"
-    ) >> ${8}
+    ) >> "${job_name}"
 
-    cat ${8} | grep -A0 "matlabbatch{" >> $(dirname ${8})/$(basename ${8} .m)_batch.m
+    cat "${job_name}" | grep -A0 "matlabbatch{" >> $(dirname "${job_name}")/$(basename "${job_name}" .m)_batch.m
 
   fi
   
@@ -1561,7 +1676,7 @@ function make_physio_script {
 # SPM BRAIN MASK SCRIPT
 function make_mask_script {
 
-  if [[ $# -ne 3 ]]; then
+  if [[ $# -ne 4 ]]; then
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
@@ -1573,6 +1688,7 @@ function make_mask_script {
     echo "Args:"
     echo "  <spm_path>  path to the desired SPM-installation"
     echo "  <input>     input image (gunzip'ed nii-file), generally the INV2 image of an MP2RAGE sequence"
+    echo "  <output>    output image (mask)"
     echo "  <script>    script name"
     echo ""
     echo "Usage:"
@@ -1586,21 +1702,31 @@ function make_mask_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. spmBrainMask on INV-2 image"
+    echo "% Created on `date`. Running with ${VER}"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${DIR_SCRIPTS}/misc'));"
-    echo "addpath(genpath('${1}'));"
     echo ""
-    echo "niifile = '${2}';"
-    echo "maskfile=spmBrainMask(niifile);"
+    ) >> "${4}"
+
+    # echo to file
+    batch_file=${REPO_DIR}/misc/spmBrainMask_spm12_job.m
+    cat "${batch_file}" >> "${4}"
+
+    # perl is agnostic to MacOS/Linux
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${4}"
+    call_replace CHANGE_THIS_OUTPUT "${3}" "${4}"
+
+    (
     echo ""
-    echo "exit;"
-    ) >> ${3}
+    echo "spm_jobman('initcfg');"
+    echo "spm('defaults','fMRI')"
+    echo "spm_jobman('serial', matlabbatch);"
+    echo "exit"
+    ) >> "${4}"
     
   fi
 }
-
 
 #-----------------------------------------------------------------------------
 # CAT12 SCRIPT
@@ -1638,12 +1764,29 @@ function make_cat_script {
     fi
 
     # Check if we have compatible version; we're using 12.6!!
+
     VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170")
-    if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
-      :
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
+    if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
+      if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
+        batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
+      else
+        echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
+        for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
+        echo
+        echo "If you have a different version, use the CAT12 GUI to generate a matlabbatch file"
+        echo "See \"${REPO_DIR}/misc/cat_batch_r2556.m\" for an example"
+        echo "Use the \"view .m code\" option and save the file as \"${REPO_DIR}/misc/cat_batch_custom.m\""
+        echo "Ensure that all variables starting with \"CHANGE_*\" have the same format!"
+        exit 1
+      fi
     else
-      echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
+      batch_file=${REPO_DIR}/misc/cat_batch_custom.m
+      echo "Using custom batch-file: \"${batch_file}\""
+    fi
+
+    if [[ ! -f ${batch_file} ]]; then
+      echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
       for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
       exit 1
     fi
@@ -1654,317 +1797,47 @@ function make_cat_script {
       exit 1
     fi
 
-    if [[ ${PLACE} == "SGE" ]]; then
-      CPUs=0
-    else
-      CPUs=0
-    fi
-
     (
     echo "%-----------------------------------------------------------------------------"
     echo "% Created on `date`. Running with ${VER}"
     echo ""
     echo "clear;"
-    echo "addpath(genpath('${1}'));"
-    echo ""
+
+    # deal with MCR
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${1}'));"
+    fi
+    
     ) >> ${4}
 
-    if [[ ${VER} != "2170" ]]; then
-      (
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.data = {'${2},1'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.nproc = ${CPUs};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.tpm = {'${1}/tpm/TPM.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.dartel = 0;"  
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.dartel = 0;" 
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.dartel = 0;"   
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.warps = [0 0];"
-      ) >> ${4}
-
-      if [[ ${3} == 'brain' ]]; then
-        echo "Turning off bias/intensity correction & sanlm-filtering"
-        bias_reg=0
-        bias_fhwm="Inf"
-        app=0
-        sanlm=0
-      else
-        bias_reg=0.001
-        bias_fhwm=60
-        app=2
-        sanlm=2
-      fi
-
-      if [[ ${VER} == "1113" ]]; then
-
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.ngaus = [1 1 2 3 4 2];"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasreg = ${bias_reg};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasfwhm = ${bias_fhwm};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.warpreg = [0 0.001 0.5 0.05 0.2];"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.samp = 3;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.APP = ${app};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.sanlm = ${sanlm};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.NCstr = -Inf;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.LASstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.gcutstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.regstr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.WMHCstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.darteltpm = {'${1}/toolbox/cat12/templates_1.50mm/Template_1_IXI555_MNI152.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.vox = 1.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROI = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.neuromorphometrics = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.lpba40 = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.cobra = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlases.hammers = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobian.warped = 0;"
-        ) >> ${4}
-
-      elif [[ ${VER} == "1450" ]]; then
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = 0.75;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 1070;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = -Inf;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.dartel.darteltpm = {'${1}/toolbox/cat12/templates_1.50mm/Template_1_IXI555_MNI152.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.vox = 1.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.noROI = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-        ) >> ${4}
-
-      elif [[ ${VER} == "2043" ]]; then
-        (
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.data_wmh = {''};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.useprior = '';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = eps;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.setCOM = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.affmod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.spm_kamap = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.75;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASmyostr = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.BVCstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.mrf = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.shootingtpm = {'${1}/toolbox/cat12/templates_MNI152NLin2009cAsym/Template_0_GS.nii'};"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.regstr = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.vox = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.bb = 12;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtmethod = 'pbt2x';"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.SRP = 22;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.reduce_mesh = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.vdist = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.experimental = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.new_release = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.lazy = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.BIDS.BIDSno = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surf_measures = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.noROI = struct([]);"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.warped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.mod = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.dartel = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.labelnative = 1;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-        echo "matlabbatch{1}.spm.tools.cat.estwrite.output.rmat = 0;"
-      ) >> ${4}
-      fi
+    if [[ ${3} == 'brain' ]]; then
+      echo "Turning off bias/intensity correction & sanlm-filtering"
+      bias_str=2.2204e-16 # ultralight
+      bias_reg=0.01       # ultralight
+      bias_fhwm=90        # ultralight
+      app=0               # none
+      sanlm=0             # none
     else
-
-      if [[ ${3} == 'brain' ]]; then
-        echo "Turning off bias/intensity correction & sanlm-filtering"
-        bias_reg=0
-        bias_fhwm="Inf"
-        app=0
-        sanlm=0
-      else
-        bias_reg=0.001
-        bias_fhwm=60
-        app=2
-        sanlm=2
-      fi
-
-      (
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.data = {'${2},1'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.nproc = ${CPUs};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.useprior = '';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.tpm = {'${1}/tpm/TPM.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.affreg = 'mni';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.biasstr = 2.22044604925031e-16;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.opts.accstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.restypes.native = struct([]);"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.setCOM = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.APP = 1070;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.affmod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.NCstr = ${sanlm};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.spm_kamap = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.LASmyostr = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.gcutstr = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.cleanupstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.BVCstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.WMHC = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.SLC = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.segmentation.mrf = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.shootingtpm = {'${1}/toolbox/cat12/templates_MNI152NLin2009cAsym/Template_0_GS.nii'};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.regmethod.shooting.regstr = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.vox = 1.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.registration.bb = 12;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtres = 0.5;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.pbtmethod = 'pbt2x';"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.SRP = 22;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.reduce_mesh = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.vdist = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.scale_cortex = 0.7;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.add_parahipp = 0.1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.surface.close_parahipp = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.experimental = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.new_release = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.lazy = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.ignoreErrors = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.verb = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.extopts.admin.print = 2;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.BIDS.BIDSno = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surface = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.surf_measures = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.neuromorphometrics = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.lpba40 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.cobra = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.hammers = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.thalamus = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.thalamic_nuclei = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.suit = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.ibsr = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.aal3 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.mori = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.anatomy3 = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.julichbrain = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Tian_Subcortex_S4_7T = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_100Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_200Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_400Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.Schaefer2018_600Parcels_17Networks_order = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ROImenu.atlases.ownatlas = {''};"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.GM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WM.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.CSF.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.ct.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.pp.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.WMH.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.SL.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.mod = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.TPMC.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.atlas.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.native = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.label.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.labelnative = 1;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.bias.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.native = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.warped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.las.dartel = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.jacobianwarped = 0;"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.warps = [0 0];"
-      echo "matlabbatch{1}.spm.tools.cat.estwrite.output.rmat = 0;"
-      ) >> ${4}
+      bias_str=0.25       # light
+      bias_reg=0.001      # medium
+      bias_fhwm=60        # medium
+      app=1070            # default
+      sanlm=1             # classic
     fi
+
+    # echo to file
+    cat "${batch_file}" >> ${4}
+
+    # # change parameters (perl is agnostic to MacOS/Linux)
+    call_replace CHANGE_THIS_SPM_PATH "${1}" ${4}
+    call_replace CHANGE_THIS_INPUT "${2}" ${4}
+    call_replace CHANGE_BIAS_STR "${bias_str}" ${4}
+    call_replace CHANGE_BIAS_REG "${bias_reg}" ${4}
+    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" ${4}
+    call_replace CHANGE_THIS_APP_TERM "${app}" ${4}
+    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" ${4}
 
     (
     echo ""
@@ -1982,149 +1855,4 @@ function make_cat_script {
 
     cat ${4} | grep -A0 "matlabbatch{" >> $(dirname ${4})/$(basename ${4} .m)_batch.m
   fi
-}
-
-
-#-----------------------------------------------------------------------------
-# HTML started mimicking fMRIprep
-function make_html_start {
-
-  cat > ${1} << EOF
-
-<?xml version="1.0" encoding="utf-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<meta name="generator" content="Docutils 0.12: http://docutils.sourceforge.net/" />
-<title></title>
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
-<style type="text/css">
-.sub-report-title {}
-.run-title {}
-
-h1 { padding-top: 35px; }
-h2 { padding-top: 20px; }
-h3 { padding-top: 15px; }
-
-.elem-desc {}
-.elem-caption {
-    margin-top: 15px
-    margin-bottom: 0;
-}
-.elem-filename {}
-
-div.elem-image {
-  width: 100%;
-  page-break-before:always;
-}
-
-.elem-image object.svg-reportlet {
-    width: 100%;
-    padding-bottom: 5px;
-}
-body {
-    padding: 65px 10px 10px;
-}
-
-.boiler-html {
-    font-family: "Bitstream Charter", "Georgia", Times;
-    margin: 20px 25px;
-    padding: 10px;
-    background-color: #F8F9FA;
-}
-
-div#boilerplate pre {
-    margin: 20px 25px;
-    padding: 10px;
-    background-color: #F8F9FA;
-}
-
-#errors div, #errors p {
-    padding-left: 1em;
-}
-</style>
-</head>
-<body>
-
-
-<nav class="navbar fixed-top navbar-expand-lg navbar-light bg-light">
-<div class="collapse navbar-collapse">
-    <ul class="navbar-nav">
-        <li class="nav-item"><a class="nav-link" href="#Summary">Summary</a></li>
-        <li class="nav-item"><a class="nav-link" href="#Anatomical">Anatomical</a></li>
-    </ul>
-</div>
-</nav>
-<noscript>
-    <h1 class="text-danger"> The navigation menu uses Javascript. Without it this report might not work as expected </h1>
-</noscript>
-
-    <div id="Summary">
-    <h1 class="sub-report-title">Summary</h1>
-        <div id="datatype-figures_desc-summary_suffix-T1w">
-                    <ul class="elem-desc">
-		<li>Structural images: 1 T1-weighted </li>
-		<li>FreeSurfer reconstruction: Run by fMRIPrep</li>
-	</ul>
-        </div>
-    </div>
-    <div id="Anatomical">
-
-EOF
-
-}
-
-
-function make_html_end {
-
-  cat >> ${1} << EOF
-
-        </div>
-        <div id="datatype-figures_regex_search-True_space-.*_suffix-T1w">
-
-<script type="text/javascript">
-    function toggle(id) {
-        var element = document.getElementById(id);
-        if(element.style.display == 'block')
-            element.style.display = 'none';
-        else
-            element.style.display = 'block';
-    }
-</script>
-</body>
-</html>
-
-EOF
-}
-
-function scanner_v_itksnap {
-
-    cat <<USAGE
-
-SCANNER VS ITKSNAP SOFTWARE ANGLES
---------------------------------------------------------------------------------------------------------
-Translation values:
-    ________|__ITKSNAP________________________________|__SCANNER_______________________________
-    X (LR)  |  R = +mm (R = pos; L is neg)            |  L = +mm (R = neg; L = pos)
-    Y (AP)  |  A = +mm (A = pos; P = neg)             |  P = +mm (A = neg; P = pos)
-    Z (FH)  |  F = +mm (F = pos; H = neg)             |  H = +mm (F = neg; H = pos)
-
-Orientation values:
-    ________|__ITKSNAP________________________________|__SCANNER_______________________________
-    X (LR)  |  neg = counterclock; pos = clockwise    |  neg = clockwise;    pos = counterclock
-    Y (AP)  |  neg = clockwise;    pos = counterclock |  neg = counterclock; pos = clockwise
-    Z (FH)  |  neg = clockwise;    pos = counterclock |  neg = counterclock; pos = clockwise
-
-As you can see, the values are interpreted inversely, meaning we need to flip the signs of the rotation
-and translation if we want values corresponding to scanner customs.
-
-Another important note to make: the voxel values from coordinates.csv are indexed starting from 0.
-Other software packages, such as ITKSNAP indexes starting from 1. If you want the correct value from
-coordinates.csv in ITK-Snap, add 1 to all dimensions.
-
-USAGE
-
 }

@@ -15,7 +15,7 @@ def correct_angle(x, verbose=False, only_angles=True):
     verbose: bool 
         print messages during the process (default = False)
     only_angles: bool 
-        if we are getting the angles for real, we need to decide what the angle with the z-axis means. We do this by returning an additional variable 'z_axis_represents_angle_around' so that we know in :func:`linescanning.utils.get_console_settings` where to place this angle. By default this is false, and it will only return converted angles. When doing the final conversion, the real one, turn this off (default = True).
+        if we are getting the angles for real, we need to decide what the angle with the z-axis means. We do this by returning an additional variable 'z_axis_represents_angle_around' so that we know in :func:`fmriproc.planning.get_console_settings` where to place this angle. By default this is false, and it will only return converted angles. When doing the final conversion, the real one, turn this off (default = True).
 
     Returns
     ----------
@@ -318,9 +318,9 @@ def get_console_settings(angles, hemi, idx, z_axis_meaning="Y"):
         idx: int
             this should be the integer representing the selected vertex. This is also only stored in the dataframe. No operations are executed on it
         z_axis: str
-            this string specifies how to interpret the angle with the z-axis: as angle around the X (RL) or Y (AP) axis. This can be obtained by turning off <only_angles> in :func:`linescanning.utils.correct_angle`. By default it's set to 'Y', as that means we're dealing with a coronal slice; the most common one. Though we can also get sagittal slices, so make sure to do this dilligently.
+            this string specifies how to interpret the angle with the z-axis: as angle around the X (RL) or Y (AP) axis. This can be obtained by turning off <only_angles> in :func:`fmriproc.planning.correct_angle`. By default it's set to 'Y', as that means we're dealing with a coronal slice; the most common one. Though we can also get sagittal slices, so make sure to do this dilligently.
         foldover: str
-            foldover direction of the OVS bands. Generally this will be FH, but there are instances where that does not apply. It can be returned by `linescanning.utils.correct_angle(foldover=True)`
+            foldover direction of the OVS bands. Generally this will be FH, but there are instances where that does not apply. It can be returned by :func:`fmriproc.planning.correct_angle(foldover=True)`
 
     Returns
     ----------
@@ -431,11 +431,14 @@ def rotate_normal(norm, xfm, system="RAS"):
     xfm: numpy.ndarray, str
         (4,4) affine numpy array or string pointing to the matrix-file, can also be 'identity', in which case np.eye(4) will be used. This is handy for planning the line in session 1/FreeSurfer space
     system: str
-        use RAS (freesurfer) or LPS (ITK) coordinate system. This is important as we need to apply the matrix in the coordinate system that the vector is living in. e.g., RAS vector = RAS matrix (not ANTs' default), LPS vector = LPS matrix. If LPS, then :func:`linescanning.utils.get_matrixfromants` is used, otherwise the matrix is first converted to ras with `ConvertTransformFile` and then read in with `np.loadtxt`.
+        use RAS (freesurfer) or LPS (ITK) coordinate system. This is important as we need to apply the matrix in the coordinate system that the vector is living in. e.g., RAS vector = RAS matrix (not ANTs' default), LPS vector = LPS matrix. If LPS, then :func:`lazyfmri.utils.get_matrixfromants` is used, otherwise the matrix is first converted to ras with `ConvertTransformFile` and then read in with `np.loadtxt`.
 
     Example
     ----------
-    >>> rotate_normal(normal_vector, xfm, system="LPS")
+    
+    .. code-block:: python
+
+        rotate_normal(normal_vector, xfm, system="LPS")
 
     Notes
     ----------

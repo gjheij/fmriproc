@@ -2,7 +2,8 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -49,6 +50,9 @@ do
       case "${OPTARG}" in
         sge)
           submit=1
+          if [[ ! -d ${DIR_LOGS} ]]; then
+            mkdir -p ${DIR_LOGS} 2>/dev/null
+          fi
           ;;
     *)
       if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -66,7 +70,7 @@ do
   esac
 done
 
-fsf_file=`readlink -f ${@:$OPTIND:1}`
+fsf_file=$(readlink -f "${@:$OPTIND:1}")
 if [[ $# -lt 2 ]] ; then
   Usage >&2
   exit 1
@@ -81,17 +85,11 @@ fi
 
 (
 echo "#!/bin/bash"
-echo "#$ -S /bin/bash"
-echo "#$ -N ${job_name}"
-echo "#$ -o ${base_name}.log"
-echo "#$ -j Y"
-echo "#$ -q ${SGE_QUEUE}"
-echo "#$ -V"
 echo "feat ${fsf_file}"
 ) > ${fsf_script}
 
 if [[ ${submit} -eq 1 ]]; then
-  job="qsub -pe smp ${n_cpus}"
+  job=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${base_name} ${DIR_LOGS})
 else
   job="bash"
 fi

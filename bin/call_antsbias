@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# Create help text
+#---------------------------------------------------------------------------------------------------
+# call_antsbias - Wrapper for ANTs N4BiasFieldCorrection with flexible options passthrough
+#---------------------------------------------------------------------------------------------------
+
 function Usage {
     cat <<USAGE
 
@@ -9,16 +11,28 @@ function Usage {
 call_antsbias
 
 Wrapper for bias field correction with ANTs' N4-function. Takes an input file and an output file
-using default setting for 'N4BiasFieldCorrection'. To add more custom functionalities, just add them
-to the N4-call in this script.
+using default setting for 'N4BiasFieldCorrection'. You can add more flags directly to the function
+after specifying the input and output files.
 
-If output is left empty, '_desc-bfc.nii.gz' will be appended to the input file per default
+This script allows specifying:
+- Required input file
+- Required output file
+- Any additional options from N4BiasFieldCorrection, passed as extra arguments (kwargs).
 
 Usage:
-  call_antsbias <input file> <output file>
+  call_antsbias [default_options] <input file> <output file> [extra_options]
+
+Options:
+  -o                Overwrite existing output file
+  -v                Make some noise
+  [extra_options]   anything after gets passed to N4BiasFieldCorrection
 
 Example:
-  call_antsbias /path/to/inputfile.nii.gz /path/to/outputfile.nii.gz
+  call_antsbias -s 4 input.nii.gz output.nii.gz -x mask.nii.gz -r 1
+
+Notes:
+see https://github.com/ANTsX/ANTs/wiki/N4BiasFieldCorrection for more information on the relation-
+ship between parameters (especially spline spacing & convergence)
 
 ---------------------------------------------------------------------------------------------------
 
@@ -26,36 +40,87 @@ USAGE
     exit 1
 }
 
-if [[ $# -lt 1 ]] ; then
-  Usage >&2
+#---------------------------------------------------------------------------------------------------
+# Defaults
+ow=0
+verbose=0
+
+#---------------------------------------------------------------------------------------------------
+# Parse options
+while getopts "vo:" opt; do
+  case $opt in
+    o) ow=1 ;;
+    v) verbose=1 ;;
+    *) Usage ;;
+  esac
+done
+shift $((OPTIND-1))
+
+#---------------------------------------------------------------------------------------------------
+# Required arguments
+if [[ $# -lt 1 ]]; then
+  Usage
+fi
+
+input="$(readlink -f "$1")"
+output="${2:-}"
+
+shift 2 || true  # Shift away input & output arguments if present
+
+# Capture any additional arguments passed after "--"
+extra_args=()
+while [[ $# -gt 0 ]]; do
+  extra_args+=("$1")
+  shift
+done
+
+#---------------------------------------------------------------------------------------------------
+# Run N4BiasFieldCorrection
+if [[ ! -f "$input" ]]; then
+  echo "Error: Input file does not exist: $input" >&2
   exit 1
 fi
 
-if [[ $# == 1 ]]; then
-  OUT=$(dirname ${1})/$(basename ${1} .nii.gz)_desc-bfc.nii.gz
-else
-  OUT=${2}
+if [[ -z "$output" ]]; then
+  echo "Error: please specify output file" >&2
+  exit 1
 fi
 
-#-----------------------------------------------------------------------------
-# Run it
-if [[ -f ${1} && ! -f ${OUT} ]]; then
-  echo "Applying bias field correction to `basename $1`"
-  echo " input          = `basename $1`"
-  echo " dimensionality = `fslval $1 dim0`"
-  echo " sigma          = 2"
-  echo " convergence    = [50x50x50x50,1e-10]"
-  echo " output         = `basename ${OUT}`"
+dim=$(fslval "$input" dim0)
+if [[ -z "$dim" ]]; then
+  echo "Error: Unable to determine image dimensionality with fslval." >&2
+  exit 1
+fi
+
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Running N4BiasFieldCorrection:"
+  echo "  Input          = $(basename "$input")"
+  echo "  Output         = $(basename "$output")"
+  echo "  Dimensionality = $dim"
+  echo "  Extra options  = ${extra_args[*]:-(none)}"
   echo
-  echo "Running N4BiasFieldCorrection .."
+fi
 
-  N4BiasFieldCorrection \
-    -d `fslval $1 dim0` \
-    -i $1 \
-    -s 2 \
-    -c [50x50x50x50,1e-10] \
-    -o ${OUT}
+cmd=(
+  N4BiasFieldCorrection
+  --image-dimensionality "$dim"
+  --input-image "$input"
+  --output "$output"
+  --verbose ${verbose}
+  "${extra_args[@]}"
+)
 
-  echo "Done"
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Executing: ${cmd[*]}"
+fi
 
+"${cmd[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo "Error: N4BiasFieldCorrection failed." >&2
+  exit 1
+fi
+
+if [[ ${verbose} -eq 1 ]]; then
+  echo "Bias field correction complete."
 fi

@@ -1,0 +1,586 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Planning" href="planning.html" />
+    <link rel="prev" title="Python modules" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Python modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Image</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.ROI"><code class="docutils literal notranslate"><span class="pre">ROI</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.aparc_mask"><code class="docutils literal notranslate"><span class="pre">ROI.aparc_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.get_rois"><code class="docutils literal notranslate"><span class="pre">ROI.get_rois()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.make_roi_mask"><code class="docutils literal notranslate"><span class="pre">ROI.make_roi_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.merge_masks"><code class="docutils literal notranslate"><span class="pre">ROI.merge_masks()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.read_aparc"><code class="docutils literal notranslate"><span class="pre">ROI.read_aparc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.read_roi_list"><code class="docutils literal notranslate"><span class="pre">ROI.read_roi_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.return_mask"><code class="docutils literal notranslate"><span class="pre">ROI.return_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#fmriproc.image.ROI.surf_mask"><code class="docutils literal notranslate"><span class="pre">ROI.surf_mask()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.bin_fov"><code class="docutils literal notranslate"><span class="pre">bin_fov()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.clip_image"><code class="docutils literal notranslate"><span class="pre">clip_image()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.create_line_from_slice"><code class="docutils literal notranslate"><span class="pre">create_line_from_slice()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.create_ribbon_from_beam"><code class="docutils literal notranslate"><span class="pre">create_ribbon_from_beam()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.get_isocenter"><code class="docutils literal notranslate"><span class="pre">get_isocenter()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.get_max_coordinate"><code class="docutils literal notranslate"><span class="pre">get_max_coordinate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.get_minmax"><code class="docutils literal notranslate"><span class="pre">get_minmax()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.layers2line"><code class="docutils literal notranslate"><span class="pre">layers2line()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.massp_mask_img"><code class="docutils literal notranslate"><span class="pre">massp_mask_img()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.massp_to_table"><code class="docutils literal notranslate"><span class="pre">massp_to_table()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.mgz2nii"><code class="docutils literal notranslate"><span class="pre">mgz2nii()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.nii2mgz"><code class="docutils literal notranslate"><span class="pre">nii2mgz()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.reorient_img"><code class="docutils literal notranslate"><span class="pre">reorient_img()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.slice_timings"><code class="docutils literal notranslate"><span class="pre">slice_timings()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.slice_timings_to_json"><code class="docutils literal notranslate"><span class="pre">slice_timings_to_json()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.tissue2line"><code class="docutils literal notranslate"><span class="pre">tissue2line()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.tsnr"><code class="docutils literal notranslate"><span class="pre">tsnr()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.write_pymp2rage_json"><code class="docutils literal notranslate"><span class="pre">write_pymp2rage_json()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#fmriproc.image.write_pymp2rage_nifti"><code class="docutils literal notranslate"><span class="pre">write_pymp2rage_nifti()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="planning.html">Planning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="prf.html">pRF</a></li>
+<li class="toctree-l2"><a class="reference internal" href="roi.html">Roi</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scanner.html">Scanner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="transform.html">Transform</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Python modules</a></li>
+      <li class="breadcrumb-item active">Image</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/classes/image.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="image">
+<h1>Image<a class="headerlink" href="#image" title="Link to this heading"></a></h1>
+<p>This file contains functions and classes related image manipulation.</p>
+<dl class="py class" id="module-fmriproc.image">
+<dt class="sig sig-object py" id="fmriproc.image.ROI">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">ROI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'aparc'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subject</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fsaverage'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.aparc_mask">
+<span class="sig-name descname"><span class="pre">aparc_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.aparc_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.aparc_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.get_rois">
+<span class="sig-name descname"><span class="pre">get_rois</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.get_rois"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.get_rois" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.make_roi_mask">
+<span class="sig-name descname"><span class="pre">make_roi_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.make_roi_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.make_roi_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.merge_masks">
+<span class="sig-name descname"><span class="pre">merge_masks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.merge_masks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.merge_masks" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.read_aparc">
+<span class="sig-name descname"><span class="pre">read_aparc</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.read_aparc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.read_aparc" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.read_roi_list">
+<span class="sig-name descname"><span class="pre">read_roi_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.read_roi_list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.read_roi_list" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.return_mask">
+<span class="sig-name descname"><span class="pre">return_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.return_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.return_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="fmriproc.image.ROI.surf_mask">
+<span class="sig-name descname"><span class="pre">surf_mask</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#ROI.surf_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.ROI.surf_mask" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.bin_fov">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">bin_fov</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fsl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#bin_fov"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.bin_fov" title="Link to this definition"></a></dt>
+<dd><p>This function returns a binarized version of the input image. If no output name was specified,
+it will return the dataframe in nifti-format</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>str</em>) – path to input image</p></li>
+<li><p><strong>thresh</strong> (<em>int</em>) – threshold to use (default = 0)</p></li>
+<li><p><strong>out</strong> (<em>str</em>) – path to output image (default is None, and will return the data array of the image)</p></li>
+<li><p><strong>fsl</strong> (<em>bool</em>) – if you reeeally want a binary image also run fslmaths -bin.. Can only be in combination with an output image and on a linux system with FSL (default is false)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>niimg-object with a binarized FOV of input image <cite>img</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>nibabel.Nifti1Image</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file</span> <span class="o">=</span> <span class="n">bin_fov</span><span class="p">(</span><span class="s2">&quot;/path/to/image.nii.gz&quot;</span><span class="p">)</span>
+<span class="n">bin_fov</span><span class="p">(</span><span class="s2">&quot;/path/to/image.nii.gz&quot;</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s2">&quot;/path/to/image.nii.gz&quot;</span><span class="p">,</span> <span class="n">fsl</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">bin_fov</span><span class="p">(</span><span class="s2">&quot;/path/to/image.nii.gz&quot;</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.clip_image">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">clip_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'image'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#clip_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.clip_image" title="Link to this definition"></a></dt>
+<dd><p>This function takes an image or numpy array, and takes the &lt;thr&gt;-value as threshold to clip the maximum value of the input. This is especially useful to increase contrast in the masked_mp2rage-files. For some reason, the masking can be detrimental for the contrast resulting in failing segmentations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>numpy.ndarray</em><em>, </em><em>nibabel.Nifti1Image</em><em>, </em><em>str</em>) – input data; can either be a numpy array, a Nifti-image, or a string pointing to a nifti-file.</p></li>
+<li><p><strong>thr</strong> (<em>float</em><em>, </em><em>optional</em>) – cut-off to use as threshold of image intensity. This represents 0.5% occuring values, after which a drop of intensities is seen.</p></li>
+<li><p><strong>val</strong> (<em>float</em><em>, </em><em>optional</em>) – cut-off to use as threshold of image intensity. This represents a hard threshold of literal image values</p></li>
+<li><p><strong>return_type</strong> (<em>str</em><em>, </em><em>optional</em>) – output type; can either be a numpy array (‘arr’), a Nifti-image (‘nib’), or a file (‘file’). In the case of the latter, an output name should be provided</p></li>
+<li><p><strong>out_file</strong> (<em>str</em><em>, </em><em>optional</em>) – string to output name if ‘return_type=”file”’ is specified</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>nibabel.Nifti1Image</em> – if <cite>return_type==”file”</cite>, a niimg-object is returned</p></li>
+<li><p><em>numpy.ndarray</em> – if <cite>return_type==”arr”</cite>, an array with the shape of <cite>img</cite> is returned</p></li>
+<li><p><em>str</em> – if <cite>return_type==”file”</cite>, a new file is created and nothing is returned</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">new_img</span> <span class="o">=</span> <span class="n">clip_image</span><span class="p">(</span><span class="s2">&quot;input.nii.gz&quot;</span><span class="p">,</span> <span class="n">thr</span><span class="o">=</span><span class="mf">0.005</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;nib&quot;</span><span class="p">)</span>
+<span class="n">clip_image</span><span class="p">(</span><span class="s2">&quot;input.nii.gz&quot;</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s1">&#39;file&#39;</span><span class="p">,</span> <span class="n">out_file</span><span class="o">=</span><span class="s1">&#39;output.nii.gz&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.create_line_from_slice">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">create_line_from_slice</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'FH'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_input</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#create_line_from_slice"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.create_line_from_slice" title="Link to this definition"></a></dt>
+<dd><p>This creates a binary image of the outline of the line. The line’s dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. This is represented by the ‘width’ flag, set to 16 by default</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_file</strong> (<em>str</em>) – path to image that should be used as reference (generally this should be the 1 slice file of the first run or something)</p></li>
+<li><p><strong>out_file</strong> (<em>str</em><em>, </em><em>optional</em>) – path specifying the output name of the newly created ‘line’ or ‘beam’ file</p></li>
+<li><p><strong>width</strong> (<em>int</em><em>, </em><em>optional</em>) – how many voxels should we use to define the line. Remember that the center of the line is width/2, so if it’s set to 16, we take 8 voxels below center and 8 voxels above center.</p></li>
+<li><p><strong>fold</strong> (<em>str</em><em>, </em><em>optional</em>) – string denoting the type of foldover direction that was used. We can find this in the info-file in the pycortex directory and can either be <em>FH</em> (line = <cite>LR</cite>), or <em>LR</em> (line = <cite>FH</cite>)</p></li>
+<li><p><strong>keep_input</strong> (<em>boolean</em><em>, </em><em>optional</em>) – Keep the native input of the input data rather than binarizing the input image</p></li>
+<li><p><strong>shift</strong> (<em>int</em><em>, </em><em>optional</em>) – Sometimes the slice had to be moved in <cite>foldover</cite> direction to place the saturation slabs in the right position. We need to correct for this. This argument moves the line <cite>shift</cite> millimeter in <cite>fold</cite> direction. For instance, if <cite>fold=”FH”</cite> and <cite>shift=2</cite>, the line will be moved up. Use negative values to move the line down.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>nibabel.Nifti1Image</em> – if <cite>out_file==None</cite>, a niimg-object is returned</p></li>
+<li><p><em>str</em> – an actual file if the specified output name is created (<em>NOT RETURNED</em>)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>img = create_line_from_slice(“input.nii.gz”)
+img
+&lt;nibabel.nifti1.Nifti1Image at 0x7f5a1de00df0&gt;
+img.to_filename(‘sub-001_ses-2_task-LR_run-8_bold.nii.gz’)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.create_ribbon_from_beam">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">create_ribbon_from_beam</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ribbon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#create_ribbon_from_beam"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.create_ribbon_from_beam" title="Link to this definition"></a></dt>
+<dd><p>This creates a binary image of the outline of the ribbon based on the beam image (see <a class="reference internal" href="#fmriproc.image.create_line_from_slice" title="fmriproc.image.create_line_from_slice"><code class="xref py py-func docutils literal notranslate"><span class="pre">fmriproc.image.create_line_from_slice()</span></code></a>). The line’s dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. We then select only the voxels from <cite>ribbon</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_file</strong> (<em>str</em>) – path to image that should be used as reference (generally this should be the 1 slice file of the first run or something)</p></li>
+<li><p><strong>ribbon</strong> (<em>list</em><em>, </em><em>tuple</em>) – input representing the ribbon, e.g., <cite>(358,363)</cite></p></li>
+<li><p><strong>out_file</strong> (<em>str</em><em>, </em><em>optional</em>) – path specifying the output name of the newly created ‘line’ or ‘beam’ file</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>nibabel.Nifti1Image</em> – if <cite>out_file==None</cite>, a niimg-object is returned</p></li>
+<li><p><em>str</em> – an actual file if the specified output name is created (<em>NOT RETURNED</em>)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.get_isocenter">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">get_isocenter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#get_isocenter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.get_isocenter" title="Link to this definition"></a></dt>
+<dd><p>This function returns the RAS coordinates of the input image’s origin. This resembles the
+offset relative to the magnetic isocenter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>img</strong> (<em>str</em><em>,</em><em>nibabel.Nifti1Image</em>) – input image to extract the isocenter coordinate from</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>array containing isocenter coordinate from <cite>img</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">img</span> <span class="o">=</span> <span class="s1">&#39;sub-001_space-ses1_hemi-R_vert-6002.nii.gz&#39;</span>
+<span class="n">get_isocenter</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+<span class="n">array</span><span class="p">([</span>  <span class="mf">0.27998984</span><span class="p">,</span>   <span class="mf">1.49000375</span><span class="p">,</span> <span class="o">-</span><span class="mf">15.34000604</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.get_max_coordinate">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">get_max_coordinate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#get_max_coordinate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.get_max_coordinate" title="Link to this definition"></a></dt>
+<dd><p>Fetches the point with the maximum value given an input image_file. Useful if you want to find the voxel with the highest value after warping a binary file with ANTs. Mind you, it outputs the VOXEL value, not the actual index of the array. The VOXEL value = idx_array+1 to account for different indexing in nifti &amp; python.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>in_img</strong> (<em>str</em><em>,</em><em>numpy.ndarray</em><em>,</em><em>nibabel.Nifti1Image</em>) – nibabel.Nifti1Image object, string to nifti image or numpy array</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>np.ndarray</em> – if only 1 max value was detected</p></li>
+<li><p><em>list</em> – list of np.ndarray containing the voxel coordinates with max value</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">get_max_coordinate</span><span class="p">(</span><span class="s1">&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;</span><span class="p">)</span>
+<span class="n">array</span><span class="p">([</span><span class="mi">142</span><span class="p">,</span>  <span class="mi">48</span><span class="p">,</span> <span class="mi">222</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">get_max_coordinate</span><span class="p">(</span><span class="s1">&#39;sub-001_space-ses1_hemi-R_vert-6002.nii.gz&#39;</span><span class="p">)</span>
+<span class="p">[</span><span class="n">array</span><span class="p">([</span><span class="mi">139</span><span class="p">,</span>  <span class="mi">35</span><span class="p">,</span> <span class="mi">228</span><span class="p">]),</span> <span class="n">array</span><span class="p">([</span><span class="mi">139</span><span class="p">,</span>  <span class="mi">36</span><span class="p">,</span> <span class="mi">228</span><span class="p">])]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.get_minmax">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">get_minmax</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#get_minmax"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.get_minmax" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.layers2line">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">layers2line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#layers2line"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.layers2line" title="Link to this definition"></a></dt>
+<dd><p>Project layer delineations to the line by calculating the probability of each layer membership in each voxel of the 16x720 beam and then average these to get a 1x720 line. Discrete layers are assigned by means of the highest probability of a particular layer membership.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>list</em><em>, </em><em>numpy.ndarray</em><em>, </em><em>str</em>) – (720,720) numpy array with the middle 16 rows containing information about the layers</p></li>
+<li><p><strong>line</strong> (<em>str</em><em>,</em><em>nibabel.Nifti1Image</em><em>,</em><em>numpy.ndarray</em>) – used for the direction of the line and should have the same dimensions as <cite>data</cite>. Generally this is the output from create_line_from_slice</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(1,720) array of your <cite>data</cite> in the line</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.massp_mask_img">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">massp_mask_img</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_to_mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nr_structures</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">31</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#massp_mask_img"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.massp_mask_img" title="Link to this definition"></a></dt>
+<dd><p>This function extracts the average of each structure in the MASSP-segmentation given an image (e.g.,
+T1map)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label_file</strong> (<em>str</em>) – path to nifti image (MASSP-output ‘label’ file)</p></li>
+<li><p><strong>img_to_mask</strong> (<em>str</em>) – path to nifti image for which we want to extract the averages in the MASSP-structures</p></li>
+<li><p><strong>out</strong> (<em>str</em>) – path to output name. You can either safe it as a csv, json, txt, or pickle file.</p></li>
+<li><p><strong>nr_structures</strong> (<em>int</em>) – set to 31 by default as per the massp script</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>dictionary containing the average value of each ROI in the units of <cite>img_to_mask</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file</span> <span class="o">=</span> <span class="n">massp_mask_img</span><span class="p">(</span><span class="n">sub</span><span class="o">-</span><span class="mi">001</span><span class="n">_desc</span><span class="o">-</span><span class="n">massp_label</span><span class="o">.</span><span class="n">nii</span><span class="o">.</span><span class="n">gz</span><span class="s1">&#39;, &#39;</span><span class="n">sub</span><span class="o">-</span><span class="mi">001</span><span class="n">_T1map</span><span class="o">.</span><span class="n">nii</span><span class="o">.</span><span class="n">gz</span><span class="s1">&#39;, out=&#39;</span><span class="n">massp_t1map</span><span class="o">.</span><span class="n">json</span><span class="s1">&#39;)</span>
+<span class="n">file</span>
+<span class="s1">&#39;massp_t1map.json&#39;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">massp_mask_img</span><span class="p">(</span><span class="s1">&#39;sub-001_desc-massp_label.nii.gz&#39;</span><span class="p">,</span> <span class="s1">&#39;sub-001_T1map.nii.gz&#39;</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">&#39;massp_t1map.json&#39;</span><span class="p">)</span>
+
+<span class="p">{</span><span class="s1">&#39;Str-l&#39;</span><span class="p">:</span> <span class="mi">1502</span><span class="p">,</span><span class="mi">234</span><span class="p">,</span>
+<span class="s1">&#39;Str-r&#39;</span><span class="p">:</span> <span class="mf">1081.1125</span><span class="p">,</span>
+<span class="s1">&#39;STN-l&#39;</span><span class="p">:</span> <span class="mf">1326.6179</span><span class="p">,</span>
+<span class="s1">&#39;STN-r&#39;</span><span class="p">:</span> <span class="mf">1492.2731</span><span class="p">,</span>
+<span class="s1">&#39;SN-l&#39;</span><span class="p">:</span> <span class="mf">1540.4317</span><span class="p">,</span>
+<span class="s1">&#39;SN-r&#39;</span><span class="p">:</span> <span class="mf">1532.9537</span><span class="p">,</span>
+<span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.massp_to_table">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">massp_to_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nr_structures</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">31</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'vox'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#massp_to_table"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.massp_to_table" title="Link to this definition"></a></dt>
+<dd><p>This function creates a tabular output from the label image generated by call_nighresmassp (or any other version of MASSP). Just input the ‘label’ file and hit go. You can either have the dataframe returned or create a file by specifying an output name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>label_file</strong> (<em>str</em>) – path to nifti image (MASSP-output ‘label’ file)</p></li>
+<li><p><strong>out</strong> (<em>str</em>) – path to output name. You can either safe it as a csv, json, txt, or pickle file.</p></li>
+<li><p><strong>nr_structures</strong> (<em>int</em>) – set to 31 by default as per the massp script</p></li>
+<li><p><strong>unit</strong> (<em>str</em>) – output unit (voxels or mm3). Should be ‘vox’ for voxel output, or ‘mm’ for mm^3</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>dictionary containing the average volume of each ROI in <cite>label_file</cite> in units of voxel count or mm^3</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file</span> <span class="o">=</span> <span class="n">massp_to_table</span><span class="p">(</span><span class="s1">&#39;sub-001_desc-massp_label.nii.gz&#39;</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="s1">&#39;massp_lut.json&#39;</span><span class="p">)</span>
+<span class="n">file</span>
+<span class="s1">&#39;massp_lut.json&#39;</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">massp_to_table</span><span class="p">(</span>
+<span class="s1">&#39;sub-001_desc-massp_label.nii.gz&#39;</span><span class="p">,</span>
+<span class="n">unit</span><span class="o">=</span><span class="s2">&quot;mm&quot;</span>
+<span class="p">)</span>
+
+<span class="p">{</span><span class="s1">&#39;Str-l&#39;</span><span class="p">:</span> <span class="mf">10702.2163</span><span class="p">,</span>
+<span class="s1">&#39;Str-r&#39;</span><span class="p">:</span> <span class="mf">10816.1125</span><span class="p">,</span>
+<span class="s1">&#39;STN-l&#39;</span><span class="p">:</span> <span class="mf">136.6179</span><span class="p">,</span>
+<span class="s1">&#39;STN-r&#39;</span><span class="p">:</span> <span class="mf">149.2731</span><span class="p">,</span>
+<span class="s1">&#39;SN-l&#39;</span><span class="p">:</span> <span class="mf">540.4317</span><span class="p">,</span>
+<span class="s1">&#39;SN-r&#39;</span><span class="p">:</span> <span class="mf">532.9537</span><span class="p">,</span>
+<span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.mgz2nii">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">mgz2nii</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'file'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#mgz2nii"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.mgz2nii" title="Link to this definition"></a></dt>
+<dd><p>wrapper for call_mriconvert to convert mgz image to nifti</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.nii2mgz">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">nii2mgz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'file'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#nii2mgz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.nii2mgz" title="Link to this definition"></a></dt>
+<dd><p>wrapper for mri_convert to convert mgz image to nifti</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.reorient_img">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">reorient_img</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">code</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RAS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">qform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'orig'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#reorient_img"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.reorient_img" title="Link to this definition"></a></dt>
+<dd><p>Python wrapper for fslswapdim to reorient an input image given an orientation code. Valid options are: RAS, AIL for now. You can also specify “nb” as code, which reorients the input image to nibabel’s RAS+ convention. If no output name is given, it will overwrite the input image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>str</em>) – nifti-image to be reoriented</p></li>
+<li><p><strong>code</strong> (<em>str</em><em>, </em><em>optional</em>) – code for new orientation (default = “RAS”)</p></li>
+<li><p><strong>out</strong> (<em>str</em><em>, </em><em>optional</em>) – string to output nifti image</p></li>
+<li><p><strong>qform</strong> (<em>str</em><em>,</em><em>int</em><em>, </em><em>optional</em>) – set qform code to original (str ‘orig’ = default) or a specified integer</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>if <cite>out==”None”</cite>, then <cite>img</cite> will receive the new coordinate code, otherwise <cite>out</cite> is created.
+The function only operates, it doesn’t actually return something that can be captured in a variable</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<p>reorient_img(“input.nii.gz”, code=”RAS”, out=”output.nii.gz”)
+reorient_img(“input.nii.gz”, code=”AIL”, qform=1)
+reorient_img(“input.nii.gz”, code=”AIL”, qform=’orig’)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.slice_timings">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">slice_timings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">nr_slices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mb_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#slice_timings"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.slice_timings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.slice_timings_to_json">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">slice_timings_to_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nr_slices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mb_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#slice_timings_to_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.slice_timings_to_json" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.tissue2line">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">tissue2line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#tissue2line"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.tissue2line" title="Link to this definition"></a></dt>
+<dd><p>Project tissue probability maps to the line by calculating the probability of each tissue type in each voxel of the 16x720 beam and then average these to get a 1x720 line. Discrete tissues are assigned by means of the highest probability of a particular tissue type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>list</em><em>,</em><em>numpy.ndarray</em><em>,</em><em>str</em>) – for tissue data: list of three numpy array/nifti images/strings describing the probability of white matter/gray matter and CSF</p></li>
+<li><p><strong>line</strong> (<em>str</em><em>,</em><em>nibabel.Nifti1Image</em><em>,</em><em>numpy.ndarray</em>) – used for the direction of the line and should have the same dimensions as <cite>data</cite>. Generally this is the output from create_line_from_slice</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>(1,720) array of your <cite>data</cite> in the line</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.tsnr">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">tsnr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#tsnr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.tsnr" title="Link to this definition"></a></dt>
+<dd><p>This function calculates the temporal SNR of an input image. Can also create 3D tSNR
+map, but generally will just output the mean tSNR</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>numpy.ndarray</em><em>, </em><em>nibabel.Nifti1Image</em><em>, </em><em>str</em>) – input data; can either be a numpy array, a Nifti-image, or a string pointing to a nifti-file.</p></li>
+<li><p><strong>file_name</strong> (<em>str</em><em>, </em><em>optional</em>) – path to tSNR-map file. Set to None by default</p></li>
+<li><p><strong>clip</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>optional</em>) – lip the values to tSNR. Default is None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>tSNR in array with shape of <cite>img</cite> (minus last dimension if <cite>img.shape</cite>&gt;3)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tsnr</span> <span class="o">=</span> <span class="n">tsnr</span><span class="p">(</span><span class="s1">&#39;path/to/func.nii.gz&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.write_pymp2rage_json">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">write_pymp2rage_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#write_pymp2rage_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.write_pymp2rage_json" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="fmriproc.image.write_pymp2rage_nifti">
+<span class="sig-prename descclassname"><span class="pre">fmriproc.image.</span></span><span class="sig-name descname"><span class="pre">write_pymp2rage_nifti</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_mp2rageme</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/fmriproc/image.html#write_pymp2rage_nifti"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#fmriproc.image.write_pymp2rage_nifti" title="Link to this definition"></a></dt>
+<dd><p>Calculate and write multiparametric maps to outputdir.</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Python modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="planning.html" class="btn btn-neutral float-right" title="Planning" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

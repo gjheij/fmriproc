@@ -6,10 +6,164 @@ import matplotlib.pyplot as plt
 import nibabel as nb
 import numpy as np
 import os
+import platform
 from sklearn.preprocessing import MinMaxScaler
 import subprocess
 
 opj = os.path.join
+
+def get_minmax(file):
+
+    """get_minmax
+
+    Compute the minimum and maximum intensity values of a neuroimaging file using FSL's ImageStats.
+
+    Parameters
+    ----------
+    file: str
+        Path to the neuroimaging file (e.g., NIfTI format).
+
+    Returns
+    ----------
+    list: A list containing two float values:
+        - The minimum intensity value in the image.
+        - The maximum intensity value in the image.
+
+    Example
+    ----------
+    >>> minmax = get_minmax("path/to/image.nii.gz")
+    >>> print(minmax)
+    [0.0, 255.0]
+
+    Notes:
+    - Requires Nipype and FSL to be installed and configured.
+    - The function uses the '-R' option in ImageStats, which returns the range of intensity values.
+    - Ensure the input file is in a format supported by FSL, such as .nii or .nii.gz.
+    """
+
+    from nipype.interfaces import fsl
+    stats = fsl.ImageStats(in_file=file, op_string="-R")
+    res = stats.run()
+    return res.outputs.out_stat
+
+def write_pymp2rage_json(file, params):
+    """Write json file for pymp2rage output"""
+    json_file = file.replace('.nii.gz', '.json')
+    if os.path.isfile(json_file):
+        print(f" {os.path.basename(json_file)} already exists")
+    else:
+        print(f" writing {os.path.basename(json_file)}")
+        with open(json_file, "w+") as f:
+            json.dump(params, f, indent=4)
+    
+    return json_file
+
+def write_pymp2rage_nifti(
+    file,
+    descriptor,
+    obj,
+    input_files,
+    is_mp2rageme=False
+    ):
+    """write_pymp2rage_nifti
+
+    Calculate and write multiparametric maps to an output directory.
+
+    Parameters
+    ----------
+    file: str
+        Path to the output NIfTI file.
+    descriptor: str
+        The type of map to be generated (e.g., "t1map", "r2starmap").
+    obj: pymp2rage.MP2RAGE or pymp2rage.MEMP2RAGE object
+        An object containing the computed map attributes.
+    input_files: list or str
+        List of input file paths used for computation.
+    is_mp2rageme: bool, optional 
+        Indicates whether the MEMP2RAGE sequence is used. Defaults to False (MP2RAGE).
+
+    Returns
+    ----------
+    dict: A dictionary containing:
+        - "nifti" (str): Path to the saved NIfTI file.
+        - "json" (str): Path to the corresponding JSON metadata file.
+
+    Notes
+    ----------
+    - Uses `pymp2rage` for processing and writing multiparametric maps.
+    - The `descriptor` determines the algorithm and estimation method.
+    - Ensures output files are written only if they do not already exist.
+    - Writes metadata to a JSON file with details on estimation methodology and input data.
+
+    Parameters
+    ----------
+    >>> output = write_pymp2rage_nifti("output.nii.gz", "t1map", obj, input_files)
+    >>> print(output["nifti"], output["json"])
+    """
+    from pymp2rage import version
+    if os.path.isfile(file):
+        print(f" {os.path.basename(file)} already exists")
+        return
+
+    base_path = None
+    try:
+        pref = os.environ.get("SUBJECT_PREFIX", "sub-")
+    except Exception:
+        pref = "sub-"
+    
+    sp = input_files[0].split(os.sep)
+    for i in sp:
+        if i.startswith(pref) and not i.endswith('.nii.gz'):
+            base_path = os.path.join(*sp[sp.index(i) + 1: -1])
+            break
+    
+    if not is_mp2rageme:
+        ref = "Marques et al., 2010"
+        sequence_name = "MP2RAGE"
+    else:
+        ref = "Caan et al., 2019"
+        sequence_name = "MEMP2RAGE"
+
+    estimation_algorithms = {
+        "r2starmap": "Ordinary Least Squares in Log-space",
+        "t1w_uni": f"{sequence_name} unified T1-weighted image",
+        "t1map": f"{sequence_name} T1 map",
+        "t2starw": "Ordinary Least Squares in Log-space",
+        "t2starmap": f"{sequence_name} unified T1-weighted image",
+        "s0": "Ordinary Least Squares in Log-space"
+    }
+    
+    index_ranges = {
+        "r2starmap": np.arange(2, 10, 2),
+        "t1w_uni": range(4),
+        "t1map": range(4),
+        "t2starw": np.arange(2, 10, 2),
+        "t2starmap": range(4),
+        "s0": np.arange(2, 10, 2)
+    }
+    
+    if descriptor not in estimation_algorithms:
+        print(f" Unknown descriptor: {descriptor}")
+        return
+    else:
+        print(f" writing {os.path.basename(file)}")
+    
+    getattr(obj, descriptor).to_filename(file)
+    params = {
+        "BasedOn": [os.path.join(base_path, os.path.basename(input_files[i])) for i in index_ranges[descriptor]],
+        "EstimationReference": ref,
+        "EstimationAlgorithm": estimation_algorithms[descriptor],
+        "EstimationSoftwareName": "pymp2rage",
+        "EstimationSoftwareVer": f"{version.__version__}",
+        "EstimationSoftwareLang": f"python {platform.python_version()}",
+        "EstimationSoftwareEnv": f"{platform.platform()}"
+    }
+    
+    json_file = write_pymp2rage_json(file, params)
+    return {
+        "nifti": file,
+        "json": json_file
+    }
 
 def slice_timings_to_json(
     json_file,
@@ -17,6 +171,45 @@ def slice_timings_to_json(
     tr=None,
     mb_factor=1):
 
+    """slice_timings_to_json
+
+    Compute and update slice timing information in a JSON file or dictionary.
+
+    Parameters
+    ----------
+    json_file: str, dict
+        Path to the JSON file containing metadata or a dictionary.
+    nr_slices: int, optional
+        Number of slices in the acquisition. Defaults to None.
+    tr: float, optional
+        Repetition time (TR) of the sequence. Defaults to None.
+    mb_factor: int, optional
+        Multi-band acceleration factor. Defaults to 1.
+
+    Returns
+    ----------
+    dict or None: 
+        - If `json_file` is a dictionary, returns the updated dictionary with slice timings.
+        - If `json_file` is a file, updates the file in place and returns None.
+
+    Raises
+    ----------
+    ValueError: If the input is neither a JSON file path nor a dictionary.
+
+    Notes
+    ----------
+    - If `tr` is provided but differs from the TR in the JSON file, the function logs a warning 
+      and takes the TR from the JSON file.
+    - Uses the `slice_timings` function to compute slice timings.
+    - If `json_file` is a string (file path), the function updates the file in place.
+    - If `json_file` is a dictionary, it returns the updated dictionary.
+    
+    Example
+    ----------
+    >>> updated_data = slice_timings_to_json("metadata.json", nr_slices=32, tr=2.0)
+    >>> print(updated_data["SliceTiming"])
+    """
+    
     write_file = True
     if isinstance(json_file, str):
         with open(json_file) as f:
@@ -60,7 +253,50 @@ def slice_timings(
     tr=None,
     mb_factor=1):
 
-    return list(np.tile(np.linspace(0, tr, int(nr_slices/mb_factor), endpoint=False), mb_factor))
+    """slice_timings
+
+    Compute slice timing values for an fMRI acquisition sequence.
+
+    Parameters
+    ----------
+    nr_slices: int
+        Total number of slices in the acquisition.
+    tr: float
+        Repetition time (TR) of the sequence in seconds.
+    mb_factor: int, optional
+        Multi-band acceleration factor. Defaults to 1.
+
+    Returns
+    ----------
+    list: A list of slice timing values in seconds.
+
+    Raises
+    ----------
+    ValueError: If `nr_slices` or `tr` is not provided.
+
+    Notes
+    ----------
+    - Uses `np.linspace` to generate evenly spaced slice timing values.
+    - Tiles the slice timing values to account for multi-band acquisition.
+    - The number of slice timings generated is `nr_slices / mb_factor`, repeated `mb_factor` times.
+
+    Example
+    ----------
+    >>> slice_timing_values = slice_timings(nr_slices=32, tr=2.0, mb_factor=2)
+    >>> print(slice_timing_values)
+    """
+
+    return list(
+        np.tile(
+            np.linspace(
+                0,
+                tr,
+                int(nr_slices/mb_factor),
+                endpoint=False
+            ),
+            mb_factor
+        )
+    )
 
 def bin_fov(img, thresh=0,out=None, fsl=False):
     """bin_fov
@@ -81,10 +317,10 @@ def bin_fov(img, thresh=0,out=None, fsl=False):
     
     Example
     ---------
-    >>> from fmriproc.image import bin_fov
-    >>> file = bin_fov("/path/to/image.nii.gz")
-    >>> bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
-    >>> bin_fov("/path/to/image.nii.gz", thres=2)
+    from fmriproc.image import bin_fov
+    file = bin_fov("/path/to/image.nii.gz")
+    bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
+    bin_fov("/path/to/image.nii.gz", thres=2)
     """
 
     img_file = nb.load(img)                                     # load file
@@ -132,9 +368,9 @@ def reorient_img(img, code="RAS", out=None, qform="orig"):
 
     Examples
     ----------
-    >>> reorient_img("input.nii.gz", code="RAS", out="output.nii.gz")
-    >>> reorient_img("input.nii.gz", code="AIL", qform=1)
-    >>> reorient_img("input.nii.gz", code="AIL", qform='orig')
+    reorient_img("input.nii.gz", code="RAS", out="output.nii.gz")
+    reorient_img("input.nii.gz", code="AIL", qform=1)
+    reorient_img("input.nii.gz", code="AIL", qform='orig')
     """
 
     if out != None:
@@ -217,10 +453,10 @@ def create_line_from_slice(
 
     Examples
     ----------
-    >>> img = create_line_from_slice("input.nii.gz")
-    >>> img
+    img = create_line_from_slice("input.nii.gz")
+    img
     <nibabel.nifti1.Nifti1Image at 0x7f5a1de00df0>
-    >>> img.to_filename('sub-001_ses-2_task-LR_run-8_bold.nii.gz')
+    img.to_filename('sub-001_ses-2_task-LR_run-8_bold.nii.gz')
     """
 
     img = False
@@ -292,7 +528,7 @@ def create_ribbon_from_beam(
 
     """create_ribbon_from_beam
 
-    This creates a binary image of the outline of the ribbon based on the beam image (see :func:`linescanning.image.create_line_from_slice`). The line's dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. We then select only the voxels from `ribbon`.
+    This creates a binary image of the outline of the ribbon based on the beam image (see :func:`fmriproc.image.create_line_from_slice`). The line's dimensions are 16 voxels of 0.25mm x 2.5 mm (slice thickness) and 0.25 mm (frequency encoding direction). We know that the middle of the line is at the center of the slice, so the entire line encompasses 8 voxels up/down from the center. We then select only the voxels from `ribbon`.
 
     Parameters
     ----------
@@ -347,10 +583,17 @@ def get_max_coordinate(in_img):
 
     Examples
     ----------
-    >>> get_max_coordinate('sub-001_space-ses1_hemi-L_vert-875.nii.gz')
-    array([142,  48, 222])
-    >>> get_max_coordinate('sub-001_space-ses1_hemi-R_vert-6002.nii.gz')
-    [array([139,  35, 228]), array([139,  36, 228])]
+
+    .. code-block:: python
+
+        get_max_coordinate('sub-001_space-ses1_hemi-L_vert-875.nii.gz')
+        array([142,  48, 222])
+
+    .. code-block:: python        
+
+        get_max_coordinate('sub-001_space-ses1_hemi-R_vert-6002.nii.gz')
+        [array([139,  35, 228]), array([139,  36, 228])]
+
     """
 
     if isinstance(in_img, np.ndarray):
@@ -395,9 +638,12 @@ def get_isocenter(img):
 
     Example
     ----------
-    >>> img = 'sub-001_space-ses1_hemi-R_vert-6002.nii.gz'
-    >>> get_isocenter(img)
-    array([  0.27998984,   1.49000375, -15.34000604])
+    .. code-block:: python
+
+        img = 'sub-001_space-ses1_hemi-R_vert-6002.nii.gz'
+        get_isocenter(img)
+        array([  0.27998984,   1.49000375, -15.34000604])
+
     """
 
     # get origin in RAS
@@ -438,9 +684,13 @@ def bin_fov(img, thresh=0, out=None, fsl=False):
 
     Example
     ----------
-    >>> file = bin_fov("/path/to/image.nii.gz")
-    >>> bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
-    >>> bin_fov("/path/to/image.nii.gz", thres=2)
+
+    .. code-block:: python
+
+        file = bin_fov("/path/to/image.nii.gz")
+        bin_fov("/path/to/image.nii.gz", thresh=1, out="/path/to/image.nii.gz", fsl=True)
+        bin_fov("/path/to/image.nii.gz", thres=2)
+
     """
 
     img_file = nb.load(img)                                     # load file
@@ -650,8 +900,12 @@ def clip_image(img, thr=None, val=None, return_type="image", out_file=None):
 
     Example
     ----------
-    >>> new_img = clip_image("input.nii.gz", thr=0.005, return_type="nib")
-    >>> clip_image("input.nii.gz", return_type='file', out_file='output.nii.gz')
+
+    .. code-block:: python
+
+        new_img = clip_image("input.nii.gz", thr=0.005, return_type="nib")
+        clip_image("input.nii.gz", return_type='file', out_file='output.nii.gz')
+
     """
 
     if not img:
@@ -724,7 +978,11 @@ def tsnr(img,file_name=None, clip=None):
 
     Example
     ----------
-    >>> tsnr = tsnr('path/to/func.nii.gz')
+    
+    .. code-block:: python
+
+        tsnr = tsnr('path/to/func.nii.gz')
+
     """
 
     # ignore divide-by-zero error
@@ -760,138 +1018,6 @@ def tsnr(img,file_name=None, clip=None):
 
     return mean_tsnr
 
-class ROI():
-
-    def __init__(
-        self,
-        roi,
-        mask_type="aparc",
-        subject="fsaverage",
-        ):
-
-        self.roi = roi
-        self.mask_type = mask_type
-        self.subject = subject
-
-        # force list
-        if isinstance(self.roi, str):
-            self.roi = [self.roi]
-
-        # make mask from aparc segmentation
-        if self.mask_type == "aparc":
-            self.aparc_mask()
-        else:
-            # make mask from surf-labels
-            self.surf_mask()
-
-        # merge list of masks
-        self.merge_masks()
-        
-    def surf_mask(self):
-
-        try:
-            from cxutils import optimal
-        except ImportError:
-            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
-
-        self.surf_calcs = optimal.SurfaceCalc(subject=self.subject)
-
-        # loop through list and merge
-        self.individual_masks = {}
-        if isinstance(self.roi, list):
-            for roi in self.roi:
-
-                self.mask_obj = self.surf_calcs.read_fs_label(
-                    self.subject, 
-                    fs_label=roi
-                )
-                
-                self.individual_masks[roi] = self.surf_calcs.label_to_mask(
-                    subject=self.subject, 
-                    rh_arr=self.mask_obj['rh'],
-                    lh_arr=self.mask_obj['lh']
-                )["whole_roi"]
-
-    def aparc_mask(self):
-
-        # read parc data once even for multiple ROIs
-        self.read_aparc()
-        self.roi_list = self.read_roi_list()
-
-        # loop through list and merge
-        self.individual_masks = {}
-        if isinstance(self.roi, list):
-            for roi in self.roi:
-                if roi not in self.roi_list:
-                    raise ValueError(f"'{roi}' is not part of the aparc atlas. Options are {self.roi_list}")
-                
-                self.individual_masks[roi] = self.make_roi_mask(roi=roi)
-
-    def merge_masks(self):
-
-        # merge
-        if len(self.individual_masks)>1:
-            self.roi_mask = np.zeros_like(self.individual_masks[self.roi[0]])
-            for _,val in self.individual_masks.items():
-                self.roi_mask[val>0] = 1
-        else:
-            self.roi_mask = self.individual_masks[self.roi[0]].copy()
-
-    def get_rois(self):
-        return self.read_roi_list()
-    
-    def return_mask(self):
-        return self.roi_mask
-    
-    def read_aparc(self):
-
-        try:
-            from cxutils import optimal
-        except ImportError:
-            print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")        
-
-        # GET VERICES FOR A SPECIFIC ROI 
-        self.parc_data = optimal.SurfaceCalc.read_fs_annot(
-            subject='fsaverage',
-            fs_annot="aparc",
-            hemi="both"
-        )
-
-    def read_roi_list(self):
-        if not hasattr(self, "parc_data"):
-            self.read_aparc()
-
-        roi_list = []
-        for i in self.parc_data["lh"][-1]:
-            roi_list.append(i.decode())
-
-        roi_list = [i for i in roi_list if i != "unknown"]
-        return roi_list
-    
-    def make_roi_mask(self, roi=None):
-        
-        if not isinstance(roi, str):
-            raise ValueError(f"Please specify an ROI to extract")
-
-
-        tmp = {}
-        for ii in ['lh', 'rh']:
-            
-            # get data
-            parc_hemi = self.parc_data[ii][0]
-
-            # get index of specified ROI in list | hemi doesn't matter here
-            for ix,i in enumerate(self.parc_data[ii][2]):
-                if roi.encode() in i:
-                    break
-            
-            tmp[ii] = (parc_hemi == ix).astype(int)
-
-        # Concat Hemis
-        concat_hemis = np.hstack((tmp['lh'],tmp['rh']))
-
-        return concat_hemis
-
 def massp_to_table(label_file, out=None, nr_structures=31, unit="vox"):
     """massp_to_table
 
@@ -915,18 +1041,29 @@ def massp_to_table(label_file, out=None, nr_structures=31, unit="vox"):
 
     Example
     ----------
-    >>> file = massp_to_table('sub-001_desc-massp_label.nii.gz', out='massp_lut.json')
-    >>> file
-    'massp_lut.json'
-    >>> massp_to_table('sub-001_desc-massp_label.nii.gz', unit="mm")
-    {'Str-l': 10702.2163,
-    'Str-r': 10816.1125,
-    'STN-l': 136.6179,
-    'STN-r': 149.2731,
-    'SN-l': 540.4317,
-    'SN-r': 532.9537,
-    ...
-    }
+
+    .. code-block:: python
+
+        file = massp_to_table('sub-001_desc-massp_label.nii.gz', out='massp_lut.json')
+        file
+        'massp_lut.json'
+
+    .. code-block:: python
+
+        massp_to_table(
+        'sub-001_desc-massp_label.nii.gz',
+        unit="mm"
+        )
+
+        {'Str-l': 10702.2163,
+        'Str-r': 10816.1125,
+        'STN-l': 136.6179,
+        'STN-r': 149.2731,
+        'SN-l': 540.4317,
+        'SN-r': 532.9537,
+        ...
+        }
+
     """
 
     try:
@@ -1005,20 +1142,28 @@ def massp_mask_img(label_file, img_to_mask, out=None, nr_structures=31):
     dict
         dictionary containing the average value of each ROI in the units of `img_to_mask`
 
-    Examples
+    Example
     ----------
-    >>> file = massp_mask_img(sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
-    >>> file
-    'massp_t1map.json'
-    >>> massp_mask_img('sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
-    {'Str-l': 1502,234,
-    'Str-r': 1081.1125,
-    'STN-l': 1326.6179,
-    'STN-r': 1492.2731,
-    'SN-l': 1540.4317,
-    'SN-r': 1532.9537,
-    ...
-    }
+
+    .. code-block:: python
+
+        file = massp_mask_img(sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
+        file
+        'massp_t1map.json'
+
+    .. code-block:: python
+
+        massp_mask_img('sub-001_desc-massp_label.nii.gz', 'sub-001_T1map.nii.gz', out='massp_t1map.json')
+
+        {'Str-l': 1502,234,
+        'Str-r': 1081.1125,
+        'STN-l': 1326.6179,
+        'STN-r': 1492.2731,
+        'SN-l': 1540.4317,
+        'SN-r': 1532.9537,
+        ...
+        }
+        
     """
 
     try:

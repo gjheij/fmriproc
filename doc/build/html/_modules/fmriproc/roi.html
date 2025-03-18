@@ -1,0 +1,1498 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fmriproc.roi &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../classes/index.html">Python modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">fmriproc.roi</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for fmriproc.roi</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">lazyfmri</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">fitting</span><span class="p">,</span>
+    <span class="n">plotting</span><span class="p">,</span>
+    <span class="n">utils</span><span class="p">,</span>
+    <span class="n">dataset</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">nibabel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nb</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">joblib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parallel</span><span class="p">,</span><span class="n">delayed</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="n">opj</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span>
+
+<span class="c1"># subclass JSONEncoder</span>
+<div class="viewcode-block" id="DateTimeEncoder">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.DateTimeEncoder">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">DateTimeEncoder</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONEncoder</span><span class="p">):</span>
+    <span class="c1">#Override the default method</span>
+<div class="viewcode-block" id="DateTimeEncoder.default">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.DateTimeEncoder.default">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span></div>
+</div>
+
+
+<div class="viewcode-block" id="ExtractFromROIs">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExtractFromROIs</span><span class="p">():</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ExtractFromROIs</span>
+
+<span class="sd">    Extract timecourses given a list of ROIs from functional files. Assumes the ROI and functional files are in the same space,</span>
+<span class="sd">    e.g., both in native functional space (in case of single-subject processing), or all in MNI-space (in which case multi-</span>
+<span class="sd">    subject processing is permitted). If the ROIs represent float data (e.g., zstat/tstat), it will extract the 15 highest</span>
+<span class="sd">    voxels within that ROI. If ROI is binary, all voxels will be used. See also :func:`fmriproc.roi.ExtractFromROIs.extract_data`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    func: str, nibabel.Nifti1Image, nibabel.GiftiImage, np.ndarray</span>
+<span class="sd">        Input functional data, either a string representing a path, a nibabel.Nifti1Image-object, a nibabel.GiftiImage-object,</span>
+<span class="sd">        or a numpy array</span>
+<span class="sd">    rois: list, str, optional</span>
+<span class="sd">        List of ROIs, either strings representing a path, nibabel.Nifti1Image-objects, or a numpy arrays or a directory con-</span>
+<span class="sd">        taining a bunch of ROIs. Use the &quot;filters=&quot;-flag to further specify the input.</span>
+<span class="sd">    filters: str, list, optional</span>
+<span class="sd">        additional filters to search for ROI files. For instance, you have specified a directory with &quot;--rois /path/to/ROIs&quot;,</span>
+<span class="sd">        but that directory contains a bunch of ROIs that you&#39;re not necessarily interested in. If you&#39;re only interested in</span>
+<span class="sd">        the files starting with &quot;conv-\*&quot;, you can specify that here.        </span>
+<span class="sd">    roi_names, list, str, optional</span>
+<span class="sd">        If empty, we will try to derive the ROI name from the filename (if they are strings).</span>
+<span class="sd">        E.g., from &quot;bin.thr.ACC_L.nii.gz&quot;, it would extract the last elements after &quot;.&quot;, so &quot;ACC_L&quot;.</span>
+<span class="sd">        If the inputs are not strings, we will default to &quot;roi_{}&quot;, so it&#39;s highly encouraged to use the *roi_names*-input</span>
+<span class="sd">        for non-string functional files.</span>
+<span class="sd">    ses: int, optional</span>
+<span class="sd">        Specify session ID; will be read from filename if possible using :func:`lazyfmri.utils.split_bids_components`</span>
+<span class="sd">    task: str, optional</span>
+<span class="sd">        Specify task ID; will be read from filename if possible using :func:`lazyfmri.utils.split_bids_components`</span>
+<span class="sd">    TR: int, optional</span>
+<span class="sd">        Repetition time to use for the dataframe formation, by default 2</span>
+<span class="sd">    subject: int, optional</span>
+<span class="sd">        Subject ID to use for the dataframe formation, by default 1</span>
+<span class="sd">    verbose: bool, optional</span>
+<span class="sd">        Make some noise, by default False</span>
+<span class="sd">    **kwargs: dict</span>
+<span class="sd">        Same as :func:`fmriproc.roi.ExtractFromROIs.extract_data`</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        from fmriproc import roi</span>
+<span class="sd">        obj = roi.ExtractFromROIs(</span>
+<span class="sd">            &quot;/path/to/fmriprep/sub-01/ses-1/func/sub-01_ses-1_task-task1_space-MNI152NLin6Asym_bold.nii.gz&quot;,</span>
+<span class="sd">            rois=[</span>
+<span class="sd">                &quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_L.nii.gz,</span>
+<span class="sd">                &quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.ACC_R.nii.gz</span>
+<span class="sd">                &quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_L.nii.gz</span>
+<span class="sd">                &quot;/path/to/rois/bin.thr.space-MNI152NLin6Asym.PCC_R.nii.gz</span>
+<span class="sd">            ],</span>
+<span class="sd">            TR=1.5,</span>
+<span class="sd">            subject=&quot;01&quot;</span>
+<span class="sd">        )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">func</span><span class="p">,</span> 
+        <span class="n">rois</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">filters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">roi_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">ses</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">TR</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="n">subject</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span> <span class="o">=</span> <span class="n">rois</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="n">filters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">TR</span> <span class="o">=</span> <span class="n">TR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="n">subject</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span> <span class="o">=</span> <span class="n">roi_names</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ses</span> <span class="o">=</span> <span class="n">ses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">task</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span><span class="n">nb</span><span class="o">.</span><span class="n">GiftiImage</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">]</span>
+
+        <span class="c1"># decide input of ROIs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_rois_input</span><span class="p">()</span>
+
+        <span class="c1"># check if roi_names == rois</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of specified ROI names (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">)</span><span class="si">}</span><span class="s2">) does not match number of supplied ROI-files (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+        <span class="c1"># run extractor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extracted_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">main_extractor</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ExtractFromROIs.set_rois_input">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs.set_rois_input">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_rois_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span> <span class="p">(</span><span class="n">nb</span><span class="o">.</span><span class="n">GiftiImage</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="c1"># input is directory</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span>
+                    <span class="n">extension</span><span class="o">=</span><span class="s2">&quot;nii.gz&quot;</span><span class="p">,</span>
+                    <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;._&quot;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">rois</span>
+                    <span class="p">)</span>
+
+            <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">):</span>
+                <span class="c1"># input is a file</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># input is invalid</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rois must be a directory or filepath, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rois</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;rois must be a directory, filepath, or list of files, not </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rois</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+                
+<div class="viewcode-block" id="ExtractFromROIs.main_extractor">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs.main_extractor">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">main_extractor</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;_&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Loop through functional files to extract data using :func:`fmriproc.roi.ExtractFromROIs.extract_data`&quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># loop through functionals</span>
+        <span class="k">for</span> <span class="n">ix</span><span class="p">,</span><span class="n">func</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">):</span>
+            
+            <span class="c1"># try to read subject/run info from file</span>
+            <span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subject</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run</span> <span class="o">=</span> <span class="n">ix</span><span class="o">+</span><span class="mi">1</span>
+
+            <span class="c1"># load data</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Func #</span><span class="si">{</span><span class="n">ix</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">func</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Func #</span><span class="si">{</span><span class="n">ix</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">: input=</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">func</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+            <span class="c1"># load functional file</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_file</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+            <span class="c1"># loop through ROIs</span>
+            <span class="n">roi_df</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">roi</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span><span class="p">):</span>
+                
+                <span class="c1"># use specified ROI names</span>
+                <span class="n">roi_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_run_identifier</span><span class="p">(</span>
+                    <span class="n">roi</span><span class="p">,</span>
+                    <span class="n">ix</span><span class="p">,</span>
+                    <span class="n">sep</span><span class="o">=</span><span class="n">sep</span>
+                <span class="p">)</span>
+
+                <span class="c1"># load file and extract</span>
+                <span class="n">roi_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_file</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+                <span class="n">extr_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_data</span><span class="p">(</span>
+                    <span class="n">data</span><span class="p">,</span>
+                    <span class="n">roi_data</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span>
+                <span class="p">)</span>
+
+                <span class="n">tmp_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">extr_data</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">roi_name</span><span class="p">])</span>
+                <span class="n">roi_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tmp_df</span><span class="p">)</span>
+
+            <span class="n">roi_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">roi_df</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">roi_df</span><span class="p">[</span><span class="s2">&quot;subject&quot;</span><span class="p">],</span> <span class="n">roi_df</span><span class="p">[</span><span class="s2">&quot;run&quot;</span><span class="p">],</span> <span class="n">roi_df</span><span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">subject</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">roi_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">TR</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ses&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+                    <span class="n">el</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">el</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">roi_df</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">el</span>
+
+            <span class="n">df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">roi_df</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Done&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span></div>
+
+
+<div class="viewcode-block" id="ExtractFromROIs.extract_run_identifier">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs.extract_run_identifier">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_run_identifier</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">roi</span><span class="p">,</span>
+        <span class="n">ix</span><span class="p">,</span>
+        <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;_&quot;</span><span class="p">,</span>
+        <span class="p">):</span>
+
+        <span class="n">roi_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">roi_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_names</span><span class="p">[</span><span class="n">ix</span><span class="p">]</span>
+
+        <span class="c1"># extract ROI name from file</span>
+        <span class="k">if</span> <span class="n">roi_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">roi</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; Dealing with roi: </span><span class="si">{</span><span class="n">roi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+    
+                <span class="n">roi_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">roi_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;gz&quot;</span><span class="p">):</span>
+                    <span class="n">roi_name</span> <span class="o">=</span> <span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">roi_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+                <span class="k">elif</span> <span class="n">roi_name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;nii&quot;</span><span class="p">):</span>
+                    <span class="n">roi_name</span> <span class="o">=</span> <span class="n">sep</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">roi_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+                
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">bids_comps</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">split_bids_components</span><span class="p">(</span><span class="n">roi</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ses&quot;</span><span class="p">,</span> <span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">]:</span>
+                        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">bids_comps</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">bids_comps</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">roi_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;roi_</span><span class="si">{</span><span class="n">ix</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="k">return</span> <span class="n">roi_name</span></div>
+
+    
+<div class="viewcode-block" id="ExtractFromROIs.extract_data">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs.extract_data">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_data</span><span class="p">(</span>
+        <span class="n">func</span><span class="p">,</span>
+        <span class="n">roi</span><span class="p">,</span>
+        <span class="n">nr</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+        <span class="n">bsl</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+        <span class="n">highest</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">psc</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">zscore</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">):</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;extract_data</span>
+
+<span class="sd">        Extractor function depending on ROI input. If the ROI represents a zstat/tstat file (or file with float) values,</span>
+<span class="sd">        we will select by default the 15 highest values within the roi. To select the 15 lowest, set *highest=False*.</span>
+<span class="sd">        To change the number of voxels to extract, use the *nr*-input.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        func: np.ndarray</span>
+<span class="sd">            4D timeseries representing the functional data</span>
+<span class="sd">        roi: np.ndarray</span>
+<span class="sd">            int/float np.ndarray representing the ROI data</span>
+<span class="sd">        nr: int, optional</span>
+<span class="sd">            number of voxels to extract from data in case the input is float, by default 15.</span>
+<span class="sd">            if the input is binary, we will take the entire ROI.</span>
+<span class="sd">        bsl: int, optional</span>
+<span class="sd">            amount of time to use to calculate baseline for percent signal change conversion, by default 15s.</span>
+<span class="sd">        highest: bool, optional</span>
+<span class="sd">            If True, we select *nr* HIGHEST voxels from roi. If False, we select the *nr* LOWEST. By default True</span>
+<span class="sd">        psc: bool, optional</span>
+<span class="sd">            Normalize to percent signal change. Default is True.</span>
+<span class="sd">        zscore: bool, optional</span>
+<span class="sd">            Normalize using z-scoring. Default = False</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        ----------</span>
+<span class="sd">        np.ndarray</span>
+<span class="sd">            extracted data (either normalized or not) </span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># deal with binary data</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">roi</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">tm</span> <span class="o">=</span> <span class="n">func</span><span class="p">[</span><span class="n">roi</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">tc</span> <span class="o">=</span> <span class="n">tm</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># find max values in </span>
+            <span class="n">max_val</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">roi</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="n">highest</span><span class="p">:</span>
+                <span class="n">search_vals</span> <span class="o">=</span> <span class="n">max_val</span><span class="p">[</span><span class="o">-</span><span class="n">nr</span><span class="p">:]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">search_vals</span> <span class="o">=</span> <span class="n">max_val</span><span class="p">[:</span><span class="n">nr</span><span class="p">]</span>
+
+            <span class="n">vox</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">search_vals</span><span class="p">:</span>
+                <span class="n">vox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">func</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">roi</span> <span class="o">==</span> <span class="n">i</span><span class="p">)])</span>
+
+            <span class="n">tc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">vox</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="o">...</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>            
+
+        <span class="k">if</span> <span class="n">zscore</span><span class="p">:</span>
+            <span class="n">psc</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">psc</span><span class="p">:</span>
+            <span class="n">psc</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">percent_change</span><span class="p">(</span>
+                <span class="n">tc</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="n">baseline</span><span class="o">=</span><span class="n">bsl</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">psc</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">zscore</span><span class="p">:</span>
+                <span class="n">sd</span> <span class="o">=</span> <span class="n">tc</span><span class="o">.</span><span class="n">std</span><span class="p">()</span>
+                <span class="n">m_</span> <span class="o">=</span> <span class="n">tc</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+                <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">tc</span><span class="o">-</span><span class="n">m_</span><span class="p">)</span><span class="o">/</span><span class="n">sd</span>
+                <span class="k">return</span> <span class="n">z</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">tc</span></div>
+
+
+<div class="viewcode-block" id="ExtractFromROIs.load_file">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractFromROIs.load_file">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_file</span><span class="p">(</span><span class="n">file</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load file based on whether it is a string, numpy array, or nibabel.Nifti1Image object&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.nii.gz&quot;</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gii&quot;</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">ParseGiftiFile</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2"> is not supported. Must be .nii.gz, or .gii&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">GiftiImage</span><span class="p">):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">arr</span><span class="o">.</span><span class="n">data</span> <span class="k">for</span> <span class="n">arr</span> <span class="ow">in</span> <span class="n">file</span><span class="o">.</span><span class="n">f_gif</span><span class="o">.</span><span class="n">darrays</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input </span><span class="si">{</span><span class="n">file</span><span class="si">}</span><span class="s2"> is of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="si">}</span><span class="s2">. Must be a string pointing to an existing file path, an numpy array, nb.Nifti1Image-object, or nb.GiftiImage-object&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">data</span></div>
+</div>
+
+
+<div class="viewcode-block" id="ExtractSubjects">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExtractSubjects</span><span class="p">(</span><span class="n">ExtractFromROIs</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ExtractSubjects</span>
+
+<span class="sd">    Loop through all subjects in a FEAT-directory to extract timecourses from a set of ROIs using</span>
+<span class="sd">    :class:`fmriproc.roi.ExtractFromROIs()`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ft_dir: str</span>
+<span class="sd">        path to 1st level FEAT, fMRIprep, or Pybest directory. For FEAT, We&#39;re explicitly searching for the</span>
+<span class="sd">        &quot;filtered_func_data&quot; files; for fMRIprep, we will look for &quot;\*desc-preproc_bold.nii.gz&quot; using the</span>
+<span class="sd">        native functional files as default. Use e.g., `space=MNI152NLin6Asym` to select FSL&#39;s MNI files.</span>
+<span class="sd">        For Pybest, we will either look in the &quot;unzscored&quot;-folder if you want surface-based files (e.g.,</span>
+<span class="sd">        &#39;fsnative&#39; or &#39;fsaverage&#39;) for &quot;\*desc-denoised_bold.npy&quot;. For volumetric files, we will look in</span>
+<span class="sd">        the &quot;masked&quot; folder for &quot;\*desc-denoised_bold.nii.gz&quot;. For both fMRIprep and Pybest, you can select</span>
+<span class="sd">        specific tasks with *task=[&quot;task1&quot;, &quot;task3&quot;]*. Otherwise all files will be considered. This can be</span>
+<span class="sd">        particularly problematic for surface-based files from Pybest, as there&#39;s extra files being outputted</span>
+<span class="sd">        by Pybest that make selection using these criteria difficult. For instance, if you have multiple runs,</span>
+<span class="sd">        it saves out an average without &quot;run&quot;-identifier. However, it outputs the same file if you only have</span>
+<span class="sd">        a single runs..</span>
+<span class="sd">    func: str, list, optional</span>
+<span class="sd">        Reuse existing csv-file (&lt;output_dir&gt;/&lt;base_name&gt;/&lt;base_name&gt;_desc-tcs.csv)</span>
+<span class="sd">    excl_subjs: list, optional</span>
+<span class="sd">        Exclude particular subjects present in the *ft_dir*, by default None</span>
+<span class="sd">    incl_subjs: str, optional</span>
+<span class="sd">        Include particular subjects present in the *ft_dir*, by default None</span>
+<span class="sd">    n_jobs: int, optional</span>
+<span class="sd">        Number of jobs to use for the extraction, by default set to the number of subjects present</span>
+<span class="sd">    verbose: bool, optional</span>
+<span class="sd">        Make some noise, by default False</span>
+<span class="sd">    **kwargs: dict</span>
+<span class="sd">        Same as :func:`fmriproc.roi.ExtractFromROIs.extract_data`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">ft_dir</span><span class="p">,</span> 
+        <span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">excl_subjs</span><span class="o">=</span><span class="p">[],</span>
+        <span class="n">incl_subjs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span> <span class="o">=</span> <span class="n">ft_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">excl_subjs</span> <span class="o">=</span> <span class="n">excl_subjs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span> <span class="o">=</span> <span class="n">incl_subjs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="n">n_jobs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">space</span> <span class="o">=</span> <span class="n">space</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task</span> <span class="o">=</span> <span class="n">task</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            
+            <span class="c1"># check for incl/excl subjects</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_subjects</span><span class="p">()</span>
+
+            <span class="c1"># set number of jobs</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">)</span>
+
+            <span class="c1"># search files</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">search_for_files</span><span class="p">()</span>
+
+            <span class="c1"># extract</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">df_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_subjects</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">read_tcs_file</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ExtractSubjects.search_for_files">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.search_for_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">search_for_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># check if input if fmriprep</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Looking for files in &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;fmriprep&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_fmriprep_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;pybest&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_pybest_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">space</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_feat_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_files</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">all_files</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">all_files</span><span class="p">]</span>
+            
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">all_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> file(s)&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.read_tcs_file">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.read_tcs_file">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">read_tcs_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reading file: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_func</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;subject&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">})</span> <span class="c1"># bit dodgy..</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_func</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;subject&quot;</span><span class="p">,</span><span class="s2">&quot;run&quot;</span><span class="p">,</span><span class="s2">&quot;t&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># read subject IDs from dataframe</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subj</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df_func</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;subject&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;sub-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subj</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.set_subjects">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.set_subjects">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_subjects</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="nb">list</span><span class="p">)):</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">([</span><span class="s2">&quot;sub-&quot;</span><span class="p">],</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">]</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">excl_subjs</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span><span class="p">]</span>
+                
+            <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">incl_subjs</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">excl_subjs</span><span class="p">]</span>
+        
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Including following subjects: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.find_feat_files">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.find_feat_files">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_feat_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">):</span>
+        <span class="c1"># assuming input is FEAT</span>
+        <span class="n">ft_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s2">&quot;filtered_func_data.nii.gz&quot;</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;._&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ft_files</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find files with &#39;filtered_func_data.nii.gz&#39; in &#39;</span><span class="si">{</span><span class="n">input_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">ft_files</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.find_fmriprep_files">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.find_fmriprep_files">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_fmriprep_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="s2">&quot;func&quot;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="n">all_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">extension</span><span class="o">=</span><span class="s2">&quot;desc-preproc_bold.nii.gz&quot;</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;._&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">files</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">space</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;func&quot;</span><span class="p">:</span>
+                <span class="n">fprep_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                    <span class="p">[</span><span class="s2">&quot;desc-preproc_bold.nii.gz&quot;</span><span class="p">],</span>
+                    <span class="n">all_files</span><span class="p">,</span>
+                    <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;space-&quot;</span>
+                <span class="p">)</span>                
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fprep_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                    <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;space-</span><span class="si">{</span><span class="n">space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+                    <span class="n">all_files</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fprep_files</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find files with &#39;desc-preproc_bold.nii.gz&#39; in &#39;</span><span class="si">{</span><span class="n">input_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;space- tag required for fmriprep input, otherwise I don&#39;t know which files to take..&quot;</span><span class="p">)</span>
+    
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">)):</span>
+            <span class="n">task</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">task_files</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task</span><span class="p">:</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                        <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;task-</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+                        <span class="n">fprep_files</span>
+                    <span class="p">)</span>
+                <span class="n">task_files</span> <span class="o">+=</span> <span class="n">tmp</span>
+
+            <span class="k">return</span> <span class="n">task_files</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fprep_files</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.find_pybest_files">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.find_pybest_files">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_pybest_files</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">space</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">space</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;fsaverage&quot;</span><span class="p">,</span> <span class="s2">&quot;fsnative&quot;</span><span class="p">]:</span>
+                <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;desc-denoised_bold.npy&quot;</span>
+                <span class="n">pyb_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span>
+                    <span class="n">input_dir</span><span class="p">,</span>
+                    <span class="n">extension</span><span class="o">=</span><span class="n">ext</span><span class="p">,</span>
+                    <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;._&quot;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+                <span class="n">pyb_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                    <span class="p">[</span><span class="s2">&quot;unzscored&quot;</span><span class="p">],</span>
+                    <span class="n">pyb_files</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ext</span> <span class="o">=</span> <span class="s2">&quot;desc-denoised_bold.nii.gz&quot;</span>
+                <span class="n">all_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span>
+                    <span class="n">input_dir</span><span class="p">,</span>
+                    <span class="n">extension</span><span class="o">=</span><span class="n">ext</span><span class="p">,</span>
+                    <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;._&quot;</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+                <span class="k">if</span> <span class="n">space</span> <span class="o">==</span> <span class="s2">&quot;func&quot;</span><span class="p">:</span>
+                    <span class="n">pyb_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                        <span class="p">[</span><span class="s2">&quot;masked&quot;</span><span class="p">],</span>
+                        <span class="n">all_files</span><span class="p">,</span>
+                        <span class="n">exclude</span><span class="o">=</span><span class="s2">&quot;space-&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">pyb_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                        <span class="p">[</span><span class="s2">&quot;masked&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;space-</span><span class="si">{</span><span class="n">space</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+                        <span class="n">all_files</span>
+                    <span class="p">)</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pyb_files</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find files with &#39;</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&#39; in &#39;</span><span class="si">{</span><span class="n">input_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">)):</span>
+                <span class="n">task</span> <span class="o">=</span> <span class="p">[</span><span class="n">task</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">task_files</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">task</span><span class="p">:</span>
+                    <span class="n">tmp</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">(</span>
+                        <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;task-</span><span class="si">{</span><span class="n">t</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">],</span>
+                        <span class="n">pyb_files</span>
+                    <span class="p">)</span>
+                    <span class="n">task_files</span> <span class="o">+=</span> <span class="n">tmp</span>
+
+                <span class="k">return</span> <span class="n">task_files</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">pyb_files</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;space- tag required for pybest input, otherwise I don&#39;t know which files to take..&quot;</span><span class="p">)</span></div>
+
+        
+<div class="viewcode-block" id="ExtractSubjects.extract_subjects">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.extract_subjects">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_subjects</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wrapper around :func:`fmriproc.roi.ExtractSubjects.extract_single_subject` to loop through subjects&quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">Parallel</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)(</span>
+            <span class="n">delayed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extract_single_subject</span><span class="p">)(</span>
+                <span class="n">utils</span><span class="o">.</span><span class="n">get_file_from_substring</span><span class="p">([</span><span class="n">sub</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">all_files</span><span class="p">),</span>
+                <span class="n">subject</span><span class="o">=</span><span class="n">sub</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span>
+        <span class="p">)</span>
+
+        <span class="c1"># concat</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+        <span class="c1"># set indices</span>
+        <span class="n">idx_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;subject&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">,</span> <span class="s2">&quot;t&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;task&quot;</span><span class="p">,</span> <span class="s2">&quot;ses&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                <span class="n">idx_list</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+
+        <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">idx_list</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">df</span></div>
+
+
+<div class="viewcode-block" id="ExtractSubjects.extract_single_subject">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.ExtractSubjects.extract_single_subject">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">extract_single_subject</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">files</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Wrapper around :class:`fmriproc.roi.ExtractFromROIs` to extract data from a single subject&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">files</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">extracted_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="format_onsets">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.format_onsets">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">format_onsets</span><span class="p">(</span>
+    <span class="n">subject_list</span><span class="p">,</span> 
+    <span class="n">project_dir</span>
+    <span class="p">):</span>
+
+    <span class="n">onset</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ix</span><span class="p">,</span><span class="n">subject</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subject_list</span><span class="p">):</span>
+
+        <span class="n">subj</span> <span class="o">=</span> <span class="n">subject</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">onset_dir</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">project_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s2">&quot;ses-1&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">onset_dir</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Directory &#39;</span><span class="si">{</span><span class="n">onset_dir</span><span class="si">}</span><span class="s2">&#39; does not exist; is &#39;proj_dir&#39; set correctly?&quot;</span><span class="p">)</span>
+
+        <span class="n">tsv_files</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">FindFiles</span><span class="p">(</span>
+            <span class="n">onset_dir</span><span class="p">,</span>
+            <span class="n">extension</span><span class="o">=</span><span class="s2">&quot;tsv&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">files</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tsv_files</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find tsv-files in &#39;</span><span class="si">{</span><span class="n">onset_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># sort onset time</span>
+        <span class="n">tmp_onset</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tsv</span> <span class="ow">in</span> <span class="n">tsv_files</span><span class="p">:</span>
+
+            <span class="c1"># read runID from bids components</span>
+            <span class="n">comps</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">split_bids_components</span><span class="p">(</span><span class="n">tsv</span><span class="p">)</span>
+            <span class="n">run</span> <span class="o">=</span> <span class="n">comps</span><span class="p">[</span><span class="s2">&quot;run&quot;</span><span class="p">]</span>
+
+            <span class="n">onset_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">tsv</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">selected_columns</span> <span class="o">=</span> <span class="n">onset_df</span><span class="p">[[</span><span class="s2">&quot;onset&quot;</span><span class="p">,</span> <span class="s2">&quot;trial_type&quot;</span><span class="p">]]</span>
+            <span class="n">onset_df</span> <span class="o">=</span> <span class="n">selected_columns</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;subject&#39;</span><span class="p">],</span> <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;run&#39;</span><span class="p">]</span> <span class="o">=</span>  <span class="n">subj</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">run</span><span class="p">)</span>
+            <span class="n">onset_df</span> <span class="o">=</span> <span class="n">onset_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;trial_type&quot;</span><span class="p">:</span> <span class="s2">&quot;event_type&quot;</span><span class="p">})</span>
+            <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;onset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;onset&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;event_type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">onset_df</span><span class="p">[</span><span class="s1">&#39;event_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>  
+            <span class="n">tmp_onset</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">onset_df</span><span class="p">)</span>
+
+        <span class="n">subj_onset</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">tmp_onset</span><span class="p">)</span>
+        <span class="n">onset</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subj_onset</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">onset</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;subject&#39;</span><span class="p">,</span> <span class="s1">&#39;run&#39;</span><span class="p">,</span> <span class="s1">&#39;event_type&#39;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FullExtractionPipeline</span><span class="p">(</span><span class="n">ExtractSubjects</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;FullExtractionPipeline</span>
+
+<span class="sd">    Given a list of ROIs, extract the timecourses from all subjects&#39; preprocessed data in a level1 feat folder. If these ROIs</span>
+<span class="sd">    are binary, the timecourses will be averaged across this entire area. If the ROIs are values (e.g., z-stat values), the n</span>
+<span class="sd">    (default = 15) highest (default) /lowest (--lowest) values will be selected and averaged. These timecourses are entered in</span>
+<span class="sd">    a deconvolution model using the canonical HRF and its derivatives as basis sets (default). From this model, parameters are</span>
+<span class="sd">    extracted from the individual basis sets as well as the full HRF. Results are plotted and stored in a figure where the</span>
+<span class="sd">    rows denote EVs (stimulus conditions. There&#39;s a couple of default settings that you can generally leave alone, but there&#39;s</span>
+<span class="sd">    flags to changed them nonetheless.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    proj_dir: str, optional</span>
+<span class="sd">        Root of the project folder, defaults to os.environ.get(&quot;DIR_DATA_HOME&quot;). Mainly necessary for fetching onset files.</span>
+<span class="sd">    order: list, optional</span>
+<span class="sd">        If performing deconvolution, a plot can be generated. This flag sets the order (rows). By default, we&#39;ll take the order</span>
+<span class="sd">        in the onset dataframe (unsorted).</span>
+<span class="sd">    peak: int, optional</span>
+<span class="sd">        Deconvolution can sometimes cause exotic HRF shapes. This flag specifically tells the algorithm to select the first</span>
+<span class="sd">        peak while extracting parameters.</span>
+<span class="sd">    dec_kws: dict, optional</span>
+<span class="sd">        Extra parameters for the deconvolution, by default:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            dec_defaults = {</span>
+<span class="sd">                &quot;interval&quot;: [-2,25],</span>
+<span class="sd">                &quot;basis_sets&quot;: &quot;canonical_hrf_with_time_derivative_dispersion&quot;,</span>
+<span class="sd">                &quot;TR&quot;: 2</span>
+<span class="sd">            }</span>
+
+<span class="sd">        The format should be as follows (different parameters comma-separated, and parameter-value pair separated by &#39;=&#39;):</span>
+<span class="sd">        &quot;--dec &lt;parameter1&gt;=&lt;value1&gt;,&lt;parameter2&gt;=&lt;value2&gt;,&lt;parameterX&gt;=&lt;valueX&gt;&quot;</span>
+<span class="sd">        In case you want to change the interval over which the profiles are deconvolved, use &quot;interval=t1&gt;t2&quot; (separated by &#39;&gt;&#39;).</span>
+
+<span class="sd">    plot_kws: dict, optional</span>
+<span class="sd">        Set parameters for plotting. The idea is similar to the &quot;--dec&quot; flag. The defaults are set to:</span>
+
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            plot_defaults = {</span>
+<span class="sd">                &quot;line_width&quot;: 3,    # thickness of the lines of profiles</span>
+<span class="sd">                &quot;y_dec&quot;: 2,         # number of decimals on y-axes (ensures correct spacing)</span>
+<span class="sd">                &quot;add_hline&quot;: 0,     # horizontal line at 0</span>
+<span class="sd">                &quot;sns_offset&quot;: 4,    # distance between y-axis and first bar in bar plot</span>
+<span class="sd">                &quot;error&quot;: &quot;se&quot;,      # error type (standard error of mean) for bar plot</span>
+<span class="sd">                &quot;cmap&quot;: &quot;Set1&quot;      # colormap Set1</span>
+<span class="sd">            }</span>
+
+<span class="sd">    output_dir: str, optional</span>
+<span class="sd">        path to output directory (default = $DIR_DATA_DERIV/roi_extract)</span>
+<span class="sd">    output_base: str, optional</span>
+<span class="sd">        basename for output. Will also be used to create a subfolder in &lt;output_dir&gt;. &quot;_desc-&lt;description&gt;&quot; will</span>
+<span class="sd">        be appended automatically. Defaults to &quot;roi_extract&quot; (very insightful, I know..)</span>
+<span class="sd">    verbose: bool, optional</span>
+<span class="sd">        print progress to the terminal</span>
+<span class="sd">    pos_neg: bool, optional</span>
+<span class="sd">        Switch to different plotting function, by default False.</span>
+<span class="sd">    do_fit: bool, optional</span>
+<span class="sd">        If False, we&#39;ll only extract the data and will not perform deconvolution, by default True</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">proj_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">order</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">peak</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">dec_kws</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">plot_kws</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">output_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">output_base</span><span class="o">=</span><span class="s2">&quot;roi_extract&quot;</span><span class="p">,</span>
+        <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">pos_neg</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">do_fit</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span> <span class="o">=</span> <span class="n">proj_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dec_kws</span> <span class="o">=</span> <span class="n">dec_kws</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_kws</span> <span class="o">=</span> <span class="n">plot_kws</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak</span> <span class="o">=</span> <span class="n">peak</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">order</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">=</span> <span class="n">output_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_base</span> <span class="o">=</span> <span class="n">output_base</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pos_neg</span> <span class="o">=</span> <span class="n">pos_neg</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span> <span class="o">=</span> <span class="n">do_fit</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;DIR_DATA_HOME&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span><span class="p">,</span> <span class="s2">&quot;derivatives&quot;</span><span class="p">,</span> <span class="s2">&quot;roi_extract&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_base</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># initiate ExtractSubjects class</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># check whether to do fit</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span><span class="p">:</span>
+            
+            <span class="c1"># parse onsets in a dataframe</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">df_onsets</span> <span class="o">=</span> <span class="n">format_onsets</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span>
+            <span class="p">)</span>
+
+            <span class="c1"># check order</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">order</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">df_onsets</span><span class="p">,</span>
+                    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;event_type&quot;</span><span class="p">,</span>
+                    <span class="n">sort</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+            <span class="c1"># derive TR from functional dataframe</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">df_func</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">TR</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">t</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            
+            <span class="c1"># define default deconvolution parameters</span>
+            <span class="n">dec_defaults</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="mi">25</span><span class="p">],</span>
+                <span class="s2">&quot;basis_sets&quot;</span><span class="p">:</span> <span class="s2">&quot;canonical_hrf_with_time_derivative&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;verbose&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">,</span>
+                <span class="s2">&quot;TR&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">TR</span>
+            <span class="p">}</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">dec_defaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dec_kws</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dec_kws</span><span class="p">,</span>
+                    <span class="n">key</span><span class="p">,</span>
+                    <span class="n">val</span>
+                <span class="p">)</span>
+
+            <span class="c1">## fit</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run_fitter</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">dec_kws</span><span class="p">)</span>
+
+            <span class="c1"># plot</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_neg</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">generate_plot</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">plot_kws</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">generate_plot2</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">plot_kws</span><span class="p">)</span>
+
+        <span class="c1">## write output files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_csv_files</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">write_settings</span><span class="p">()</span>
+
+        <span class="c1">## done</span>
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="s2">&quot;Done&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FullExtractionPipeline.run_fitter">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.run_fitter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_fitter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span> <span class="o">=</span> <span class="n">fitting</span><span class="o">.</span><span class="n">NideconvFitter</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">df_func</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">df_onsets</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># get deconvolved timecourses</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">timecourses_condition</span><span class="p">()</span>
+
+        <span class="c1"># get subject-specific parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">parameters_for_tc_subjects</span><span class="p">(</span><span class="n">col_name</span><span class="o">=</span><span class="s2">&quot;roi&quot;</span><span class="p">)</span>
+
+        <span class="c1"># get condition-specific parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">parameters_for_tc_condition</span><span class="p">(</span><span class="n">col_name</span><span class="o">=</span><span class="s2">&quot;roi&quot;</span><span class="p">)</span>        </div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.sort_rois">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.sort_rois">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sort_rois</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">ddict</span><span class="p">,</span>
+        <span class="n">base_color</span><span class="o">=</span><span class="s2">&quot;#ffffff&quot;</span><span class="p">,</span>
+        <span class="n">fc</span><span class="o">=</span><span class="mi">1</span>
+        <span class="p">):</span>
+
+        <span class="c1"># enforce int</span>
+        <span class="n">fc</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fc</span><span class="p">)</span>
+
+        <span class="c1"># get columns</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">tc_condition</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="c1"># cols 2 list</span>
+        <span class="n">cdict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">color_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">roi_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">idx_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">ddict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">cdict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">c</span><span class="p">:</span>
+                    <span class="n">cdict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+            <span class="n">roi_list</span> <span class="o">+=</span> <span class="n">cdict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+            <span class="c1"># create colormaps</span>
+            <span class="n">color_list</span> <span class="o">+=</span> <span class="n">utils</span><span class="o">.</span><span class="n">make_between_cm</span><span class="p">(</span>
+                <span class="n">base_color</span><span class="p">,</span>
+                <span class="n">val</span><span class="p">,</span>
+                <span class="n">N</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">cdict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">+</span><span class="n">fc</span><span class="p">,</span>
+                <span class="n">as_list</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)[</span><span class="n">fc</span><span class="p">:]</span>
+
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">roi_list</span><span class="p">:</span>
+            <span class="n">idx_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cols</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">r</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">idx_list</span><span class="p">,</span><span class="n">roi_list</span><span class="p">,</span><span class="n">color_list</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.sort_dataframe">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.sort_dataframe">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sort_dataframe</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">df</span><span class="p">,</span> 
+        <span class="n">idx</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+        <span class="n">cols</span><span class="o">=</span><span class="kc">None</span>
+        <span class="p">):</span>
+
+        <span class="c1"># sort columns or rows</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cols</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span><span class="nb">str</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">cols</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">subjs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;subject&quot;</span><span class="p">)</span>
+            <span class="n">new</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">subj</span> <span class="ow">in</span> <span class="n">subjs</span><span class="p">:</span>
+                
+                <span class="n">subj_df</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;subject = </span><span class="si">{</span><span class="n">subj</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">evs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">subj_df</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;event_type&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">ev</span> <span class="ow">in</span> <span class="n">evs</span><span class="p">:</span>
+                    <span class="n">ev_df</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="n">subj_df</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;event_type = </span><span class="si">{</span><span class="n">ev</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="s2">&quot;run&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">subj_df</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+                        <span class="n">run_ids</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">subj_df</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;run&quot;</span><span class="p">)</span>
+
+                        <span class="k">for</span> <span class="n">run</span> <span class="ow">in</span> <span class="n">run_ids</span><span class="p">:</span>
+                            <span class="n">run_df</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="n">ev_df</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;run = </span><span class="si">{</span><span class="n">run</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                            <span class="n">tmp</span> <span class="o">=</span> <span class="n">run_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                            <span class="n">new_df</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span><span class="n">idx</span><span class="p">]</span>
+                            <span class="n">new_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">subj_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                            <span class="n">new</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_df</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">tmp</span> <span class="o">=</span> <span class="n">ev_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+                        <span class="n">new_df</span> <span class="o">=</span> <span class="n">tmp</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">idx</span><span class="p">,:]</span>
+                        <span class="n">new_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">subj_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span><span class="p">),</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                        <span class="n">new</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_df</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">new</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.generate_plot">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.generate_plot">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_plot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">include_pars</span><span class="o">=</span><span class="p">[</span>
+            <span class="s2">&quot;magnitude&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;time_to_peak&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;1st_deriv_time_to_peak&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;2nd_deriv_time_to_peak&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;rise_slope&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;positive_area&quot;</span>
+        <span class="p">],</span>
+        <span class="n">time_col</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">,</span>
+        <span class="n">write_files</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cdict</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">subjects</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">fc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+
+        <span class="n">y_size</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="n">nrows</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">include_pars</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="nb">list</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">include_pars</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">include_pars</span> <span class="o">=</span> <span class="p">[</span><span class="n">include_pars</span><span class="p">]</span>
+
+            <span class="n">nrows</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">include_pars</span><span class="p">)</span>
+            <span class="n">y_size</span> <span class="o">=</span> <span class="mi">4</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">include_pars</span><span class="p">))</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span>
+            <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span><span class="n">y_size</span><span class="p">),</span>
+            <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generating plot..&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+        <span class="n">sfs</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">subfigures</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">)</span>
+        
+        <span class="n">axs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">f_ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrows</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">nrows</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">:</span>
+                <span class="n">sf</span> <span class="o">=</span> <span class="n">sfs</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sf</span> <span class="o">=</span> <span class="n">sfs</span><span class="p">[</span><span class="n">f_ix</span><span class="p">]</span>
+
+            <span class="n">axs</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;ax</span><span class="si">{</span><span class="n">f_ix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ev</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">):</span>
+
+            <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; ev-</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">ev</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+            <span class="n">expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;event_type = </span><span class="si">{</span><span class="n">ev</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">ev_regr</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">tc_condition</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">subjects</span><span class="p">:</span>
+                <span class="n">use_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">avg_pars_subjects</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">use_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">pars_condition</span>
+
+            <span class="n">ev_pars</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="n">use_df</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="s2">&quot;ax0&quot;</span><span class="p">][</span><span class="n">e</span><span class="p">]</span>
+
+            <span class="c1"># default cmap</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cdict</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="s2">&quot;color&quot;</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="n">kwargs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                        <span class="n">kwargs</span><span class="p">,</span>
+                        <span class="s2">&quot;cmap&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;Set1&quot;</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">kwargs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                        <span class="n">kwargs</span><span class="p">,</span>
+                        <span class="s2">&quot;palette&quot;</span><span class="p">,</span>
+                        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;color&quot;</span><span class="p">]</span>
+                    <span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+
+                <span class="c1"># get information on how to sort dataframe</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort_rois</span><span class="p">(</span><span class="n">cdict</span><span class="p">,</span> <span class="n">fc</span><span class="o">=</span><span class="n">fc</span><span class="p">)</span>
+
+                <span class="c1"># sort rows of parameter dataframe</span>
+                <span class="n">ev_pars</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort_dataframe</span><span class="p">(</span>
+                    <span class="n">ev_pars</span><span class="p">,</span>
+                    <span class="n">idx</span><span class="o">=</span><span class="n">t</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="p">)</span>
+
+                <span class="c1"># sort columns or profile dataframe</span>
+                <span class="n">ev_regr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort_dataframe</span><span class="p">(</span>
+                    <span class="n">ev_regr</span><span class="p">,</span>
+                    <span class="n">cols</span><span class="o">=</span><span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="p">)</span>
+
+                <span class="c1"># add colors to kwargs</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                    <span class="n">kwargs</span><span class="p">,</span>
+                    <span class="s2">&quot;color&quot;</span><span class="p">,</span>
+                    <span class="n">t</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="p">)</span>
+                
+            <span class="c1"># set plotting defaults</span>
+            <span class="n">plot_defaults</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;line_width&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s2">&quot;y_dec&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s2">&quot;add_hline&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;se&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;font_size&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span>
+                <span class="s2">&quot;add_points&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;points_color&quot;</span><span class="p">:</span> <span class="s2">&quot;k&quot;</span>
+            <span class="p">}</span>
+
+            <span class="n">plot_defaults</span><span class="p">[</span><span class="s2">&quot;title_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_defaults</span><span class="p">[</span><span class="s2">&quot;font_size&quot;</span><span class="p">]</span><span class="o">*</span><span class="mf">1.1</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">plot_defaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                    <span class="n">kwargs</span><span class="p">,</span>
+                    <span class="n">key</span><span class="p">,</span>
+                    <span class="n">val</span>
+                <span class="p">)</span>
+            
+            <span class="n">bar_lbl</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">y_lbl</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">e</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">y_lbl</span> <span class="o">=</span> <span class="s2">&quot;magnitude (%)&quot;</span>
+
+            <span class="n">bs</span> <span class="o">=</span> <span class="n">plotting</span><span class="o">.</span><span class="n">LazyPlot</span><span class="p">(</span>
+                <span class="nb">list</span><span class="p">(</span><span class="n">ev_regr</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">values</span><span class="p">),</span>
+                <span class="n">xx</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">ev_regr</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">time_col</span><span class="p">),</span>
+                <span class="n">axs</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                <span class="n">title</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">ev</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;fontweight&quot;</span><span class="p">:</span> <span class="s2">&quot;bold&quot;</span>
+                <span class="p">},</span>
+                <span class="n">y_label</span><span class="o">=</span><span class="n">y_lbl</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">include_pars</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+
+                <span class="k">for</span> <span class="n">p_ix</span><span class="p">,</span><span class="n">par</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">include_pars</span><span class="p">):</span>
+
+                    <span class="k">if</span> <span class="n">e</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>  
+                        <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;s&quot;</span>
+                        <span class="n">par_lbl</span> <span class="o">=</span> <span class="n">par</span>
+                        <span class="k">if</span> <span class="n">par</span> <span class="o">==</span> <span class="s2">&quot;magnitude&quot;</span><span class="p">:</span>
+                            <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;%&quot;</span>
+                        <span class="k">elif</span> <span class="n">par</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;positive_area&quot;</span><span class="p">,</span><span class="s2">&quot;undershoot&quot;</span><span class="p">]:</span>
+                            <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;au&quot;</span>
+                        <span class="k">elif</span> <span class="s2">&quot;1st_deriv&quot;</span> <span class="ow">in</span> <span class="n">par</span><span class="p">:</span>
+                            <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;%/s&quot;</span>
+                            <span class="n">par_lbl</span> <span class="o">=</span> <span class="s2">&quot;rate of change&quot;</span>
+                        <span class="k">elif</span> <span class="s2">&quot;2nd_deriv&quot;</span> <span class="ow">in</span> <span class="n">par</span><span class="p">:</span>
+                            <span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;%/s$^2$&quot;</span>
+                            <span class="n">par_lbl</span> <span class="o">=</span> <span class="s2">&quot;acceleration&quot;</span>          
+
+                        <span class="n">bar_lbl</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">par_lbl</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39; &#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">unit</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+                    <span class="n">b_ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;ax</span><span class="si">{</span><span class="n">p_ix</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">][</span><span class="n">e</span><span class="p">]</span>
+                    <span class="n">allowed_inputs</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="s1">&#39;magnitude&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;fwhm&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;time_to_peak&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;half_rise_time&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;half_max&#39;</span><span class="p">,</span>	
+                        <span class="s1">&#39;rise_slope&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;rise_slope_t&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;positive_area&#39;</span><span class="p">,</span> 
+                        <span class="s1">&#39;undershoot&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;1st_deriv_magnitude&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;1st_deriv_time_to_peak&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;2nd_deriv_magnitude&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;2nd_deriv_time_to_peak&#39;</span><span class="p">,</span>
+                    <span class="p">]</span>
+
+                    <span class="k">if</span> <span class="n">par</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed_inputs</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Specified parameter &#39;</span><span class="si">{</span><span class="n">par</span><span class="si">}</span><span class="s2">&#39; cannot be used. Must be one of </span><span class="si">{</span><span class="n">allowed_inputs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    
+                    <span class="c1"># copy kwargs, but slight reduce fontsize</span>
+                    <span class="n">bar_kws</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">bar_kws</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+                        
+                    <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">([</span><span class="s2">&quot;font_size&quot;</span><span class="p">,</span><span class="s2">&quot;label_size&quot;</span><span class="p">,</span><span class="s2">&quot;sns_offset&quot;</span><span class="p">],[</span><span class="n">bs</span><span class="o">.</span><span class="n">font_size</span><span class="p">,</span><span class="n">bs</span><span class="o">.</span><span class="n">label_size</span><span class="p">,</span><span class="mi">4</span><span class="p">]):</span>
+                        <span class="n">bar_kws</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                            <span class="n">bar_kws</span><span class="p">,</span>
+                            <span class="n">key</span><span class="p">,</span>
+                            <span class="n">val</span><span class="p">,</span>
+                            <span class="n">force</span><span class="o">=</span><span class="kc">True</span>
+                        <span class="p">)</span>
+
+                    <span class="n">n_rois</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">ev_pars</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;roi&quot;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">_</span> <span class="o">=</span> <span class="n">plotting</span><span class="o">.</span><span class="n">LazyBar</span><span class="p">(</span>
+                        <span class="n">ev_pars</span><span class="p">,</span>
+                        <span class="n">x</span><span class="o">=</span><span class="s2">&quot;roi&quot;</span><span class="p">,</span>
+                        <span class="n">y</span><span class="o">=</span><span class="n">par</span><span class="p">,</span>
+                        <span class="n">axs</span><span class="o">=</span><span class="n">b_ax</span><span class="p">,</span>
+                        <span class="n">y_label</span><span class="o">=</span><span class="n">bar_lbl</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">bar_kws</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+
+                <span class="n">n_rois</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">ev_regr</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">nrows</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">prof_sf</span> <span class="o">=</span> <span class="n">sfs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prof_sf</span> <span class="o">=</span> <span class="n">sfs</span>
+
+            <span class="n">prof_sf</span><span class="o">.</span><span class="n">supxlabel</span><span class="p">(</span><span class="s2">&quot;time (s)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">bs</span><span class="o">.</span><span class="n">title_size</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">nrows</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">sfs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">supxlabel</span><span class="p">(</span><span class="s2">&quot;ROIs&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">bs</span><span class="o">.</span><span class="n">title_size</span><span class="p">)</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+            <span class="n">labels</span><span class="o">=</span><span class="n">n_rois</span><span class="p">,</span>
+            <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.01</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span>
+            <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper left&quot;</span><span class="p">,</span>
+            <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">fontsize</span><span class="o">=</span><span class="n">bs</span><span class="o">.</span><span class="n">label_size</span>
+        <span class="p">)</span>
+
+        <span class="c1"># save figure</span>
+        <span class="k">if</span> <span class="n">write_files</span><span class="p">:</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_base</span><span class="si">}</span><span class="s2">_desc-plot&quot;</span><span class="p">)</span>
+            <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing plot files: </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;pdf&quot;</span><span class="p">,</span><span class="s2">&quot;png&quot;</span><span class="p">,</span><span class="s2">&quot;svg&quot;</span><span class="p">]:</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">,</span>
+                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;white&quot;</span><span class="p">,</span>
+                    <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span>
+                <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.generate_plot2">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.generate_plot2">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_plot2</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">use_colors</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;#D97F75&quot;</span><span class="p">,</span><span class="s2">&quot;#9ABDD4&quot;</span><span class="p">],</span>
+        <span class="n">time_col</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">,</span>
+        <span class="n">write_files</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">cdict</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">subjects</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">fc</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">):</span>
+
+        <span class="n">y_size</span> <span class="o">=</span> <span class="mi">4</span>
+        <span class="n">nrows</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">include_pars</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span><span class="nb">list</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">include_pars</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">include_pars</span> <span class="o">=</span> <span class="p">[</span><span class="n">include_pars</span><span class="p">]</span>
+
+            <span class="n">nrows</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">include_pars</span><span class="p">)</span>
+            <span class="n">y_size</span> <span class="o">=</span> <span class="mi">4</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="n">include_pars</span><span class="p">))</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span>
+            <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">)</span><span class="o">*</span><span class="mi">4</span><span class="p">,</span><span class="n">y_size</span><span class="p">),</span>
+            <span class="n">constrained_layout</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generating plot..&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+        <span class="n">sfs</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">subfigures</span><span class="p">(</span><span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">)</span>
+        
+        <span class="n">axs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">f_ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrows</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">nrows</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">:</span>
+                <span class="n">sf</span> <span class="o">=</span> <span class="n">sfs</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">sf</span> <span class="o">=</span> <span class="n">sfs</span><span class="p">[</span><span class="n">f_ix</span><span class="p">]</span>
+
+            <span class="n">axs</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;ax</span><span class="si">{</span><span class="n">f_ix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">e</span><span class="p">,</span><span class="n">ev</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">order</span><span class="p">):</span>
+
+            <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot; ev-</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">ev</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+            <span class="n">expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;event_type = </span><span class="si">{</span><span class="n">ev</span><span class="si">}</span><span class="s2">&quot;</span>
+            
+            <span class="n">ev_regr</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">tc_condition</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">subjects</span><span class="p">:</span>
+                <span class="n">subjs_df</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">select_from_df</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">tc_subjects</span><span class="p">,</span> <span class="n">expression</span><span class="o">=</span><span class="n">expr</span><span class="p">)</span>
+                <span class="n">subjs_df</span> <span class="o">=</span> <span class="n">ev_regr</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s2">&quot;subject&quot;</span><span class="p">,</span><span class="s2">&quot;event_type&quot;</span><span class="p">,</span><span class="s2">&quot;t&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+            <span class="c1"># set plotting defaults</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="s2">&quot;ax0&quot;</span><span class="p">][</span><span class="n">e</span><span class="p">]</span>
+            <span class="n">plot_defaults</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;line_width&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s2">&quot;y_dec&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s2">&quot;add_hline&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;se&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;font_size&quot;</span><span class="p">:</span> <span class="mi">24</span>
+            <span class="p">}</span>
+
+            <span class="n">plot_defaults</span><span class="p">[</span><span class="s2">&quot;title_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">plot_defaults</span><span class="p">[</span><span class="s2">&quot;font_size&quot;</span><span class="p">]</span><span class="o">*</span><span class="mf">1.1</span>
+
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">plot_defaults</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">kwargs</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">update_kwargs</span><span class="p">(</span>
+                    <span class="n">kwargs</span><span class="p">,</span>
+                    <span class="n">key</span><span class="p">,</span>
+                    <span class="n">val</span>
+                <span class="p">)</span>
+            
+            <span class="n">y_lbl</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">e</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">y_lbl</span> <span class="o">=</span> <span class="s2">&quot;magnitude (%)&quot;</span>
+
+            <span class="n">bs</span> <span class="o">=</span> <span class="n">plotting</span><span class="o">.</span><span class="n">LazyPlot</span><span class="p">(</span>
+                <span class="nb">list</span><span class="p">(</span><span class="n">ev_regr</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">values</span><span class="p">),</span>
+                <span class="n">xx</span><span class="o">=</span><span class="n">utils</span><span class="o">.</span><span class="n">get_unique_ids</span><span class="p">(</span><span class="n">ev_regr</span><span class="p">,</span> <span class="nb">id</span><span class="o">=</span><span class="n">time_col</span><span class="p">),</span>
+                <span class="n">axs</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span>
+                <span class="n">title</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">ev</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">),</span>
+                    <span class="s2">&quot;fontweight&quot;</span><span class="p">:</span> <span class="s2">&quot;bold&quot;</span>
+                <span class="p">},</span>
+                <span class="n">y_label</span><span class="o">=</span><span class="n">y_lbl</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">nrows</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">prof_sf</span> <span class="o">=</span> <span class="n">sfs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">prof_sf</span> <span class="o">=</span> <span class="n">sfs</span>
+
+            <span class="n">prof_sf</span><span class="o">.</span><span class="n">supxlabel</span><span class="p">(</span><span class="s2">&quot;time (s)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="n">bs</span><span class="o">.</span><span class="n">title_size</span><span class="p">)</span>
+
+        <span class="c1"># save figure</span>
+        <span class="k">if</span> <span class="n">write_files</span><span class="p">:</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_base</span><span class="si">}</span><span class="s2">_desc-plot&quot;</span><span class="p">)</span>
+            <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing plot files: </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;pdf&quot;</span><span class="p">,</span><span class="s2">&quot;png&quot;</span><span class="p">,</span><span class="s2">&quot;svg&quot;</span><span class="p">]:</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">,</span>
+                    <span class="n">facecolor</span><span class="o">=</span><span class="s2">&quot;white&quot;</span><span class="p">,</span>
+                    <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span>
+                <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.write_csv_files">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.write_csv_files">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write_csv_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Writing csv-files to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">..&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span><span class="p">:</span>
+            <span class="n">out_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;hrfs&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="p">,</span> <span class="s2">&quot;hrfs&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;pars_run&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="p">,</span> <span class="s2">&quot;pars_subjects&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;pars_avg&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="p">,</span> <span class="s2">&quot;avg_pars_subjects&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;tcs&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;df_func&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;pars_evs&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;df_onsets&quot;</span><span class="p">),</span>
+                <span class="s2">&quot;pars_evs&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;pars_condition&quot;</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;tcs&quot;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;df_func&quot;</span><span class="p">)</span>
+            <span class="p">}</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">val</span> <span class="ow">in</span> <span class="n">out_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">val</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_base</span><span class="si">}</span><span class="s2">_desc-</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="FullExtractionPipeline.write_settings">
+<a class="viewcode-back" href="../../classes/roi.html#fmriproc.roi.FullExtractionPipeline.write_settings">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">write_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="n">utils</span><span class="o">.</span><span class="n">verbose</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generating settings file&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span><span class="p">:</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
+                <span class="s2">&quot;subject&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">,</span>
+                <span class="s2">&quot;rois&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span><span class="p">,</span>
+                <span class="s2">&quot;fit&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span><span class="p">,</span>
+                <span class="s2">&quot;TR&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">TR</span><span class="p">,</span>
+                <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;basis_sets&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">basis_sets</span><span class="p">,</span>
+                <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">fitter</span><span class="o">.</span><span class="n">interval</span><span class="p">,</span>
+                <span class="s2">&quot;project_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span><span class="p">,</span>
+                <span class="s2">&quot;input_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">,</span>
+                <span class="s2">&quot;output_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span>
+                <span class="s2">&quot;output_base&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_base</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
+                <span class="s2">&quot;subject&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">subjects</span><span class="p">,</span>
+                <span class="s2">&quot;rois&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">roi_list</span><span class="p">,</span>
+                <span class="s2">&quot;fit&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_fit</span><span class="p">,</span>
+                <span class="s2">&quot;TR&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">TR</span><span class="p">,</span>
+                <span class="s2">&quot;unit&quot;</span><span class="p">:</span> <span class="s2">&quot;seconds&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;project_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">proj_dir</span><span class="p">,</span>
+                <span class="s2">&quot;input_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">ft_dir</span><span class="p">,</span>
+                <span class="s2">&quot;output_dir&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span>
+                <span class="s2">&quot;output_base&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_base</span>
+            <span class="p">}</span>
+
+        <span class="n">settings_for_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+            <span class="n">settings</span><span class="p">,</span> 
+            <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> 
+            <span class="bp">cls</span><span class="o">=</span><span class="n">DateTimeEncoder</span>
+        <span class="p">)</span>
+
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_base</span><span class="si">}</span><span class="s2">_desc-settings.json&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">outfile</span><span class="p">:</span>
+            <span class="n">outfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">settings_for_json</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

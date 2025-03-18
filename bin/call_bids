@@ -131,15 +131,6 @@ do
         phys)
           PHYS_ONLY=1
           SES_TYPE="lines"
-          ;;     
-        philips)
-          export MRI_SYSTEM="philips"
-          ;;
-        siemens)
-          export MRI_SYSTEM="siemens"
-          ;;
-        ge)
-          export MRI_SYSTEM="ge"
           ;;
         skip_tr)
           SKIP_TR=1
@@ -507,7 +498,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
         # fetch task
         task=`get_id ${bold} task`
         if [[ -z ${task} ]]; then
-          task=${TASK_SES1[0]}
+          task=${TASK_IDS[0]}
         elif [[ ${task} == "prf" ]]; then
           task="pRF"
         elif [[ ${task} == "sr" ]]; then
@@ -615,7 +606,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
       
       task=`task_id ${bold}`
       if [[ -z ${task} ]]; then
-        task=${TASK_SES1[0]}
+        task=${TASK_IDS[0]}
 
         if [[ ! -z ${task} ]]; then
           task="stim"
@@ -716,7 +707,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                 fi
 
                 # synchronize TR between json files and nifti files
-                tr_hd=`fslval ${ff} pixdim4`
+                tr_hd=`fslval ${ff} pixdim4 | xargs`
 
                 # read TR from par/dcm file
                 if [[ -z ${SET_TR} ]]; then 
@@ -728,7 +719,7 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                   echo "  TR in $(basename ${par_f}) is ${tr}s"
                 else
                   # manually specified with '-t' flag
-                  echo "  TR manually specified with '-t ${SET_TR}; setting RepetitionTime to ${SET_TR}s"
+                  echo "  TR manually specified with '-t ${SET_TR}'; setting RepetitionTime to ${SET_TR}s"
                   tr=${SET_TR}
                 fi
 
@@ -737,18 +728,32 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                   # add RepetitionTime
                   call_json ${json_bids} RepetitionTime ${tr}
 
-                  # check if fmri-files have TR (pixdim4)
-                  tr_hd=`fslval ${ff} pixdim4`
-                  if [ ${tr_hd} = "0.000000" ] || [[ ${tr_hd} != "${tr}" ]]; then 
-                    if [[ ${SKIP_TR} -eq 0 ]]; then
-                      echo "  WARNING: TR=${tr_hd}s in file header, but ${tr}s in json.. Setting to ${tr}s"
+                  # Check if TR is exactly zero
+                  if [[ ${SKIP_TR} -eq 0 ]]; then
+                    if (( $(echo "${tr_hd} == 0.0" | bc -l) )); then
+                      echo "  WARNING: TR is zero — correcting to ${tr}"
                       call_settr ${ff} ${tr}
-                    
+
                       if [[ $? -ne 0 ]]; then
-                        echo "  call_settr exited with non-zero status; probably memory issues.."
+                          echo "  Failed to set TR — check permissions or file integrity."
+                          exit 1
+                      fi
+
+                    # Check if TR differs from expected
+                    elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
+                      echo "  WARNING: TR in file (${tr_hd}) differs from expected (${tr}). Updating file header."
+                      call_settr ${ff} "${tr}"
+
+                      if [[ $? -ne 0 ]]; then
+                        echo "  Failed to set TR — check permissions or file integrity."
+                        exit 1
                       fi
                     else
-                      echo "  WARNING: TR=${tr_hd}s in file header, and ${tr}s in json, but '--skip_tr' is supplied.."
+                      echo "  TR in header [${tr_hd}] matches TR in json/specified [${tr}] — no action needed."
+                    fi
+                  else
+                    if (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
+                      echo "  WARNING: TR=${tr_hd}s in file header, and ${tr}s in json/specified, but '--skip_tr' is supplied.."
                     fi
                   fi
                 fi
@@ -813,59 +818,59 @@ if [[ ${PHYS_ONLY} -eq 0 ]]; then
                 call_json ${json_bids} PhaseEncodingDirection ${ph_dir}
               fi
 
-              # DEFAULT SETTINGS FOR PHILIPS
+              # DEFAULT SETTINGS
               phase_enc_dir=`cat ${json_bids} | grep "PhaseEncodingDirection"`
               if [[ -z ${phase_enc_dir} ]]; then
 
                 ph_dir=""
-                if [[ ${MRI_SYSTEM} == "philips" ]]; then
-                  if [[ ${image} == "fmap" ]]; then
-                    ph_dir="j"  
-                  elif [[ ${image} == "func" ]]; then
-                    ph_dir="j-"
-                  fi
+                if [[ ${image} == "fmap" ]]; then
+                  ph_dir="j-"  
+                elif [[ ${image} == "func" ]]; then
+                  ph_dir="j"
                 fi
 
-                txt="PE-direction set to Philips-default \"${ph_dir}\" for BOLD."
+                txt="PE-direction set to default \"${ph_dir}\" for BOLD."
               else
 
-                if [[ ${MRI_SYSTEM} != "philips" ]]; then
+                if [[ ! -z ${par_f} ]]; then
 
                   # TRY TO READ PHASE ENCODING DIRECTION FROM DCM > ASSUMES POLARITY
                   # CHECKS PE_DIR_BOLD FIRST!
+                  if [[ ${ext_lower} == *"dcm"* ]]; then
 
-                  # check dicom file if no flags are specified
-                  if [[ -z ${pe_dir} ]]; then
-                    ph_dir=""
-                    if [[ ! -z ${par_f} ]]; then
-                      pe_from_dcm=`pe_from_dcm ${par_f}`
+                    # check dicom file if no flags are specified
+                    if [[ -z ${pe_dir} ]]; then
+                      ph_dir=""
+                      if [[ ! -z ${par_f} ]]; then
+                        pe_from_dcm=`pe_from_dcm ${par_f}`
 
-                      if [[ ! -z ${pe_from_dcm} ]]; then
-                        if [[ -z ${PE_DIR_BOLD} ]]; then
-                          txt="PE-direction set to \"${pe_from_dcm}\" from DCM-file for BOLD [can be iffy..]."
-                        fi
+                        if [[ ! -z ${pe_from_dcm} ]]; then
+                          if [[ -z ${PE_DIR_BOLD} ]]; then
+                            txt="PE-direction set to \"${pe_from_dcm}\" from DCM-file for BOLD [can be iffy..]."
+                          fi
 
-                        if [[ ${image} == "func" ]]; then
-                          ph_dir=${pe_from_dcm}
-                        elif [[ ${image} == "fmap" ]]; then
-                          txt="${txt} Inverting for FMAP."
-                          if [[ ${pe_from_dcm} == "j" ]]; then
-                            ph_dir="j-"
-                          elif [[ ${pe_from_dcm} == "j-" ]]; then
-                            ph_dir="j"
-                          elif [[ ${pe_from_dcm} == "i" ]]; then
-                            ph_dir="i-"
-                          elif [[ ${pe_from_dcm} == "i-" ]]; then
-                            ph_dir="i"
+                          if [[ ${image} == "func" ]]; then
+                            ph_dir=${pe_from_dcm}
+                          elif [[ ${image} == "fmap" ]]; then
+                            txt="${txt} Inverting for FMAP."
+                            if [[ ${pe_from_dcm} == "j" ]]; then
+                              ph_dir="j-"
+                            elif [[ ${pe_from_dcm} == "j-" ]]; then
+                              ph_dir="j"
+                            elif [[ ${pe_from_dcm} == "i" ]]; then
+                              ph_dir="i-"
+                            elif [[ ${pe_from_dcm} == "i-" ]]; then
+                              ph_dir="i"
+                            fi
                           fi
                         fi
                       fi
                     fi
+                  else
+                    # read PhaseEncodingDirection from json | should be inserted by call_parrec2nii
+                    ph_dir=`read_json ${json_bids} PhaseEncodingDirection`
+                    txt="Read PhaseEncodingDirection from JSON-file (set by call_parrec2nii)"
                   fi
-                else
-                  # read PhaseEncodingDirection from json | should be inserted by call_parrec2nii
-                  ph_dir=`read_json ${json_bids} PhaseEncodingDirection`
-                  txt="Read PhaseEncodingDirection from JSON-file (set by call_parrec2nii)"
                 fi
               fi
 

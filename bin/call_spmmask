@@ -115,6 +115,15 @@ fi
 in_file=`fetch_filepath ${in_file}`
 out_file=`fetch_filepath ${OUTPUT}`
 
+out_ext=`fetch_extension ${out_file}`
+if [[ ${out_ext} == "gz" ]]; then
+  is_niigz=1
+  tmp_out=$(dirname ${out_file})/$(basename ${out_file} .gz)
+else
+  is_niigz=0
+  tmp_out=${out_file}
+fi
+
 #-----------------------------------------------------------------------------
 # Create new script
 new_script=$(dirname ${in_file})/spm_mask.m
@@ -126,38 +135,34 @@ if [[ ! -d $(dirname ${out_file}) ]]; then
   mkdir -p $(dirname ${out_file})
 fi
 
-make_mask_script ${SPM_PATH} ${in_file} ${new_script}
+# generate the m-script
+make_mask_script ${SPM_PATH} ${in_file} ${tmp_out} ${new_script}
   
 # call_matlab = in call_bashhelper
 call_matlab ${new_script}
 
-if [[ $? -ne 0 ]]; then
-  echo "ERROR: matlab exited with non-zero status"
+# check if output exists
+if [[ ! -f ${tmp_out} ]]; then
+  echo "ERROR: mask was not created; guessing matlab exited with non-zero status"
   exit 1
 fi
 
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
-if [[ ${ext} == "gz" ]]; then
-  mask_img=`find $(dirname ${in_file}) -type f -name "mask_$(basename ${in_file})*" 2>/dev/null`
-  if [[ ! -z ${mask_img} ]]; then
-    gzip -c ${mask_img} > ${out_file} 2>/dev/null
+if [[ ${is_niigz} -eq 1 ]]; then
+  gzip -f ${tmp_out} 2>/dev/null
+  rm ${in_file} 2>/dev/null
+fi
 
-    # set qformcode to 1 (prefered by nighres)
-    if [[ `fslval ${out_file} qform_code` -ne 1 ]]; then
-        fslorient -setqformcode 1 ${out_file}
-    fi
-  fi
-  rm -r ${in_file}
+# cp geom
+if [[ -f ${out_file} ]]; then
+  call_copyheader ${INPUT} ${out_file}
 else
-  mv ${mask_img} $(dirname ${out_file})
-
-  # keep temp files if something went wrong
-  if [[ $? -ne 0 ]]; then
-    CLEAN_UP=0
-  fi
+  echo "ERROR: gzip did not create \"${out_file}\""
+  exit 1
 fi
 
 # clean up files
 if [[ ${CLEAN_UP} -eq 1 ]]; then
-  rm -r $(dirname ${in_file})/c*$(basename ${in_file}) *.mat 2>/dev/null
+  rm -r $(dirname ${in_file})/c*$(basename ${in_file}) 2>/dev/null
+  rm -r $(dirname ${in_file})/*seg8* 2>/dev/null
 fi

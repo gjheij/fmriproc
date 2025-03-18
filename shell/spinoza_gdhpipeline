@@ -4,10 +4,11 @@
 #$ -j Y
 #$ -V
 #$ -pe smp 5
-#
+
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -129,17 +130,8 @@ if [[ -z ${subject} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "ITERATIVE SEGMENTATION/RECONSTRUCTION PIPELINE\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Iterative segmentation and surface recontruction pipeline [GdH]"
 
 echo
 echo "**************************************** Processing `basename ${subject}` ***************************************"
@@ -538,16 +530,5 @@ echo
 echo "GdH-pipeline COMPLETED: now do your manual edits to segmentations and rerun"
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

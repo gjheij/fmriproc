@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -106,17 +106,8 @@ do
 done
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-echo
-echo "==================================================================================================="
-printf "CALCULATE ROTATION/TRANSLATION VALUES FOR MR-CONSOLE\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
-echo
+# intro
+start_timer "Calculate rotation/translation values for MRI-console"
 
 #-----------------------------------------------------------------------------
 # Check if all input are correctly specified
@@ -272,16 +263,5 @@ if [[ ${genaff} != "identity" ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

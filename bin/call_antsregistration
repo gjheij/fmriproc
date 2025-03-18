@@ -253,8 +253,6 @@ done
 # set number of cores to use
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
 
-echo "number of threads: ${ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS}"
-
 # function to derive the convergence, smoothing, shrinking parameters.
 function check_stage_inputs {
   

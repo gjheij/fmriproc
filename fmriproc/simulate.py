@@ -42,19 +42,23 @@ class ITI():
 
     Example
     ----------
-    >>> iti_obj = simulate.ITI(
-    >>>     tmin=3,
-    >>>     tmax=18,
-    >>>     tmean=6,
-    >>>     n_trials=32,
-    >>>     leeway=0,
-    >>>     stim_duration=2,
-    >>>     total_duration=360,
-    >>>     start_duration=20,
-    >>>     end_duration=20,
-    >>>     verbose=True,
-    >>>     events=["act","norm"]
-    >>>     )
+
+    .. code-block:: python
+
+        iti_obj = simulate.ITI(
+            tmin=3,
+            tmax=18,
+            tmean=6,
+            n_trials=32,
+            leeway=0,
+            stim_duration=2,
+            total_duration=360,
+            start_duration=20,
+            end_duration=20,
+            verbose=True,
+            events=["act","norm"]
+        )
+
     """
     
     def __init__(
@@ -148,7 +152,11 @@ class ITI():
 
         Example
         ----------
-        >>> iti_obj.plot_iti_distribution()
+
+        .. code-block:: python
+            
+            iti_obj.plot_iti_distribution()
+
         """
 
         self.iti_plot = plotting.LazyHist(
@@ -301,7 +309,7 @@ class ITI():
 
         Example
         ----------
-        >>> 
+        
         """
         # if input is an instance of linescanning.simulate.ITI, read info from there
         if isinstance(df, ITI):

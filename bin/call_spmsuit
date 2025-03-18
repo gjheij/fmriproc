@@ -113,9 +113,9 @@ gm_img=`find $(dirname ${in_file}) -type f -name "*seg1*" 2>/dev/null`
 wm_img=`find $(dirname ${in_file}) -type f -name "*seg2*" 2>/dev/null`
 if [[ ! -z ${mask_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
-    gzip -c ${mask_img} > ${OUTPUT}_desc-cereb_mask.nii.gz 2>/dev/null
-    gzip -c ${wm_img} > ${OUTPUT}_desc-cereb_wm.nii.gz 2>/dev/null
-    gzip -c ${gm_img} > ${OUTPUT}_desc-cereb_gm.nii.gz 2>/dev/null
+    gzip -fc ${mask_img} > ${OUTPUT}_desc-cereb_mask.nii.gz 2>/dev/null
+    gzip -fc ${wm_img} > ${OUTPUT}_desc-cereb_wm.nii.gz 2>/dev/null
+    gzip -fc ${gm_img} > ${OUTPUT}_desc-cereb_gm.nii.gz 2>/dev/null
 
     rm -r ${in_file} ${mask_img} ${wm_img} ${gm_img} 2>/dev/null
   else

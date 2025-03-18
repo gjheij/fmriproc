@@ -127,18 +127,13 @@ fi
 filter_img=`find $(dirname ${in_file}) -type f -name "sanlm_$(basename ${in_file})*" 2>/dev/null`
 if [[ ! -z ${filter_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
-    gzip -c ${filter_img} > ${OUTPUT} 2>/dev/null
+    gzip -fc ${filter_img} > ${OUTPUT} 2>/dev/null
 
-    # # set qformcode to 1 (prefered by nighres)
-    # if [[ `fslval ${OUTPUT} qform_code` -ne 1 ]]; then
-    # 	fslorient -setqformcode 1 ${OUTPUT}
-    # fi
-
-    call_resample ${OUTPUT} ${in_file}
-    rm -r ${in_file}
+    rm -r ${in_file} 2>/dev/null
   
   else
     mv ${filter_img} ${OUTPUT}
   fi
-  rm -r ${filter_img}
+  rm -r ${filter_img} 2>/dev/null
+  call_copyheader ${INPUT} ${OUTPUT}
 fi

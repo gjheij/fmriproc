@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-# source helper functions
+#---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -20,7 +22,11 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+  -j <cpus>           number of cores to use (default is 1)
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -o|--ow             overwrite existing files
+  --sge               submit job to cluster
+
   <anat folder>       folder containing the files required for MASSP. Files should end with:
                         -"*_R1.nii.gz"   > 1/T1map file
                         -"*_R2s.nii.gz"  > 1/T2* file
@@ -43,14 +49,32 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
+n_cpus=1
+run_local=1
+
 # Check for subject & session flags
-while getopts s:n: argument
+while getopts s:n:j:q argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        sge)
+          run_local=0
+          ;;                                                                  
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            echo "Unknown option --${OPTARG}" >&2
+          fi
+          ;;
+      esac;;    
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
+    q)  SGE_QUEUE=${OPTARG}
+          ;;    
+    j)  n_cpus=${OPTARG}
+          ;;                     
   esac
 done
 
@@ -63,6 +87,12 @@ INPUT=${@:$OPTIND:1}
 SKULL=${@:$OPTIND+1:1}
 OUTPUT=${@:$OPTIND+2:1}
 
+if [[ ! -z ${SGE_QUEUE} ]]; then
+  QUEUE=${SGE_QUEUE}
+else
+  QUEUE=${SGE_QUEUE_LONG}
+fi
+
 if [[ -z ${sub} ]]; then
   # loop through subjects
   search="${INPUT}/${SUBJECT_PREFIX}*"
@@ -74,17 +104,8 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "NEW SUBCORTEX PARCELLATION WITH NIGHRES\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+#intro
+start_timer "Subcortex Parcellation with MASSP from Nighres"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -152,9 +173,10 @@ for subID in ${search}; do
     echo "Done"
     echo "Create `basename ${massp}`"
 
-    if [[ ${PLACE} == "SGE" ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       call_=`which call_nighresmassp`
-      job="qsub -q ${SGE_QUEUE_LONG} -N massp_${sub_id} -wd ${DIR_LOGS} ${call_}"
+      submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpus} ${base}_acq-${DATA^^}_desc-massp ${DIR_LOGS})
+      job="${submit} ${call_}"
     else
       job="call_nighresmassp"
     fi
@@ -182,16 +204,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

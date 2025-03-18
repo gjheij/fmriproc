@@ -120,9 +120,10 @@ if [[ $# -lt 3 ]] ; then
   Usage >&2
   exit 1
 fi
+
 IN_CSV=${@:$OPTIND:1}
-OUT_CSV=`readlink -f ${@:$OPTIND+1:1}`
-WARP=`readlink -f ${@:$OPTIND+2:1}`
+OUT_CSV=${@:$OPTIND+1:1}
+WARP=$(readlink -f ${@:$OPTIND+2:1})
 
 # check if we have to invert our matrix
 APPLY="[${WARP},${INVERT}]"

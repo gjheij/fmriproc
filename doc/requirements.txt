@@ -1,0 +1,11 @@
+numpy
+pandas
+matplotlib
+scipy
+joblib
+pyyaml
+nibabel
+nipype
+scikit-learn
+nbsphinx
+sphinx-rtd-theme

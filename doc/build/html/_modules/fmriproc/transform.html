@@ -1,0 +1,1174 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fmriproc.transform &mdash; fMRIproc Documentation 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            fMRIproc Documentation
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview of fMRIproc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../pipeline_steps.html">Pipeline Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../additional_software.html">Required External Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cluster_usage.html">Running fMRIproc on HPC Clusters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../troubleshooting.html">Troubleshooting &amp; Common Issues</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../classes/index.html">Python modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../bash.html">Bash modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">fMRIproc Documentation</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">fmriproc.transform</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for fmriproc.transform</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">lazyfmri</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pathlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">nibabel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nb</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">nipype.interfaces.freesurfer</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fs</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="n">opj</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span>
+
+<div class="viewcode-block" id="ants_registration">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ants_registration">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ants_registration</span><span class="p">(</span><span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">moving</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reg_type</span><span class="o">=</span><span class="s2">&quot;rigid&quot;</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ants_registration</span>
+
+<span class="sd">    python wrapper for call_antsregistration to perform registration with ANTs in the python</span>
+<span class="sd">    environment. Requires the same input as call_antsregistration</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fixed: str</span>
+<span class="sd">        string to nifti reference image (.nii.gz)</span>
+<span class="sd">    moving: str</span>
+<span class="sd">        moving (to-be-registered) image (.nii.gz)</span>
+<span class="sd">    reg_type: str</span>
+<span class="sd">        type of transformation (default = &#39;rigid&#39;)</span>
+<span class="sd">    output base: str</span>
+<span class="sd">        output basename (stuff will be appended)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    str:</span>
+<span class="sd">        path to transform file </span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; trafo = ants_registration(fixed=&quot;fixed.nii.gz&quot;, moving=&quot;moving.nii.gz&quot;, output=&quot;output_&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; trafo</span>
+<span class="sd">    &#39;/path/to/output_genaff.mat&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span> <span class="ow">in</span> <span class="n">output</span><span class="p">:</span>
+        <span class="c1"># our output path contains directories, create the path if it doesn&#39;t exist</span>
+        <span class="n">out_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">out_dir</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">trafo</span> <span class="o">=</span> <span class="n">output</span><span class="o">+</span><span class="s2">&quot;genaff.mat&quot;</span> <span class="c1"># this will be added by call_antsregistration</span>
+    <span class="k">if</span> <span class="n">fixed</span> <span class="ow">and</span> <span class="n">moving</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">cmd_txt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;call_antsregistration </span><span class="si">{</span><span class="n">fixed</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">moving</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">reg_type</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">cmd_txt</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd_txt</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;Could not execute call_antsregistration; check your distribution or install the linescanning repository&quot;</span><span class="p">)</span>
+
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">trafo</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">trafo</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find file &#39;</span><span class="si">{</span><span class="n">trafo</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ants_applytrafo">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ants_applytrafo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ants_applytrafo</span><span class="p">(</span>
+    <span class="n">fixed</span><span class="p">,</span> 
+    <span class="n">moving</span><span class="p">,</span> 
+    <span class="n">trafo</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+    <span class="n">invert</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> 
+    <span class="n">interp</span><span class="o">=</span><span class="s1">&#39;nn&#39;</span><span class="p">,</span> 
+    <span class="n">output</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+    <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">,</span> 
+    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ants_applytrafo</span>
+
+<span class="sd">    Python wrapper for call_antsapplytransforms to apply a given transformation, and a set fixed/moving</span>
+<span class="sd">    images. See call_antsapplytransforms for more information on the actual call.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fixed: str|nibabel.Nifti1Image</span>
+<span class="sd">        string to nifti reference image (.nii.gz) or nibabel.Nifti1Image that will be con-verted temporarily to a file (fixed.nii.gz) in the working directory</span>
+<span class="sd">    moving: str|nibabel.Nifti1Image</span>
+<span class="sd">        moving (to-be-registered) image (.nii.gz) or nibabel.Nifti1Image that will be converted temporarily to a file (moving.nii.gz) in the working directory</span>
+<span class="sd">    trafo: str|list</span>
+<span class="sd">        list or single path to transformation files in order of application</span>
+<span class="sd">    interp: str</span>
+<span class="sd">        interpolation type: &#39;lin&#39; (linear), &#39;nn&#39; (NearestNeighbor), gau (Gaussian), bspl&lt;order&gt;, cws  CosineWindowedSinc), wws (WelchWindowedSinc), hws (HammingWindowed-Sinc), lws (LanczosWindowedSinc); default = &#39;nn&#39;</span>
+<span class="sd">    invert: int|list</span>
+<span class="sd">        list or single integer with the length of trafo-list to specify which transformations to invert or not. Default = 0 for all, meaning use as they are specified: do not invert</span>
+<span class="sd">    output: str</span>
+<span class="sd">        output name for warped file</span>
+<span class="sd">    return_type: str</span>
+<span class="sd">        whether you&#39;d like the `filename` returned (return_type=&#39;file&#39;) or a `nibabel.Nifti1Image` (return_type=&quot;nb&quot;)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    str</span>
+<span class="sd">        if `return_type=&quot;str&quot;`, then a filename is returned</span>
+
+<span class="sd">    nibabel.Nifti1Image</span>
+<span class="sd">        if `return_type=&quot;nb&quot;`, a `nibabel.Nifti1Image` is returned</span>
+<span class="sd">    </span>
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; ants_applytrafo(fixed.nii.gz, moving.nii.gz, trafo=[f1.mat,f2.mat], invert=[0,0], output=&quot;outputfile.nii.gz&quot;, return_type=&quot;file&quot;)</span>
+<span class="sd">    &#39;outputfile.nii.gz&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">):</span>
+        <span class="n">fixed</span><span class="o">.</span><span class="n">to_filename</span><span class="p">(</span><span class="s2">&quot;fixed.nii.gz&quot;</span><span class="p">)</span>
+        <span class="n">fix</span> <span class="o">=</span> <span class="s2">&quot;fixed.nii.gz&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fix</span> <span class="o">=</span> <span class="n">fixed</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">moving</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">):</span>
+        <span class="n">moving</span><span class="o">.</span><span class="n">to_filename</span><span class="p">(</span><span class="s2">&quot;moving.nii.gz&quot;</span><span class="p">)</span>
+        <span class="n">mov</span> <span class="o">=</span> <span class="s2">&quot;moving.nii.gz&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">mov</span> <span class="o">=</span> <span class="n">moving</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">fix</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">mov</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">trafo</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;NEED REFERENC+MOVING IMAGES AND A TRANSFORMATION FILE&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">ants_applytrafo</span><span class="o">.</span><span class="vm">__doc__</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># check if we got a list of trafo files; if so, transform it to the string format required by</span>
+    <span class="c1"># call_antsapplytransforms</span>
+    <span class="k">if</span> <span class="n">trafo</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trafo</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">trafo_list</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">trafo</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trafo_list</span> <span class="o">=</span> <span class="n">trafo</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need a transformation file&quot;</span><span class="p">)</span>
+
+    <span class="c1"># check if we got a list of inversion values; if so, transform it to the string format required</span>
+    <span class="c1"># by call_antsapplytransforms</span>
+    <span class="k">if</span> <span class="n">invert</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">invert</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">trafo</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">invert</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">trafo</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;list of inversion does not equal list of transformations: </span><span class="si">{}</span><span class="s2"> vs </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">invert</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">trafo</span><span class="p">)))</span>
+
+            <span class="n">inv_list</span> <span class="o">=</span> <span class="s2">&quot;,&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">invert</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">inv_list</span> <span class="o">=</span> <span class="n">invert</span>
+
+    <span class="c1"># check interpolation type:</span>
+    <span class="n">interp_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;lin&#39;</span><span class="p">,</span> <span class="s1">&#39;mul&#39;</span><span class="p">,</span> <span class="s1">&#39;nn&#39;</span><span class="p">,</span> <span class="s1">&#39;gau&#39;</span><span class="p">,</span> <span class="s1">&#39;bspl&#39;</span><span class="p">,</span> <span class="s1">&#39;cws&#39;</span><span class="p">,</span> <span class="s1">&#39;wss&#39;</span><span class="p">,</span> <span class="s1">&#39;hws&#39;</span><span class="p">,</span> <span class="s1">&#39;lzs&#39;</span><span class="p">,</span> <span class="s1">&#39;gen&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">interp</span> <span class="ow">in</span> <span class="n">interp_list</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">interp</span><span class="si">}</span><span class="s2"> is not a valid option. Must be one of </span><span class="si">{</span><span class="n">interp_list</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">output</span> <span class="ow">and</span> <span class="n">return_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fixed</span><span class="p">),</span> <span class="s1">&#39;tmp.nii.gz&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="n">output</span> <span class="ow">and</span> <span class="n">return_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fixed</span><span class="p">),</span> <span class="s1">&#39;mov2fix.nii.gz&#39;</span><span class="p">)</span>
+        <span class="c1"># raise ValueError(&quot;Please specify an output name if you want a file&quot;)</span>
+
+    <span class="c1"># build command</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cmd_txt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;call_antsapplytransforms -i &quot;</span><span class="si">{</span><span class="n">inv_list</span><span class="si">}</span><span class="s1">&quot; --</span><span class="si">{</span><span class="n">interp</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">fix</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">mov</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s1"> &quot;</span><span class="si">{</span><span class="n">trafo_list</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">cmd_txt</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd_txt</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;Could not execute call_antsapplytransforms; check your distribution or install the linescanning repository&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># copy geometry</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;fslcpgeom </span><span class="si">{</span><span class="n">fixed</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    
+    <span class="c1"># remove temporary files</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;fixed.nii.gz&quot;</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;fixed.nii.gz&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s2">&quot;moving.nii.gz&quot;</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;moving.nii.gz&quot;</span><span class="p">)</span>
+
+    <span class="c1"># output stuff</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">output</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">return_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">output</span>
+        <span class="k">elif</span> <span class="n">return_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;nb&quot;</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+            <span class="c1"># os.remove(output)</span>
+            <span class="k">return</span> <span class="n">img</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find file &#39;</span><span class="si">{</span><span class="n">output</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ants_applytopoints">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ants_applytopoints">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ants_applytopoints</span><span class="p">(</span><span class="n">chicken_file</span><span class="p">,</span> <span class="n">output_file</span><span class="p">,</span> <span class="n">trafo_file</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ants_applytopoints</span>
+
+<span class="sd">    Wrapper for antsApplyTransformToPoints to warp a coordinate specified in `chicken_file` to a new space using `trafo_file`. Run :func:`lazyfmri.utils.make_chicken_csv` and `call_antsregistration` from 1 space to another first.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    chicken_file: str</span>
+<span class="sd">        output from lazyfmri.utils.make_chicken_csv containing the coordinate that needs to be warped</span>
+<span class="sd">    output_file: str</span>
+<span class="sd">        output csv file containing the warped point in LPS-convention! Swap the first and second dimensions to make the coordinate RAS</span>
+<span class="sd">    trafo_file: str</span>
+<span class="sd">        ANTs-transformation file mapping between the spaces. You can also specify &#39;identity&#39;, in which case &#39;call_createident&#39; will be called</span>
+<span class="sd">    invert: int, optional</span>
+<span class="sd">        invert the specified transformation; this is the case where you have a coordinate in space A, and the transformation is from space A-to-B, and you&#39;d like the coordinate in space B. This might seem counterintuitive, but this is how the transformations are applied within `antsApplyTransformsToPoints`. </span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    str</span>
+<span class="sd">        filename of output csv file containing the warped point in LPS-convention, `output_file`</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; fn = ants_applytopoints(&quot;input.csv&quot;, &quot;output.csv&quot;, &quot;trafo.mat&quot;)</span>
+<span class="sd">    &gt;&gt;&gt; fn</span>
+<span class="sd">    &#39;output.csv&#39;</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">trafo_file</span> <span class="o">==</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
+        <span class="n">trafo_file</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">output_file</span><span class="p">),</span> <span class="s1">&#39;identity.txt&#39;</span><span class="p">)</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;call_createident </span><span class="si">{</span><span class="n">trafo_file</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">output_file</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;csv&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2"> must have extension &#39;csv&#39;..&quot;</span><span class="p">)</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;antsApplyTransformsToPoints -d 3 -i </span><span class="si">{</span><span class="n">chicken_file</span><span class="si">}</span><span class="s2"> -o </span><span class="si">{</span><span class="n">output_file</span><span class="si">}</span><span class="s2"> -t [</span><span class="si">{</span><span class="n">trafo_file</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">invert</span><span class="si">}</span><span class="s2">]&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="c1"># print(cmd)</span>
+
+    <span class="k">return</span> <span class="n">output_file</span></div>
+
+
+
+<div class="viewcode-block" id="vert2coord">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.vert2coord">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">vert2coord</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span><span class="n">vert</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">surf</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;vert2coord</span>
+<span class="sd">    </span>
+<span class="sd">    Fetch TKR coordinate of surface vertex using mris_info.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    vert: int</span>
+<span class="sd">        surface vertex in TKR space that we want to extract information from</span>
+<span class="sd">    surf: str</span>
+<span class="sd">        surface from which to extract `vert`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        numpy array containing the coordinate of `vert` in surface `surf`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;mris_info&#39;</span><span class="p">,</span> <span class="s1">&#39;--vx&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">vert</span><span class="p">),</span> <span class="n">surf</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">tkr_ras</span> <span class="o">=</span> <span class="n">L</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">:];</span> <span class="n">tkr_ras</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">tkr_ras</span><span class="p">));</span> <span class="n">tkr_ras</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">),</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tkr_ras</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">tkr_ras</span></div>
+
+
+<div class="viewcode-block" id="fs2tkr">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.fs2tkr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fs2tkr</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ref</span><span class="o">=</span><span class="s2">&quot;orig.mgz&quot;</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">strip_lead</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>    
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;fs2tkr</span>
+
+<span class="sd">    Option [4] from https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems: &quot;*I have a CRS from a voxel in the orig.mgz volume and want to compute the RAS in surface space (tkrRAS) for this point*&quot;</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        containing the coordinate in `FreeSurfer` RAS convention</span>
+<span class="sd">    ref: str, optional</span>
+<span class="sd">        reference image to use for translation to `Surface` RAS convention (default = `orig.mgz`)</span>
+<span class="sd">    fs_dir: str, optional</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+<span class="sd">    strip_lead: bool</span>
+<span class="sd">        if `True`, a numpy array with shape (4,) with the last element being 1 is returned. If `False`, a numpy array with shape (3,) is returned</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        numpy array containing the `coord` in Surface RAS convention</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+
+    <span class="n">torig</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="n">ref</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    
+    <span class="k">if</span> <span class="n">coord</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">tkr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ix</span><span class="p">,</span><span class="n">ii</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">coord</span><span class="p">):</span>
+            <span class="n">tkr</span><span class="p">[</span><span class="n">ix</span><span class="p">,</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">torig</span> <span class="o">@</span> <span class="n">ii</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">strip_lead</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tkr</span><span class="p">[</span><span class="o">...</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tkr</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tkr_ras</span> <span class="o">=</span> <span class="n">torig</span> <span class="o">@</span> <span class="n">coord</span>
+
+        <span class="k">if</span> <span class="n">strip_lead</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tkr_ras</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tkr_ras</span></div>
+
+
+<div class="viewcode-block" id="tkr2ctx">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.tkr2ctx">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tkr2ctx</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;tkr2ctx</span>
+
+<span class="sd">    Add the surfmove-correction that Pycortex internally applies to FreeSurfer coordinates (see :func:`cxutils.pycortex.get_ctxsurfmove`)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        numpy array or list containing the `coord` in Surface RAS convention</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        numpy array containing the `coord` in Pycortex convention</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cxutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">pycortex</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Could not import cxutils. Please install from https://github.com/gjheij/cxutils&quot;</span><span class="p">)</span>
+
+    <span class="n">sm</span> <span class="o">=</span> <span class="n">pycortex</span><span class="o">.</span><span class="n">get_ctxsurfmove</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+    
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sm</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">sm</span> <span class="o">=</span> <span class="n">sm</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">coord</span><span class="o">+</span><span class="n">sm</span></div>
+
+
+<div class="viewcode-block" id="ctx2vert">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ctx2vert">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ctx2vert</span><span class="p">(</span><span class="n">surf</span><span class="p">,</span><span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">rtol</span><span class="o">=</span><span class="mf">0.015</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ctx2vert</span>
+
+<span class="sd">    Finds the closest vertices given an RAS coordinate as defined by pycortex. It uses np.closeall with a customizable rtol-value. If this function does not return anything, increase the rtol. If the original coordinate is not on the surface, results might differ.</span>
+
+<span class="sd">    Procedure to view CRS in orig.mgz on the surface in Pycortex (also see fs2vert):</span>
+<span class="sd">    &gt;&gt;&gt; from cxutils import optimal</span>
+<span class="sd">    &gt;&gt;&gt; from fmriproc import transform</span>
+<span class="sd">    &gt;&gt;&gt; pp = optimal.CalcBestVertex(subject)</span>
+<span class="sd">    &gt;&gt;&gt; fs_coord = np.array([187,177,41])</span>
+<span class="sd">    &gt;&gt;&gt; fs2tkr = transform.fs2tkr(&#39;sub-001&#39;, coord=fs_coord)</span>
+<span class="sd">    &gt;&gt;&gt; tkr2ctx = transform.tkr2ctx(&#39;sub-001&#39;, coord=fs2tkr)</span>
+<span class="sd">    &gt;&gt;&gt; vert = transform.ctx2vert(pp.surface.lh_surf_data[0], coord=tkr2ctx)</span>
+<span class="sd">    &gt;&gt;&gt; import cortex</span>
+<span class="sd">    &gt;&gt;&gt; mm = pp.surface.label_to_mask(subject=&#39;sub-001&#39;, lh_arr=vert, hemi=&#39;lh&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; cortex.webview(mm[&#39;whole_roi_v&#39;])</span>
+
+<span class="sd">    It runs through the surface-array and calculates the similarity between the RAS coordinates in there and the specified coordinate with a given tolerance. All elements of the coordinate should be as close to 1 as possible, showing more similarities between the given coordinate and the coordinate that has a vertex attached to it. Because of this iterative nature, the process takes a few seconds, so it&#39;s not that your system is slow per se. </span>
+<span class="sd">    Returns a list of indices where the coordinate has passed the tolerance test. You can verify this by entering the indices in FreeView on the given surface. E.g., if you used lh.fiducial, enter the vertex in that box.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    surf: str</span>
+<span class="sd">        surface to extract the vertex from (e.g., `lh.fiducial`)</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        numpy array or list containing the `coord` in Pycortex convention</span>
+<span class="sd">    rtol: float</span>
+<span class="sd">        error margin in `mm`</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    int</span>
+<span class="sd">        vertex number corresponding to `coord` in surface `surf`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">qq</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">surf</span><span class="p">:</span>
+        <span class="n">qq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">((</span><span class="n">coord</span><span class="o">/</span><span class="n">i</span><span class="p">),</span><span class="mi">1</span><span class="p">,</span><span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">qq</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="fs2vert">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.fs2vert">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fs2vert</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="s2">&quot;lh&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ctx2vert</span>
+
+<span class="sd">    Warp a CRS-point from orig.mgz to Pycortex as described in :func:`fmriproc.transform.ctx2vert`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        numpy array or list containing the `coord` in Pycortex convention</span>
+<span class="sd">    hemi: str</span>
+<span class="sd">        hemisphere to extract the vertex from (should be `lh` or `rh`)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dict</span>
+<span class="sd">        Dictionary collecting outputs under the following keys</span>
+
+<span class="sd">        * vert_nr (int): vertex number corresponding to the input coordinate `coord`</span>
+<span class="sd">        * vert_obj (dict): output from :func:`cxutils.optimal.CalcBestVert.label_to_mask`, consisting of numpy.ndarrays representing a boolean mask of the vertex</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cxutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">optimal</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Could not import cxutils. Please install from https://github.com/gjheij/cxutils&quot;</span><span class="p">)</span>
+
+    <span class="n">pp</span> <span class="o">=</span> <span class="n">optimal</span><span class="o">.</span><span class="n">CalcBestVertex</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span>
+    <span class="n">tkr</span> <span class="o">=</span> <span class="n">fs2tkr</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">coord</span><span class="p">)</span>
+    <span class="n">ctx</span> <span class="o">=</span> <span class="n">tkr2ctx</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">tkr</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;lh&quot;</span> <span class="ow">or</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;left&quot;</span> <span class="ow">or</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;l&quot;</span><span class="p">:</span>
+        <span class="n">surf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">surface</span><span class="o">.</span><span class="n">lh_surf_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;rh&quot;</span> <span class="ow">or</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;right&quot;</span> <span class="ow">or</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span>
+        <span class="n">surf</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">surface</span><span class="o">.</span><span class="n">rh_surf_data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">vert</span> <span class="o">=</span> <span class="n">ctx2vert</span><span class="p">(</span><span class="n">surf</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>
+    <span class="n">mm</span> <span class="o">=</span> <span class="n">pp</span><span class="o">.</span><span class="n">surface</span><span class="o">.</span><span class="n">label_to_mask</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">,</span> <span class="n">lh_arr</span><span class="o">=</span><span class="n">vert</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="n">hemi</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;vert_nr&#39;</span><span class="p">:</span> <span class="n">vert</span><span class="p">,</span> <span class="s1">&#39;vert_obj&#39;</span><span class="p">:</span> <span class="n">mm</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ctx2tkr">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ctx2tkr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ctx2tkr</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">img</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">correct</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">hm</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">ret</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">pad_ones</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;ctx2tkr</span>
+
+<span class="sd">    Convert a coordinate from Pycortex to FreeSurfer&#39;s TKR (surface) definition. Basically it adds the offset back (https://gallantlab.github.io/pycortex/_modules/cortex/freesurfer.html) that is added by Pycortex. With this particular function, you can apply that offset matrix to a given image, or enter a list of coordinate to which to apply the offset to. To just get the offset, specify the subject (needed for all operations), with &#39;hm&#39; set to False (3x1 coordinate array) or True (4x4 homogenous matrix with offset in translation column).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</span>
+<span class="sd">    img: nb.Nifti1Image, str</span>
+<span class="sd">        nifti image or path to nifti image to which to apply the offset to</span>
+<span class="sd">    coord: list</span>
+<span class="sd">        one or multiple coordinates to apply the offset to (e.g., left|right hemisphere) in list format (also when entering just 1 coordinate)</span>
+<span class="sd">    correct: bool</span>
+<span class="sd">        actually apply the matrix to an input image and return the nifti image with padded affine matrix. Should be used in combination with &#39;img&#39;</span>
+<span class="sd">    hm: bool</span>
+<span class="sd">        if `True`: output a homogenous (4,4) matrix with the offset in the translation column</span>
+<span class="sd">        if `False`: just the offset values (3,)</span>
+<span class="sd">    ret: bool</span>
+<span class="sd">        used in combination with the list of coordinates to return the corrected coordinates in a list. Artifact from when this was part of a class and included the corrected coordinates in the class object itself</span>
+<span class="sd">    pad_ones: bool</span>
+<span class="sd">        pad the coordinates with a &#39;1&#39; if the length does not match the (4,4) `surf2orig` matrix to ensure proper dot product</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    np.ndarray</span>
+<span class="sd">        offset coordinates; 4x4 or 3x1 (depending on the &#39;hm&#39; flag) array containing the offset values</span>
+<span class="sd">    list</span>
+<span class="sd">        corrected coordinates if `coord`-input was a list</span>
+<span class="sd">    nb.Nifti1Image</span>
+<span class="sd">        new nifti image with corrected affine matrix</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; offset = ctx2tkr(&#39;sub-001&#39;, hm=False)</span>
+<span class="sd">    &gt;&gt;&gt; corr_coordinates = ctx2tkr(&#39;sub-001&#39;, coord=[coord1,coord2], ret=True)</span>
+<span class="sd">    &gt;&gt;&gt; corr_nifti = ctx2trk(&#39;sub-001&#39;, img=input.nii.gz, correct=True)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cxutils</span><span class="w"> </span><span class="kn">import</span> <span class="n">pycortex</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Could not import cxutils. Please install from https://github.com/gjheij/cxutils&quot;</span><span class="p">)</span>
+
+    <span class="n">single</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">offset</span> <span class="o">=</span> <span class="n">pycortex</span><span class="o">.</span><span class="n">get_ctxsurfmove</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">hm</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="c1"># make homogenous matrix</span>
+        <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">tmp</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+
+        <span class="n">ctx_offset</span> <span class="o">=</span> <span class="n">tmp</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ctx_offset</span> <span class="o">=</span> <span class="n">offset</span>
+
+    <span class="k">if</span> <span class="n">correct</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">img</span><span class="p">:</span>
+            <span class="n">dim1</span><span class="p">,</span><span class="n">dim2</span> <span class="o">=</span> <span class="n">ctx_offset</span><span class="o">.</span><span class="n">shape</span>
+            <span class="k">if</span> <span class="n">dim1</span> <span class="o">!=</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">dim2</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+                <span class="n">offset</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">[:</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+
+            <span class="n">nb_img</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+            <span class="n">new_aff</span> <span class="o">=</span> <span class="n">offset</span><span class="nd">@nb_img</span><span class="o">.</span><span class="n">affine</span>
+            <span class="k">return</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">(</span><span class="n">nb_img</span><span class="o">.</span><span class="n">get_fdata</span><span class="p">(),</span> <span class="n">affine</span><span class="o">=</span><span class="n">new_aff</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="p">[</span><span class="n">coord</span><span class="p">]</span>
+        <span class="n">single</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">corr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ctx_offset</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">ctx_offset</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Got input with unhashable dimensions. Could either be a (3,) or (4,4) matrix, not </span><span class="si">{</span><span class="n">ctx_offset</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">ctx_offset</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">:</span>
+        <span class="n">tkr_coords</span> <span class="o">=</span> <span class="n">i</span><span class="o">-</span><span class="n">offset</span>
+
+        <span class="k">if</span> <span class="n">pad_ones</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tkr_coords</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">tkr_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tkr_coords</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">corr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tkr_coords</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">ret</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">single</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">corr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">corr</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">img</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">coord</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">hm</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tmp</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">offset</span></div>
+
+
+
+<div class="viewcode-block" id="tkr2fs">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.tkr2fs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tkr2fs</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad_ones</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;tkr2fs</span>
+
+<span class="sd">    Convert a coordinate from FreeSurfer&#39;s TKR (surface) definition to FreeSurfer&#39;s anatomical (volume) definition. This involves the procedure described here: https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems scenario [3]: &quot;I have a point on the surface (&quot;Vertex RAS&quot; in tksurfer) and want to compute the Scanner RAS in orig.mgz that corresponds to this point&quot;.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</span>
+<span class="sd">    img: nb.Nifti1Image, str</span>
+<span class="sd">        nifti image or path to nifti image to which to apply the offset to</span>
+<span class="sd">    coord: list</span>
+<span class="sd">        one or multiple coordinates to apply the offset to (e.g., left|right hemisphere) in list format (also when entering just 1 coordinate)</span>
+<span class="sd">    fs_dir: str, optional</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+<span class="sd">    pad_ones: bool</span>
+<span class="sd">        pad the coordinates with a &#39;1&#39; if the length does not match the (4,4) `surf2orig` matrix to ensure proper dot product</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    np.ndarray</span>
+<span class="sd">        (4,4) array containing the transformation from Surface RAS to Scanner RAS</span>
+<span class="sd">    list</span>
+<span class="sd">        corrected coordinates if `coord`-input was a list</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; off,coord = tkr2fs(&#39;sub-001&#39;, coord=[tkr_coord1,tkr_coord2])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+
+    <span class="n">orig_mgz</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+
+    <span class="c1"># NORIG</span>
+    <span class="n">norig</span> <span class="o">=</span> <span class="n">get_vox2ras</span><span class="p">(</span><span class="n">orig_mgz</span><span class="p">)</span>
+
+    <span class="c1"># TORIG</span>
+    <span class="n">torig</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">orig_mgz</span><span class="p">)</span>
+
+    <span class="c1"># Combine into surf2orig matrix</span>
+    <span class="n">surf2orig</span> <span class="o">=</span> <span class="n">norig</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">torig</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">i</span> <span class="c1"># ;)</span>
+
+            <span class="n">scanner_ras</span> <span class="o">=</span> <span class="n">surf2orig</span> <span class="o">@</span> <span class="n">c</span>
+            <span class="n">corr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scanner_ras</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">corr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">corr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">surf2orig</span></div>
+
+
+<div class="viewcode-block" id="rawavg2fs">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.rawavg2fs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rawavg2fs</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;rawavg2fs</span>
+
+<span class="sd">    Option [6] from https://surfer.nmr.mgh.harvard.edu/fswiki/CoordinateSystems: &quot;*I have a CRS from a voxel in my functional/diffusion/ASL/rawavg/etc &quot;mov&quot; volume and want to compute the CRS for the corresponding point in the orig.mgz*&quot;</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        containing the coordinate in `FreeSurfer` rawavg convention (voxels)</span>
+<span class="sd">    fs_dir: str, optional</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        numpy array containing the `coord` in `orig.mgz` voxel convention</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+    <span class="n">move</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">)</span>
+
+    <span class="n">torig</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">orig</span><span class="p">)</span>
+    <span class="n">tmove</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">move</span><span class="p">)</span>
+    <span class="n">reg</span> <span class="o">=</span> <span class="n">get_tkrreg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">mov</span><span class="o">=</span><span class="n">move</span><span class="p">,</span> <span class="n">targ</span><span class="o">=</span><span class="n">orig</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">orig_coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">torig</span><span class="p">)</span> <span class="o">@</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">reg</span><span class="p">)</span> <span class="o">@</span> <span class="n">tmove</span> <span class="o">@</span> <span class="n">coord</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">orig_coord</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="fs2rawavg">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.fs2rawavg">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fs2rawavg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;fs2rawavg</span>
+
+<span class="sd">    Inverse of :func:`fmriproc.transform.rawavg2fs`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject ID as used in `SUBJECTS_DIR`</span>
+<span class="sd">    coord: numpy.ndarray|list</span>
+<span class="sd">        containing the coordinate in `FreeSurfer` rawavg convention (voxels)</span>
+<span class="sd">    fs_dir: str, optional</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        numpy array containing the `coord` in `rawavg.mgz` voxel convention</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+    <span class="n">move</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">)</span>
+
+    <span class="n">torig</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">orig</span><span class="p">)</span>
+    <span class="n">tmove</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">move</span><span class="p">)</span>
+    <span class="n">reg</span> <span class="o">=</span> <span class="n">get_tkrreg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">mov</span><span class="o">=</span><span class="n">move</span><span class="p">,</span> <span class="n">targ</span><span class="o">=</span><span class="n">orig</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">orig_coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">torig</span><span class="p">)</span> <span class="o">@</span> <span class="n">reg</span> <span class="o">@</span> <span class="n">tmove</span> <span class="o">@</span> <span class="n">coord</span>
+
+    <span class="c1"># return np.array([int(round(i,0)) for i in orig_coord])    </span>
+    <span class="k">return</span> <span class="n">orig_coord</span></div>
+
+
+<div class="viewcode-block" id="tkr2rawavg">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.tkr2rawavg">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">tkr2rawavg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span><span class="n">matrix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">coord</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">reg</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="s2">&quot;voxel&quot;</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;tkr2rawavg</span>
+
+<span class="sd">    Computes the transformation from FreeSurfer TKR space (orig.mgz) to the native space (rawavg.nii.gz). It a ssumes the FreeSurfer and native space differ, which is not necessarily the case if you already have isotropic native data. You can either specify the registration file as per the output of tkregister2 or have this function create that file (register.dat by default)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</span>
+<span class="sd">    matrix: str</span>
+<span class="sd">        path to ANTs-format registration file (either the .txt or .mat file, doesn&#39;t really matter for ants_applytrafo)</span>
+<span class="sd">    reg: bool</span>
+<span class="sd">        create the matrix mapping FreeSurfer to native instead of specifying a matrix. Only one or the other is needed.</span>
+<span class="sd">    fs_dir: str</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+<span class="sd">    inv: bool</span>
+<span class="sd">        if the matrix file you specify with &#39;matrix&#39; is actually mapping native to FreeSurfer, set this flag to True to invert the matrix</span>
+<span class="sd">    out_type: str</span>
+<span class="sd">        output either the voxel (&#39;voxel&#39;) or RAS (&#39;ras&#39;) coordinate</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    np.ndarray</span>
+<span class="sd">        (4,4) array containing the transformation from Surface RAS to Scanner RAS</span>
+<span class="sd">                        </span>
+<span class="sd">    list</span>
+<span class="sd">        corrected coordinates if `coord`-input was a list</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; off,coord = tkr2rawavg(&#39;sub-001&#39;, matrix=&quot;register.dat&quot;, coord=[tkr_coord1,tkr_coord2])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+    <span class="n">mov</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">)</span>
+    <span class="n">tar</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">reg</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">get_tkrreg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">mov</span><span class="o">=</span><span class="n">mov</span><span class="p">,</span> <span class="n">targ</span><span class="o">=</span><span class="n">tar</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s1">&#39;arr&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">matrix</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">read_fs_reg</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need a matrix file if &#39;reg&#39;-flag is set to False. Either specify a file or set &#39;reg&#39; to True&quot;</span><span class="p">)</span>
+
+    <span class="n">Tmove</span> <span class="o">=</span> <span class="n">get_vox2ras_tkr</span><span class="p">(</span><span class="n">mov</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">coord</span><span class="p">:</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="n">i</span> <span class="c1"># ;)</span>
+                
+            <span class="n">vox</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">Tmove</span><span class="p">)</span> <span class="o">@</span> <span class="n">m</span> <span class="o">@</span> <span class="n">c</span>
+
+            <span class="k">if</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;ras&quot;</span><span class="p">:</span>
+                <span class="n">vox2ras</span> <span class="o">=</span> <span class="n">get_vox2ras</span><span class="p">(</span><span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">))</span>
+                <span class="n">vox</span> <span class="o">=</span> <span class="n">vox2ras</span><span class="nd">@vox</span>
+            <span class="k">elif</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;vox&quot;</span> <span class="ow">or</span> <span class="n">out_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;voxel&quot;</span><span class="p">:</span>
+                <span class="n">vox</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">vox</span><span class="p">])</span>
+
+            <span class="n">corr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vox</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">corr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">corr</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">Tmove</span><span class="p">)</span> <span class="o">@</span> <span class="n">m</span></div>
+
+
+
+<div class="viewcode-block" id="rawavg2lowres">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.rawavg2lowres">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">rawavg2lowres</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span> <span class="n">moving</span><span class="p">,</span> <span class="n">matrix</span><span class="p">,</span> <span class="n">inv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">out_file</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;rawavg2lowres</span>
+
+<span class="sd">    Transform a file from `rawavg` in another session (e.g., `lowres`) via a registration matrix. Uses :func:`fmriproc.transform.ants_applytransform`</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    -----------</span>
+<span class="sd">    fixed: str</span>
+<span class="sd">        reference image (e.g., `lowres`)</span>
+<span class="sd">    moving: str</span>
+<span class="sd">        moving image (e.g., `rawavg`)</span>
+<span class="sd">    matrix: str</span>
+<span class="sd">        transformation file mapping `moving` to `fixed`</span>
+<span class="sd">    inv: bool</span>
+<span class="sd">        if transformation file maps `fixed` to `moving`, we can invert the matrix by setting `inv=True`</span>
+<span class="sd">    out_file: str</span>
+<span class="sd">        output file representing `moving` in `fixed`-space</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    str</span>
+<span class="sd">        filename of output file representing `moving` in `fixed`-space</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">inv</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">do_invert</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">elif</span> <span class="n">inv</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">do_invert</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown input </span><span class="si">{</span><span class="n">inv</span><span class="si">}</span><span class="s2"> for &#39;invert&#39;-flag. Specify True (invert input matrix) or False (do not invert input matrix)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># linear interpolation results in 1 coordinate in session 2 anatomy</span>
+    <span class="k">if</span> <span class="n">matrix</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">out_file</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">ants_applytrafo</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span><span class="n">moving</span><span class="p">,</span><span class="n">trafo</span><span class="o">=</span><span class="n">matrix</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="n">do_invert</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">out_file</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;file&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">ants_applytrafo</span><span class="p">(</span><span class="n">fixed</span><span class="p">,</span><span class="n">moving</span><span class="p">,</span><span class="n">trafo</span><span class="o">=</span><span class="n">matrix</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">invert</span><span class="o">=</span><span class="n">do_invert</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s2">&quot;nb&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">f</span></div>
+
+
+
+<div class="viewcode-block" id="get_tkrreg">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.get_tkrreg">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tkrreg</span><span class="p">(</span><span class="n">subject</span><span class="p">,</span> <span class="n">mov</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">targ</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">out_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fs_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s1">&#39;arr&#39;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;get_tkrreg</span>
+<span class="sd">    </span>
+<span class="sd">    Implementation of `tkregister2` by sending a command to the command line.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    subject: str</span>
+<span class="sd">        subject-ID corresponding to the name in the pycortex filestore directory (mandatory!! for looking up how much the image has been moved when imported from FreeSurfer to Pycortex)</span>
+<span class="sd">    mov: str</span>
+<span class="sd">        moving image</span>
+<span class="sd">    targ: str</span>
+<span class="sd">        reference image (will default to `orig.mgz` if left empty)</span>
+<span class="sd">    out_file: str</span>
+<span class="sd">        output file of transformation file</span>
+<span class="sd">    fs_dir: str</span>
+<span class="sd">        `FreeSurfer` directory (default = SUBJECTS_DIR)</span>
+<span class="sd">    return_type: str</span>
+<span class="sd">        if `file`, `out_file` is returned</span>
+<span class="sd">        if `arr`, `out_file` will be read into a numpy.ndarray</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    str</span>
+<span class="sd">        if `return_type==&quot;file&quot;, `out_file` is returned</span>
+
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        if `return_type==&quot;arr&quot;, `out_file` is returned</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">fs_dir</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">fs_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;SUBJECTS_DIR&#39;</span><span class="p">]</span>
+        
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">targ</span><span class="p">:</span>
+        <span class="n">targ</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;orig.mgz&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">mov</span><span class="p">:</span>
+        <span class="n">targ</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">fs_dir</span><span class="p">,</span> <span class="n">subject</span><span class="p">,</span> <span class="s1">&#39;mri&#39;</span><span class="p">,</span> <span class="s1">&#39;rawavg.mgz&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">out_file</span><span class="p">:</span>
+        <span class="n">out_file</span> <span class="o">=</span> <span class="n">opj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">targ</span><span class="p">),</span> <span class="s1">&#39;register.dat&#39;</span><span class="p">)</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;tkregister2 --mov </span><span class="si">{</span><span class="n">mov</span><span class="si">}</span><span class="s2"> --targ </span><span class="si">{</span><span class="n">targ</span><span class="si">}</span><span class="s2"> --reg </span><span class="si">{</span><span class="n">out_file</span><span class="si">}</span><span class="s2"> --noedit --regheader&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="s2">&quot;Could not run tkregister2&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">return_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;arr&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">utils</span><span class="o">.</span><span class="n">read_fs_reg</span><span class="p">(</span><span class="n">out_file</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out_file</span></div>
+
+
+<div class="viewcode-block" id="get_vox2ras_tkr">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.get_vox2ras_tkr">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_vox2ras_tkr</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;fetch the vox2ras-tkr matrix from an image (Torig/Tmov on the FreeSurfer wiki)&quot;&quot;&quot;</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;mri_info&#39;</span><span class="p">,</span> <span class="s1">&#39;--vox2ras-tkr&#39;</span><span class="p">,</span> <span class="n">img</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">torig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">ll</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">if</span> <span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">ll</span> <span class="ow">in</span> <span class="n">L</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">torig</span></div>
+
+
+<div class="viewcode-block" id="get_ras2vox">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.get_ras2vox">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_ras2vox</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;fetch the ras2vox matrix from an image (Rorig on the FreeSurfer wiki)&quot;&quot;&quot;</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;mri_info&#39;</span><span class="p">,</span> <span class="s1">&#39;--ras2vox&#39;</span><span class="p">,</span> <span class="n">img</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">rorig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">ll</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">if</span> <span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">ll</span> <span class="ow">in</span> <span class="n">L</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">rorig</span></div>
+
+
+<div class="viewcode-block" id="get_vox2ras">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.get_vox2ras">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_vox2ras</span><span class="p">(</span><span class="n">img</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;fetch the vox2ras matrix from an image (Norig on the FreeSurfer wiki)&quot;&quot;&quot;</span>
+
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;mri_info&#39;</span><span class="p">,</span> <span class="s1">&#39;--vox2ras&#39;</span><span class="p">,</span> <span class="n">img</span><span class="p">)</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">utils</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">(</span><span class="n">cmd</span><span class="p">))</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+    <span class="n">norig</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">float</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">ll</span><span class="o">.</span><span class="n">split</span><span class="p">()</span> <span class="k">if</span> <span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">ll</span> <span class="ow">in</span> <span class="n">L</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">norig</span></div>
+
+
+<div class="viewcode-block" id="ras2lps">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ras2lps">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ras2lps</span><span class="p">(</span><span class="n">coord</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;represent an RAS coordinate in LPS convention&quot;&quot;&quot;</span>
+
+    <span class="c1"># ras2lps = [-1,-1,1]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">coord</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="ras2las">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ras2las">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ras2las</span><span class="p">(</span><span class="n">coord</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;represent an RAS coordinate in LAS convention&quot;&quot;&quot;</span>
+    <span class="c1"># ras2las = [-1,1,1]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">coord</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span></div>
+
+    
+<div class="viewcode-block" id="ras2lpi">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.ras2lpi">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ras2lpi</span><span class="p">(</span><span class="n">coord</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;represent an RAS coordinate in LPO+I convention&quot;&quot;&quot;</span>
+
+    <span class="c1"># ras2las = [-1,-1,-1]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">coord</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="native_to_scanner">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.native_to_scanner">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">native_to_scanner</span><span class="p">(</span><span class="n">anat</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">inv</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">addone</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;native_to_scanner</span>
+<span class="sd">    </span>
+<span class="sd">    This function returns the RAS coordinates in scanner space given a coordinate in native anatomy space. Required inputs are an anatomical image to derive the VOX-to-RAS conversion from and a voxel coordinate. Conversely, if you have a RAS coordinate, you can set the &#39;inv&#39; flag to True to get the voxel coordinate corresponding to that RAS-coordinate. To make the output 1x4, the addone-flag is set to true. Set to false if you&#39;d like 1x3 coordinate.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    anat: str</span>
+<span class="sd">        nifti image to derive the ras2vox (and vice versa) conversion</span>
+<span class="sd">    coord: numpy.ndarray</span>
+<span class="sd">        numpy array containing a coordinate to convert</span>
+<span class="sd">    inv: bool</span>
+<span class="sd">        False if &#39;coord&#39; is voxel, True if `coord` is RAS        </span>
+<span class="sd">    addone: bool</span>
+<span class="sd">        False if you don&#39;t want a trailing *1*, returning a 1x3 array, or True if you want a trailing *1* to make a matrix homogenous</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    ----------</span>
+<span class="sd">    numpy.ndarray</span>
+<span class="sd">        (3,) or (4,) array containing the input coordinate `coord` in scanner convention (if `coord` is in voxel convention and `inv==False`) or voxel convention (if `coord` is in scanner convention and `inv==True`)</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; # vox2ras</span>
+<span class="sd">    &gt;&gt;&gt; native_to_scanner(&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;, np.array([142,  48, 222]))</span>
+<span class="sd">    array([ -7.42000937, -92.96745521, -15.27866316,   1.        ])</span>
+<span class="sd">    &gt;&gt;&gt; # ras2vox</span>
+<span class="sd">    &gt;&gt;&gt; native_to_scanner(&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;, np.array([ -7.42000937, -92.96745521, -15.27866316]), inv=True)</span>
+<span class="sd">    array([142,  48, 222,   1])</span>
+<span class="sd">    &gt;&gt;&gt; # disable trailing &#39;1&#39;</span>
+<span class="sd">    &gt;&gt;&gt; native_to_scanner(&#39;sub-001_space-ses1_hemi-L_vert-875.nii.gz&#39;, np.array([142,  48, 222]), addone=False)</span>
+<span class="sd">    array([ -7.42000937, -92.96745521, -15.27866316])            </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">anat</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">anat_img</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">anat</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">anat</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">Nifti1Image</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">anat</span><span class="p">,</span> <span class="n">nb</span><span class="o">.</span><span class="n">freesurfer</span><span class="o">.</span><span class="n">mghformat</span><span class="o">.</span><span class="n">MGHImage</span><span class="p">):</span>
+        <span class="n">anat_img</span> <span class="o">=</span> <span class="n">anat</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;Unknown type for input image. Needs to be either a str or nibabel.Nifti1Image&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">inv</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">affines</span><span class="o">.</span><span class="n">apply_affine</span><span class="p">(</span><span class="n">anat_img</span><span class="o">.</span><span class="n">affine</span><span class="p">,</span> <span class="n">coord</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">nb</span><span class="o">.</span><span class="n">affines</span><span class="o">.</span><span class="n">apply_affine</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="n">anat_img</span><span class="o">.</span><span class="n">affine</span><span class="p">),</span> <span class="n">coord</span><span class="p">)</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coord</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">addone</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">coord</span></div>
+
+
+<div class="viewcode-block" id="mri_surf2surf">
+<a class="viewcode-back" href="../../classes/transform.html#fmriproc.transform.mri_surf2surf">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mri_surf2surf</span><span class="p">(</span><span class="n">src_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">src_subj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trg_subj</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">out_file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hemi</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">return_file</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;mri_surf2surf</span>
+<span class="sd">    </span>
+<span class="sd">    From https://nipype.readthedocs.io/en/latest/api/generated/nipype.interfaces.freesurfer.utils.html#surfacetransform: </span>
+<span class="sd">    Wrapped executable: mri_surf2surf. Transform a surface file from one subject to another via a spherical registration. Both the source and target subject must reside in your Subjects Directory, and they must have been processed with recon-all, unless you are transforming to one of the icosahedron meshes.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    src_file: str, optional</span>
+<span class="sd">        Surface file with source values. Maps to a command-line argument: `--sval %s`, by default None</span>
+<span class="sd">    src_subj: str, optional</span>
+<span class="sd">        Subject id for source surface. Maps to a command-line argument: `--srcsubject %s`, by default None</span>
+<span class="sd">    trg_subj: str, optional</span>
+<span class="sd">        Subject id of target surface. Maps to a command-line argument: `--trgsubject %s`, by default None</span>
+<span class="sd">    out_file: str, optional</span>
+<span class="sd">         Surface file to write. Maps to a command-line argument: `--tval %s`, by default None</span>
+<span class="sd">    hemi: str, optional</span>
+<span class="sd">        Hemisphere to transform. Maps to a command-line argument: `--hemi %s`, by default None</span>
+
+<span class="sd">    Example</span>
+<span class="sd">    ----------</span>
+<span class="sd">    &gt;&gt;&gt; from fmriproc.transform import mri_surf2surf</span>
+<span class="sd">    &gt;&gt;&gt; surf_file = mri_surf2surf(src_file=&quot;lh.V1_fsaverage&quot;, src_subj=&quot;fsaverage&quot;, trg_subj=&quot;sub-001&quot;, out_file=&quot;lh.V1_fsnative&quot;, hemi=&quot;lh&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">lh_acceptable</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;lh&quot;</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;l&quot;</span><span class="p">]</span>
+    <span class="n">rh_acceptable</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rh&quot;</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">lh_acceptable</span><span class="p">:</span>
+        <span class="n">hemi</span> <span class="o">=</span> <span class="s2">&quot;lh&quot;</span>
+    <span class="k">elif</span> <span class="n">hemi</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">rh_acceptable</span><span class="p">:</span>
+        <span class="n">hemi</span> <span class="o">=</span> <span class="s2">&quot;rh&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Specified hemisphere = &#39;</span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&#39;, must be one of </span><span class="si">{</span><span class="n">lh_acceptable</span><span class="si">}</span><span class="s2"> or </span><span class="si">{</span><span class="n">rh_acceptable</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;hemisphere = </span><span class="si">{</span><span class="n">hemi</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">sxfm</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">SurfaceTransform</span><span class="p">()</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">source_file</span>     <span class="o">=</span> <span class="n">src_file</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">source_subject</span>  <span class="o">=</span> <span class="n">src_subj</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">target_subject</span>  <span class="o">=</span> <span class="n">trg_subj</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">out_file</span>        <span class="o">=</span> <span class="n">out_file</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">hemi</span>            <span class="o">=</span> <span class="n">hemi</span>
+    <span class="n">sxfm</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">return_file</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out_file</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

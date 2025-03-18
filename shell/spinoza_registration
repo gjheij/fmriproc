@@ -2,8 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-echo
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -75,14 +74,14 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
-SGE=0
+run_local=1
 OW=
 reg_type=""
 verb_flag=""
 FSL_FMT=0
 verb=0
 fsl_flag=""
-n_cpu=1
+n_cpus=1
 echo_cmd=0
 
 # Check for subject flag
@@ -101,7 +100,7 @@ do
           reg_type="--affine"
           ;;  
         sge)
-          SGE=1
+          run_local=0
           ;;    
         cmd)
           echo_cmd=1
@@ -129,7 +128,7 @@ do
           ;;
     o)  OW=1
           ;;
-    j)  n_cpu=${OPTARG}
+    j)  n_cpus=${OPTARG}
           ;;           
     q)  SGE_QUEUE=${OPTARG}
           ;;             
@@ -164,16 +163,8 @@ fi
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo "==================================================================================================="
-printf "REGISTRATION\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+# intro
+start_timer "Registration with antsRegistration"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -188,6 +179,9 @@ for subID in ${search}; do
     sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
   fi
 
+  echo
+  echo "**************************************** Processing ${sub_name} ***************************************"
+
   if [[ ! -z ${ses} ]]; then
     nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
     base_path=${sub_name}/ses-${nr}
@@ -197,162 +191,136 @@ for subID in ${search}; do
     base=${sub_name}
   fi
 
-  input_dir=${INPUT}/${base_path}
+  if [ -z ${WARP_2_MP2RAGE} ]; then
+    WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
+  fi
+
+  input_dir=${INPUT}/${base_path} 
   output_dir=${OUTPUT}/${base_path}
 
+  write_output=0
   if [[ ${TYPE,,} == ${ACQ[0],,} ]]; then
-    
-    if [ -z ${WARP_2_MP2RAGE} ]; then
-      WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
-    fi
 
-    txt="Registering ${ACQ[1],,}-T1w to ${ACQ[0],,}"
-    suffix=MP2RAGE
-    ext="from-${ACQ[1]^^}_to-${ACQ[0]^^}"
-    fixed=`find -L "${input_dir}" -type f \( -iname "*${ACQ[0]^^}_*" -and -name "*T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
-
-    dd=("FLAIR")
-    # https://stackoverflow.com/a/15394738
-    if [[ " ${dd[*]} " =~ " ${ACQ[1]^^} " ]]; then
-      moving=`find -L "${input_dir}" -type f \( -name "${base}*" -and -iname "*_${ACQ[1]^^}.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
-    else
-      moving=`find -L "${input_dir}" -type f \( -name "${base}*" -iname "*${ACQ[1]^^}_*" -and -name "*.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`    
-    fi
     write_output=1
+    if [[ -z ${reg_type} ]]; then
+      reg_type="--rigid"
+    fi
 
+    if [[ ${#ACQ[@]} -eq 2 ]]; then
+      # set code
+      code=1 # MP2RAGE+MP2RAGEME
+
+      # find files
+      moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[1]^^}_*T1w.nii.gz" -not -name "*space-*")
+      fixed_file=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_*T1w.nii.gz" -not -name "*space-*")
+    else
+      code=2 # Multiple MP(2)RAGES
+      fixed_file=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_run-1*T1w.nii.gz" -not -name "*space-*")
+      moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" -not -name "*space-*")
+    fi
   elif [[ ${TYPE,,} == "mni" ]]; then
-    txt="Registering ${ACQ[0]^^}-T1w to MNI152 template"
-    suffix=MNI152NLin6Asym
-    fixed=${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
-    moving=`find -L "${input_dir}" -type f \( -name "${base}*" -iname "*acq-${DATA}_*" -and -name "*T1w.nii.gz" -and -not -name "._*" \) 2>/dev/null`
-    ext="from-T1w_to-${suffix}"
-    output=$(dirname ${moving})/$(basename ${moving} _T1w.nii.gz)_space-${suffix}_T1w.nii.gz
-    write_output=0
+    if [[ -z ${reg_type} ]]; then
+      reg_type="--syn"
+    fi
+    code=3
+    fixed_file=${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
+    moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_*T1w.nii.gz" -not -name "._*")
   else
     echo "Incorrect usage. Please specify mp2rage or mni"
     Usage >&2
-    exit 1
   fi
 
-  # decide registration strategy
-  if [[ -z ${reg_type} ]]; then
-    if [[ ${TYPE,,} == "mni" ]]; then
-      reg_type="--syn"
-    fi
+  # Check if required files exist
+  if [[ ! -f ${fixed_file} || -z ${moving_files} ]]; then
+    echo "Missing input images"
+    continue
   fi
-
-  outWarp=${output_dir}/${base}_${ext}_mode-image_warp.nii.gz
-  outInvWarp=${output_dir}/${base}_${ext}_mode-image_invwarp.nii.gz
-  outGenAff=${output_dir}/${base}_${ext}_mode-image_xfm.mat
-  outFSLAff=${output_dir}/${base}_${ext}_mode-image_fsl.mat
-  cmd_file=${output_dir}/${base}_${ext}_mode-image_cmd.txt
 
   if [[ ! -d ${output_dir} ]]; then
-    echo "Creating output directory"
     mkdir -p ${output_dir}
   fi
+  
+  # loop through moving files
+  for moving in ${moving_files[@]}; do
 
-  if [[ -f ${fixed} && -f ${moving} ]]; then
-
-    # check if we should overwrite
-    if [[ ${OW} -eq 1 ]]; then
-      rm ${outGenAff} 2>/dev/null
+    # MP2RAGE+MP2RAGEME
+    if [[ ${code} -eq 1 ]]; then
+      txt="Registering ${ACQ[1]} to ${ACQ[0]}"
+      space=${ACQ[0]}
+      ext="from-${ACQ[1]^^}_to-${ACQ[0]^^}"
+    elif [[ ${code} -eq 2 ]]; then
+      # Multiple MP(2)RAGES
+      txt="Registering ${moving} to ${fixed_file}"
+      run_mv=$(get_id ${moving} run)
+      run_fx=$(get_id ${fixed_file} run)
+      space="run${run_fx}"
+      ext="from-run${run_mv}_to-run${run_fx}"
+    elif [[ ${code} -eq 3 ]]; then
+      # MNI
+      txt="Registering ${ACQ[0]^^} to MNI152 template"
+      space="MNI152NLin6Asym"
+      ext="from-T1w_to-${space}"
     fi
+
+    outWarp=${output_dir}/${base}_${ext}_mode-image_warp.nii.gz
+    outInvWarp=${output_dir}/${base}_${ext}_mode-image_invwarp.nii.gz
+    outGenAff=${output_dir}/${base}_${ext}_mode-image_xfm.mat
+    outFSLAff=${output_dir}/${base}_${ext}_mode-image_fsl.mat
+    cmd_file=${output_dir}/${base}_${ext}_mode-image_cmd.txt
+
+    # echo "${txt}"
+    # echo "Code: ${code}"
+    # echo "FIXED: ${fixed_file}"
+    # echo "MOVING: ${moving}"
+    # echo "WARP: ${outGenAff}"
+    # exit 1
 
     if [[ ! -f ${outGenAff} ]]; then
       if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
+        cmd="""call_antsregistration \
+          ${fsl_flag} \
+          ${verb_flag} \
+          ${reg_type} \
+          -j ${n_cpus} \
+          ${fixed_file} \
+          ${moving} \
+          ${output_dir}/${base}_${ext}"""
 
-        # decide how to execute 
-        if [[ ${SGE} -eq 1 ]]; then
-          if [[ ! -z ${SGE_QUEUE} ]]; then
-            QUEUE=${SGE_QUEUE}
-          else
-            QUEUE=${SGE_QUEUE_LONG}
-          fi           
-          job_name="$(basename ${moving} T1w.nii.gz)desc_registration"
-          call_=`which call_antsregistration`
-          job="qsub -q ${QUEUE} -wd ${DIR_LOGS} -pe smp ${n_cpu} -N ${job_name} ${call_} --verbose"
-        else
-          job="call_antsregistration"
-        fi
-
-        echo "Registering $(basename ${moving}) to $(basename ${fixed}) [${reg_type}]"
-        cmd="${job} ${fsl_flag} ${verb_flag} ${reg_type} -j ${n_cpu} ${fixed} ${moving} ${output_dir}/${base}_${ext}"
-
-        if [[ ${verb} -eq 1 || ${echo_cmd} -eq 1 ]]; then
-          echo
-          echo "call_antsregistration:"
-          echo "---------------------------------------------------------------------------------------------------"
-          echo ${cmd}
-          echo
-        fi
-
-        # run
-        ${cmd}
+        echo "$(echo ${cmd} | tr '\n' ' ')"
+        eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
           echo "ERROR in `basename ${0}`: call_antsregistration exited with non-zero status"
           exit 1
         fi
 
-        if [[ ${echo_cmd} -eq 0 ]]; then
-
-          if [[ ${SGE} -eq 1 ]]; then
-            echo "Waiting to check qstat.."
-            sleep 10
-
-            wait_for_qsub "${job_name}"
-            if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: wait_for_qsub exited with non-zero status"
-              exit 1
-            fi
-          fi
-
-          if [[ ${reg_type} == "--syn" ]]; then
-            mv ${output_dir}/${base}_${ext}1Warp.nii.gz ${outWarp} 2>/dev/null
-            mv ${output_dir}/${base}_${ext}1InverseWarp.nii.gz ${outInvWarp} 2>/dev/null
-          fi
-
-          # we'll have this file regardless of registration type
-          mv ${output_dir}/${base}_${ext}genaff.mat ${outGenAff} 2>/dev/null
-          mv ${output_dir}/${base}_${ext}command.txt ${cmd_file} 2>/dev/null
-        else
-          echo "Make sure to re-run upon completion of registration for fix the filenaming:"
-          echo " \"master -m 05b -s ${sub_id}\""
+        if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
+          echo "ERROR in $(basename ${0}): \"${output_dir}/${base}_${ext}genaff.mat\" was not created"
+          continue
         fi
-
-      else
-        echo "Renaming \"${base}_${ext}genaff.mat\" to \"`basename ${outGenAff}`\""
-        mv ${output_dir}/${base}_${ext}genaff.mat ${outGenAff} 2>/dev/null
-        mv ${output_dir}/${base}_${ext}command.txt ${cmd_file} 2>/dev/null   
 
         if [[ ${reg_type} == "--syn" ]]; then
           mv ${output_dir}/${base}_${ext}1Warp.nii.gz ${outWarp} 2>/dev/null
           mv ${output_dir}/${base}_${ext}1InverseWarp.nii.gz ${outInvWarp} 2>/dev/null
-        fi 
-      fi
+        fi
 
-      # check if we got fsl output
-      if [[ -f ${output_dir}/${base}_${ext}fsl.mat ]]; then
-        mv ${output_dir}/${base}_${ext}fsl.mat ${outFSLAff} 2>/dev/null
-      fi
+        # we'll have this file regardless of registration type
+        mv ${output_dir}/${base}_${ext}genaff.mat ${outGenAff} 2>/dev/null
+        mv ${output_dir}/${base}_${ext}command.txt ${cmd_file} 2>/dev/null
 
+        # check if we got fsl output
+        if [[ -f ${output_dir}/${base}_${ext}fsl.mat ]]; then
+          mv ${output_dir}/${base}_${ext}fsl.mat ${outFSLAff} 2>/dev/null
+        fi
+      fi
     else
-      echo "Warp and matrix files are present. Skipping antsRegistration."
-
-      if [[ -f ${output_dir}/${base}_${ext}1Warp.nii.gz ]]; then
-        mv ${output_dir}/${base}_${ext}1Warp.nii.gz ${outWarp} 2>/dev/null
-        mv ${output_dir}/${base}_${ext}1InverseWarp.nii.gz ${outInvWarp} 2>/dev/null
-      fi  
+      echo "Skipping ${moving}, registration files exist."
     fi
 
-    if [[ ${verb} -eq 1 ]]; then
-      echo "Verify with ITK-Snap by loading \"${outGenAff}\""
-      echo "\"itksnap -g ${fixed} -o ${moving}\""
-    fi
-
+    # write output files
     if [[ ${write_output} -eq 1 ]]; then
 
+      echo "Applying warps.."
       for out in ${WARP_2_MP2RAGE[@]}; do
         
         # check if file exists and warp it
@@ -361,7 +329,8 @@ for subID in ${search}; do
         if [ -f ${in_file} ]; then
 
           # define output
-          output=$(dirname ${moving})/${base}_acq-${ACQ[1]^^}_space-${ACQ[0]^^}_${out}.nii.gz
+          acq=$(get_id ${moving} acq)
+          output=$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_space-${space}_${out}.nii.gz
 
           # overwrite if requested
           if [[ ${OW} -eq 1 ]]; then
@@ -377,45 +346,25 @@ for subID in ${search}; do
               matrices="${outGenAff}"
               invert="0"
             fi          
-            echo "Creating \"${output}\""
-            call_antsapplytransforms -i ${invert} ${fixed} ${in_file} ${output} ${matrices}
+            echo " creating \"${output}\""
+            cmd="call_antsapplytransforms -i ${invert} ${fixed_file} ${in_file} ${output} ${matrices}"
+            eval ${cmd}
 
-            # if DATA == AVERAGE, copy masks to AVERAGE
-            if [[ ${DATA} == "AVERAGE" ]]; then
-              if [[ ${out} != "T1w" || ${out} != "T1map" ]]; then
-                output2=$(dirname ${moving})/${base}_acq-AVERAGE_${out}.nii.gz
-                cp ${output} ${output2}
-              fi
+            if [[ $? -ne 0 ]]; then
+              echo "ERROR in $(basename ${0}): call_antsapplytransforms failed with \"${cmd}\""
+              exit 1
             fi
+
           else
-            echo "`basename ${output}` exists"
+            echo " `basename ${output}` exists"
           fi
         fi
       done
+      echo "Done"
     fi
-  else
-
-    if [[ ! -f ${fixed} ]]; then
-      echo "Missing fixed image"
-    elif [[ ! -f ${moving} ]]; then
-      echo "Could not find moving image in \"${input_dir}\""
-    fi
-
-  fi
-
+  done
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

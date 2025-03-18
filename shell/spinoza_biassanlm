@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 #---------------------------------------------------------------------------------------------------------
+# check if there's is a setup file containing the major paths and source it if it exists
+source "${SETUP_FILE}"
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -21,15 +26,28 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -o                  overwrite existing files
-  --biascorr          run bias correction with SPM (default = False)
+  --spm               run bias correction with SPM (default = False)
+  --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
+  --n4|               run bias correction with N4BiasCorrection (ANTs)
+  -x <kwargs>         Additional commands to be passed to 'call_antsbias'. Format should
+                      be colon-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                      e.g.,
+                      "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+
   <anat dir>          parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
                       DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
   <output>            Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
 
 Example:
-  spinoza_biascorrection DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
-  spinoza_biascorrection -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
-  spinoza_biascorrection -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
+  spinoza_biassanlm DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
 
 ---------------------------------------------------------------------------------------------------
 
@@ -40,14 +58,24 @@ USAGE
 # Check for subject flag
 OW=0
 RUN_BIASCORR=0
-while getopts :-:bos:n: argument
+RUN_WITH_ANTS=0
+RUN_SANLM=1
+while getopts :-:bos:n:x: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in     
-        biascorr)
+        spm)
           RUN_BIASCORR=1
-          ;;                                    
+          RUN_WITH_ANTS=0
+          ;;          
+        no_sanlm)
+          RUN_SANLM=0
+          ;;              
+        n4)
+          RUN_BIASCORR=1
+          RUN_WITH_ANTS=1
+          ;;                                              
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -62,6 +90,8 @@ do
           ;;
     o)  OW=1
           ;;
+    x)  kwargs=${OPTARG}
+          ;;              
   esac
 done
 
@@ -83,18 +113,15 @@ else
   unset IFS
 fi
 
+# parse kwargs
+if [[ ! -z ${kwargs} ]]; then
+  kwargs=`echo ${kwargs} | tr '=' ' ' | tr ':' ' '`
+fi
+
 #-----------------------------------------------------------------------------
 # Start clock
 #-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "Bias field correction and sanlm-filtering\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+start_timer "Bias field correction and sanlm-filtering"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -144,7 +171,6 @@ for subID in ${search}; do
   fi
 
   input=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-
   if [[ ! -z ${input} ]]; then
 
     output=${OUTPUTDIR}/$(basename ${input})
@@ -153,7 +179,7 @@ for subID in ${search}; do
       rm ${output} 2>/dev/null
     fi
 
-    t1map=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}_*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
+    t1map=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
     if [[ ! -z ${t1map} ]]; then
       # copy t1map to output for later reference
       cp ${t1map} $(dirname ${output})
@@ -163,37 +189,45 @@ for subID in ${search}; do
 
       echo
       echo "**************************************** Processing ${sub_name} ***************************************"
-      echo "Running SANLM-filter"
-      call_spmsanlm ${input} ${OUTPUTDIR}/denoised.nii.gz
 
-      if [[ $? != 0 ]]; then
-        echo
-        echo "---------------------------------------------------------------------------------------------------"
-        echo "ERROR in `basename ${0}`: call_spmsanlm exited with non-zero status"
-        exit 1
-      fi
+      if [[ ${RUN_SANLM} -eq 1 ]]; then
+        echo "Running SANLM-filter"
+        output_from_sanlm=${OUTPUTDIR}/denoised.nii.gz
+        call_spmsanlm ${input} ${output_from_sanlm}
 
-      # check if we should overwrite input image or store in different directory
-      if [[ ${INPUTDIR} == ${OUTPUTDIR} ]]; then
-        output=${input}
-      else
-        output=${OUTPUTDIR}/$(basename ${input})
-      fi
-
-      if [[ ${RUN_BIASCORR} -eq 1 ]]; then
-        echo "Running bias field correction with SPM"
-        call_spmbias ${OUTPUTDIR}/denoised.nii.gz ${output}
-
-        if [[ $? != 0 ]]; then
-          echo
-          echo "---------------------------------------------------------------------------------------------------"
-          echo "ERROR in `basename ${0}`: call_spmbias exited with non-zero status"
+        if [[ ! -f ${output_from_sanlm} ]]; then
+          echo "ERROR in `basename ${0}`: call_spmsanlm exited with non-zero status"
           exit 1
         fi
 
-        rm -r ${OUTPUTDIR}/denoised.nii.gz 2>/dev/null
+        input_for_bias=${output_from_sanlm}
       else
-        mv ${OUTPUTDIR}/denoised.nii.gz ${output}
+        echo "SANLM-filtering turned off"
+        input_for_bias=${input}
+      fi
+
+      if [[ ${RUN_BIASCORR} -eq 1 ]]; then
+
+        if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
+          echo "Running bias field correction with SPM"
+          cmd="call_spmbias"
+          ${cmd} ${input_for_bias} ${output}
+        else
+          cmd="call_antsbias"
+          call_antsbias ${input_for_bias} ${output} ${kwargs}
+        fi
+
+        if [[ ! -f ${output} ]]; then
+          echo "ERROR in `basename ${0}`: ${cmd} exited with non-zero status"
+          exit 1
+        fi
+
+        if [[ ${RUN_SANLM} -eq 1 ]]; then
+          rm -r ${output_from_sanlm} 2>/dev/null
+        fi
+
+      else
+        mv ${output_from_sanlm} ${output}
       fi
 
       echo "Done"
@@ -207,12 +241,12 @@ for subID in ${search}; do
     continue
   fi
 
-  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}_*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
   IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
   unset IFS 
   count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
   if [[ ${count} -gt 1 ]]; then
-    echo "Found more than 1 files with \"acq-${DATA}_\", \"spm_mask\", and \".nii.gz\" (${count})"
+    echo "Found more than 1 files with \"acq-${DATA}\", \"spm_mask\", and \".nii.gz\" (${count})"
     for ii in ${spm_sorted[@]}; do
       echo " ${ii}"
     done
@@ -225,15 +259,4 @@ done
 
 #-----------------------------------------------------------------------------
 # Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+end_timer

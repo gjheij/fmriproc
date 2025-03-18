@@ -2,7 +2,7 @@
 
 #---------------------------------------------------------------------------------------------------------
 # check if there's is a setup file containing the major paths and source it if it exists
-call_loadsetup
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
@@ -66,7 +66,7 @@ fi
 
 # Check for subject & session flags
 OW=0
-SGE=0
+run_local=1
 NORDIC=""
 runIDs=""
 comps_flag=""
@@ -83,7 +83,7 @@ do
           NORDIC="--no_nordic"
           ;;         
         sge)
-          SGE=1
+          run_local=0
           ;;               
         ow)
           OW=1
@@ -119,8 +119,7 @@ OUTPUT=${@:$OPTIND:1}
 INPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
+# Parse subjects/sessions
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -150,17 +149,8 @@ if [[ ! -z ${runs} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
-
-echo
-echo "==================================================================================================="
-printf "DATA RECONSTRUCTION WITH MRECON [LUISA]\n"
-start=`date +%s`
-start_date=`date`
-
-printf "Started at ${start_date}\n"
-echo "==================================================================================================="
+#intro
+start_timer "Reconstruction of line-scanning data [Luisa's scripts]"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -218,173 +208,165 @@ for subID in ${search}; do
       continue
     fi
 
+    echo
+    echo "**************************************** Processing ${sub_name} ***************************************"
 
-    if [[ ${PLACE} == "SGE" ]]; then
+    count=0
+    old_lsd=""
+    for bold in ${bold_files[@]}; do
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      ((count++))
 
-      count=0
-      old_lsd=""
-      for bold in ${bold_files[@]}; do
+      # fetch run
+      run=`run_id ${bold}`
+      if [[ ${run} -eq 0 ]]; then
+        run=${count}
+      fi
 
-        ((count++))
+      # fetch task
+      task=`task_id ${bold}`
 
-        # fetch run
-        run=`run_id ${bold}`
-        if [[ ${run} -eq 0 ]]; then
-          run=${count}
-        fi
-
-        # fetch task
-        task=`task_id ${bold}`
-
-        # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
-        par_file=(`find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null`)
-        if [[ -f ${par_file} ]]; then
-          if [[ ${#par_file[@]} -gt 1 ]]; then
-            echo "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
-            for i in ${par_file[@]}; do echo " ${i}"; done
-            exit 1
-          else
-            par_file=${par_file[0]}
-          fi
-          
-          fileparts=`read_par ${par_file} "Protocol name"`
-          task=`task_id ${fileparts}`
-
-          # read echoes from PAR file, verify against specified nr of echoes
-          n_par_echo=`read_par ${par_file} "number of echoes"`
-          if [[ -z ${echo_flag} ]]; then
-            if [[ ! -z ${n_par_echo} ]]; then
-              if [[ ${SGE} -eq 0 ]]; then
-                echo "Reading nr of echoes from PAR-file (${n_par_echo})"
-              fi
-              echo_flag="-m ${n_par_echo}"
-            else
-              if [[ ${n_echoes} -ne ${n_par_echo} ]]; then
-                echo "WARNING: par-file says ${n_par_echo} echoes, but ${n_echoes} were specified. Leave echo-flag empty to use echoes specified in PAR-file"
-                exit 1
-              fi
-            fi
-          fi
-        fi
-
-        # set output name
-        outputbase=${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}
-        if [[ ${OW} -eq 1 ]]; then
-          rm -r ${outputbase}.mat 2>/dev/null
-        fi
-
-        # decide when to execute command
-        execute_cmd=0
-        if [[ ! -f ${outputbase}.mat ]]; then
-          execute_cmd=1
-        fi
-
-        if [[ ! -z ${DEBUG} ]]; then
-          execute_cmd=1
-        fi
-
-        if [[ ${execute_cmd} -eq 1 ]]; then
-
-          # find corresponding LSD-image
-          lsd=`find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`
-          
-          ct=0
-          for ii in ${lsd[@]}; do ((ct++)); done
-          if [[ ${ct} -gt 1 ]]; then
-            echo "Found multiple (${ct}) items in input. Please move irrelevant items out pf the directory:"
-            for ii in ${lsd[@]}; do
-              echo " $ii"
-            done
-            exit 1
-          fi
-
-          # check run-specific LSD?
-          if [[ -z ${lsd} ]]; then
-            # old LSD?
-            if [[ ${old_lsd} != "" ]]; then
-              lsd=${old_lsd}
-            else
-              # try any LSD file..
-              lsd=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`)
-              if [[ -z ${lsd} ]]; then
-                echo
-                echo "---------------------------------------------------------------------------------------------------"
-                echo "ERROR in `basename ${0}`: could not find LSD image.."
-                exit 1
-              else
-                ct=0; for i in ${lsd[@]}; do ((ct++)); done
-                if [[ ${ct} -gt 1 ]]; then
-                  echo "ERROR in `basename ${0}`: Found multiple LSD images.."
-                  for i in ${lsd[@]}; do echo " $i"; done
-                  exit 1
-                fi
-              fi
-            fi
-          fi
-
-          verbose=1
-          log_file=$(dirname ${bidsfunc})/$(basename ${outputbase}).log
-          if [[ ${SGE} -eq 1 ]]; then
-            if [[ ! -z ${SGE_QUEUE} ]]; then
-              QUEUE=${SGE_QUEUE}
-            else
-              QUEUE=${SGE_QUEUE_SHORT}
-            fi             
-            call_=`which call_linerecon`
-            job="qsub -q ${QUEUE} -o ${log_file} -N $(basename ${log_file} .log) ${call_}"
-            verbose=0
-          else
-            echo "Running recon for run-${run} (task-${task})"
-            job="call_linerecon"
-          fi
-
-          # define cmd
-          cmd="""${job} \
-            -r ${run} \
-            ${comps_flag} \
-            ${echo_flag} \
-            ${NORDIC} \
-            ${DEBUG} \
-            ${bold} \
-            ${lsd} \
-            ${outputbase}"""
-
-          # echo cmd if not on cluster
-          if [[ ${verbose} -eq 1 ]]; then
-            echo ${cmd}
-            echo
-          fi
-
-          if [[ ${SGE} -eq 1 || ${verbose} -eq 1 ]]; then
-            (
-              echo ""
-              echo "### New invocation of call_linerecon @ `date`"
-              echo "`echo ${cmd} | tr '\n' ' '`"
-              echo ""
-            ) >> ${log_file}
-          fi
-
-          # run cmd
-          ${cmd}
-          
-          # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
-          old_lsd=${lsd}
-
+      # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
+      par_file=(`find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null`)
+      if [[ -f ${par_file} ]]; then
+        if [[ ${#par_file[@]} -gt 1 ]]; then
+          echo "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
+          for i in ${par_file[@]}; do echo " ${i}"; done
+          exit 1
         else
-          echo "${outputbase}.mat exists"
+          par_file=${par_file[0]}
+        fi
+        
+        fileparts=`read_par ${par_file} "Protocol name"`
+        task=`task_id ${fileparts}`
+
+        # read echoes from PAR file, verify against specified nr of echoes
+        n_par_echo=`read_par ${par_file} "number of echoes"`
+        if [[ -z ${echo_flag} ]]; then
+          if [[ ! -z ${n_par_echo} ]]; then
+            if [[ ${run_local} -eq 1 ]]; then
+              echo "Reading nr of echoes from PAR-file (${n_par_echo})"
+            fi
+            echo_flag="-m ${n_par_echo}"
+          else
+            if [[ ${n_echoes} -ne ${n_par_echo} ]]; then
+              echo "WARNING: par-file says ${n_par_echo} echoes, but ${n_echoes} were specified. Leave echo-flag empty to use echoes specified in PAR-file"
+              exit 1
+            fi
+          fi
+        fi
+      fi
+
+      # set output name
+      outputbase=${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}
+      if [[ ${OW} -eq 1 ]]; then
+        rm -r ${outputbase}.mat 2>/dev/null
+      fi
+
+      # decide when to execute command
+      execute_cmd=0
+      if [[ ! -f ${outputbase}.mat ]]; then
+        execute_cmd=1
+      fi
+
+      if [[ ! -z ${DEBUG} ]]; then
+        execute_cmd=1
+      fi
+
+      if [[ ${execute_cmd} -eq 1 ]]; then
+
+        # find corresponding LSD-image
+        lsd=`find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`
+        
+        ct=0
+        for ii in ${lsd[@]}; do ((ct++)); done
+        if [[ ${ct} -gt 1 ]]; then
+          echo "Found multiple (${ct}) items in input. Please move irrelevant items out pf the directory:"
+          for ii in ${lsd[@]}; do
+            echo " $ii"
+          done
+          exit 1
         fi
 
-      done
+        # check run-specific LSD?
+        if [[ -z ${lsd} ]]; then
+          # old LSD?
+          if [[ ${old_lsd} != "" ]]; then
+            lsd=${old_lsd}
+          else
+            # try any LSD file..
+            lsd=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`)
+            if [[ -z ${lsd} ]]; then
+              echo
+              echo "---------------------------------------------------------------------------------------------------"
+              echo "ERROR in `basename ${0}`: could not find LSD image.."
+              exit 1
+            else
+              ct=0; for i in ${lsd[@]}; do ((ct++)); done
+              if [[ ${ct} -gt 1 ]]; then
+                echo "ERROR in `basename ${0}`: Found multiple LSD images.."
+                for i in ${lsd[@]}; do echo " $i"; done
+                exit 1
+              fi
+            fi
+          fi
+        fi
 
-    else
-      echo "Sneaky, but I told you in the usage that we can run this on the server only;)"
-      echo "For good measures:"
-      Usage >&2
-      exit 1
-    fi
+        verbose=1
+        log_file=$(dirname ${bidsfunc})/$(basename ${outputbase}).log
+        if [[ ${run_local} -eq 0 ]]; then
+          if [[ ! -z ${SGE_QUEUE} ]]; then
+            QUEUE=${SGE_QUEUE}
+          else
+            QUEUE=${SGE_QUEUE_SHORT}
+          fi
+
+          submit=$(generate_submission_command ${QUEUE} 1 $(basename ${log_file} .log) ${log_file})
+          call_=`which call_linerecon`
+          job="${submit} ${call_}"
+          verbose=0
+        else
+          echo "Running recon for run-${run} (task-${task})"
+          job="call_linerecon"
+        fi
+
+        # define cmd
+        cmd="""${job} \
+          -r ${run} \
+          ${comps_flag} \
+          ${echo_flag} \
+          ${NORDIC} \
+          ${DEBUG} \
+          ${bold} \
+          ${lsd} \
+          ${outputbase}"""
+
+        # echo cmd if not on cluster
+        if [[ ${verbose} -eq 1 ]]; then
+          echo ${cmd}
+          echo
+        fi
+
+        if [[ ${run_local} -eq 0 || ${verbose} -eq 1 ]]; then
+          (
+            echo ""
+            echo "### New invocation of call_linerecon @ `date`"
+            echo "`echo ${cmd} | tr '\n' ' '`"
+            echo ""
+          ) >> ${log_file}
+        fi
+
+        # run cmd
+        ${cmd}
+        
+        # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
+        old_lsd=${lsd}
+
+      else
+        echo "${outputbase}.mat exists"
+      fi
+
+    done
 
   else
     echo "Could not find \"${lab_func}\""
@@ -394,16 +376,5 @@ for subID in ${search}; do
 done
 
 #-----------------------------------------------------------------------------
-# Calculate time spent using 'let'
-echo
-echo "---------------------------------------------------------------------------------------------------"
-end=`date +%s`
-end_date=`date`
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+# outro
+end_timer

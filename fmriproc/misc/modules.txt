@@ -3,7 +3,8 @@ Available modules:                                     Script                   
   -01:  Make new session for subject                   (spinoza_bidssession)            00:00:01
   -02a: Convert raw files to nifti                     (spinoza_scanner2bids)           00:02:00
   -02b: Quality control with MRIQC                     (spinoza_mriqc)                  00:30:00
-  -03:  Reconstruction of line data                    (spinoza_linerecon)              00:10:00
+  -03a: Reconstruction of line data                    (spinoza_linerecon)              00:10:00
+  -03a: Preprocessing of linescanning data             (spinoza_lsprep)                 00:02:00
   -04:  Estimate T1's from mp2rage and memp2rage       (spinoza_qmrimaps)               00:01:30
   -05a: Register T1 from memp2rage to T1 from mp2rage  (spinoza_registration)           00:03:00
   -05b: Register T1 from mp2rage to MNI152             (spinoza_registration)           01:05:00
