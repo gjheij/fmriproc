@@ -140,8 +140,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
     Additionally, the pipeline attempts to read the **phase-encoding direction** from the PAR/DCM file, though this is not always reliable.
     There are multiple ways to populate the `PhaseEncodingDirection` field in your JSON files:
 
-    **Phase Encoding Direction Options**
-    ------------------------------------
+    .. rubric:: **Phase Encoding Direction Options**
     
     1. Accept defaults: ``AP`` for BOLD and ``PA`` for fieldmaps.
     2. Set ``export PE_DIR_BOLD=<value>`` in the configuration file (one of ``AP``, ``PA``, ``LR``, or ``RL``).
@@ -155,7 +154,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     4. Manually edit the JSON files after processing (less recommended).
 
-    **IntendedFor Field**
+    .. rubric:: **IntendedFor Field**
     ---------------------
 
     The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
@@ -166,8 +165,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     If your dataset follows a different structure, you may need to manually edit the ``IntendedFor`` field.
 
-    **SliceTiming Calculation**
-    ---------------------------
+    .. rubric:: **SliceTiming Calculation**
 
     If you have a **2D acquisition**, the pipeline can populate the `SliceTiming` field.
     It determines this information from:
@@ -177,8 +175,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     For further details, see the `slicetiming <https://github.com/gjheij/fmriproc/blob/main/fmriproc/image.py#L14>`_ function.
 
-    **Repetition Time (TR) Handling**
-    ---------------------------------
+    .. rubric:: **Repetition Time (TR) Handling**
 
     The **Repetition Time (TR)** can be determined using several strategies:
 
