@@ -483,7 +483,7 @@ Tips for FSL's FEAT
 -------------------
 
 Case: Use fMRIprep_-Confounds for FEAT
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you don't want to denoise your data using **pybest**, but instead want to include the confounds from fMRIprep_ in the **FEAT** analysis, use ``call_fprep2feat``.
 This generates ``txt`` files compatible with **FEAT** based on the confound file.
