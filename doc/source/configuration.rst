@@ -1,3 +1,5 @@
+.. include:: links.rst
+
 Configuration Setup
 ===================
 
@@ -10,24 +12,49 @@ Example `spinoza_config`
 
 .. code-block:: bash
 
-    # Project details
-    export DIR_PROJECTS="/path/to/projects"
-    export PROJECT="example_project"
+    # stuff about the project
+    export DIR_PROJECTS="/path/to/some/projects"
+    export PROJECT="project_name1"
+    export TASK_IDS=("task1") # ("task1" "task2" "task3")
+    export PATH_HOME="${DIR_PROJECTS}/logs"
+    export SUBJECT_PREFIX="sub-"
 
-    # Anatomical settings
-    export ACQ=("MP2RAGE")
-    export DATA="MP2RAGE"
+    # stuff about the anatomical configuration
+    export ACQ=("MPRAGE")  # or ("MP2RAGE" "MP2RAGEME")
+    export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
+    export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w")
 
-    # Functional preprocessing
+    # phase encoding direction for BOLD; assume inverse for FMAP
     export PE_DIR_BOLD="AP"
 
-    # FreeSurfer settings
-    export FREESURFER_HOME="/path/to/freesurfer"
-    export FS_LICENSE="$FREESURFER_HOME/license.txt"
+    # GRID ENGINE
+    export SGE_QUEUE_LONG="long.q@jupiter" # SGE_QUEUE_LONG="long" on SLURM
+    export SGE_QUEUE_SHORT="short.q@jupiter" # SGE_QUEUE_LONG="long" on SLURM
 
-    # fMRIprep settings
-    export FPREP_SIMG="/path/to/fmriprep.simg"
-    export FPREP_BINDING="/path/to"
+    # MATLAB
+    ## Full installation
+    export SKIP_LINES=0
+    export MATLAB_CMD="matlab -nosplash -nodisplay -batch" # find with 'which matlab'
+    export SPM_PATH="/some/path/to/spm12"
+    
+    ## MCR
+    install_dir="${HOME}/software/CAT12.9_R2023b_MCR_Mac"
+    export MATLAB_CMD="${install_dir}/run_spm12.sh ${MCRROOT} script"
+    export SPM_PATH="${install_dir}/spm12.app/Contents/Resources/spm12_mcr/Users/gaser/spm/spm12"
+
+    # PYBEST
+    export PYBEST_SPACE="fsnative"
+    export PYBEST_N_COMPS=20
+
+    # fMRIPREP
+    export MRIQC_SIMG="/path/to/containers/containers_bids-mriqc--23.0.1.simg"
+    export FPREP_SIMG="/path/to/containers/containers_bids-fmriprep--20.2.5.simg"
+    export FPREP_OUT_SPACES="fsnative func"
+    export FPREP_BINDING="$(dirname ${DIR_PROJECTS})" # binding directory for singularity image
+    export FS_LICENSE=${REPO_DIR}/misc/license.txt # this thing needs to be along the FPREP_BINDING path!
+    export CIFTI="" # leave empty if you don't want cifti output
+    export DO_SYN=0 # set to zero if you do not want additional syn-distortion correction
+    export BOLD_T1W_INIT="register" # default = register; for partial FOV, set to 'header'
 
 To activate changes, run:
 
@@ -76,18 +103,23 @@ If you have access to a **SLURM** system, you'll want to adapt these queues so t
 In SLURM, queues are referred to as **partitions**.
 The equivalent of **SGE queues** (``qstat`` → ``long.q@jupiter``) in SLURM is the partition name (``sinfo`` → ``long,jupiter``).
 
+.. warning::
+
+    The SLURM implementation has not been tested yet because I don't have access to one.
+    Please open an issue if you run into problems!
+
 SLURM partitions are typically defined in ``sinfo``, and they can look like:
 
 .. code-block:: bash
 
-    $ sinfo
+    $ sinfo # this is concocted.. 
     PARTITION  AVAIL  TIMELIMIT  NODES  STATE NODELIST
     debug      up     1:00:00    2      idle  node01,node02
     short      up     4:00:00    10     mix   node[03-12]
     long       up     7-00:00:00 20     alloc node[13-32]
     jupiter    up     7-00:00:00 15     idle  node[33-47]
 
-Here’s how you can map **SGE queues** to **SLURM partitions**:
+Here's how you can map **SGE queues** to **SLURM partitions**:
 
 .. code-block:: bash
 
@@ -96,18 +128,18 @@ Here’s how you can map **SGE queues** to **SLURM partitions**:
 
 The following functions can be submitted (regardless of SoGE/SLURM) using the ``--sge`` flag:
 
-- ``call_feat``
-- ``call_freesurfer``
-- ``spinoza_scanner2bids``    [-m 02a]
-- ``spinoza_mriqc``           [-m 02b]
-- ``spinoza_qmrimap``         [-m 04]
-- ``spinoza_registration``    [-m 05*]
-- ``spinoza_nordic``          [-m 10]
-- ``spinoza_freesurfer``      [-m 14]
-- ``spinoza_fmriprep``        [-m 15]
-- ``spinoza_denoising``       [-m 16]
-- ``spinoza_mgdm``            [-m 20]
-- ``spinoza_subcortex``       [-m 24]
+- `call_feat <https://github.com/gjheij/fmriproc/blob/main/bin/call_feat>`
+- `call_freesurfer <https://github.com/gjheij/fmriproc/blob/main/bin/call_freesurfer>`
+- spinoza_scanner2bids_ [-m 02a]
+- spinoza_mriqc_ [-m 02b]
+- spinoza_qmrimaps_ [-m 04]
+- spinoza_registration_ [-m 05*]
+- spinoza_nordic_ [-m 10]
+- spinoza_freesurfer_ [-m 14]
+- spinoza_fmriprep_ [-m 15]
+- spinoza_denoising_ [-m 16]
+- spinoza_mgdm_ [-m 20]
+- spinoza_subcortex_ [-m 24]
 
 The specific queue and number of cores can be adjusted using the ``-q <queue>`` and ``-j <n_cpus>`` flags.
 

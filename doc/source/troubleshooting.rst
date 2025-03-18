@@ -1,7 +1,8 @@
 Troubleshooting & Common Issues
 ===============================
 
-### Issue: fMRIprep Cannot Find License File
+Issue: fMRIprep Cannot Find License File
+----------------------------------------
 
 Ensure the `license.txt` is correctly placed:
 
@@ -9,7 +10,8 @@ Ensure the `license.txt` is correctly placed:
 
     export FS_LICENSE="/path/to/license.txt"
 
-### Issue: Error with Cluster Submission
+Issue: Error with Cluster Submission
+------------------------------------
 
 Check if your system supports **SGE or SLURM**:
 
@@ -23,13 +25,11 @@ Check if your system supports **SGE or SLURM**:
         echo "No supported scheduler found"
     fi
 
-### Issue: Incorrect Phase-Encoding Direction
+Issue: Incorrect Phase-Encoding Direction
+-----------------------------------------
 
 Verify your `spinoza_config` settings:
 
 .. code-block:: bash
 
     export PE_DIR_BOLD="AP" # Ensure correct phase encoding
-
-For more issues, consult the full documentation.
-

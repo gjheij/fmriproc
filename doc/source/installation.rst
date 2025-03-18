@@ -26,8 +26,6 @@ Setting Up the Environment
 
 This installs the core Python package and scripts.
 
----
-
 Configuring the Environment
 ---------------------------
 
@@ -50,4 +48,3 @@ For a custom configuration location:
 .. code-block:: bash
 
    spinoza_install setup /path/to/custom_config
-

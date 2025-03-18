@@ -155,6 +155,7 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
     ---------------------
 
     The pipeline can automatically populate the ``IntendedFor`` field in the JSON files, provided one of these conditions is met:
+
     1. Each **BOLD** acquisition has a corresponding fieldmap (**recommended**).
     2. One **fieldmap** is used for every two **BOLD** acquisitions.
     3. A single **fieldmap** is used for all **BOLD** runs.
@@ -178,14 +179,16 @@ PAR/REC files should be placed directly in the ``sub-<subID>/<ses-sesID>/*`` fol
 
     1. **Manual specification** via the ``-t <tr>`` flag when calling ``master -m 02a``.
     2. **For DICOM files**, the pipeline applies:
-    - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
-    - Extracting TR from the **DICOM header** (sometimes unreliable).
-    - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
-    - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
+
+        - Parsing TR from filename (e.g., ``TR2.9``, ``TR=2.9``, ``TR_2p9``, ``_TR2p9_``).
+        - Extracting TR from the **DICOM header** (sometimes unreliable).
+        - Calculating **TR = NumSlices × SliceMeasurementDuration** (for 2D acquisitions).
+        - Applying multi-band correction **(TR / MultiBandFactor)** for multi-band sequences.
 
     3. **For PAR files**, the TR is determined from the **timing between volumes**, either:
-    - Using the **first interval**, or
-    - Averaging across the entire run.
+    
+        - Using the **first interval**, or
+        - Averaging across the entire run.
 
     The pipeline then **corrects the NIfTI headers** accordingly.
 
