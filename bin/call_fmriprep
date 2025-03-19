@@ -1,10 +1,4 @@
-#!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
-#Template provided by Daniel Levitas of Indiana University
-#Edits by Andrew Jahn, University of Michigan, 07.22.2020
+#!/usr/bin/env bash
 
 call_loadsetup
 
@@ -318,27 +312,21 @@ if [[ ! -z ${IMG} ]]; then
   fprep_container=${IMG}
 fi
 
+#-----------------------------------------------------------------------------
+# Set default binding point if none specified
+if [[ -z ${BIND} ]]; then
+  binding=${PATH_HOME}
+else
+  binding=${BIND}
+fi
+
 # Define command line
 if [[ ${USE_DOCKER} -eq 1 ]]; then
-
-  # read user/group ID in a platform friendly way: https://superuser.com/questions/581989/bash-find-directory-group-owner
-  TARGET_FILE=${project}
-  UID=`\ls -l "$(dirname $TARGET_FILE)" | grep -v '^l' | grep " $(basename $TARGET_FILE)\$" | awk '{ print $3 }'`
-  GID=`\ls -l "$(dirname $TARGET_FILE)" | grep -v '^l' | grep " $(basename $TARGET_FILE)\$" | awk '{ print $4 }'`
-  run_cmd="fmriprep-docker -u ${UID}:${GID}"
-
+  run_cmd="fmriprep-docker"
 else
   if [[ -f ${fprep_container} ]]; then
 
     echo "Singularity image: \"${fprep_container}\""
-    #-----------------------------------------------------------------------------
-    # Set default binding point if none specified
-    if [[ -z ${BIND} ]]; then
-      binding=${PATH_HOME}
-    else
-      binding=${BIND}
-    fi
-
     if [[ ! -f ${fprep_container} ]]; then
       echo "Could not find singularity image \"${fprep_container}\" for fmriprep.."
       exit 1
@@ -364,7 +352,7 @@ else
     run_cmd="singularity run --cleanenv -B ${binding}:${binding} ${fprep_container}"
 
   else
-    echo "WARNING: system is setup to use SoGE, but singularity image \"${fprep_container}\" could not be found. Defaulting to \"fmriprep\"-command"
+    echo "WARNING: system is setup to use singularity, but image \"${fprep_container}\" could not be found. Defaulting to \"fmriprep\"-command"
     run_cmd="fmriprep"
   fi
 fi
@@ -413,13 +401,16 @@ if [[ ${execute_cmd} -eq 1 ]]; then
 
   # output directory structure has changed after v21: https://github.com/nipreps/fmriprep/releases/tag/21.0.0
   echo "Checking fMRIPrep's version.."
-  ver_cmd="""${run_cmd} --version"""
-  echo ${ver_cmd}
-  VERSION=`${ver_cmd} | cut -d" " -f2 | cut -d"." -f1`
-  if [[ `echo "${VERSION//[!0-9]/}"` -lt "21" ]]; then
+  version_string=$(eval ${run_cmd} --version)
+  major_version=$(echo "$version_string" | grep -oP 'fMRIPrep v\K\d+' | cut -d"." -f1)
+  if [[ "${major_version}" -lt 21 ]]; then
     output_dir=${derivatives}
+    single_subj_wf="single_subject_${subj_ID}_wf"
+    func_wf="func_preproc"
   else
     output_dir=${derivatives}/fmriprep
+    single_subj_wf="sub_${subj_ID}_wf"
+    func_wf="bold"
   fi
 
   # execute the fMRIPrep command
@@ -449,7 +440,7 @@ ${run_cmd} \
 
   # execute
   echo ${cmd}
-  ${cmd}
+  eval ${cmd}
   
   if [[ $? != 0 ]]; then
     echo
@@ -489,7 +480,7 @@ ${run_cmd} \
     wf_folder=`find ${work} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null`
 
     if [[ ! -z ${wf_folder} ]]; then
-      subj_wf=${wf_folder}/single_subject_${subj_ID}_wf
+      subj_wf=${wf_folder}/${single_subj_wf}
 
       if [[ -d ${subj_wf} ]]; then
         echo "Removing \"${subj_wf}\""
@@ -531,7 +522,7 @@ fi
 # copy the bold-to-T1w warps from the fmriprep_wf
 if [[ ${WARP_ONLY} -eq 1 ]]; then
   for tt in "fwd" "inv"; do
-    xfms=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null`)
+    xfms=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null`)
     if [[ ! -z ${xfms} ]]; then
 
       if [[ ${tt} == "fwd" ]]; then
@@ -571,17 +562,17 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       tag=""
       msg="space-func"
       err="bold_bold_trans_wf"
-      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
     elif [[ ${output_space[ct]} == "fsl" ]]; then
       tag="_space-MNI152NLin6Asym_res-1"
       msg="space-MNI152NLin6Asym_res-1"
       err="bold_std_trans_wf/*MNI152NLin6Asym*"
-      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
     elif [[ ${output_space[ct]} == "anat" ]]; then
       tag="_space-T1w"
       msg="space-T1w"
       err="bold_t1_trans_wf"
-      fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
     fi
 
     # fetch time course files
@@ -605,7 +596,7 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       done   
       echo "Done" 
     else
-      echo "Could not find directory \"${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/${err}/merge\""
+      echo "Could not find directory \"${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/${err}/merge\""
     fi
 
     # fetch masks
@@ -613,15 +604,15 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       if [[ ${output_space[ct]} == "func" ]]; then
         tag=""
         msg="space-func"
-        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
       elif [[ ${output_space[ct]} == "fsl" ]]; then
         tag="_space-MNI152NLin6Asym_res-1"
         msg="space-MNI152NLin6Asym_res-1"
-        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
       elif [[ ${output_space[ct]} == "anat" ]]; then
         tag="_space-T1w"
         msg="space-T1w"
-        fetch_files=(`find -L ${work}/fmriprep*wf/single_subject_${subj_ID}_wf/func_preproc*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
       fi      
 
       if [[ ! -z ${fetch_files} ]]; then
@@ -656,8 +647,8 @@ done
 # Fetch FD files
 if [[ ${FD_ONLY} -eq 1 ]]; then
   echo "Finding FD-timecourse files"
-  work_dir=${work}/fmriprep*wf/single_subject_${subj_ID}_wf
-  fd_files=(`find -L ${work_dir}/func_preproc*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null`)
+  work_dir=${work}/fmriprep*wf/${single_subj_wf}
+  fd_files=(`find -L ${work_dir}/${func_wf}*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null`)
   if [ ! -z ${fd_files} ]; then
 
     # find # fdvars timecourse for Marco

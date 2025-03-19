@@ -6,6 +6,201 @@ source "${SETUP_FILE}"
 source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
+# bunch of other helper functions
+
+# Function to check and copy anatomical T1w data
+check_and_copy_anat() {
+  local func_dir="$1"
+  local base_path="$2"
+  local anat_dir_level="$3"  # Level of hierarchy for anatomical search (5 or 6)
+  local fs_dir="$4"          # FreeSurfer directory
+  local sub_name="$5"
+  local base="$6"
+  local data="$7"
+
+  local anat
+  anat=$(find -L "${func_dir}/${base_path}/anat" -type f -name "*T1w.nii.gz" 2>/dev/null)
+
+  if [[ -z "${anat}" ]]; then
+    local anat_dir
+    anat_dir=$(find_hierarchical_anatomy "${anat_dir_level}")
+    local diff_anat
+    diff_anat=$(find -L "${anat_dir}/${base_path}" -type f -name "*T1w.nii.gz" 2>/dev/null)
+
+    if [[ -n "${diff_anat}" ]]; then
+      # Create anat directory if it doesn't exist
+      mkdir -p "${func_dir}/${base_path}/anat"
+
+      # Copy the T1w file
+      cp "${diff_anat}" "${func_dir}/${base_path}/anat"
+      echo "Copied \"${diff_anat}\" to ${func_dir}/${base_path}/anat"
+    else
+      # Try FreeSurfer rawavg.mgz if available
+      local fs_rawavg="${fs_dir}/${sub_name}/mri/rawavg.mgz"
+      if [[ -f "${fs_rawavg}" ]]; then
+        call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${data^^}_T1w.nii.gz"
+      else
+        echo "ERROR in $(basename "$0"): Could not find T1w-file in \"${anat_dir}\"."
+        echo "Please copy a file containing \"_T1w.nii.gz\" to \"${func_dir}/${base_path}/anat\"."
+        exit 1
+      fi
+    fi    
+  fi
+}
+
+# Function to find functional data
+find_func_data() {
+  local func_dir="$1"
+  local base_path="$2"
+  local input_dir="$3"
+
+  if [[ -n "${func_dir}" ]]; then
+    # Functional data in a separate directory
+    find -L "${func_dir}/${base_path}/func" -type f -name "*bold.nii.gz" 2>/dev/null
+  else
+    # Functional data in the same directory as anatomical data
+    find -L "${input_dir}/func" -type f -name "*bold.nii.gz" 2>/dev/null
+  fi
+}
+
+# Function to find anatomical data
+find_anat_data() {
+  local input_dir="$1"
+  local data="$2"
+
+  find -L "${input_dir}/anat" -type f -name "*T1w*" -and -name "*acq-${data^^}*" -and -name "*.nii.gz" 2>/dev/null
+}
+
+# Function to manage fMRIPrep working directory and cleanup options
+manage_fmriprep_workdir() {
+  local workdir="$1"
+  local project="$2"
+  local sub_id="$3"
+  local remove_surf_wf="$4"
+  local remove_wf="$5"
+  local overwrite="$6"
+  local runs=("${@:7}")  # Capture remaining arguments as an array
+
+  # Ensure working directory exists
+  if [[ ! -d "${workdir}" ]]; then
+    mkdir -p "${workdir}"
+  fi
+
+  # Locate workflow folder
+  local wf_folder
+  wf_folder=$(find "${workdir}" -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
+
+  # Remove surface reconstruction workflow if specified
+  if [[ "${remove_surf_wf}" -eq 1 ]]; then
+    echo "Removing \"${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf\""
+    rm -r "${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf" 2>/dev/null
+  elif [[ "${remove_wf}" -eq 1 ]]; then
+    echo "Removing \"single_subject_${sub_id}_wf\" in \"${wf_folder}\""
+    rm -r "${wf_folder}/single_subject_${sub_id}_wf" 2>/dev/null
+  elif [[ "${overwrite}" -eq 1 ]]; then
+    # Remove workflow folders for specific runs or all runs
+    if [[ ${#runs[@]} -gt 0 ]]; then
+      for r in "${runs[@]}"; do
+        echo "Removing workflow folders with \"run-${r}\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
+        rm -r "${wf_folder}/single_subject_${sub_id}_wf/"*run_"${r}"* 2>/dev/null
+      done
+    else
+      echo "Removing workflow folders with \"run-*\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
+      local ddir
+      ddir=($(find "${wf_folder}/single_subject_${sub_id}_wf" -type d -name "*run-" | sort))
+      for d in "${ddir[@]}"; do echo " ${d}"; done
+      rm -r "${wf_folder}/single_subject_${sub_id}_wf/"*run_* 2>/dev/null
+    fi
+  fi
+}
+
+generate_config_file() {
+  local conf="$1"
+  local runs=("${@:2}")  # Capture remaining arguments as an array
+  local confFile=""
+
+  if [[ -z ${conf} ]]; then
+    # If no config file is provided, check for run-specific files
+    if [[ ${#runs[@]} -gt 0 ]]; then
+      local run_="["
+      local r_ct=0
+      local workdir="${WORKDIR:-.}"  # Default to current dir if WORKDIR is not set
+
+      for r in "${runs[@]}"; do
+        if [[ ${r_ct} -lt $((${#runs[@]} - 1)) ]]; then
+          run_+="${r},"
+        else
+          run_+="${r}]"
+        fi
+        ((r_ct++))
+      done
+
+      confFile="${workdir}/run_conf.json"
+      [[ -f ${confFile} ]] && rm -f "${confFile}"
+
+      # Generate JSON config file
+      cat <<EOF > "${confFile}"
+{
+  "bold": {
+      "run": ${run_}
+  },
+  "fmap": {
+      "run": ${run_}
+  }
+}
+EOF
+
+      echo "Using run-specific config file (runs = [${runs[*]}]): ${confFile}"
+      confFile="-x ${confFile}"
+    fi
+  else
+    if [[ ${#runs[@]} -gt 0 ]]; then
+      echo "WARNING: Specific runs were requested, but a configuration file was also specified."
+      echo "Since merging these is tedious, please use the configuration file to select runs."
+
+      while true; do
+        read -p "Do you want to proceed? (yes/no) " yn
+        case $yn in
+          y|yes ) break ;;
+          n|no ) echo "Exiting..."; exit 1 ;;
+          * ) echo "Invalid response (use \"yes\"/\"y\" or \"no\"/\"n\")." ;;
+        esac
+      done
+    fi
+    echo "Using config file: ${conf}"
+    confFile="-x ${conf}"
+  fi
+
+  # Return the config file variable (if needed)
+  echo "$confFile"
+}
+
+decide_job_type() {
+  local sub_name="$1"
+  local run_local="$2"
+  local workdir="$3"
+  local n_cpus="$4"
+
+  local job=""
+  local echo_cmd=1
+  local call_=""
+  local submit=""
+  local QUEUE=""
+
+  if [[ ${run_local} -eq 1 ]]; then
+    job="call_fmriprep"
+  else
+    QUEUE="${SGE_QUEUE:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
+    call_="$(which call_fmriprep)"
+    submit=$(generate_submission_command "${QUEUE}" "${n_cpus}" "${sub_name}_desc-fmriprep" "${workdir}")
+    job="${submit} ${call_}"
+  fi
+
+  # Return job command and echo flag as global variables if needed
+  echo "${job}"
+}
+
+#---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -79,6 +274,9 @@ Options:
   --clean           remove the single-subject workflow folder completely. This saves storage, but comes
                     at the price that it re-runs EVERYTHING if you restart the process.
   --docker          run fmriprep through docker image (requires 'fmriprep-docker' to be installed!)
+                    docker is not compatible with separate input folders for 'anat' and 'func', so the
+                    input folder will be set to DIR_DATA_HOME by default. The T1w that is present in the
+                    'anat'-folder will be used as input.
   --fd              only fetch framewise displacement files
   --fetch_anat      retrieve the nifti-files in T1w-space
   --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
@@ -134,10 +332,12 @@ clean_wd=""
 fsl_flag=""
 func_flag=""
 anat_flag=""
-DOCKER_FLAG=""
+docker_flag=""
 fd_flag="" 
 crash_flag=""
-mask_flag=0
+mask_flag=""
+mode="anat"
+workdir="${PATH_HOME}/fmriprep/${PROJECT}"
 while getopts :-:ols:r:n:f:m:j:k:q:u:a:w: argument
 do
 case ${argument} in
@@ -147,7 +347,7 @@ case ${argument} in
           bbr_flag="--no_bbr"
           ;;        
         docker)
-          DOCKER_FLAG="--docker"
+          docker_flag="--docker"
           ;;            
         warp_only)
           warp_only="--warp_only"
@@ -228,30 +428,29 @@ if [[ $# -lt 3 ]] ; then
   Usage >&2
   exit 1
 fi
+
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 T2=${@:$OPTIND+2:1}
 
-if [[ -z ${sub} ]]; then
-  # loop through subjects
-  search="${INPUT}/${SUBJECT_PREFIX}*"
-else
-  # read specified subjects into array
-  IFS=', ' read -r -a search <<< "${sub}"
-  search=${search[@]}
-  unset IFS
-fi
-
-if [[ -z ${mode} ]]; then
-  MODE="anat"
-else
-  MODE=${mode}
-fi
-
+# check run
 if [[ ! -z ${runs} ]]; then
-  # read specified subjects into array
   IFS=', ' read -r -a n_runs <<< "${runs}"
   unset IFS
+fi
+
+# get subjects
+search=$(determine_subjects "$INPUT" "$SUBJECT_PREFIX" "$sub")
+
+# Check if ${mode} represents a task ID instead of "anat" or "func"
+task_id=""
+if [[ -n ${mode} && ${mode} != "anat" && ${mode} != "func" ]]; then
+  task_id="-t ${mode}"
+fi
+
+# reset input directory if docker is used
+if [[ ! -z ${docker_flag} ]]; then
+  INPUT="${func_dir}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -261,226 +460,56 @@ start_timer "Preprocessing with fMRIprep"
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do
-
+  
   # collect subject name
-  nr=""
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
-
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # define input
   input_dir=${INPUT}/${base_path}
-  if [[ ${MODE} == "anat" ]]; then
-
-    # intro text
+  if [[ "${mode}" == "anat" ]]; then
     func_txt="Only including anatomical data"
-
-    # check if there's a T1w in the 'anat' folder; even though you've already ran it, fMRIprep requires T1w-files
-    anat=`find -L "${func_dir}/${base_path}/anat" -type f \( -name "*T1w.nii.gz" \) 2>/dev/null`
-    if [[ -z ${anat} ]]; then
-      anat_dir=`find_hierarchical_anatomy 5`
-      diff_anat=`find -L "${anat_dir}/${base_path}" -type f \( -name "*T1w.nii.gz" \) 2>/dev/null`
-      if [[ ! -z ${diff_anat} ]]; then
-        if [[ ! -d ${func_dir}/${base_path}/anat ]]; then
-          mkdir -p ${func_dir}/${base_path}/anat
-        fi
-
-        # copy file
-        cp ${diff_anat} ${func_dir}/${base_path}/anat
-
-      else
-        echo "ERROR in `basename ${0}`: Could not find T1w-file in \"${anat_dir}\". Please copy a file containing \"_T1w.nii.gz\" to \"${func_dir}/${base_path}/anat\" as a T1w-file needs to be present. If you've already ran the anatomical workflows, the file will be ignored. Nevertheless, it's needs to be present for fMRIprep to initiate"
-        exit 1
-      fi    
-    fi   
+    check_and_copy_anat "${func_dir}" "${base_path}" 5 "${FS}" "${sub_name}" "${base}" "${DATA}"
   else
     func_txt="Including functional data"
-    if [[ ! -z ${func_dir} ]]; then
-      # separate directory with functional data
-      func=`find -L "${func_dir}/${base_path}/func" -type f \( -name "*bold.nii.gz" \) 2>/dev/null`
-      INPUT=${func_dir}
+    func=$(find_func_data "${func_dir}" "${base_path}" "${input_dir}")
+    check_and_copy_anat "${func_dir}" "${base_path}" 6 "${FS}" "${sub_name}" "${base}" "${DATA}"
 
-      # check if there's a T1w in the 'anat' folder; even though you've already ran it, fMRIprep requires T1w-files
-      anat=`find -L "${func_dir}/${base_path}/anat" -type f \( -name "*T1w.nii.gz" \) 2>/dev/null`
-      if [[ -z ${anat} ]]; then
-        anat_dir=`find_hierarchical_anatomy 6`
-        diff_anat=`find -L "${anat_dir}/${base_path}" -type f \( -name "*T1w.nii.gz" \) 2>/dev/null`
-        if [[ ! -z ${diff_anat} ]]; then
-          if [[ ! -d ${func_dir}/${base_path}/anat ]]; then
-            mkdir -p ${func_dir}/${base_path}/anat
-          fi
-
-          # copy file
-          cp ${diff_anat} ${func_dir}/${base_path}/anat
-
-        else
-          # check if we can use rawavg.nii.gz from FreeSurfer
-          fs_rawavg=${FS}/${sub_name}/mri/rawavg.mgz
-          if [[ -f ${fs_rawavg} ]]; then
-            call_mriconvert ${fs_rawavg} ${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz
-          else
-            echo "ERROR in `basename ${0}`: Could not find T1w-file in \"${anat_dir}\". Please copy a file containing \"_T1w.nii.gz\" to \"${func_dir}/${base_path}/anat\" as a T1w-file needs to be present. If you've already ran the anatomical workflows, the file will be ignored. Nevertheless, it's needs to be present for fMRIprep to initiate"
-            exit 1
-          fi
-        fi    
-      fi  
-    else
-      # same directory for functional and anatomical data
-      func=`find -L "${input_dir}/func" -type f \( -name "*bold.nii.gz" \) 2>/dev/null`
-      anat=`find -L "${input_dir}/anat" -type f \( -name "*T1w*" -and -name "*acq-${DATA^^}*" -and -name "*.nii.gz" \) 2>/dev/null`
-    fi
-
-    if [[ -z ${func} ]]; then
-      echo "${sub_name}; no \"*bold.nii.gz\"-files in \"${input_dir}/func\""
-      echo "If you're running a multi-session setup with ses-1 (default) as anatomical session, you'll need to specify any valid session ID with \"-n <sesID>\". This is just to verify that there are files, but doesn't actually do anything do the fmriprep-call. To select specific sessions for fmriprep, use config-files with \"-u <config_file>\""
+    if [[ -z "${func}" ]]; then
+      echo "${sub_name}; no \"*bold.nii.gz\" files in \"${input_dir}/func\""
+      echo "If you're running a multi-session setup with ses-1 (default) as anatomical session, specify a valid session ID using \"-n <sesID>\"."
       continue
     fi
   fi
-  
-  # set default work directory
-  if [[ -z ${workdir} ]]; then
-    workdir=${PATH_HOME}/fmriprep/${PROJECT}
-  fi
 
-  # check existence working directory and other general settings
-  if [[ ! -d ${workdir} ]]; then
-    mkdir -p ${workdir}
-  fi
-
-  # check if we need to delete stuff
-  wf_folder=`find ${workdir} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null`
-  if [[ ${remove_surf_wf} -eq 1 ]]; then
-    echo "Removing \"${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf\""
-    rm -r ${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf 2>/dev/null
-  else
-    if [[ ${remove_wf} -eq 1 ]]; then
-      echo "Removing \"single_subject_${sub_id}_wf\" in \"${wf_folder}\""
-      rm -r ${wf_folder}/single_subject_${sub_id}_wf 2>/dev/null
-    else
-      if [[ ${OW} -eq 1 ]]; then
-        # check for run-specific flag
-        if [[ ! -z ${runs} ]]; then
-          for r in ${runs[@]}; do
-            echo "Removing workflow folders with \"run-${r}\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
-            rm -r ${wf_folder}/single_subject_${sub_id}_wf/*run_${r}* 2>/dev/null
-          done
-        else
-          echo "Removing workflow folders with \"run-*\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
-          ddir=(`find ${wf_folder}/single_subject_${sub_id}_wf -type d -name "*run-" | sort`)
-          for d in ${ddir[@]}; do echo " ${d}"; done
-          rm -r ${wf_folder}/single_subject_${sub_id}_wf/*run_* 2>/dev/null
-        fi
-      fi
-    fi
-  fi
-
-  # check configuration file
-  if [[ -z ${conf} ]]; then
-    confFile=""
-
-    # select run-specific files
-    if [[ ! -z ${runs} ]]; then
-      run_="["
-      r_ct=0
-      for r in ${n_runs[@]}; do
-        if [[ ${r_ct} -lt ${n_runs} ]]; then
-          run_+="${r},"
-        else
-          run_+="${r}]"
-        fi
-        ((r_ct++))
-      done
-
-      confFile=${workdir}/run_conf.json
-      if [ -f ${confFile} ]; then 
-        rm ${confFile} 2>/dev/null
-      fi
-
-      (
-        echo "{"
-        echo "    \"bold\": {"
-        echo "        \"run\": ${run_}"
-        echo "    },"
-        echo "    \"fmap\": {"
-        echo "        \"run\": ${run_}"
-        echo "    }"
-        echo "}" 
-      ) >> ${confFile}
-      echo "Using run-specific config file (runs = [${n_runs[@]}]): ${confFile}"
-      confFile="-x ${confFile}"
-
-    fi
-  else
-    if [[ ! -z ${runs} ]]; then
-      echo "WARNING: specific runs were requested, but you also specified a configuration file. Because I'm lazy and it's quite tedious to merge these, please use the configuration file to select runs."
-
-      while true; do
-        read -p "Do you want to proceed? (yes/no) " yn
-
-        case $yn in 
-          y|yes ) 
-            break
-            ;;
-          n|no ) 
-            echo exiting...
-            exit
-            ;;
-          * ) 
-            echo "invalid response (use \"yes\"/\"y\" or \"no\"/\"n\")";
-            ;;
-        esac      
-      done
-    fi
-    echo "Using config file: ${conf}"
-    confFile="-x ${conf}"
-  fi
-
-  if [[ ! -z ${MODE} ]]; then
-    if [[ ${MODE} != "anat" ]] && [[ ${MODE} != "func" ]]; then
-      task_id="-t ${MODE}"
-    else
-      task_id=""
-    fi
-  else
-    task_id=""
-  fi
-
-  # decide the job type (depending on SGE, can be either qsub or call_fmriprep; for anything else it's call_fmriprep)
-  echo_cmd=1
+  # intro
   if [[ ${run_local} -eq 1 ]]; then
-    job="call_fmriprep"
     echo
     echo "**************************************** Processing ${sub_name} ***************************************"
-    echo ${func_txt}   
-  else
-    if [[ ! -z ${SGE_QUEUE} ]]; then
-      QUEUE=${SGE_QUEUE}
-    else
-      QUEUE=${SGE_QUEUE_LONG}
-    fi
-    call_=`which call_fmriprep`
-    submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${sub_name}_desc-fmriprep ${workdir})
-    job="${submit} ${call_}"
-    echo_cmd=0
+    echo "${func_txt}"
   fi
 
-  # execute the command
+  # sort out working directory
+  manage_fmriprep_workdir \
+    "$workdir" \
+    "$project" \
+    "$sub_id" \
+    "$remove_surf_wf" \
+    "$remove_wf" \
+    "$overwrite" \
+    "${n_runs[@]}"
+
+  # check configuration file
+  confFile=$(generate_config_file "$conf" "${n_runs[@]}")
+
+  # decide the job type
+  job="$(decide_job_type "$sub_name" "$run_local" "$workdir" "$n_cpus")"
+
+  # define the command
   cmd="""${job} \
     -s ${sub_id} \
-    -m ${MODE} \
+    -m ${mode} \
     -b ${FPREP_BINDING} \
     -r ${INPUT} \
     -d ${OUTPUT} \
@@ -499,13 +528,16 @@ for subID in ${search}; do
     ${func_flag} \
     ${anat_flag} \
     ${mask_flag} \
-    ${DOCKER_FLAG} \
+    ${docker_flag} \
     ${fd_flag}"""
 
-    if [[ ${echo_cmd} -eq 1 ]]; then
+    # echo cmd
+    if [[ ${run_local} -eq 1 ]]; then
       echo $cmd
     fi
-    ${cmd}
+
+    # run
+    eval ${cmd}
     
   if [[ $? != 0 ]]; then
     echo "ERROR in `basename ${0}`: call_fmriprep did not execute cleanly"
