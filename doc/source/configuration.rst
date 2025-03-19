@@ -174,7 +174,7 @@ After installing both of these softwares, generate a `.wslconfig`-file in `%USER
     root=/mnt
     options="metadata,umask=22,fmask=11"
 
-You can then start the Docker Desktop, open a WSL-terminal (e.g., through `powershell`, then `wsl`), or through an integrated terminal in `VSCode <https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode>`.
+You can then start the Docker Desktop, open a WSL-terminal (e.g., through `powershell`, then `wsl`), or through an integrated terminal in `VSCode <https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode>`_.
 
 Note that the `fmriprep-docker`-executable should be available in the environment. This is not installed by default (to reduce dependencies).
 Install it with:
@@ -183,9 +183,9 @@ Install it with:
     
     pip install fmriprep-docker # --dry-run | if you want to see what happens without actually executing
 
-If you're going down this route, I would advise to use `tmux`. This is a terminal multiplexer that allows you to create, manage, and persist multiple terminal sessions within a single window. It is useful for running long processes, managing multiple shells, and detaching from and reattaching to sessions.
+If you're going down this route, I would advise to use **tmux**. This is a terminal multiplexer that allows you to create, manage, and persist multiple terminal sessions within a single window. It is useful for running long processes, managing multiple shells, and detaching from and reattaching to sessions.
 
-On `Ubuntu`, run:
+On **Ubuntu**, run:
 
 .. code-block:: bash
 
@@ -263,10 +263,10 @@ You can generate a `~/.tmux.conf`-file to improve clipboard sharing:
     set-option -g terminal-overrides ",xterm-256color:Tc"
     set-option -g set-clipboard on
 
-Since WSL2 does not natively support clipboard integration between Linux and Windows, win32yank is used as a bridge.
+Since **WSL2** does not natively support clipboard integration between Linux and Windows, **win32yank** is used as a bridge.
 
 .. code-block:: bash
-    
+
     wget -O ~/win32yank.exe https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank.exe
     chmod +x ~/win32yank.exe
 
