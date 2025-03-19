@@ -103,12 +103,9 @@ start_timer "Make out garbage (sagittal sinus/tentorium)"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-  else
-    sub_name=$(basename ${subID})
-  fi
-
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  
+  # set ses and session flag
   if [[ ! -z ${ses} ]]; then
     nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
     base_path=${sub_name}/ses-${nr}

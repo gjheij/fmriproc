@@ -347,39 +347,6 @@ fi
 #-----------------------------------------------------------------------------
 # re-rerun modules:
 
-function get_module_nr() {
-
-  if [[ $# -eq 0 ]]; then
-    echo "NEED AT LEAST ONE ARGUMENT!"
-    echo
-    echo "---------------------------------------------------------------------------------------------------"
-    echo "get_module_nr"
-    echo
-    echo "Function to get the module number given an input string. It reads the help-text of the master script"
-    echo "in linescanning/shell/master from line 56 to 100 and looks for the module corresponding to the input"
-    echo "string. I have this because module numbers tend to change and I don't feel like looking that up every"
-    echo "time.."
-    echo
-    echo "The more specific you are with your string, the more stable the result will be. Important is that the"
-    echo "format as specified in the master-script is maintained. This is because it looks for the leading semi-"
-    echo "colon and certain spaces. So if you add modules to the help text, use the format that you see in there!"
-    echo
-    echo "Usage"
-    echo "  get_module_nr <string1>"
-    echo
-    echo "Examples"
-    echo "  get_module_nr \"spinoza_fmriprep\"    > fetches the module number of fmriprep"
-    echo "  get_module_nr \"spinoza_freesurfer\"  > fetches the module number of freesurfer"
-    echo "---------------------------------------------------------------------------------------------------"
-    echo
-  else
-    # Function to fetch the module number by reading the 'help' info from the master-script. It
-    # accepts a string to look for as argument.
-    sed -n "74,120p" ${DIR_SCRIPTS}/shell/master | grep -A0 "${1}" | awk '{print $2}' | cut -d':' -f1
-  fi
-
-}
-
 # masking=`get_module_nr "spinoza_masking"`
 fmriprep=`get_module_nr "spinoza_fmriprep"`
 denoise=`get_module_nr "spinoza_denoising"`

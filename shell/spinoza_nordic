@@ -146,21 +146,10 @@ start_timer "Thermal noise reduction using NORDIC [phase data]"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-  else
-    sub_name=$(basename ${subID})
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
-
+  # set paths
   func_folder=${INPUT}/${base_path}/func
   tmp_folder=${INPUT}/${base_path}/no_nordic
   phase_folder=${INPUT}/${base_path}/phase

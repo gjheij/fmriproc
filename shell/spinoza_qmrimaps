@@ -171,21 +171,10 @@ start_timer "Derive T1w/T1map from ${DATA} using pymp2rage"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-  else
-    sub_name=$(basename ${subID})
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
-
+  # set paths
   input_dir=${INPUT}/${base_path}
   output_dir=${OUTPUT}/${base_path}
 

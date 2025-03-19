@@ -328,25 +328,11 @@ start_timer "pRF-fitting with pRFpy"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    ses_id="ses-${nr}"
-    base_path=${sub_name}/${ses_id}
-    base=${sub_name}_${ses_id}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
-
-  # give path to subject root if merge session = True
+  # set paths
   if [[ -z ${merge_flag} ]]; then
     input_dir=${INPUT}/${base_path}
     prf_dir=${OUTPUT}/${base_path}

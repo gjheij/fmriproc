@@ -171,25 +171,11 @@ start_timer "Registration with antsRegistration"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   echo
   echo "**************************************** Processing ${sub_name} ***************************************"
-
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
 
   if [ -z ${WARP_2_MP2RAGE} ]; then
     WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")

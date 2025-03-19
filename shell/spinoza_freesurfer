@@ -198,22 +198,9 @@ start_timer "Surface reconstruction with FreeSurfer"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
-
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_path=${sub_name}
-    base=${sub_name}
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # check number of T1w-files
   T1_DIR=${T1}/${base_path}

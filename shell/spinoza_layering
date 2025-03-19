@@ -135,14 +135,9 @@ start_timer "Equivolumetric layering using ${software^^}"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
+  # derive base
   if [[ -z ${ses} ]]; then
     input_dir=${INPUT}/${sub_name}
     base="${sub_name}"

@@ -99,23 +99,10 @@ start_timer "Generate sagittal sinus mask from MNI and T1w/T2w"
 for subID in ${search}; do
 
   # collect subject name
-  if [[ ! -z ${sub} ]]; then
-    sub_name=${SUBJECT_PREFIX}${subID}
-    sub_id=${subID}
-  else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
-  fi
+  sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
+  read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
-    base_dir=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
-  else
-    base_dir=${sub_name}
-    base=${sub_name}
-  fi
-
+  # set paths
   pn_anat=${ANAT}/${base_dir}
   pn_matrix=${MATRIX}/${base_dir}
   pn_masks=${OUTPUT}/${base_dir}
