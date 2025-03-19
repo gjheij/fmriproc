@@ -147,6 +147,140 @@ The specific queue and number of cores can be adjusted using the ``-q <queue>`` 
 
     After editing the file, you need to run ``source ~/.bash_profile`` again for the changes to take effect.
 
+Setting up `fmriprep-docker <https://fmriprep.org/en/stable/installation.html#containerized-execution-docker-and-singularity>`_
+--------------------------------------------------------------------------------------------------------------------------------
+To run fMRIPrep_ using docker, make sure the Docker Engine is installed. You can view the instructions `here <https://docs.docker.com/engine/install/>`_.
+For Linux, check out `these instructions <https://docs.docker.com/desktop/setup/install/linux/>`_.
+For Windows, I advise to use the `WSL v2 <https://learn.microsoft.com/en-us/windows/wsl/install>`_ distribution. In any case, you will need the `Docker Desktop <https://docs.docker.com/desktop/>`_.
+After installing both of these softwares, generate a `.wslconfig`-file in `%USERPROFILE%`:
+
+.. code-block:: ini
+
+    [wsl2]
+    memory=12GB   # Use 12GB of your 16GB RAM
+    processors=6  # Use 6 of your 8 CPU cores
+    swap=4GB      # Optional: Set swap file to 4GB
+
+    # Use a dedicated virtual disk to avoid slow NTFS performance
+    # Change this to match your setup
+    disk=D:\WSL\Ubuntu-20.04\ext4.vhdx
+
+    # Enable localhost access for Docker
+    localhostForwarding=true
+
+    # Enable faster file access to Windows drives (NTFS optimization)
+    [automount]
+    enabled=true
+    root=/mnt
+    options="metadata,umask=22,fmask=11"
+
+You can then start the Docker Desktop, open a WSL-terminal (e.g., through `powershell`, then `wsl`), or through an integrated terminal in `VSCode <https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-vscode>`.
+
+Note that the `fmriprep-docker`-executable should be available in the environment. This is not installed by default (to reduce dependencies).
+Install it with:
+
+.. code-block:: bash
+    
+    pip install fmriprep-docker # --dry-run | if you want to see what happens without actually executing
+
+If you're going down this route, I would advise to use `tmux`. This is a terminal multiplexer that allows you to create, manage, and persist multiple terminal sessions within a single window. It is useful for running long processes, managing multiple shells, and detaching from and reattaching to sessions.
+
+On `Ubuntu`, run:
+
+.. code-block:: bash
+
+    sudo apt update && sudo apt install tmux -y
+
+    # for WSL
+    sudo apt install xclip xsel
+
+**1. Start a New tmux Session**
+   To create a new session:
+   
+   .. code-block:: bash
+
+      tmux new -s mysession
+
+   This starts a session named `mysession`.
+
+**2. Detach from a Session**
+   To detach from a running session without stopping it:
+
+   .. code-block:: bash
+
+      Ctrl + b, then d
+
+**3. List Existing Sessions**
+   To view all active tmux sessions:
+
+   .. code-block:: bash
+
+      tmux ls
+
+**4. Reattach to a Session**
+   To reconnect to a running session:
+
+   .. code-block:: bash
+
+      tmux attach -t mysession
+
+**5. Kill a Session**
+   To terminate a tmux session:
+
+   .. code-block:: bash
+
+      tmux kill-session -t mysession
+
+**6. Split Windows**
+   To split the window into **horizontal** and **vertical** panes:
+
+   .. code-block:: bash
+
+      Ctrl + b, then %
+
+   (for vertical split)
+
+   .. code-block:: bash
+
+      Ctrl + b, then "
+
+   (for horizontal split)
+
+**7. Switch Between Panes**
+   Move between split panes:
+
+   .. code-block:: bash
+
+      Ctrl + b, then arrow keys
+
+You can generate a `~/.tmux.conf`-file to improve clipboard sharing:
+
+.. code-block:: bash
+
+    (fmriproc) [gjheij@HP-Jurjen fmriproc]$ cat ~/.tmux.conf 
+    set-option -g mouse on
+    set -g default-terminal "screen-256color"
+    set-option -g terminal-overrides ",xterm-256color:Tc"
+    set-option -g set-clipboard on
+
+Since WSL2 does not natively support clipboard integration between Linux and Windows, win32yank is used as a bridge.
+
+.. code-block:: bash
+    
+    wget -O ~/win32yank.exe https://github.com/equalsraf/win32yank/releases/download/v0.1.1/win32yank.exe
+    chmod +x ~/win32yank.exe
+
+Then add this to the `~/.tmux.conf`-file:
+
+.. code-block:: bash
+    
+    # Bind copy to system clipboard
+    bind-key -T copy-mode-vi y send-keys -X copy-pipe-and-cancel '~/win32yank.exe -i'
+    bind-key -T copy-mode y send-keys -X copy-pipe-and-cancel '~/win32yank.exe -i'
+
+    # Bind paste from Windows clipboard
+    bind p run-shell "tmux set-buffer \"$(~/win32yank.exe -o)\"; tmux paste-buffer"
+
 Setting up Matlab Runtime
 ------------------------------
 
