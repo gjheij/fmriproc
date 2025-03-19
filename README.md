@@ -29,7 +29,7 @@ This also ensures a consistent folder-structure across projects - further promot
 ---
 ## In active development
 This package is still in development and its API might change. 
-Documentation for this package can be found at [readthedocs](https://fmriproc.readthedocs.io/en/latest/) (not up to date)
+Documentation for this package can be found at [readthedocs](https://fmriproc.readthedocs.io/en/latest/) (kind of up to date)
 
 ---
 ## Installation

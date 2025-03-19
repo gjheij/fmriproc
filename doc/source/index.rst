@@ -8,7 +8,7 @@ This repository contains all of the tools used during the acquisition and postpr
 Over time, it has evolved to also incorporate regular whole-brain/partial FOV BOLD data.
 The main goal of the package is to create the most accurate segmentations (both volumetric and surface) by combining various software packages such as Nighres_, fMRIprep_, FreeSurfer_, and CAT12_. 
 This package contains the minimum for the preprocessing of anatomical and functional data as well as denoising with Pybest_ and population receptive field routines with pRFpy_.
-HRF estimation, plotting, and other analysis approaches performed in my line-scanning projects can be found in the `lazyfmri <https://github.com/gjheij/lazyfmri/tree/main>`-repository.
+HRF estimation, plotting, and other analysis approaches performed in my line-scanning projects can be found in the `lazyfmri <https://github.com/gjheij/lazyfmri/tree/main>`_-repository.
 
 .. toctree::
    :maxdepth: 2
