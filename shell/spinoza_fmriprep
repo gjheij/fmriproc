@@ -38,7 +38,7 @@ check_and_copy_anat() {
       # Try FreeSurfer rawavg.mgz if available
       local fs_rawavg="${fs_dir}/${sub_name}/mri/rawavg.mgz"
       if [[ -f "${fs_rawavg}" ]]; then
-        call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${data^^}_T1w.nii.gz"
+        call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
       else
         echo "ERROR in $(basename "$0"): Could not find T1w-file in \"${anat_dir}\"."
         echo "Please copy a file containing \"_T1w.nii.gz\" to \"${func_dir}/${base_path}/anat\"."
@@ -61,14 +61,6 @@ find_func_data() {
     # Functional data in the same directory as anatomical data
     find -L "${input_dir}/func" -type f -name "*bold.nii.gz" 2>/dev/null
   fi
-}
-
-# Function to find anatomical data
-find_anat_data() {
-  local input_dir="$1"
-  local data="$2"
-
-  find -L "${input_dir}/anat" -type f -name "*T1w*" -and -name "*acq-${data^^}*" -and -name "*.nii.gz" 2>/dev/null
 }
 
 # Function to manage fMRIPrep working directory and cleanup options
