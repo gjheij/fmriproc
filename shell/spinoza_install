@@ -158,7 +158,11 @@ export SETUP_FILE=$(which spinoza_setup)
 # ---------------------------------------------------------------------------------------------------
 # Handle setup
 if [[ "$COMMAND" == "setup" ]]; then
+    
+    # make sure we're outside fmriproc-folders
+    cd $HOME
 
+    # detect profile
     PROFILE=$(detect_profile)
 
     if [[ ! -f "$PROFILE" ]]; then
@@ -166,7 +170,7 @@ if [[ "$COMMAND" == "setup" ]]; then
         touch "$PROFILE"
     fi
 
-    if grep -Fxq "source $SETUP_FILE" "$PROFILE"; then
+    if grep -Fxq "source \"$SETUP_FILE\"" "$PROFILE"; then
         echo "✅ $PROFILE already includes fMRIproc setup."
     else
         echo "📄 Adding fMRIproc setup to $PROFILE"
@@ -190,18 +194,19 @@ if [[ "$COMMAND" == "setup" ]]; then
             echo "export BIN_DIR=\"${ENV_BIN}\""
             echo "export SETUP_FILE=\"$(which spinoza_setup)\""
             echo ""
-            echo "source \$SETUP_FILE"
+            echo "source \"$SETUP_FILE\""
             echo "echo \"ACTIVE PROJECT    \$PROJECT\""
             echo "echo \"ACTIVE ACQ FORMAT \$DATA\""
         ) >> "$PROFILE"
 
         echo "✅ Added to $PROFILE"
     fi
-
-    echo
     echo "✅ Setup complete. Now edit the config file and run this to apply the changes:"
     echo "    source $PROFILE"
     exit 0
+    
+    # return to original folder
+    cd $OLDPWD
 fi
 
 # ---------------------------------------------------------------------------------------------------
