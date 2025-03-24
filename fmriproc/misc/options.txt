@@ -92,6 +92,7 @@
 --sge
 --separate_hrf
 --skip_bg
+--skip_fmap
 --skip_tr
 --skip_prf_info
 --skip_settings

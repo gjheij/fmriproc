@@ -103,13 +103,13 @@ REG_TYPE=""               # spinoza_registration
 FSL_FLAG=""               # spinoza_registration
 DRAW_SAG=""               # spinzoa_sagittalsinus
 SES_TYPE=""               # spinoza_scanner2bids
+TRIM_FMAP=""              # spinoza_scanner2bids
 ADD_INV=""                # spinoza_scanner2bids
 pe_dir_flag=""            # spinoza_scanner2bids
 reorient_flag=""          # spinoza_scanner2bids
 FULL_OW=""                # spinoza_scanner2bids
 SEARCH_DEPTH=""           # spinoza_scanner2bids
 TR_FLAG=""                # spinoza_scanner2bids
-MRI_SYSTEM_FLAG=""        # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
 REG_T1=""                 # spinoza_qmrimaps
@@ -436,13 +436,13 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         separate_hrf)
           FIT_HRF="--separate_hrf"
-          ;;
-        siemens)
-          MRI_SYSTEM_FLAG="--siemens"
-          ;;          
+          ;;    
         skip_bg)
           BG_FLAG="--skip_bg"
           ;;
+        skip_fmap)
+          TRIM_FMAP="--skip_fmap"
+          ;;          
         skip_prf_info)
           skip_prf_info="--skip_prf_info"
           ;;
@@ -843,8 +843,8 @@ if [[ $? -eq 0 ]]; then
     ${phys_flag} \
     ${SEARCH_DEPTH} \
     ${TR_FLAG} \
-    ${MRI_SYSTEM_FLAG} \
     ${SKIP_TR} \
+    ${TRIM_FMAP} \
     ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
 
   echo "[${module}] DONE" && echo

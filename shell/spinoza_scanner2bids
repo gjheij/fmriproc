@@ -30,8 +30,9 @@ Input options:
   --lines             flag to tell we're dealing with a line-scanning session. By default 'regular',
                       which means standard whole-brain acquisitions.
   --inv               add individual inversion files from anatomies in 'anat' folder
-  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
-                      sequence of TRs
+  --take-avg-tr       Derive RepetitionTime by averaging the time differences between all slices.
+                      Default behavior is to take the difference between the first and second volume.
+                      Only works for PAR/REC-files!
   --ap|--pa|--lr|--rl Specifies the phase-encoding direction for the BOLD run. The phase-encoding 
                       for the FMAP will be automatically inverted. This flag can be specified to be
                       a bit more flexible than using the PE_DIR_BOLD-variable in the setup file
@@ -43,6 +44,12 @@ Input options:
   --phys              run only physiology conversion
   --skip_tr           do not overwrite the TR in the header during call_bids. Generally not recom-
                       mended, but exists for debugging purposes.
+  -v <n_vols>         number of volumes to cut from the beginning of the timeseries (default = None)
+                      For instance, you have acquired the actual data from dummy scans rather than
+                      discard them. Will discard the first X volumes from both the FUNC and FMAP, un-
+                      less '--skip_fmap' is specified, in which case the FMAPs are left alone.
+  --skip_fmap         do not trim the time series from FMAPs. By default, it is assumed that all your
+                      functional files have dummy-saving turned on.
 
 Example:
   spinoza_scanner2bids /path/to/project_root /path/to/your/project/sourcedata     # regular
@@ -93,7 +100,9 @@ SEARCH_DEPTH=0
 TR_FLAG=""
 MRI_SYSTEM_FLAG=""
 SKIP_TR_FLAG=""
-while getopts :-:os:n:r:q:d:t: argument
+CUT_VOLS=""
+TRIM_FMAP=""
+while getopts :-:os:n:r:q:d:t:v: argument
 do
   case ${argument} in
     -)
@@ -133,6 +142,9 @@ do
         full)
           FULL_OW=1
           ;;  
+        skip_fmap)
+          TRIM_FMAP="--skip_fmap"
+          ;;           
         sge)
           run_local=0
           if [[ ! -d ${DIR_LOGS} ]]; then
@@ -165,7 +177,9 @@ do
     q)  SGE_QUEUE=${OPTARG}
           ;;
     t)  TR_FLAG="-t ${OPTARG}"
-          ;;                               
+          ;;        
+    v)  CUT_VOLS="-v ${OPTARG}"
+          ;;                                    
   esac
 done
 
@@ -260,6 +274,8 @@ for subID in ${search}; do
       echo " RUNS FLAG   = ${RUNS}"
       echo " PHYS FLAG   = ${PHYS_FLAG}"
       echo " TR FLAG     = ${TR_FLAG}"
+      echo " VOLS FLAG   = ${CUT_VOLS}"
+      echo " TRIM FMAP   = ${TRIM_FMAP}"
     fi
 
     call_=`which call_bids`
@@ -273,12 +289,15 @@ for subID in ${search}; do
       ${PHYS_FLAG} \
       ${TR_FLAG} \
       ${SKIP_TR} \
+      ${CUT_VOLS} \
+      ${TRIM_FMAP} \
       -i ${input_dir} -o ${output_dir} -b ${bids_dir} -n ${base} -d ${SEARCH_DEPTH} ${RUNS}"""
 
     # echo command if running locally
     if [[ ${SGE_FLAG} -eq 0 ]]; then
       echo
-      echo ${cmd}
+      echo ${cmd} | tr "\n" " "
+      echo
     fi
 
     ${cmd}

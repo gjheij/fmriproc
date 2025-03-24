@@ -68,7 +68,12 @@
 
 -u <config>       specify configuration file for fMRIprep.
 
--v <vertices>     used for:
+-v <value>        used for:
+                    - spinoza_scanner2bids: remove first X volumes from the FUNC and FMAP during conversion.
+                      Alternatively, you can keep the volumes, run fMRIPrep, and then use 'call_truncate' to
+                      remove the first X volumes from the time series. By default, the volumes are cut from
+                      both the FUNC and FMAP, unless '--skip_fmap" is specified, in which case it leaves the
+                      FMAPs alone and only removes the X first volumes from the FUNC.
                     - spinoza_bestvertex: manually insert vertices for best_vertex.
                     - spinoza_fitprfs: volumes to cut from timeseries.
 
@@ -209,6 +214,10 @@ Options:
 --separate_hrf    fit HRF in two stages.
 
 --sge             submit jobs to cluster.
+
+--skip_fmap       do not trim the time series from FMAPs when '-v <cut volumes' is specified with spinoza_scanner2bids.
+                  By default, it is assumed that all your functional files have dummy-saving turned on, so if '-v 5' is
+                  specified, the first 5 volumes will be removed from both the FUNC and FMAPs.
 
 --skip_tr         do not overwrite the TR in the header during call_bids. Generally not recommended,
                   but exists for debugging purposes.
