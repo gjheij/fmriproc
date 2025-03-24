@@ -7,6 +7,7 @@
 # source helper functions
 source ${SETUP_FILE}
 source call_bashhelper
+load_colors
 
 #---------------------------------------------------------------------------------------------------------
 # extra functions
@@ -145,10 +146,10 @@ enrich_with_par_data() {
     else
       tr=$(read_dcm "${par_f}" RepetitionTime)
     fi
-    echo "  TR in $(basename "${par_f}") is ${tr}s"
+    echo -e "  TR in $(basename "${par_f}") is ${BOLD_RED}${tr}${RESET}s"
   else
     tr=${set_tr}
-    echo "  TR manually specified with '-t ${tr}'; setting RepetitionTime"
+    echo -e "  TR manually specified with '-t ${BOLD_RED}${tr}${RESET}'; setting RepetitionTime"
   fi
 
   [[ -n ${tr} ]] && call_json "${json_bids}" RepetitionTime "${tr}"
@@ -156,16 +157,16 @@ enrich_with_par_data() {
   # TR correction
   if [[ ${skip_tr} -eq 0 ]]; then
     if (( $(echo "${tr_hd} == 0.0" | bc -l) )); then
-      echo "  WARNING: TR is zero — correcting to ${tr}"
+      echo -e "  WARNING: TR is zero — correcting to ${BOLD_RED}${tr}${RESET}"
       call_settr "${ff}" "${tr}" || exit 1
     elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
-      echo "  WARNING: TR mismatch (file=${tr_hd}, json=${tr}) — correcting"
+      echo -e "  WARNING: TR mismatch (file=${BOLD_RED}${tr_hd}${RESET}, json=${BOLD_RED}${tr}${RESET}) — correcting"
       call_settr "${ff}" "${tr}" || exit 1
     else
-      echo "  TR in header [${tr_hd}] matches specified value [${tr}]"
+      echo -e "  TR in header [${BOLD_RED}${tr_hd}${RESET}] matches specified value [${BOLD_RED}${tr}${RESET}]"
     fi
   elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
-    echo "  WARNING: TR mismatch (file=${tr_hd}, json=${tr}), but --skip_tr is used"
+    echo -e "  WARNING: TR mismatch (file=${tr_hd}, json=${tr}), but ${BOLD_RED}--skip_tr${RESET}--skip_tr is used"
   fi
 
   # Slice timing (only for non-3D func)
@@ -182,7 +183,7 @@ enrich_with_par_data() {
   mb_factor=$(read_json "${json_bids}" MultiBandAccelerationFactor)
   if [[ -z ${mb_factor} ]]; then
     mb_factor=3
-    echo "  WARNING: Defaulting to multiband factor 3 — override with 'export MB_FACTOR=...'"
+    echo -e "  WARNING: Defaulting to multiband factor ${BOLD_RED}3${RESET} — override with 'export MB_FACTOR=...'"
   fi
 
   tr=$(read_json "${json_bids}" RepetitionTime)
@@ -207,7 +208,7 @@ set_pe_direction() {
   pe_dir_from_file=$(get_id "${json_bids}" "dir")
   if [[ ! -z ${pe_dir_from_file} ]]; then
     ph_dir=$(fprep_pe ${pe_dir_from_file})
-    txt="Read PhaseEncodingDirection from filename"
+    txt="Read PhaseEncodingDirection from ${BOLD_RED}filename${RESET}"
   else
     # try other options
     par_f=$(read_json "${json_bids}" ParFile)
@@ -215,11 +216,11 @@ set_pe_direction() {
 
     if [[ -n ${pe_dir} ]]; then
       ph_dir=$(fprep_pe "${pe_dir}" $([[ ${image} == "fmap" ]] && echo "1"))
-      txt="PE-direction set with '--${pe_dir}'"
+      txt="PE-direction set with '${BOLD_RED}--${pe_dir}${RESET}'"
     elif [[ -n ${par_f} && ${ext_lower} == *"dcm"* ]]; then
       pe_from_dcm=$(pe_from_dcm "${par_f}")
       if [[ -n ${pe_from_dcm} ]]; then
-        txt="PE-direction from DICOM: ${pe_from_dcm}"
+        txt="PE-direction from ${BOLD_RED}DICOM${RESET}: ${pe_from_dcm}"
         if [[ ${image} == "fmap" ]]; then
           # Invert for fmap
           case "${pe_from_dcm}" in
@@ -236,7 +237,7 @@ set_pe_direction() {
     else
       # Try reading existing PhaseEncodingDirection
       ph_dir=$(read_json "${json_bids}" PhaseEncodingDirection)
-      [[ -n ${ph_dir} ]] && txt="Read PhaseEncodingDirection from JSON"
+      [[ -n ${ph_dir} ]] && txt="Read PhaseEncodingDirection from ${BOLD_RED}JSON${RESET}"
     fi
 
     # Fallback default
@@ -246,13 +247,13 @@ set_pe_direction() {
       elif [[ ${image} == "func" ]]; then
         ph_dir="j"
       fi
-      txt="Default PE-direction: ${ph_dir}"
+      txt="${BOLD_RED}Default${RESET} PE-direction: \"${BOLD_RED}${ph_dir}${RESET}\""
     fi
   fi
 
   if [[ -n ${ph_dir} ]]; then
-    echo "  WARNING: ${txt}"
-    echo "  PE-direction for ${image^^}=\"${ph_dir}\" — confirm or set with 'PE_DIR_BOLD' or flag"
+    echo -e "  WARNING: ${txt}"
+    echo -e "  PE-direction for ${image^^}=\"${BOLD_RED}${ph_dir}${RESET}\" — confirm or set with 'PE_DIR_BOLD' or flag"
     call_json "${json_bids}" PhaseEncodingDirection "${ph_dir}"
   else
     echo "  WARNING: Could not derive PE-direction — please set PE_DIR_BOLD or use a direction flag"
@@ -342,7 +343,7 @@ process_anatomical_inversions() {
       out_fn="${bids_dir}/anat/${base}_acq-${DATA}_${inv_tag}_${rec_tag}.${ext}"
 
       if [[ ! -f "${out_fn}" || ${OW} -eq 1 ]]; then
-        echo "  Renaming $(basename "${ff}") to ${out_fn}"
+        echo -e "  Renaming $(basename "${ff}") to ${BOLD_GREEN}${out_fn}${RESET}"
         cp "${ff}" "${out_fn}"
 
         # reorient to LPI
@@ -387,7 +388,7 @@ process_search_anatomicals() {
 
       out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
       if [[ ! -f "${out_fn}" || ${OW} -eq 1 ]]; then
-        echo "  Renaming $(basename "${img}") to ${out_fn}"
+        echo -e "  Renaming $(basename "${img}") to ${BOLD_GREEN}${out_fn}${RESET}"
         cp "${img}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -423,7 +424,7 @@ process_motion_images() {
 
     if [[ ! -f "${fname}" || ${OW} -eq 1 ]]; then
       if [[ -f "${i}" ]]; then
-        echo "  Renaming to $(basename "${fname}")"
+        echo -e "  Renaming to ${BOLD_GREEN}$(basename "${fname}")${RESET}"
         cp "${i}" "${fname}"
 
         json_src="$(dirname "${i}")/$(basename "${i}" .nii.gz).json"
@@ -478,7 +479,7 @@ process_single_slice_anatomicals() {
 
       if [[ ! -f "${bids_slice}" || ${OW} -eq 1 ]]; then
         if [[ -f "${slice}" ]]; then
-          echo "  Renaming to $(basename "${bids_slice}")"
+          echo -e "  Renaming to ${BOLD_GREEN}$(basename "${bids_slice}")${RESET}"
           cp "${slice}" "${bids_slice}"
 
           json_src="$(dirname "${slice}")/$(basename "${slice}" .nii.gz).json"
@@ -526,7 +527,7 @@ process_linescanning_bold_lab() {
   info_file=$(find -L "${DIR_DATA_DERIV}/pycortex/${sub_name}" -type f -name "*desc-info*.csv" 2>/dev/null)
   local fold="FH"
   [[ -f ${info_file} ]] && fold=$(grep -A0 "foldover" "${info_file}" | cut -d',' -f3)
-  echo "  foldover is set to: ${fold}"
+  echo -e "  foldover is set to: ${BOLD_RED}${fold}${RESET}"
 
   # Find 1slice template for run-1
   local slice_img=()
@@ -580,7 +581,7 @@ process_linescanning_bold_lab() {
           exit 1
         fi
 
-        echo "  wrote $(basename "${line_img}")"
+        echo -e "  wrote ${BOLD_GREEN}$(basename "${line_img}")${RESET}"
       else
         echo "  $(basename "${line_img}") exists"
       fi
@@ -623,7 +624,7 @@ fix_final_intendedfor() {
   if [[ ${num_funcs} -ne ${num_fmaps} ]]; then
 
     if [[ ${num_fmaps} -eq 1 && ${num_funcs} -gt 1 ]]; then
-      echo "1 FMAP for all BOLDs — applying IntendedFor and B0FieldIdentifier"
+      echo -e "${BOLD_RED}1${RESET} FMAP for ${BOLD_RED}all${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
 
       local func_list=""
       for i in "${!funcs[@]}"; do
@@ -640,7 +641,7 @@ fix_final_intendedfor() {
       call_json "${fmaps[0]}" B0FieldIdentifier "pepolar_01"
 
     elif [[ $((num_funcs / num_fmaps)) -eq 2 ]]; then
-      echo "1 FMAP per 2 BOLDs — applying IntendedFor and B0FieldIdentifier"
+      echo -e "${BOLD_RED}1${RESET} FMAP per ${BOLD_RED}2${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
 
       local fm_ct=0
       local fc=$((num_funcs / num_fmaps))
@@ -670,7 +671,7 @@ fix_final_intendedfor() {
       done
 
     elif [[ $((num_funcs / num_fmaps)) -eq 1 ]]; then
-      echo "1 FMAP per BOLD — applying individual B0FieldIdentifiers"
+      echo -e "${BOLD_RED}1${RESET} FMAP per BOLD — applying individual B0FieldIdentifiers"
 
       for i in "${!fmaps[@]}"; do
         local base_path=$(rel_path ${funcs[$i]})
@@ -733,7 +734,7 @@ scrape_and_link_fieldmaps() {
 
     # Move if not already in fmap_dir
     if [[ "${fmap_file}" != "${target_nii}" ]]; then
-      echo " #${idx}: $fmap_file"
+      echo -e " #${idx}: ${BOLD_GREEN}${fmap_file}${RESET}"
       cp "${fmap_file}" "${target_nii}" 2>/dev/null
       [[ -f "${fmap_json}" ]] && cp "${fmap_json}" "${target_json}" 2>/dev/null
     fi
@@ -1080,7 +1081,7 @@ if [[ ${phys_only} -eq 0 ]]; then
     idx=1
     for bold in ${bold_files[@]}; do
 
-      echo " #${idx}: $bold"
+      echo -e " #${idx}: ${BOLD_GREEN}${bold}${RESET}"
 
       func=${bold}
       phase=$(dirname ${bold})/$(basename ${bold} .nii.gz)_ph.nii.gz
@@ -1204,7 +1205,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       bids_tsv=${bids_dir}/func/${base}_task-${task}_run-${run}${add_acq}_events.tsv
       if [[ ! -f ${bids_tsv} || ${OW} -eq 1 ]]; then
-        echo "  renaming tsv-file to `basename ${bids_tsv}`"
+        echo -e "  renaming TSV-file to ${BOLD_GREEN}$(basename ${bids_tsv})${RESET}"
         cp ${file} ${bids_tsv}
       fi
     done
@@ -1255,7 +1256,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       bids_edf=${bids_dir}/func/${base}_task-${task}_run-${run}_eye.edf
       if [[ ! -f ${bids_edf} || ${OW} -eq 1 ]]; then
-        echo "  renaming edf-file to `basename ${bids_edf}`"
+        echo -e "  renaming EDF-file to ${BOLD_GREEN}$(basename ${bids_edf})${RESET}"
         cp ${file} ${bids_edf}
       fi              
     done
@@ -1323,7 +1324,7 @@ if [[ ! -z ${phys} ]]; then
 
       bids_phys=${bids_dir}/physio/${phys_base}
       if [[ ! -f ${bids_phys} ]]; then
-        echo "  renaming physio-file to `basename ${bids_phys}`"
+        echo -e "  renaming physio-file to ${BOLD_GREEN}$(basename ${bids_phys})${RESET}"
         cp ${file} ${bids_phys}
       fi
 
