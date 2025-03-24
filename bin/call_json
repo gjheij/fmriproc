@@ -68,7 +68,6 @@ Example
 
     msg_is_list = False
     if len(add_key) == 1 and len(add_msg) > 1:
-        print(f"add_msg is list of len={len(add_msg)}")
         msg_is_list = True
 
     # check if file exists
