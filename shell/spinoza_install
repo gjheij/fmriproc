@@ -178,10 +178,11 @@ if [[ "$COMMAND" == "setup" ]]; then
         (
             echo ""
             echo "# Inserted via the fMRIproc-repository"
+            echo "source call_bashhelper"
             if [[ "$ADD_CONDA" -eq 1 ]]; then
                 if conda_path=$(check_conda); then
                     env=$("$conda_path" info --envs | grep '*' | awk '{print $1}')
-                    echo "conda activate $env"
+                    echo "activate_conda $env"
                 fi
             fi
             echo "export CONFIG_FILE=\"${CONFIG_FILE}\""
