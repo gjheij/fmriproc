@@ -81,7 +81,7 @@ while getopts :-:s:e:l: arg; do
   esac
 done
 
-echo "---------------------------------------------------------------------------------------------------"
+print_line -
 start=`date +%s`
 start_date=`date`
 echo "call_distance; started @${start_date}"
@@ -119,7 +119,7 @@ function dykstra_distance {
 
   if [[ $# -eq 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "dykstra_distance"
     echo
     echo "Wrapper for mris_pmake. Calculates the distance between <startVertex> & <endVertex> using Dykstra's"
@@ -149,7 +149,7 @@ function dykstra_distance {
     echo "  dykstra_distance sub-001 lh fiducial 1053 784"
     echo "  dykstra_distance sub-001 lh fiducial 1053 784 sub-001_desc-distances.json"
     echo ""
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
     dist=`mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2`
@@ -252,7 +252,7 @@ else
 fi
 
 echo
-echo "---------------------------------------------------------------------------------------------------"
+print_line -
 end=`date +%s`
 end_date=`date`
 printf "Done at ${end_date}\n"
@@ -262,4 +262,4 @@ let hours=deltatime/3600
 let minutes=(deltatime/60)%60
 let seconds=deltatime%60
 printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-echo "---------------------------------------------------------------------------------------------------"
+print_line -

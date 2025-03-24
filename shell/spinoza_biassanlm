@@ -176,9 +176,9 @@ for subID in ${search}; do
     
     if [[ ! -f ${output} ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
-
+      # print header
+      print_subject_header ${subID}
+      
       if [[ ${RUN_SANLM} -eq 1 ]]; then
         echo "Running SANLM-filter"
         output_from_sanlm=${OUTPUTDIR}/denoised.nii.gz

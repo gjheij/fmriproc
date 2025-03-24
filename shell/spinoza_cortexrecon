@@ -96,7 +96,6 @@ for subID in ${search}; do
   input_dir=${INPUT}/${base_path}
   output_dir=${OUTPUT}/${base_path}
 
-
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running region extraction with nighres
   if [[ ${input_dir} == *"nighres"* ]]; then
@@ -150,8 +149,8 @@ for subID in ${search}; do
 
   if [[ ! -f ${output} ]]; then
 
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"
+    # print header
+    print_subject_header ${subID}
     echo "${INTRO}"
 
     if [[ ! -f ${output_root}_cruise_cortex.nii.gz ]]; then
@@ -174,7 +173,7 @@ for subID in ${search}; do
 
         if [[ $? != 0 ]]; then
           echo
-          echo "---------------------------------------------------------------------------------------------------"
+          print_line -
           echo "ERROR in `basename ${0}`: call_nighrescruise exited with non-zero status"
           exit 1
         fi

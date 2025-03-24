@@ -292,8 +292,8 @@ for subID in ${search}; do
           fi
           job=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-pybest ${DIR_LOGS})
         else
-          echo
-          echo "**************************************** Processing ${sub_name} ***************************************"
+          # print header
+          print_subject_header ${subID}         
           job="bash"
         fi
 
@@ -321,7 +321,7 @@ for subID in ${search}; do
 
         if [[ $? != 0 ]]; then
           echo
-          echo "---------------------------------------------------------------------------------------------------"
+          print_line -
           echo "ERROR in `basename ${0}`: call_pybest exited with non-zero status"
           exit 1
         fi        

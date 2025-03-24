@@ -124,8 +124,8 @@ for subID in ${search}; do
 
     if [[ ! -f ${fn_out} ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
 
       # calculate T1w/T2w ratio
       t1=`find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`

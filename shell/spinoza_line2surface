@@ -76,12 +76,12 @@ done
 #-----------------------------------------------------------------------------
 start_timer "Register nominal line back to surface"
 
-echo
-echo "**************************************** Processing ${SUB} ***************************************"
+# print header
+print_subject_header ${SUB}
 
 if [[ -z ${INPUTDIR} ]]; then
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: input directory that needs to be warped was not specified!"
   exit 1
 fi
@@ -112,7 +112,7 @@ echo "[STEP 1]: warping session 2 to FreeSurfer"
 
 if [[ -z ${ANAT2} ]]; then
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: second session anatomy was not specified!"
   exit 1
 fi
@@ -127,7 +127,7 @@ tmp_genaff=`find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -an
 if [[ ! -z ${tmp_genaff} ]]; then
   from_fs_to_ses2=${tmp_genaff}
 else
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: Could not find fs_to_ses2 matrix in the output directory or in the planning-folder.."
   exit 1
 fi
@@ -136,7 +136,7 @@ fi
 ff=`find ${INPUTDIR} -type f -name "*.nii.gz" 2>/dev/null`
 if [[ -z ${ff} ]]; then
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: could not find files in input directory!"
   exit 1
 fi
@@ -149,7 +149,7 @@ if [[ ! -f ${fs_ref} ]]; then
 
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: call_mriconvert exited with non-zero status"
     exit 1
   fi
@@ -176,7 +176,7 @@ for f in ${ff[@]}; do
 
     if [[ $? != 0 ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`: call_antsapplytransform exited with non-zero status"
       exit 1
     fi
@@ -204,7 +204,7 @@ for f in ${qq[@]}; do
 
     if [[ $? != 0 ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`: call_ctxsurfmove exited with non-zero status"
       exit 1
     fi

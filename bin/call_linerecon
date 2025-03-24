@@ -201,7 +201,7 @@ else
   fi
 
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: could not find ${txt}file"
   exit 1
 

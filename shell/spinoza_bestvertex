@@ -308,8 +308,8 @@ for subID in ${search}; do
       continue
     fi
 
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"
+    # print header
+    print_subject_header ${subID}
     
     # set the call_pycortex2 '-v' flag  if we want manually selected vertices
     if [[ ! -z ${vert} ]]; then
@@ -393,7 +393,7 @@ for subID in ${search}; do
 
     if [[ $? != 0 ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`: call_targetvertex exited with non-zero status"
       exit 1
     fi

@@ -209,7 +209,7 @@ for subID in ${search}; do
   ct=0; for ii in ${input_t1w[@]}; do ((ct++)); done
   if [ ${ct} -gt 1 ]; then
     echo 
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: Found multiple T1w-files (${ct})"
     for ii in ${input_t1w[@]}; do echo " ${ii}"; done
     echo "Rename or delete one and rerun"
@@ -251,8 +251,8 @@ for subID in ${search}; do
 
     if [[ ${execute} -eq 1 ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
       echo "Running FreeSurfer on `basename ${input_t1w}` with autorecon \"${STAGE}\""
 
       # LOOK FOR T2-/FLAIR WEIGHTED IMAGE
@@ -266,7 +266,7 @@ for subID in ${search}; do
             ct=0; for ii in ${input_t2w[@]}; do ((ct++)); done
             if [ ${ct} -gt 1 ]; then
               echo 
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: Found multiple T2w-files (${ct})"
               for ii in ${input_t2w[@]}; do echo " ${ii}"; done
               echo "Rename or delete one and rerun"

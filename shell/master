@@ -705,7 +705,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Optimal line planning procedure with registration of anat ses-1 to ms ses-X"
 
   if [[ -z ${SUB} ]]; then
@@ -777,7 +777,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Create folder structure for new session"
 
   if [[ -z ${SUB} ]]; then
@@ -826,7 +826,7 @@ if [[ $? -eq 0 ]]; then
     CUT_VOLS="-v ${VERTICES}"
   fi  
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Convert raw files to nifti"
 
   ${job} spinoza_scanner2bids \
@@ -870,7 +870,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] quality control with MRIQC"
 
   ${job} spinoza_mriqc \
@@ -902,7 +902,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Reconstruct line data with MRecon"
 
   if [[ -z ${n_echoes} ]]; then
@@ -955,7 +955,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] LSprep | basic quality control"
 
   if [[ -z ${SES} ]]; then
@@ -1000,7 +1000,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Multiparametric mapping"
 
   # check for lsprep kwargs
@@ -1059,7 +1059,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Register ${ACQ[1]} to ${ACQ[0]}"
 
   # check where inputs live
@@ -1105,7 +1105,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Register T1 from mp2rage to MNI152 for sagittal sinus mask"
   
   # check where inputs live
@@ -1151,7 +1151,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Calculate averages of the T1-weighted image and T1map"
 
   if [[ ${DATA^^} == "AVERAGE" ]]; then
@@ -1191,7 +1191,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Create sagittal sinus mask using the MNI-mask & T1w/T2w-ratio"
 
   # check where inputs live
@@ -1235,7 +1235,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Perform bias field correction and SANLM-filtering"
   
   # check where inputs live
@@ -1283,7 +1283,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Brain extract MP2RAGE-INV2 with ANTs|FSL|CAT12"
 
   DO_STUFF="cat12"
@@ -1341,7 +1341,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] NORDIC denoising"
 
   ${job} ${module_name} \
@@ -1378,7 +1378,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Use nighres to get skull and dura mask"
   
   # check where inputs live
@@ -1417,7 +1417,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Create sagittal sinus mask from R2*-image"
 
   # DATA = MP2RAGE    > arg1 = DIR_DATA_DERIV/pymp2rage
@@ -1456,7 +1456,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Combine all masks and apply to image"
 
   # check where inputs live
@@ -1496,7 +1496,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Run FreeSurfer outside of fMRIprep"
 
   # check where inputs live
@@ -1555,7 +1555,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Preprocess session 1 data with fMRIprep"
 
   if [[ -z ${TYPE} ]]; then
@@ -1639,7 +1639,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Data denoising with pybest"
   
   # --func = alias for -t func, but refers to space, not task. Force actual usage of -t to set task ID, otherwise it'll use "func" for task..
@@ -1707,7 +1707,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] pRF-fitting with pRFpy"
 
   # set PNG directory
@@ -1802,7 +1802,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Determine best vertex with pycortex"
 
   if [[ ! -z ${VERTICES} ]]; then
@@ -1866,7 +1866,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] FAST segmentation with FSL"
 
   ${job} spinoza_segmentfast ${SUBJECT} ${SESSION} ${OW} ${SKULLSTRIP} ${DIR_DATA_DERIV}/fsl
@@ -1894,7 +1894,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] MGDM segmentation with nighres"
 
   spinoza_mgdm \
@@ -1929,7 +1929,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Region extraction with nighres"
 
   if [[ ! -z ${ROI} ]]; then
@@ -1975,7 +1975,7 @@ if [[ $? -eq 0 ]]; then
     ROI="cerebrum"
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Cortex reconstruction with nighres"
 
   
@@ -2011,7 +2011,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Equivolumetric layering"
 
   if [[ -z ${LAYER_FLAG} || ${LAYER_FLAG} == "nighres" ]]; then
@@ -2055,7 +2055,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Subcortex parcellation with MASSP"
 
   ${job} spinoza_segmentsubcortex ${SUBJECT} ${SESSION} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres
@@ -2083,7 +2083,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Registration cascade to project line to surface"
 
   if [[ -z ${SUB} ]]; then
@@ -2118,7 +2118,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Profile sampling using Nighres"
 
   if [[ -z ${KWARGS} ]]; then
@@ -2153,7 +2153,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "[${module}] Cerebellum segmentation with SUIT"
 
   # check where inputs live

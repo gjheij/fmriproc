@@ -103,8 +103,8 @@ for subID in ${search}; do
   sampled_data=${nighres_dir}/profiling/${base}_acq-${DATA^^}_desc-profile_${TAG}.nii.gz
   if [[ ! -f ${sampled_data} ]]; then
 
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"
+    # print header
+    print_subject_header ${subID}
 
     echo "Creating `basename ${sampled_data}`"
     
@@ -131,7 +131,7 @@ for subID in ${search}; do
 
     if [[ $? != 0 ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`: call_nighresprofsamp exited with non-zero status"
       exit 1
     fi

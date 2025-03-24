@@ -131,7 +131,7 @@ if [[ ! -f ${anat_session1} ]]; then
 
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: call_mriconvert exited with non-zero status"
     exit 1
   fi
@@ -241,7 +241,7 @@ if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
 
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: call_mrconsole exited with non-zero status"
     exit 1
   fi

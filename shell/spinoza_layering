@@ -194,8 +194,9 @@ for subID in ${search}; do
 
     if [[ ! -f ${output} ]]; then
       
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
+      
       echo "Creating `basename ${output}` with ${nr_layers} layers"
       call_nighreslayering \
         -i ${INPUTS[0]} \
@@ -206,7 +207,7 @@ for subID in ${search}; do
 
       if [[ $? != 0 ]]; then
         echo
-        echo "---------------------------------------------------------------------------------------------------"
+        print_line -
         echo "ERROR in `basename ${0}`: call_nighreslayering exited with non-zero status"
         exit 1
       fi
@@ -219,8 +220,7 @@ for subID in ${search}; do
 
   elif [[ ${software,,} == "surface" ]]; then
 
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"  
+    print_subject_header ${subID}  
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
     # Running equivolumetric layering with surface tools

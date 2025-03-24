@@ -40,6 +40,33 @@ generate_submission_command() {
     echo "$command"
 }
 
+print_line() {
+  local char="${1:-=}"  # default to '='
+  local width="${TERMINAL_WIDTH:-99}"
+
+  printf "%*s\n" "$width" "" | tr ' ' "$char"
+}
+
+load_colors() {
+  # Text reset
+  RESET="\033[0m"
+
+  # Bold colors
+  BOLD_BLACK="\033[1;30m"
+  BOLD_RED="\033[1;31m"
+  BOLD_GREEN="\033[1;32m"
+  BOLD_YELLOW="\033[1;33m"
+  BOLD_BLUE="\033[1;34m"
+  BOLD_MAGENTA="\033[1;35m"
+  BOLD_CYAN="\033[1;36m"
+  BOLD_WHITE="\033[1;37m"
+
+  # Usage hint
+  export RESET
+  export BOLD_BLACK BOLD_RED BOLD_GREEN BOLD_YELLOW
+  export BOLD_BLUE BOLD_MAGENTA BOLD_CYAN BOLD_WHITE
+}
+
 activate_conda() {
   local env_name="$1"
 
@@ -83,24 +110,55 @@ activate_conda() {
   done
 }
 
+# ---------------------------------------------------------------------------------------------------
+# subject header
+print_subject_header() {
+  local subject="$1"
+  local total_width="${TERMINAL_WIDTH:-99}"
+
+  # Colored subject ID
+  local base_msg="Processing sub-${BOLD_RED}${subject}${RESET}"
+  local plain_msg="Processing sub-${subject}"  # uncolored for length calculation
+  local msg="*** ${base_msg} ***"
+  local plain_full="*** ${plain_msg} ***"  local msg="*** ${base_msg} ***"
+  local msg_len=${#plain_full}
+
+  # Handle case where message is longer than total width
+  if [[ $msg_len -ge $total_width ]]; then
+    echo "$msg"
+    return
+  fi
+
+  # Calculate padding on each side
+  local padding_total=$((total_width - msg_len))
+  local padding_left=$((padding_total / 2))
+  local padding_right=$((padding_total - padding_left))
+
+  local line=$(printf "%*s" "$total_width" "" | tr ' ' '=')
+  local stars_left=$(printf "%*s" "$padding_left" "" | tr ' ' '*')
+  local stars_right=$(printf "%*s" "$padding_right" "" | tr ' ' '*')
+
+  echo
+  echo -e "${stars_left}${msg}${stars_right}"
+}
 
 # ---------------------------------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {
     echo
-    echo "==================================================================================================="
+    print_line =
     printf "${1}\n"
     start=$(date +%s)
     start_date=$(date)
     printf "Started at ${start_date}\n"
-    echo "==================================================================================================="
+    print_line =
 }
 
 # ---------------------------------------------------------------------------------------------------
 # End timing a process
 function end_timer() {
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     end=$(date +%s)
     end_date=$(date)
     printf "Done at ${end_date}\n"
@@ -111,7 +169,7 @@ function end_timer() {
     local seconds=$((deltatime % 60))
 
     printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
 }
 
 function conda2jupyter {
@@ -1017,7 +1075,7 @@ function dykstra_distance {
 
   if [[ $# -eq 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "dykstra_distance"
     echo
     echo "Wrapper for mris_pmake. Calculates the distance between <startVertex> & <endVertex> using Dykstra's"
@@ -1047,7 +1105,7 @@ function dykstra_distance {
     echo "  dykstra_distance sub-001 lh fiducial 1053 784"
     echo "  dykstra_distance sub-001 lh fiducial 1053 784 sub-001_desc-distances.json"
     echo ""
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
     dist=`mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2`
@@ -1169,7 +1227,7 @@ function wait_for_job {
 
   if [[ $# -eq 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "wait_for_job"
     echo
     echo "This function waits until the execution of a submitted job has finished before continuing."
@@ -1179,7 +1237,7 @@ function wait_for_job {
     echo
     echo "Examples:"
     echo "  wait_for_job \"sub-003_all\"    # waits for job 'sub-003_all' to finish (SGE or SLURM)"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
     return
   fi
@@ -1231,7 +1289,7 @@ function get_module_nr() {
   if [[ $# -eq 0 ]]; then
     echo "NEED AT LEAST ONE ARGUMENT!"
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "get_module_nr"
     echo
     echo "Function to get the module number given an input string. It reads the help-text of the master script"
@@ -1248,7 +1306,7 @@ function get_module_nr() {
     echo "Examples"
     echo "  get_module_nr \"spinoza_fmriprep\"    > fetches the module number of fmriprep"
     echo "  get_module_nr \"spinoza_freesurfer\"  > fetches the module number of freesurfer"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
     # Path to the modules.txt file
@@ -1301,7 +1359,7 @@ function call_matlab {
   if [[ $# -ne 1 ]]; then
     echo "Received 0 arguments, need the path to the MATLAB script"
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "call_matlab"
     echo
     echo "Wrapper to call MATLAB from the command line. It'll need a full path to the script and will read"
@@ -1313,7 +1371,7 @@ function call_matlab {
     echo
     echo "Examples:"
     echo "  call_matlab /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
     return 1
   fi
@@ -1359,7 +1417,7 @@ function make_sanlm_script {
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_sanlm_script"
     echo
     echo "Make a matlab script to be called with call_matlab to denoise your images with the SANLM-filter".
@@ -1384,7 +1442,7 @@ function make_sanlm_script {
     echo
     echo "Examples:"
     echo "  make_sanlm_script /usr/bin/spm12 anat.nii.gz /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else  
 
@@ -1424,7 +1482,7 @@ function make_suit_script {
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_suit_script"
     echo
     echo "Make a matlab script to be called with call_matlab to segment the cerebellum".
@@ -1439,7 +1497,7 @@ function make_suit_script {
     echo
     echo "Examples:"
     echo "  make_suit_script /usr/bin/spm12 anat.nii /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
 
@@ -1479,7 +1537,7 @@ function make_nordic_script {
     echo "Received only ${#} arguments, need 4:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_nordic_script"
     echo
     echo "Make a matlab script to be called with call_matlab to run NORDIC. If you want to change the mode to"
@@ -1497,7 +1555,7 @@ function make_nordic_script {
     echo
     echo "Examples:"
     echo "  make_nordic_script mag.nii.gz phase.nii.gz nordic.nii.gz nordic.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else  
 
@@ -1614,7 +1672,7 @@ function make_bias_script {
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_bias_script"
     echo
     echo "Make a matlab script to be called with call_matlab to bias correct your image with SPM".
@@ -1631,7 +1689,7 @@ function make_bias_script {
     echo
     echo "Examples:"
     echo "  make_bias_script /usr/bin/spm12 anat.nii /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
     (
@@ -1672,7 +1730,7 @@ function make_physio_script {
     echo "Received only ${#} arguments, need 8:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_physio_script"
     echo ""
     echo "Make a matlab script to be called with call_matlab to create regressor files from your physio recor-"
@@ -1693,7 +1751,7 @@ function make_physio_script {
     echo ""
     echo "Examples:"
     echo "  make_physio_script /usr/bin/spm12 anat.nii 0.105 3200 regressors /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
 
@@ -1760,7 +1818,7 @@ function make_mask_script {
     echo "Received only ${#} arguments, need 3:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_mask_script"
     echo
     echo "Make a matlab script to be called with call_matlab to create a brain mask from the INV2 image"
@@ -1776,7 +1834,7 @@ function make_mask_script {
     echo
     echo "Examples:"
     echo "  make_mask_script /usr/bin/spm12 inv2.nii /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
 
@@ -1815,7 +1873,7 @@ function make_cat_script {
     echo "Received only ${#} arguments, need 4:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "make_cat_script"
     echo
     echo "Make a matlab script to be called with call_matlab to segment your anatomical file with CAT12. Can"
@@ -1832,7 +1890,7 @@ function make_cat_script {
     echo
     echo "Examples:"
     echo "  make_cat_script /usr/bin/spm12 anat.nii brain /path/to/my/matlab_script.m"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo
   else
 

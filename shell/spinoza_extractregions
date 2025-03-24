@@ -226,8 +226,8 @@ for subID in ${search}; do
   if [[ ${COMB_ONLY} -eq 0 ]]; then
     if [[ ! -f ${output} ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
       echo ${INTRO}
 
       if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then

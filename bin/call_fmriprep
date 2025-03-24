@@ -335,7 +335,7 @@ else
     # check if FS license is within binding point
     if [[ ${license} != *"${binding}"* ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in call_fmriprep; license file \"${license}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
       exit 1
     fi
@@ -343,7 +343,7 @@ else
     # check if project root is within binding point
     if [[ ${project} != *"${binding}"* ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`; your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
       exit 1
     fi
@@ -444,7 +444,7 @@ ${run_cmd} \
   
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: job submission/execution was unsuccessful"
     exit 1
   fi    

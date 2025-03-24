@@ -243,8 +243,8 @@ for subID in ${search}; do
   if [[ ${execute_cmd} -eq 1 ]]; then
     if [[ ${run_local} -eq 1 ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
       echo ${run_mode}
       echo "Creating `basename ${mgdm_seg}`"
     fi
@@ -270,7 +270,7 @@ for subID in ${search}; do
 
     if [[ $? != 0 ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`: ${run_cmd} exited with non-zero status"
       exit 1
     fi

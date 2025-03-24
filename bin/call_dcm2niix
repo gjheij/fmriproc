@@ -146,7 +146,7 @@ else
   else
     dcm2niix -h
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "You specified option \"${compress}\", acceptable values are: \"n\", \"y\", \"i\", \"3\", \"o\""
     echo "Or leave empty for the default \"o\" (= optimized compression)"
     exit 1

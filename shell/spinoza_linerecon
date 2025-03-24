@@ -195,8 +195,8 @@ for subID in ${search}; do
       continue
     fi
 
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"
+    # print header
+    print_subject_header ${subID}
 
     count=0
     old_lsd=""
@@ -285,7 +285,7 @@ for subID in ${search}; do
             lsd=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`)
             if [[ -z ${lsd} ]]; then
               echo
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: could not find LSD image.."
               exit 1
             else

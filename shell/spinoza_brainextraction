@@ -164,8 +164,9 @@ for subID in ${search}; do
 
       if [[ ! -f ${final_brain} ]]; then
 
-        echo
-        echo "**************************************** Processing ${sub_name} ***************************************"
+        # print header
+        print_subject_header ${subID}        
+        
         echo "ANTs was selected, using following parameters:"
         echo " -input     = `basename ${input}`"
         echo " -prefix    = `basename ${final_brain} _brain.nii.gz`_"
@@ -385,7 +386,7 @@ for subID in ${search}; do
 
             if [[ $? != 0 ]]; then
               echo
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: call_cat12 exited with non-zero status"
               exit 1
             fi
@@ -439,7 +440,7 @@ for subID in ${search}; do
 
           if [[ $? != 0 ]]; then
             echo
-            echo "---------------------------------------------------------------------------------------------------"
+            print_line -
             echo "ERROR in `basename ${0}`: call_clipimage exited with non-zero status. Most likely found 2 files.."
             exit 1
           fi
@@ -465,7 +466,7 @@ for subID in ${search}; do
             call_rmbackground -t ${corrected_t1w} -m ${spm_mask} -i ${input} -o ${corrected_t1w}
             if [[ $? != 0 ]]; then
               echo
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: call_rmbackground exited with non-zero status"
               exit 1
             fi
@@ -482,7 +483,7 @@ for subID in ${search}; do
             ImageMath 3 ${corrected_t1w} TruncateImageIntensity ${corrected_t1w} 0.01 0.999 256
             if [[ $? != 0 ]]; then
               echo
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: call_clipimage exited with non-zero status"
               exit 1
             fi
@@ -490,7 +491,7 @@ for subID in ${search}; do
             call_rescale ${corrected_t1w} 0 4095
             if [[ $? != 0 ]]; then
               echo
-              echo "---------------------------------------------------------------------------------------------------"
+              print_line -
               echo "ERROR in `basename ${0}`: call_rescale exited with non-zero status"
               exit 1
             fi

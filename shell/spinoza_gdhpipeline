@@ -133,8 +133,8 @@ fi
 # intro
 start_timer "Iterative segmentation and surface recontruction pipeline [GdH]"
 
-echo
-echo "**************************************** Processing `basename ${subject}` ***************************************"
+# print header
+print_subject_header ${subject}
 
 #-----------------------------------------------------------------------------
 # Set default session if none specified
@@ -312,7 +312,7 @@ if [[ ${FS} != "no" ]]; then
       call_gdhinject ${FS} ${PROBSEG}
       if [[ $? != 0 ]]; then
         echo
-        echo "---------------------------------------------------------------------------------------------------"
+        print_line -
         echo "ERROR in `basename ${0}`: call_gdhinject exited with non-zero status"
         exit 1
       fi
@@ -323,7 +323,7 @@ if [[ ${FS} != "no" ]]; then
 
   # Re-run freesurfer as if we just did pial edits and white matter edits
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "Re-running FS as of \"${STAGE}\"-stage"
   call_freesurfer -s ${subject} -r 23 -e "${STAGE}"
   # qsub $DIR_SCRIPTS/bin/utils/qsub_test.sh
@@ -431,7 +431,7 @@ if [[ ${FPREP} != "no" ]]; then
 
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: job submission was unsuccessful"
     exit 1
   fi
@@ -446,7 +446,7 @@ if [[ ${RUN_MGDM} != "no" ]]; then
 
   ################################ RERUN NIGHRES ################################
   # Prep for new nighres segmentation using fmriprep's brainmask
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "Running custom version of MGDM-segmentation"
   echo
 
@@ -476,7 +476,7 @@ if [[ ${RUN_MGDM} != "no" ]]; then
 
   if [[ $? != 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: call_gdhmgdm exited with non-zero status"
     exit 1
   fi

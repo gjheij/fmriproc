@@ -112,8 +112,8 @@ for subID in ${search}; do
 
     if [[ ! -f ${outputroot}-seg.nii.gz ]]; then
 
-      echo
-      echo "**************************************** Processing ${sub_name} ***************************************"
+      # print header
+      print_subject_header ${subID}
 
       if [[ ! -f ${output_dir} ]]; then
         mkdir -p ${output_dir}

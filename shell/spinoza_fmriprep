@@ -477,8 +477,8 @@ for subID in ${search}; do
 
   # intro
   if [[ ${run_local} -eq 1 ]]; then
-    echo
-    echo "**************************************** Processing ${sub_name} ***************************************"
+    # print header
+    print_subject_header ${subID}
     echo "${func_txt}"
   fi
 

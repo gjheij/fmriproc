@@ -187,7 +187,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     # check if project root is within binding point
     if [[ ${project} != *"${binding}"* ]]; then
       echo
-      echo "---------------------------------------------------------------------------------------------------"
+      print_line -
       echo "ERROR in `basename ${0}`; your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
       exit 1
     fi
@@ -219,7 +219,7 @@ if [[ ${fd_only} -eq 0 ]]; then
 
   if [[ $? -ne 0 ]]; then
     echo
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo "ERROR in `basename ${0}`: mriqc exited with non-zero status"
     exit 1
   fi

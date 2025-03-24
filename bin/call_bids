@@ -575,7 +575,7 @@ process_linescanning_bold_lab() {
 
         if [[ $? -ne 0 ]]; then
           echo
-          echo "---------------------------------------------------------------------------------------------------"
+          print_line -
           echo "ERROR in $(basename "$0"): call_createline exited with non-zero status"
           exit 1
         fi
@@ -1352,7 +1352,7 @@ echo "Done"
 
 if [[ ${warning} -eq 1 ]]; then
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING"
   echo ""
   if [[ ${pe_warning} -eq 1 ]]; then
@@ -1364,5 +1364,5 @@ if [[ ${warning} -eq 1 ]]; then
   fi
 
   echo "Please check that this is correct!"
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
 fi

@@ -93,9 +93,9 @@ for subID in ${search}; do
   outdir_dura=${OUTPUT}/${base_path}/dura
   outdir_skull=${OUTPUT}/${base_path}/skullstrip
 
-  echo
-  echo "**************************************** Processing ${sub_name} ***************************************"
-
+  # print header
+  print_subject_header ${subID}
+  
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then
     inv2=`find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -name "*echo-1*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null`      

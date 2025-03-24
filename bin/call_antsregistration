@@ -552,7 +552,7 @@ fi
 
 if [[ ${VERB} -eq 1 ]]; then
   echo "antsRegistration call:"
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo ${cmd}
   echo
 fi
@@ -569,7 +569,7 @@ ${cmd}
 
 if [[ $? -ne 0 ]]; then
   echo
-  echo "---------------------------------------------------------------------------------------------------"
+  print_line -
   echo "ERROR in `basename ${0}`: antsRegistration exited with non-zero status.."
   exit 1
 fi
@@ -598,7 +598,7 @@ fi
 if [[ ${fsl_fmt} -eq 1 ]]; then
   if [[ ${VERB} -eq 1 ]]; then
     echo "ras2fsl call:"
-    echo "---------------------------------------------------------------------------------------------------"
+    print_line -
     echo ${cmd}
     echo
   fi
