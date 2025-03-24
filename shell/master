@@ -822,6 +822,10 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
+  if [[ ! -z ${VERTICES} ]]; then
+    CUT_VOLS="-v ${VERTICES}"
+  fi  
+
   echo "---------------------------------------------------------------------------------------------------"
   echo "[${module}] Convert raw files to nifti"
 
@@ -845,6 +849,7 @@ if [[ $? -eq 0 ]]; then
     ${TR_FLAG} \
     ${SKIP_TR} \
     ${TRIM_FMAP} \
+    ${CUT_VOLS} \
     ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
 
   echo "[${module}] DONE" && echo
