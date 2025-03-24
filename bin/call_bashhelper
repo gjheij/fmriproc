@@ -40,6 +40,49 @@ generate_submission_command() {
     echo "$command"
 }
 
+activate_conda() {
+  local env_name="$1"
+
+  if [[ -z "$env_name" ]]; then
+    echo "Usage: fix_conda_env_until_active <env_name>"
+    return 1
+  fi
+
+  echo "Attempting to activate Conda environment: $env_name"
+
+  local attempts=0
+  local max_attempts=10
+
+  while true; do
+    ((attempts++))
+
+    # Try to deactivate current env
+    conda deactivate 2>/dev/null
+
+    # Try to activate the target env
+    conda activate "$env_name" 2>/dev/null
+
+    # Check if it's active
+    local active_env
+    active_env=$(conda info --json | grep -o '"active_prefix_name": *"[^"]*"' | cut -d'"' -f4)
+
+    if [[ "$active_env" == "$env_name" ]]; then
+      echo "Successfully activated: $env_name ($attempts attempts)"
+      echo "Python: $(which python)"
+      break
+    else
+      # avoid CPU overload, let conda catch up
+      sleep 0.5
+    fi
+
+    # Safety check
+    if [[ $attempts -ge $max_attempts ]]; then
+      echo "❌ Failed to activate environment '${env_name}' after $attempts attempts"
+      return 1
+    fi
+  done
+}
+
 
 # ---------------------------------------------------------------------------------------------------
 # Start timing a process
@@ -389,6 +432,43 @@ END
 
   fi
 
+}
+
+collect_subject_name() {
+  local sub="$1"
+  local subID="$2"
+  local prefix="$3"
+
+  if [[ -n ${sub} ]]; then
+    echo "${prefix}${subID}"
+  else
+    echo "$(basename "${subID}")"
+  fi
+}
+
+get_subject_id() {
+  local sub="$1"
+  local subID="$2"
+  local prefix="$3"
+
+  if [[ -n ${sub} ]]; then
+    echo "${subID}"
+  else
+    echo "$(basename "${subID}")"
+  fi
+}
+
+collect_session_info() {
+  local ses="$1"
+  local sub_name="$2"
+
+  if [[ -n ${ses} ]]; then
+    local nr
+    nr=$(echo "${ses}" | sed -e 's/^[[:space:]]*//')
+    echo "${sub_name}/ses-${nr} ${sub_name}_ses-${nr}"
+  else
+    echo "${sub_name} ${sub_name}"
+  fi
 }
 
 function pe_from_dcm {
