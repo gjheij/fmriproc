@@ -32,7 +32,6 @@ export FSL=${DIR_DATA_DERIV}/fsl
 export SKULLSTRIP=${DIR_DATA_DERIV}/skullstripped
 export CTX=${DIR_DATA_DERIV}/pycortex
 export PRF=${DIR_DATA_DERIV}/prf
-export TERMINAL_WIDTH=99
 
 # Make executables available in environment
 export PATH=${PATH}:${DIR_SCRIPTS}/bin

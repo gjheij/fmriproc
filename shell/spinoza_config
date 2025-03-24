@@ -26,6 +26,7 @@ export SGE_QUEUE_SHORT="short.q@jupiter"
 export OMP_NUM_THREADS=1 
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
+export TERMINAL_WIDTH=99
 
 # MATLAB
 export MRRECON="/packages/matlab/toolbox/MRecon/3.0.541"
