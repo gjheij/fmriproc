@@ -1263,6 +1263,7 @@ if [[ $? -eq 0 ]]; then
     ${KWARGS_FLAG} \
     ${SANLM_FLAG} \
     ${SANLM_METHOD} \
+    ${jobs_flag} \
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then

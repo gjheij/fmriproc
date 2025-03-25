@@ -25,6 +25,7 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
+  -j <cpus>           number of cores to use (default is 1)
   -o                  overwrite existing files
   --spm               run bias correction with SPM (default = False)
   --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
@@ -63,7 +64,8 @@ RUN_BIASCORR=0
 RUN_WITH_ANTS=0
 SANLM_WITH_ANTS=0
 RUN_SANLM=1
-while getopts :-:bos:n:x: argument
+n_cpu=1
+while getopts :-:bos:n:x:j: argument
 do
   case ${argument} in
     -)
@@ -97,7 +99,9 @@ do
     o)  OW=1
           ;;
     x)  kwargs=${OPTARG}
-          ;;              
+          ;;
+    j)  n_cpu=${OPTARG}
+          ;;                
   esac
 done
 
@@ -188,6 +192,9 @@ for subID in ${search}; do
 
         output_from_sanlm=${OUTPUTDIR}/denoised.nii.gz
         if [[ ${SANLM_WITH_ANTS} -eq 1 ]]; then
+          
+          # set number of cores to use
+          export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
           echo "Running SANLM-filter with ANTs' DenoiseImage"
           sanlm_="call_antssanlm"
         else
@@ -216,6 +223,9 @@ for subID in ${search}; do
           cmd="call_spmbias"
           ${cmd} ${input_for_bias} ${output}
         else
+          # set number of cores to use
+          export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
+
           cmd="call_antsbias"
           call_antsbias ${input_for_bias} ${output} ${kwargs}
         fi
@@ -263,3 +273,6 @@ done
 #-----------------------------------------------------------------------------
 # Calculate time spent using 'let'
 end_timer
+
+# reset threads
+export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
