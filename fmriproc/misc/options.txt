@@ -14,6 +14,7 @@
 --css
 --dcm_fix
 --debug
+--denoise
 --docker
 --dog
 --fd

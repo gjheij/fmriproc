@@ -98,6 +98,9 @@ Options:
 
 --debug           run debug mode for extra input/output checks.
 
+--denoise         use ANTs' DenoiseImage for SANLM denoising rather than CAT12's. This is generally faster and doesn't
+                  rely on Matlab.
+
 --docker          use docker images for fmriprep/mriqc.
 
 --fd              only get FD-timecourse file.

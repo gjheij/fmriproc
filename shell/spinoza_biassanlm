@@ -28,7 +28,9 @@ Arguments:
   -o                  overwrite existing files
   --spm               run bias correction with SPM (default = False)
   --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
-  --n4|               run bias correction with N4BiasCorrection (ANTs)
+  --n4                run bias correction with N4BiasCorrection (ANTs)
+  --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
+                      CAT12.
   -x <kwargs>         Additional commands to be passed to 'call_antsbias'. Format should
                       be colon-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -59,6 +61,7 @@ USAGE
 OW=0
 RUN_BIASCORR=0
 RUN_WITH_ANTS=0
+SANLM_WITH_ANTS=0
 RUN_SANLM=1
 while getopts :-:bos:n:x: argument
 do
@@ -71,7 +74,10 @@ do
           ;;          
         no_sanlm)
           RUN_SANLM=0
-          ;;              
+          ;;         
+        denoise)
+          SANLM_WITH_ANTS=1
+          ;;                             
         n4)
           RUN_BIASCORR=1
           RUN_WITH_ANTS=1
@@ -129,7 +135,6 @@ for subID in ${search}; do
 
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
-  sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   if [[ "${INPUT}" == "${DIR_DATA_HOME}" ]]; then
@@ -180,9 +185,18 @@ for subID in ${search}; do
       print_subject_header ${subID}
       
       if [[ ${RUN_SANLM} -eq 1 ]]; then
-        echo "Running SANLM-filter"
+
         output_from_sanlm=${OUTPUTDIR}/denoised.nii.gz
-        call_spmsanlm ${input} ${output_from_sanlm}
+        if [[ ${SANLM_WITH_ANTS} -eq 1 ]]; then
+          echo "Running SANLM-filter with ANTs' DenoiseImage"
+          sanlm_="call_antssanlm"
+        else
+          echo "Running SANLM-filter with CAT12"
+          sanlm_="call_spmsanlm"
+        fi
+
+        # run
+        ${sanlm_} ${input} ${output_from_sanlm}
 
         if [[ ! -f ${output_from_sanlm} ]]; then
           echo "ERROR in `basename ${0}`: call_spmsanlm exited with non-zero status"

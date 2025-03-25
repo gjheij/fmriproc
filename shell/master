@@ -118,6 +118,7 @@ PARS_FILE=""              # spinoza_qmrimaps
 INTENSITY_FLAG=""         # spinoza_qmrimaps
 BIAS_FLAG=""              # spinoza_biassanlm
 SANLM_FLAG=""             # spinoza_biassanlm
+SANLM_METHOD=""           # spinoza_biassanlm
 PROT_FLAG=""              # spinoza_scanner2bids
 FS_stage="all"            # spinoza_freesurfer
 FORCE_FLAG=""             # spinoza_freesurfer
@@ -195,6 +196,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         debug)
           DEBUG="--debug"
           ;;
+        denoise)
+          SANLM_METHOD="--denoise"
+          ;;          
         dog)
           MODEL_FLAG="--dog"
           ;;
@@ -1258,6 +1262,7 @@ if [[ $? -eq 0 ]]; then
     ${OW} \
     ${KWARGS_FLAG} \
     ${SANLM_FLAG} \
+    ${SANLM_METHOD} \
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then
