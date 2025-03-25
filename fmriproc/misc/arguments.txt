@@ -177,6 +177,8 @@ Options:
 
 --no_manual       prevent manual mask editing.
 
+--no_mask         do not use brain mask for SANLM/Bias correction with ANTs
+
 --no_nordic       disable NORDIC denoising.
 
 --no_raw          do NOT unzscore the output from pybest (default is to do so)
@@ -228,8 +230,6 @@ Options:
 --skip_prf_info   skip creating best_vertices.csv.
 
 --srf_file        fetch SRFs file.
-
---surface         use Wagstyl's equivolumetric layering.
 
 --syn             use syn-registration.
 

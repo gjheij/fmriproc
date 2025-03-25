@@ -17,7 +17,9 @@ Sometimes CAT12 can be a bit of an overkill with smoothing and bias corrections.
 be run prior to "spinoza_brainextraction", and runs a SANLM-filter over the image as well as an bias
 field correction with SPM. The subsequent "spinoza_brainextraction" should be run with the "-m brain"
 flag as to turn off bias correction and denoising with CAT12. The input image is expected to reside 
-in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz.
+in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz. By default, the pre-
+viously created mask with SPM is used to boost performance on ANTs functions (e.g., SANLM/Bias cor-
+rection).
 
 Usage:
   spinoza_biassanlm [options] <anat folder> <output folder>
@@ -29,6 +31,7 @@ Arguments:
   -o                  overwrite existing files
   --spm               run bias correction with SPM (default = False)
   --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
+  --no_mask           do not use SPM mask for SANLM/Bias correction with ANTs
   --n4                run bias correction with N4BiasCorrection (ANTs)
   --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
                       CAT12.
@@ -52,6 +55,9 @@ Example:
   spinoza_biassanlm -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
   spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
 
+  # run SANLM and Bias correction with ANTs
+  spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised --n4 --denoise
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -65,6 +71,7 @@ RUN_WITH_ANTS=0
 SANLM_WITH_ANTS=0
 RUN_SANLM=1
 n_cpu=1
+use_mask=1
 while getopts :-:bos:n:x:j: argument
 do
   case ${argument} in
@@ -83,7 +90,10 @@ do
         n4)
           RUN_BIASCORR=1
           RUN_WITH_ANTS=1
-          ;;                                              
+          ;;      
+        no_mask)
+          use_mask=0
+          ;;                                                  
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -121,11 +131,6 @@ else
   IFS=', ' read -r -a search <<< "${sub}"
   search=${search[@]}
   unset IFS
-fi
-
-# parse kwargs
-if [[ ! -z ${kwargs} ]]; then
-  kwargs=`echo ${kwargs} | tr '=' ' ' | tr ':' ' '`
 fi
 
 #-----------------------------------------------------------------------------
@@ -168,6 +173,37 @@ for subID in ${search}; do
     continue
   fi
 
+  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+  IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
+  unset IFS 
+  count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
+  if [[ ${count} -gt 1 ]]; then
+    echo "Found more than 1 files with \"acq-${DATA}\", \"spm_mask\", and \".nii.gz\" (${count})"
+    for ii in ${spm_sorted[@]}; do
+      echo " ${ii}"
+    done
+    continue
+  else
+    cp ${spm_mask} ${OUTPUTDIR} 2>/dev/null
+    
+    if [[ ${use_mask} -eq 1 ]]; then
+      # parse kwargs and append mask
+      if [[ -z ${kwargs} ]]; then
+        kwargs="-x=${spm_mask}"
+      else
+        # Check if an -x= argument contains a .nii (likely a mask)
+        if ! echo "$kwargs" | grep -Eq '\-x=.*\.nii(\.gz)?'; then
+          kwargs="${kwargs};-x=${spm_mask}"
+        fi
+      fi
+    fi
+  fi
+
+  # parse into string
+  if [[ ! -z ${kwargs} ]]; then
+    kwargs=`echo ${kwargs} | tr ' =' ' ' | tr ':' ' '`
+  fi
+
   input=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
   if [[ ! -z ${input} ]]; then
 
@@ -201,9 +237,9 @@ for subID in ${search}; do
           echo "Running SANLM-filter with CAT12"
           sanlm_="call_spmsanlm"
         fi
-
+        
         # run
-        ${sanlm_} ${input} ${output_from_sanlm}
+        ${sanlm_} ${input} ${output_from_sanlm} ${kwargs}
 
         if [[ ! -f ${output_from_sanlm} ]]; then
           echo "ERROR in `basename ${0}`: call_spmsanlm exited with non-zero status"
@@ -220,13 +256,10 @@ for subID in ${search}; do
 
         if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
           echo "Running bias field correction with SPM"
-          cmd="call_spmbias"
-          ${cmd} ${input_for_bias} ${output}
+          call_spmbias ${input_for_bias} ${output}
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
-
-          cmd="call_antsbias"
           call_antsbias ${input_for_bias} ${output} ${kwargs}
         fi
 
@@ -254,19 +287,6 @@ for subID in ${search}; do
     continue
   fi
 
-  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
-  IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
-  unset IFS 
-  count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
-  if [[ ${count} -gt 1 ]]; then
-    echo "Found more than 1 files with \"acq-${DATA}\", \"spm_mask\", and \".nii.gz\" (${count})"
-    for ii in ${spm_sorted[@]}; do
-      echo " ${ii}"
-    done
-    continue
-  else
-    cp ${spm_mask} ${OUTPUTDIR} 2>/dev/null
-  fi
 
 done
 

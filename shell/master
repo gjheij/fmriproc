@@ -360,6 +360,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no_manual)
           MAN_FLAG="--no_manual"
           ;;
+        no_mask)
+          USE_MASK="--no_mask"
+          ;;          
         no_nordic)
           NORDIC="--no_nordic"
           ;;
@@ -1263,7 +1266,7 @@ if [[ $? -eq 0 ]]; then
     ${KWARGS_FLAG} \
     ${SANLM_FLAG} \
     ${SANLM_METHOD} \
-    ${jobs_flag} \
+    ${USE_MASK} \
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then
