@@ -158,6 +158,18 @@ export SETUP_FILE=$(which spinoza_setup)
 # ---------------------------------------------------------------------------------------------------
 # Handle setup
 if [[ "$COMMAND" == "setup" ]]; then
+
+    # should exist if environment is activated; if not, FSL may have hijacked conda
+    if [[ -z ${SETUP_FILE} ]]; then
+        conda_path=$(check_conda)
+        env=$("$conda_path" info --envs | grep '*' | awk '{print $1}')
+        echo "⚠️ ERROR in $(basename ${0}): spinoza_setup could not be found. Is the correct environment (\"${env}\") activated?"
+        echo "  If you have FSL installed, this may have scrambled the conda environment."
+        echo "  Try deactivation a couple of times, then 'conda activate <your_env>' and rerun the installer"
+        echo "  The installer will deal with FSL's conda in the future"
+        echo
+        exit 1
+    fi
     
     # make sure we're outside fmriproc-folders
     cd $HOME
@@ -170,7 +182,7 @@ if [[ "$COMMAND" == "setup" ]]; then
         touch "$PROFILE"
     fi
 
-    if grep -Fxq "source \"$SETUP_FILE\"" "$PROFILE"; then
+    if grep -Fxq "source \"$CONFIG_FILE\"" "$PROFILE"; then
         echo "✅ $PROFILE already includes fMRIproc setup."
     else
         echo "📄 Adding fMRIproc setup to $PROFILE"
@@ -181,22 +193,29 @@ if [[ "$COMMAND" == "setup" ]]; then
 
         (
             echo ""
-            echo "# Inserted via the fMRIproc-repository"
-            echo "source call_bashhelper"
-            if [[ "$ADD_CONDA" -eq 1 ]]; then
-                if conda_path=$(check_conda); then
-                    env=$("$conda_path" info --envs | grep '*' | awk '{print $1}')
-                    echo "activate_conda $env"
-                fi
-            fi
+            echo "# >>> fMRIproc initialize >>>"
             echo "export CONFIG_FILE=\"${CONFIG_FILE}\""
             echo "export REPO_DIR=\"${REPO_DIR}\""
             echo "export BIN_DIR=\"${ENV_BIN}\""
             echo "export SETUP_FILE=\"$(which spinoza_setup)\""
             echo ""
+            echo "# source the project variables"
             echo "source \"$SETUP_FILE\""
             echo "echo \"ACTIVE PROJECT    \$PROJECT\""
             echo "echo \"ACTIVE ACQ FORMAT \$DATA\""
+            echo
+            echo "# source helper functions"
+            echo "source \${BIN_DIR}/call_bashhelper"
+            if [[ "$ADD_CONDA" -eq 1 ]]; then
+                if conda_path=$(check_conda); then
+                    env=$("$conda_path" info --envs | grep '*' | awk '{print $1}')
+                    echo
+                    echo "# also activates conda in a way that overwrite FSL's conda" 
+                    echo "activate_conda $env"
+                fi
+            fi
+            echo
+            echo "# <<< fMRIproc initialize <<<"
         ) >> "$PROFILE"
 
         echo "✅ Added to $PROFILE"
