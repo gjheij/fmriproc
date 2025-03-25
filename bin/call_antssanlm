@@ -18,18 +18,18 @@ requires a Matlab/MCR installation.
 This script allows specifying:
 - Required input file
 - Required output file
-- Any additional options from N4BiasFieldCorrection, passed as extra arguments (kwargs).
+- Any additional options from DenoiseImage, passed as extra arguments (kwargs).
 
 Usage:
-  call_antssanlm [default_options] <input file> <output file> [extra_options]
+  call_antssanlm <input file> <output file> [extra_options]
 
 Options:
   -o                Overwrite existing output file
   -v                Make some noise
-  [extra_options]   anything after gets passed to N4BiasFieldCorrection
+  [extra_options]   anything after gets passed to DenoiseImage
 
 Example:
-  call_antssanlm -s 4 input.nii.gz output.nii.gz -x mask.nii.gz -r 1
+  call_antssanlm input.nii.gz output.nii.gz -x mask.nii.gz -r 1
 
 ---------------------------------------------------------------------------------------------------
 
@@ -89,20 +89,11 @@ if [[ -z "$dim" ]]; then
   exit 1
 fi
 
-if [[ ${verbose} -eq 1 ]]; then
-  echo "Running N4BiasFieldCorrection:"
-  echo "  Input          = $(basename "$input")"
-  echo "  Output         = $(basename "$output")"
-  echo "  Dimensionality = $dim"
-  echo "  Extra options  = ${extra_args[*]:-(none)}"
-  echo
-fi
-
 cmd=(
   DenoiseImage
-  --image-dimensionality "$dim"
-  --input-image "$input"
-  --output "$output"
+  --image-dimensionality "${dim}"
+  --input-image "${input}"
+  --output "${output}"
   --verbose ${verbose}
   "${extra_args[@]}"
 )
@@ -114,10 +105,10 @@ fi
 "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
-  echo "Error: N4BiasFieldCorrection failed." >&2
+  echo "Error: DenoiseImage failed." >&2
   exit 1
 fi
 
 if [[ ${verbose} -eq 1 ]]; then
-  echo "Bias field correction complete."
+  echo "Denoising complete."
 fi
