@@ -9,6 +9,9 @@ import os
 import platform
 from sklearn.preprocessing import MinMaxScaler
 import subprocess
+rb = utils.color.BOLD+utils.color.RED
+gb = utils.color.BOLD+utils.color.GREEN
+end = utils.color.END
 
 opj = os.path.join
 
@@ -49,10 +52,8 @@ def get_minmax(file):
 def write_pymp2rage_json(file, params):
     """Write json file for pymp2rage output"""
     json_file = file.replace('.nii.gz', '.json')
-    if os.path.isfile(json_file):
-        print(f" {os.path.basename(json_file)} already exists")
-    else:
-        print(f" writing {os.path.basename(json_file)}")
+    if not os.path.isfile(json_file):
+        print(" Writing "+gb+json_file+end)
         with open(json_file, "w+") as f:
             json.dump(params, f, indent=4)
     
@@ -146,7 +147,7 @@ def write_pymp2rage_nifti(
         print(f" Unknown descriptor: {descriptor}")
         return
     else:
-        print(f" writing {os.path.basename(file)}")
+        print(" Writing "+gb+file+end)
     
     getattr(obj, descriptor).to_filename(file)
     params = {

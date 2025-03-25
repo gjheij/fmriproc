@@ -8,6 +8,8 @@ import numpy as np
 import nibabel as nb
 import pandas as pd
 opj = os.path.join
+gb = utils.color.BOLD+utils.color.GREEN
+end = utils.color.END
 
 def fetch_filepath(func, skip_run_id=False):
 
@@ -475,7 +477,7 @@ Example:
 
                     # sort nifti dimensions
                     fname = opj(output_dir, os.path.basename(func))
-                    print(f" Writing {fname}")
+                    print(" Writing "+gb+fname+end)
                     if extension == "nii.gz":
                         unzscored.to_filename(fname)
                     else:
@@ -514,7 +516,7 @@ Example:
 
                 # sort nifti dimensions
                 fname = opj(output_dir, os.path.basename(func))
-                print(f" Writing {fname}")
+                print(" Writing "+gb+fname+end)
                 if extension == "nii.gz":
                     unzscored.to_filename(fname)
                 else:

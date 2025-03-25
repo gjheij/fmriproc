@@ -8,6 +8,8 @@ import os
 import numpy as np
 from nibabel.freesurfer.io import read_morph_data, write_morph_data
 opj = os.path.join
+gb = utils.color.BOLD+utils.color.GREEN
+end = utils.color.END
 
 def main(argv):
 
@@ -143,7 +145,8 @@ Example:
     # save
     for ff,dd in zip(["lh","rh"],[lh_masked_pol,rh_masked_pol]):
         out_f = opj(output_dir, f"{ff}.masked_pol")
-        print(f"Writing '{out_f}'")
+        
+        print("Writing "+gb+out_f+end)
         write_morph_data(out_f, dd)
 
     if freeview:

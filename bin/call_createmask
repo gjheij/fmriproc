@@ -9,6 +9,8 @@ from fmriproc.image import get_minmax
 
 opj = os.path.join
 opd = os.path.dirname
+rb = utils.color.BOLD+utils.color.RED
+end = utils.color.END
 
 def main(argv):
 
@@ -161,11 +163,11 @@ Example:
             tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
             cmd_truncate = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
 
-            print("Truncating image intensities [0,0.999] with 256 bins")
+            print("Truncating image intensities "+rb+"[0,0.999]"+end+" with "+rb+"256"+end+" bins")
             print(cmd_truncate)
 
             # Run ImageMath
-            result = subprocess.run(
+            _ = subprocess.run(
                 cmd_truncate,
                 shell=True,
                 check=True,
@@ -179,12 +181,12 @@ Example:
 
             # Clip positive values if the minimum is not zero
             if out_[0] != 0:
-                print(f"Clipping original output at {clip_value}")
+                print("Clipping original output at "+rb+str(clip_value)+end)
                 cmd_clip = f"call_clipimage {t1_file} {clip_value}"
                 print(cmd_clip)
 
                 # Run call_clipimage
-                result = subprocess.run(
+                _ = subprocess.run(
                     cmd_clip,
                     shell=True,
                     check=True,
@@ -194,6 +196,10 @@ Example:
 
                 # Remove temporary file
                 os.remove(tmp_file)
+                try:
+                    os.remove(opj(os.getcwd(), "stat_result.json"))
+                except Exception:
+                    pass
             else:
                 # Rename tmp file to the original file
                 os.rename(tmp_file, t1_file)

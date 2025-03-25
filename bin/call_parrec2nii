@@ -193,11 +193,11 @@ for par in ${par_files[@]}; do
     if [[ ${is_anat} -eq 2 ]]; then
       second_idx=1
       anat=0
-      add_txt=" | I'm assuming we're dealing with BOLD+phase data"
+      add_txt=" | I'm assuming we're dealing with ${BOLD_RED}BOLD+phase${RESET} data"
     elif [[ ${is_anat} -eq 4 ]]; then
       second_idx=2
       anat=1
-      add_txt=" | I'm assuming we're dealing with MP2RAGE data"
+      add_txt=" | I'm assuming we're dealing with ${BOLD_RED}MP2RAGE${RESET} data"
     else
       echo "ERROR in `basename ${0}`: unknown number of image types in ${par}: ${is_anat}. Is this a sequence other than bold (M/P) or MP2RAGE (M/P for INV1/INV2)?"
       exit 1
@@ -217,7 +217,7 @@ for par in ${par_files[@]}; do
       interleaved=1
     fi
 
-    echo "${txt}; extracting and saving magnitude/phase data${add_txt}"
+    echo -e "${txt}; extracting and saving magnitude/phase data${add_txt}"
     if [[ ${interleaved} -eq 1 ]]; then
       if [[ ${anat} -eq 0 ]]; then
         
@@ -281,7 +281,7 @@ END
 
   # define json file
   json_f=${bids_out}.json
-  echo "Writing ${json_f}"
+  echo -e "Writing ${BOLD_GREEN}${json_f}${RESET}"
 
   # function is from call_bashhelper
   pars_for_json ${par} ${json_f}
@@ -300,14 +300,14 @@ END
       echo "WARNING: TR=${tr}, this might not be correct.."
     fi
 
-    echo "Setting TR to ${tr} in func; adding to json too"
+    echo -e "Setting TR to ${BOLD_RED}${tr}${RESET} in func; adding to json too"
     call_settr ${bids_out}.nii.gz ${tr}
     call_json ${json_f} RepetitionTime ${tr}
 
     # set dtype to uint16
     dtype=`fslval ${bids_out}.nii.gz data_type`
     if [ ${dtype} == "FLOAT64" ]; then
-      echo "Changing data_type of ${orig_out} from float64 to uint16"
+      echo -e "Changing data_type of ${orig_out} from float64 to ${BOLD_RED}uint16${RESET}"
       call_setdtype ${bids_out}.nii.gz
     fi
 

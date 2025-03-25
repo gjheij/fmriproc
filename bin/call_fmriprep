@@ -590,7 +590,7 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
         fi
 
         out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-preproc_bold.nii.gz
-        echo " writing ${out_file}"
+        echo -e " writing ${BOLD_GREEN}${out_file}${RESET}"
         cp ${ff} ${out_file}
 
       done   
@@ -629,7 +629,7 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
           fi
 
           out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-brain_mask.nii.gz
-          echo " writing ${out_file}"
+          echo -e " writing ${BOLD_GREEN}${out_file}${RESET}"
           cp ${ff} ${out_file}
 
         done
@@ -665,7 +665,7 @@ if [[ ${FD_ONLY} -eq 1 ]]; then
       fi
 
       out_fd=${derivatives}/fmriprep/${base_dir}/func/${wf_name}_desc-fd_bold.txt
-      echo " writing ${out_fd}"
+      echo -e " writing ${BOLD_GREEN}${out_fd}${RESET}"
       cp ${fd} ${out_fd}
 
     done

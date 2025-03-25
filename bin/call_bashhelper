@@ -119,7 +119,7 @@ print_subject_header() {
   local base_msg="Processing sub-${BOLD_RED}${subject}${RESET}"
   local plain_msg="Processing sub-${subject}"  # uncolored for length calculation
   local msg="*** ${base_msg} ***"
-  local plain_full="*** ${plain_msg} ***"  local msg="*** ${base_msg} ***"
+  local plain_full="*** ${plain_msg} ***"
   local msg_len=${#plain_full}
 
   # Handle case where message is longer than total width

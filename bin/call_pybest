@@ -380,7 +380,7 @@ for task_id in ${task_ids[@]}; do
             fi
 
             # define and run cmd
-            echo " Writing ${masked_bold}"
+            echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
             cmd="""fslmaths ${bold} -mas ${mask} ${masked_bold}"""
             eval ${cmd}
 

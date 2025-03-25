@@ -7,6 +7,8 @@ import nibabel as nb
 import numpy as np
 from nilearn import image
 opj = os.path.join
+gb = utils.color.BOLD+utils.color.GREEN
+end = utils.color.END
 
 def main(argv):
 
@@ -114,7 +116,8 @@ Example:
             empty_img[freesurfer_seg.get_fdata() == i] = 1
 
     # write file
-    print(f"Writing to {out_img}")
+
+    print("Writing to "+gb+out_img+end)
     nb.Nifti1Image(empty_img, affine=freesurfer_seg.affine, header=freesurfer_seg.header).to_filename(out_img)
 
     print("Done\n")    
