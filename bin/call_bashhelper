@@ -69,50 +69,49 @@ load_colors() {
 
 activate_conda() {
   local env_name="$1"
-
   if [[ -z "$env_name" ]]; then
-    echo "Usage: fix_conda_env_until_active <env_name>"
+    echo "Usage: activate_conda <env_name>"
     return 1
   fi
 
-  echo "Attempting to activate Conda environment: $env_name"
+  echo "Deactivating all existing Conda environments..."
 
-  local attempts=0
+  local attempt=0
   local max_attempts=10
 
+  # Deactivate until fully clean
   while true; do
-    ((attempts++))
-
-    # Try to deactivate current env
-    conda deactivate 2>/dev/null
-
-    # Try to activate the target env
-    conda activate "$env_name" 2>/dev/null
-
-    # Check if it's active
     local active_env
-    active_env=$(conda info --json | grep -o '"active_prefix_name": *"[^"]*"' | cut -d'"' -f4)
+    active_env=$(conda info | grep "active environment" | awk -F':' '{print $2}' | xargs)
 
-    if [[ "$active_env" == "$env_name" ]]; then
-      echo "Successfully activated: $env_name ($attempts attempts)"
-      echo "Python: $(which python)"
+    if [[ "$active_env" == "None" ]]; then
       break
-    else
-      # avoid CPU overload, let conda catch up
-      sleep 0.5
     fi
 
-    # Safety check
-    if [[ $attempts -ge $max_attempts ]]; then
-      echo "❌ Failed to activate environment '${env_name}' after $attempts attempts"
-      return 1
+    conda deactivate &>/dev/null
+    ((attempt++))
+
+    if [[ $attempt -ge $max_attempts ]]; then
+      echo "⚠️  Warning: could not fully clear Conda env stack after $attempt deactivations"
+      break
     fi
   done
+
+  echo "Activating Conda environment: ${env_name}"
+  conda activate "$env_name" &>/dev/null
+
+  # Optional: confirm
+  local current_python=$(which python)
+  echo "Environment '$env_name' activated"
+  echo "Python: $current_python"
 }
 
 # ---------------------------------------------------------------------------------------------------
 # subject header
 print_subject_header() {
+
+  # load the colors
+  load_colors
   local subject="$1"
   local total_width="${TERMINAL_WIDTH:-99}"
 
