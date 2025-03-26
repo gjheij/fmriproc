@@ -170,6 +170,13 @@ print_output_exists() {
   echo -e "${BOLD_CYAN}${subject}${RESET}: output already exists [${BOLD_GREEN}${txt}${RESET}]. ${extra}"
 }
 
+print_directory_not_exist() {
+  dir="${1}"
+  extra="${2}"
+  echo -e "${BOLD_CYAN}${subject}${RESET}: could not find input directory [${dir}]. ${extra}"
+}
+
+
 # ---------------------------------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {
