@@ -160,7 +160,7 @@ for subID in ${search}; do
     # Running equivolumetric layering with nighres
 
     if [[ ! -d ${input_dir}/cruise ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find nighres' CRUISE directory"
+      print_directory_not_exist "${input_dir}/cruise"
       continue
     fi
 
@@ -224,7 +224,7 @@ for subID in ${search}; do
     # Running equivolumetric layering with surface tools
 
     if [[ ! -d ${input_dir} ]]; then
-      echo "This program requires you to run FreeSurfer first. Couldn't find subject's directory"
+      print_directory_not_exist "${input_dir}" "Run FreeSurfer first.."
       continue
     fi
 

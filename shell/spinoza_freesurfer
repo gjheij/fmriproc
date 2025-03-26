@@ -321,7 +321,7 @@ for subID in ${search}; do
     fi
 
   else
-    echo "ERROR: No T1-weighted image found in \"${T1_DIR}\""
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No T1-weighted image found in ${BOLD_GREEN}${T1_DIR}${RESET}"
     continue
   fi
 

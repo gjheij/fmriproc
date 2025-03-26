@@ -93,6 +93,13 @@ for subID in ${search}; do
   outdir_dura=${OUTPUT}/${base_path}/dura
   outdir_skull=${OUTPUT}/${base_path}/skullstrip
 
+  for dir in "${input_dir}" "${inv2_dir}"; do
+    if [ ! -d ${dir} ]; then
+      print_directory_not_exist "${dir}"
+      continue
+    fi
+  done
+
   # print header
   print_subject_header ${sub_name}
   
@@ -142,17 +149,18 @@ for subID in ${search}; do
     fi
 
     if [[ -z ${t1w} ]]; then
-      echo "No T1w-image in \"${input_dir}\""
+      echo -e "No T1w-image in ${BOLD_GREEN}${input_dir}${RESET}"
       continue
     fi
 
     if [[ -z ${t1map} ]]; then
+      echo -e "No T1map-image in ${BOLD_GREEN}${input_dir}${RESET}"
       echo "No T1map-image in \"${input_dir}\""
       continue
     fi
 
     if [[ -z ${inv2_mask} ]]; then
-      echo "No brain mask \"*spm_mask\" in \"${mask_dir}\""
+      echo -e "No brain mask \"*spm_mask\" in ${BOLD_GREEN}${mask_dir}${RESET}"
       continue
     fi
 
@@ -183,7 +191,7 @@ for subID in ${search}; do
           fi
 
         else
-          echo "Missing input files. Check if you ran spinoza_registration.sh before this"
+          echo "Missing input files"
           continue
         fi
 

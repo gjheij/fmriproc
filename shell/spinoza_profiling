@@ -106,7 +106,7 @@ for subID in ${search}; do
     # print header
     print_subject_header ${sub_name}
 
-    echo "Creating `basename ${sampled_data}`"
+    echo -e "Creating ${BOLD_GREEN}$(basename ${sampled_data})${RESET}"
     
     #-----------------------------------------------------------------------------
     # Check if we can mask inputs
@@ -114,12 +114,12 @@ for subID in ${search}; do
     tobesampled=`find ${sampled_dir} -maxdepth 2 -type f \( -name "*${TAG}*" \) 2>/dev/null`
 
     if [[ -z ${boundaries} ]]; then
-      echo "ERROR: could not find boundaries-file. Create it with spinoza_layering"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find boundaries-file in ${BOLD_GREEN}${nighres_dir}/layering${RESET}. Create it with spinoza_layering ($(master -m -l layering))"
       continue
     fi
 
     if [[ -z ${tobesampled} ]]; then
-      echo "ERROR: could not find to-be-sampled file."
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find file for sampling (\"*${TAG}\") in ${BOLD_GREEN}${sampled_dir}${RESET}."
       continue
     fi
 

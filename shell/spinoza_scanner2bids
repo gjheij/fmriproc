@@ -235,7 +235,7 @@ for subID in ${search}; do
   [[ $FULL_OW -eq 1 ]] && rm -rf "$output_dir" "$bids_dir"
   
   if [[ ! -d "$input_dir" ]]; then
-    echo "Missing $input_dir, skipping $sub"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: input ${BOLD_GREEN}${input_dir}${RESET} does not exist"
     continue
   fi
 

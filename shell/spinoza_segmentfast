@@ -87,6 +87,11 @@ for subID in ${search}; do
   input_dir=${SKULL}/${base_path}
   output_dir=${FSL}/${base_path}
 
+  if [ ! -d ${input_dir} ]; then
+    print_directory_not_exist "${input_dir}"
+    continue
+  fi
+  
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running FAST with call_fslfast
 
@@ -151,7 +156,7 @@ for subID in ${search}; do
       print_output_exists "${sub_name}" "${outputroot}-seg.nii.gz"
     fi
   else
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No skullstripped T1-weighted image found"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No skullstripped T1w-image in ${BOLD_GREEN}${input_dir}${RESET}"
     continue
   fi
 done

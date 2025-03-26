@@ -95,7 +95,7 @@ for subID in ${search}; do
   output_dir=${OUTPUT}/${base_path}
 
   if [ ! -d ${input_dir} ]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find input directory \"${input_dir}\""
+    print_directory_not_exist "${input_dir}"
     continue
   fi
 
@@ -136,7 +136,7 @@ for subID in ${search}; do
         
         eval $cmd
       else
-        echo "ERROR in $(basename ${0}): could not find files with \"*acq-${ACQ[0]^^}_*\", \"*space-*\", and \"*${i}.nii.gz\" in \"${input_dir}\""
+        echo "ERROR in $(basename ${0}): could not find files with \"*acq-${ACQ[0]^^}_*\", \"*space-*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
         exit 1
       fi
 

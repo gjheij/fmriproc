@@ -138,6 +138,11 @@ for subID in ${search}; do
   output_dir=${OUTPUT}/${base_path}
   mask_dir=${MASKS}/${base_path}
 
+  if [ ! -d ${input_dir} ]; then
+    print_directory_not_exist "${input_dir}"
+    continue
+  fi
+  
   #----------------------------------------------------------------------------------------------------------------------------------------------
   # Look for files
   bet_uni=`find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1w.nii.gz" \) 2>/dev/null`

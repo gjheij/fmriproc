@@ -160,7 +160,7 @@ for subID in ${search}; do
   # Running region extraction with nighres
 
   if [[ ! -d ${mgdm_dir} ]]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find MGDM directory \"${mgdm_dir}\""
+    print_directory_not_exist "${mgdm_dir}"
     continue
   fi
 

@@ -120,6 +120,13 @@ for subID in ${search}; do
   skull_dir=${SKULL}/${base_path}
   output_dir=${OUTPUT}/${base_path}/massp
 
+  for dir in "${input_dir}" "${skull_dir}"; do
+    if [ ! -d ${dir} ]; then
+      print_directory_not_exist "${dir}"
+      continue
+    fi
+  done
+
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running MASSP with Nighres
 

@@ -191,7 +191,7 @@ for subID in ${search}; do
     # exit 1
 
     if [[ -z ${bold_files} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find BOLD-data"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find BOLD-data (*.mat) in ${BOLD_GREEN}${lab_func}${RESET}"
       continue
     fi
 
@@ -354,7 +354,7 @@ for subID in ${search}; do
       fi
     done
   else
-    echo "Could not find \"${lab_func}\""
+    print_directory_not_exist "${lab_func}"
     continue
   fi
 

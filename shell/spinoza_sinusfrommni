@@ -133,7 +133,7 @@ for subID in ${search}; do
       mask=`find "${pn_anat}" -type f \( -name "*spm_mask.nii.gz" \) 2>/dev/null`
       if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
 
-        if [[ ! -z ${t1} && ! -z ${t2} ]]; then
+        if [[ ! -z ${t2} ]]; then
 
           # if we have a mask-image, we can create a sinus mask directly from the T2-image. Use ratio otherwise
           if [[ ! -z ${mask} ]]; then
@@ -161,24 +161,28 @@ for subID in ${search}; do
             # delete tmp files          
             rm $(dirname ${t2})/tmp_$(basename ${t2}) 2>/dev/null
           else
-            echo "Creating T1w/T2w + thresholded image"
-            cmd="""call_t12ratio \
-              --t1 ${t1} \
-              --t2 ${t2} \
-              -o ${pn_anat}/${base}_acq-${DATA^^}"""
-            print_cmd ${cmd}
-            eval ${cmd}
-            if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): call_t12ratio exited with non-zero status"
-              exit 1
+
+            if [[ -f ${t1} && -f ${t2} ]]; then
+              echo "Creating T1w/T2w + thresholded image"
+              cmd="""call_t12ratio \
+                --t1 ${t1} \
+                --t2 ${t2} \
+                -o ${pn_anat}/${base}_acq-${DATA^^}"""
+              print_cmd ${cmd}
+              eval ${cmd}
+              if [[ $? -ne 0 ]]; then
+                echo "ERROR in $(basename ${0}): call_t12ratio exited with non-zero status"
+                exit 1
+              fi
+            else
+              echo -e "${BOLD_CYAN}${sub_name}${RESET}: Missing ${BOLD_RED}T1w${RESET}/${BOLD_RED}T2w${RESET}-file(s) in ${BOLD_GREEN}${pn_anat}${RESET}"
+              continue
             fi
           fi
-
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find t1 and-/or t2 file in \"${pn_anat}\""
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find ${BOLD_RED}T2w${RESET}-file in ${BOLD_GREEN}${pn_anat}${RESET}"
           continue
         fi
-
       fi
 
       if [[ ! -f ${fn_mni} ]]; then
@@ -187,8 +191,8 @@ for subID in ${search}; do
 
           # fetch template and warp files created with spinoza_registration in step before
           mni_mask=${DIR_SCRIPTS}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
-          mat_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null`
-          warp_file=`find "${pn_matrix}" -type f \( -name "*from-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null`
+          mat_file=`find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null`
+          warp_file=`find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null`
           
           if [[ ! -z ${mat_file} && ! -z ${warp_file} ]]; then
             # got SyN registration
@@ -214,7 +218,7 @@ for subID in ${search}; do
           fi
 
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing ${fn_nuisance}"
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing ${BOLD_GREEN}${fn_nuisance}${RESET}"
           continue
         fi
 
@@ -260,7 +264,7 @@ for subID in ${search}; do
       print_output_exists "${sub_name}" "${fn_out}"
     fi
   else
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find directory \"${pn_anat}\""
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find directory ${BOLD_GREEN}${pn_anat}${RESET}"
     continue
   fi
 done

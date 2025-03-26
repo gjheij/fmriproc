@@ -161,7 +161,7 @@ for subID in ${search}; do
   fi
 
   if [[ ! -d ${INPUTDIR} ]]; then
-    echo "ERROR in $(basename ${0}): ${INPUTDIR} does not exist | is session set correctly?"
+    print_directory_not_exist "${INPUTDIR}"
     exit 1
   fi  
 
@@ -174,11 +174,6 @@ for subID in ${search}; do
 
   if [[ ! -d ${OUTPUTDIR} ]]; then
     mkdir -p ${OUTPUTDIR}
-  fi
-
-  if [[ ! -d ${INPUTDIR} ]]; then
-    echo " ${sub_name}: Could not find directory containing file to be bias field corrected"
-    continue
   fi
 
   spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`

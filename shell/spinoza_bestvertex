@@ -304,7 +304,7 @@ for subID in ${search}; do
   if [[ ! -f ${line_orientation_file} ]]; then
 
     if [[ ! -d ${fs_dir} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: No FreeSurfer directory found. Make sure to run that first"
+      print_directory_not_exist "${fs_dir}"
       continue
     fi
 

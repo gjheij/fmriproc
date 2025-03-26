@@ -109,7 +109,7 @@ for subID in ${search}; do
 
   # check if input folder exists
   if [[ ! -d ${p} ]]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Directory \"${p}\" does not exist"
+    print_directory_not_exist "${p}"
     continue
   fi
 
