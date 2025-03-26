@@ -131,8 +131,8 @@ print_subject_header() {
   local total_width="${TERMINAL_WIDTH:-99}"
 
   # Colored subject ID
-  local base_msg="Processing ${BOLD_CYAN}${SUBJECT_PREFIX}${subject}${RESET}"
-  local plain_msg="Processing sub-${subject}"  # uncolored for length calculation
+  local base_msg="Processing ${BOLD_CYAN}${subject}${RESET}"
+  local plain_msg="Processing ${subject}"  # uncolored for length calculation
   local msg="*** ${base_msg} ***"
   local plain_full="*** ${plain_msg} ***"
   local msg_len=${#plain_full}

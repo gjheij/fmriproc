@@ -101,7 +101,7 @@ for subID in ${search}; do
 
   #-------------------------------------------------------------------------------------------------
   # calculate the averages of UNI T1, INV1, and INV2
-  print_subject_header ${subID}
+  print_subject_header ${sub_name}
 
   if [[ ! -d ${output_dir} ]]; then
     mkdir -p ${output_dir}

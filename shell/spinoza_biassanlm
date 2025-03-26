@@ -230,7 +230,7 @@ for subID in ${search}; do
     if [[ ! -f ${output} ]]; then
 
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
       
       if [[ ${RUN_SANLM} -eq 1 ]]; then
 

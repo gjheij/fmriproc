@@ -150,7 +150,7 @@ for subID in ${search}; do
   if [[ ! -f ${output} ]]; then
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
     echo "${INTRO}"
 
     if [[ ! -f ${output_root}_cruise_cortex.nii.gz ]]; then

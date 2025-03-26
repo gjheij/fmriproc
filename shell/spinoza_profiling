@@ -104,7 +104,7 @@ for subID in ${search}; do
   if [[ ! -f ${sampled_data} ]]; then
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
 
     echo "Creating `basename ${sampled_data}`"
     

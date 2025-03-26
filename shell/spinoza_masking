@@ -147,7 +147,7 @@ for subID in ${search}; do
       echo -e "${BOLD_CYAN}${sub_name}${RESET}: Masked T1-weighted image exists"
     else
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
 
       if [[ ! -f ${MASKED} ]]; then
 

@@ -309,7 +309,7 @@ for subID in ${search}; do
     fi
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
     
     # set the call_pycortex2 '-v' flag  if we want manually selected vertices
     if [[ ! -z ${vert} ]]; then

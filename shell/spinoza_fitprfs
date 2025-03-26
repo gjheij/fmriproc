@@ -390,7 +390,7 @@ for subID in ${search}; do
   if [[ -d ${full_input} || ${refit_data} -eq 1 ]]; then
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
 
     if [[ ! -d ${prf_dir} ]]; then
       mkdir -p ${prf_dir}

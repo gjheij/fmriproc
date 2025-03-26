@@ -155,7 +155,7 @@ for subID in ${search}; do
   phase_folder=${INPUT}/${base_path}/phase
 
   # print header
-  print_subject_header ${subID}
+  print_subject_header ${sub_name}
 
   if [ ! -d ${func_folder} ]; then
     echo "ERROR in $(basename ${0}): could not find folder \"${func_folder}\""

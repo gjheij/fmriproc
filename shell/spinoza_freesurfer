@@ -252,7 +252,7 @@ for subID in ${search}; do
     if [[ ${execute} -eq 1 ]]; then
 
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
       echo "Running FreeSurfer on $(basename ${input_t1w}) with autorecon \"${STAGE}\""
 
       # LOOK FOR T2-/FLAIR WEIGHTED IMAGE

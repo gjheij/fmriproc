@@ -113,7 +113,7 @@ for subID in ${search}; do
     if [[ ! -f ${outputroot}-seg.nii.gz ]]; then
 
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
 
       if [[ ! -f ${output_dir} ]]; then
         mkdir -p ${output_dir}

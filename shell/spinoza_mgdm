@@ -246,7 +246,7 @@ for subID in ${search}; do
     if [[ ${run_local} -eq 1 ]]; then
 
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
       echo ${run_mode}
       echo -e "Creating ${BOLD_GREEN}$(basename ${mgdm_seg})${RESET}"
     fi

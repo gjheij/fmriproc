@@ -196,7 +196,7 @@ for subID in ${search}; do
     fi
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
 
     count=0
     old_lsd=""

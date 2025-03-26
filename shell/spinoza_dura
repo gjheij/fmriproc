@@ -94,7 +94,7 @@ for subID in ${search}; do
   outdir_skull=${OUTPUT}/${base_path}/skullstrip
 
   # print header
-  print_subject_header ${subID}
+  print_subject_header ${sub_name}
   
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then

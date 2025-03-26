@@ -293,7 +293,7 @@ for subID in ${search}; do
           job=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-pybest ${DIR_LOGS})
         else
           # print header
-          print_subject_header ${subID}         
+          print_subject_header ${sub_name}         
           job="bash"
         fi
 

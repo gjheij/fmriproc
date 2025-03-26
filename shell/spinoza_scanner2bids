@@ -258,7 +258,7 @@ for subID in ${search}; do
       job=$(generate_submission_command ${QUEUE} 1 ${base}_desc-dcm2bids ${DIR_LOGS})
     else
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
       echo ${intro_txt}
       job="bash"
     fi

@@ -128,7 +128,7 @@ for subID in ${search}; do
   if [[ ! -f ${massp} ]]; then
 
     # print header
-    print_subject_header ${subID}
+    print_subject_header ${sub_name}
 
     #-----------------------------------------------------------------------------
     # Check if we can mask inputs

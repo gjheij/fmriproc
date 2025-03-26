@@ -124,7 +124,7 @@ for subID in ${search}; do
     if [[ ! -f ${fn_out} ]]; then
 
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
 
       # calculate T1w/T2w ratio
       t1=$(find "${pn_anat}" -type f \( \

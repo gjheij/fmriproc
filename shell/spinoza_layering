@@ -195,7 +195,7 @@ for subID in ${search}; do
     if [[ ! -f ${output} ]]; then
       
       # print header
-      print_subject_header ${subID}
+      print_subject_header ${sub_name}
       
       echo -e "Creating ${BOLD_GREEN}$(basename ${output})${RESET} with ${BOLD_RED}${nr_layers}${RESET} layers"
       call_nighreslayering \
@@ -218,7 +218,7 @@ for subID in ${search}; do
 
   elif [[ ${software,,} == "surface" ]]; then
 
-    print_subject_header ${subID}  
+    print_subject_header ${sub_name}  
 
     #----------------------------------------------------------------------------------------------------------------------------------------------------------
     # Running equivolumetric layering with surface tools

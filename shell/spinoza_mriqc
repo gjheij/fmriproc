@@ -168,7 +168,7 @@ for subID in ${search}; do
   # decide the job type (depending on SGE, can be either qsub or call_fmriprep; for anything else it's call_fmriprep)
   if [[ ${run_local} -eq 1 ]]; then
     # print header
-    print_subject_header ${subID}    
+    print_subject_header ${sub_name}    
     job="call_mriqc"
   else
     if [[ ! -z ${SGE_QUEUE} ]]; then
