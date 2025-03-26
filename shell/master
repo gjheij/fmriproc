@@ -1330,7 +1330,7 @@ if [[ $? -eq 0 ]]; then
       ${PROC} \
       ${FS_FLAG} \
       ${INT_LOWER} \
-      ${INT_UPPER} \      
+      ${INT_UPPER} \
       ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12
   fi
 
