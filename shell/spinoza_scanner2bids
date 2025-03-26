@@ -303,7 +303,7 @@ for subID in ${search}; do
     eval ${cmd}
       
   else
-    echo "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"
+    echo -e "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"
   fi
 
 done
