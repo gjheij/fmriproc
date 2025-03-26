@@ -180,7 +180,7 @@ fi
 # check if we got expert file
 if [[ ! -z ${EXPERT_FILE} ]]; then
   if [[ ! -f ${EXPERT_FILE} ]]; then
-    echo "ERROR in `basename ${0}`: specified expert file \"${EXPERT_FILE}\" does not exist"
+    echo "ERROR in $(basename ${0}): specified expert file \"${EXPERT_FILE}\" does not exist"
     exit 1
   fi
   expert_flag="-x ${EXPERT_FILE}"
@@ -210,7 +210,7 @@ for subID in ${search}; do
   if [ ${ct} -gt 1 ]; then
     echo 
     print_line -
-    echo "ERROR in `basename ${0}`: Found multiple T1w-files (${ct})"
+    echo "ERROR in $(basename ${0}): Found multiple T1w-files (${ct})"
     for ii in ${input_t1w[@]}; do echo " ${ii}"; done
     echo "Rename or delete one and rerun"
     echo 
@@ -253,7 +253,7 @@ for subID in ${search}; do
 
       # print header
       print_subject_header ${subID}
-      echo "Running FreeSurfer on `basename ${input_t1w}` with autorecon \"${STAGE}\""
+      echo "Running FreeSurfer on $(basename ${input_t1w}) with autorecon \"${STAGE}\""
 
       # LOOK FOR T2-/FLAIR WEIGHTED IMAGE
       if [ ! -z ${T2} ]; then
@@ -267,7 +267,7 @@ for subID in ${search}; do
             if [ ${ct} -gt 1 ]; then
               echo 
               print_line -
-              echo "ERROR in `basename ${0}`: Found multiple T2w-files (${ct})"
+              echo "ERROR in $(basename ${0}): Found multiple T2w-files (${ct})"
               for ii in ${input_t2w[@]}; do echo " ${ii}"; done
               echo "Rename or delete one and rerun"
               echo 
@@ -276,7 +276,7 @@ for subID in ${search}; do
               echo "Including T2w: \"${input_t2w}\""
               T2_flag="-p ${input_t2w}"
             else
-              echo "ERROR in `basename ${0}`: not sure what went wrong.."
+              echo "ERROR in $(basename ${0}): not sure what went wrong.."
               exit 1
             fi
 
@@ -284,7 +284,7 @@ for subID in ${search}; do
             T2_flag=""
           fi
         else
-          echo "ERROR in `basename ${0}`: T2-path was given, but \"${T2}/${base_path}\" does not exist"
+          echo "ERROR in $(basename ${0}): T2-path was given, but \"${T2}/${base_path}\" does not exist"
         fi
       else
         T2_flag=""
@@ -293,7 +293,7 @@ for subID in ${search}; do
       # cmd
       if [[ ${STAGE} != "all" ]]; then
         if [[ -z ${start_flag} ]]; then
-          echo "ERROR in `basename ${0}`: recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon. Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
+          echo "ERROR in $(basename ${0}): recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon. Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
           exit 1
         fi
       fi
@@ -317,11 +317,11 @@ for subID in ${search}; do
       eval ${cmd}      
 
     else
-      echo "${sub_name}: FreeSurfer already ran"
+      print_output_exists "${sub_name}" "subject already in FreeSurfer's SUBJECTS_DIR"
     fi
 
   else
-    echo "No T1-weighted image found in \"${T1_DIR}\""
+    echo "ERROR: No T1-weighted image found in \"${T1_DIR}\""
     continue
   fi
 

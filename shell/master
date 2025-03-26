@@ -1226,7 +1226,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in `basename ${0}`: spinoza_sinusfrommni exited with non-zero status"
+    echo "ERROR in $(basename ${0}): spinoza_sinusfrommni exited with non-zero status"
     exit 1
   fi
 
@@ -1276,7 +1276,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in `basename ${0}`: spinoza_biassanlm exited with non-zero status"
+    echo "ERROR in $(basename ${0}): spinoza_biassanlm exited with non-zero status"
     exit 1
   fi
 
@@ -2038,7 +2038,7 @@ if [[ $? -eq 0 ]]; then
     SOFTWARE="surface"
     INPUT_DIR=${FS}
   else
-    echo "ERROR in `basename ${0}`: Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
+    echo "ERROR in $(basename ${0}): Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
     exit 1
   fi
 

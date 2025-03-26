@@ -352,7 +352,7 @@ for subID in ${search}; do
     if [[ " ${allowed_models[*]} " =~ " ${model} " ]]; then
       use_model=${model,,}
     else
-      echo "ERROR in `basename ${0}`: model specified was \"${model}\". Please use \"gauss\", \"dog\", \"css\", or \"norm\"."
+      echo "ERROR in $(basename ${0}): model specified was \"${model}\". Please use \"gauss\", \"dog\", \"css\", or \"norm\"."
       exit 1
     fi
   fi
@@ -421,7 +421,7 @@ for subID in ${search}; do
         elif [[ ${lbl_flag} == *"v2"* ]]; then
           roi="V2"
         else
-          echo "ERROR in `basename ${0}`: the flag '${lbl_flag}' was specified, but there is only support for '--v1'/'--v2'"
+          echo "ERROR in $(basename ${0}): the flag '${lbl_flag}' was specified, but there is only support for '--v1'/'--v2'"
           exit 1
         fi
 
@@ -450,7 +450,7 @@ for subID in ${search}; do
             if [[ ! -z ${task_ID} ]]; then
               echo
               print_line -
-              echo "WARNING in `basename ${0}`: custom task \"${task_ID}\" was/were specified, but \"--multi_design\"-flag omitted."
+              echo "WARNING in $(basename ${0}): custom task \"${task_ID}\" was/were specified, but \"--multi_design\"-flag omitted."
               echo "This may result in selection of the wrong png-folder. Please rerun with \"--multi_design\""
               exit 2
             fi
@@ -467,7 +467,7 @@ for subID in ${search}; do
               else
                 echo
                 print_line -
-                echo "ERROR in `basename ${0}`: could not find png's in \"${png_dir}\""
+                echo "ERROR in $(basename ${0}): could not find png's in \"${png_dir}\""
                 echo "Some solutions could be:"
                 echo " - Create \"${DIR_DATA_HOME}/code/design_task-${task}.mat\""
                 echo " - Create \"${prf_dir}/design_task-${task}.mat\""
@@ -477,7 +477,7 @@ for subID in ${search}; do
 
               # check if directory contains png-files
               if [[ -z `find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null` ]]; then
-                echo "ERROR in `basename ${0}`: no *.png-files in \"${use_pngdir}\""
+                echo "ERROR in $(basename ${0}): no *.png-files in \"${use_pngdir}\""
                 continue
               fi
             fi
@@ -492,17 +492,17 @@ for subID in ${search}; do
 
                 # check if directory contains png-files
                 if [[ -z `find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null` ]]; then
-                  echo "ERROR in `basename ${0}`: no *.png-files in \"${use_pngdir}\""
+                  echo "ERROR in $(basename ${0}): no *.png-files in \"${use_pngdir}\""
                   continue
                 fi
               else
-                echo "ERROR in `basename ${0}`: could not find \"task-${task}\" folders"
+                echo "ERROR in $(basename ${0}): could not find \"task-${task}\" folders"
                 continue
               fi
             else
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: could not find png's in \"${png_dir}\""
+              echo "ERROR in $(basename ${0}): could not find png's in \"${png_dir}\""
               echo "Some solutions could be:"
               echo " - Create \"${DIR_DATA_HOME}/code/design_task-${task}.mat\""
               echo " - Create \"${prf_dir}/design_task-${task}.mat\""
@@ -560,12 +560,12 @@ for subID in ${search}; do
             dm_file=${prf_dir}/design_task-${task}.mat
 
             if [[ ! -f ${bold_file} ]]; then
-              echo "ERROR in `basename ${0}`: could not file with \"hemi-LR\" and \"avg_bold.npy\" in \"${prf_dir}\""
+              echo "ERROR in $(basename ${0}): could not file with \"hemi-LR\" and \"avg_bold.npy\" in \"${prf_dir}\""
               exit 1
             fi
 
             if [[ ! -f ${dm_file} ]]; then
-              echo "ERROR in `basename ${0}`: could not file \"${dm_file}\""
+              echo "ERROR in $(basename ${0}): could not file \"${dm_file}\""
               exit 1
             fi
              
@@ -649,21 +649,21 @@ for subID in ${search}; do
 
           eval ${cmd}
           if [[ $? -ne 0 ]]; then
-            echo "ERROR in `basename ${0}`: call_prf did not execute cleanly"
+            echo "ERROR in $(basename ${0}): call_prf did not execute cleanly"
             exit 1
           fi
 
         fi
 
       else
-        echo "`basename ${prf_params}` file exists"
+        print_output_exists "${sub_name}" "${prf_params}"
         continue
       fi
       
     done
 
   else
-    echo "${sub_name}: Directory \"${full_input}\" not valid."
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Directory \"${full_input}\" not valid."
   fi
 
 done

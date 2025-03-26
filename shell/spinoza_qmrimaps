@@ -194,7 +194,7 @@ for subID in ${search}; do
   fi
 
   if [[ ! -d ${input_dir} ]]; then
-    echo "${sub_name}: could not find input directory \"${input_dir}\""
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find input directory \"${input_dir}\""
     continue
   else
     if [[ ${run_local} -eq 1 ]]; then
@@ -223,7 +223,7 @@ for subID in ${search}; do
     if [[ ! -f ${t1w} || ! -f ${t1map} || ${FORCE_EXEC} -eq 1 ]]; then
 
       if [[ ${#in_files[@]} -eq 0 ]]; then
-        echo "${sub_name}: ${#in_files[@]} files available for ${a^^}"
+        echo -e "${BOLD_CYAN}${sub_name}${RESET}: ${#in_files[@]} files available for ${a^^}"
         break
       else
         if [[ ! -d ${output_dir} ]]; then
@@ -302,7 +302,7 @@ for subID in ${search}; do
       fi
 
     else
-      echo -e "Found output ${BOLD_GREEN}${t1w}${RESET}"
+      print_output_exists "${sub_name}" "${t1w}"
     fi
 
   done

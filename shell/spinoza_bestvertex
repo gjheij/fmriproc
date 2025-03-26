@@ -304,7 +304,7 @@ for subID in ${search}; do
   if [[ ! -f ${line_orientation_file} ]]; then
 
     if [[ ! -d ${fs_dir} ]]; then
-      echo "${sub_name}: No FreeSurfer directory found. Make sure to run that first"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: No FreeSurfer directory found. Make sure to run that first"
       continue
     fi
 
@@ -353,7 +353,7 @@ for subID in ${search}; do
         srf_file=`find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null`
         srf_file_flag="--srf_file ${srf_file}"
         if [[ -z ${srf_file} ]]; then
-          echo "ERROR in `basename ${0}`: \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
+          echo "ERROR in $(basename ${0}): \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
           exit 1
         fi
       else
@@ -394,14 +394,12 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in `basename ${0}`: call_targetvertex exited with non-zero status"
+      echo "ERROR in $(basename ${0}): call_targetvertex exited with non-zero status"
       exit 1
     fi
 
   else
-
-    echo "${sub_name}: ${line_orientation_file} already present"
-
+    print_output_exists "${sub_name}" "${line_orientation_file}"
   fi
 
 done

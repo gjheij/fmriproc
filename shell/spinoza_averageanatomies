@@ -95,7 +95,7 @@ for subID in ${search}; do
   output_dir=${OUTPUT}/${base_path}
 
   if [ ! -d ${input_dir} ]; then
-    echo "${sub_name}: could not find input directory \"${input_dir}\""
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find input directory \"${input_dir}\""
     continue
   fi
 
@@ -167,7 +167,7 @@ for subID in ${search}; do
 
       fi
     else
-      echo "`basename ${out}` already present"
+      print_output_exists "${sub_name}" "${out}"
     fi
   done
 
@@ -183,7 +183,7 @@ for subID in ${search}; do
     spm=${spm_imgs[0]}
 
     # rename
-    echo "Creating ${base}_acq-${DATA}_desc-spm-mask.nii.gz"
+    echo -e "Creating ${BOLD_GREEN}${base}_acq-${DATA}_desc-spm-mask.nii.gz${RESET}"
     cp ${spm} ${output_dir}/${base}_acq-${DATA}_desc-spm_mask.nii.gz 2>/dev/null
   fi
 

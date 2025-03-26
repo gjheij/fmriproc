@@ -139,7 +139,7 @@ for subID in ${search}; do
     for i in "R1" "R2s" "QSM"; do
       fn=`find ${input_dir} -type f \( -name "*${i}.nii.gz" \) 2>/dev/null`
 
-      j=0; for k in ${fn[@]}; do ((j++)); done; if [[ ${j} -ne 1 ]]; then echo "${sub_name}: Found more than 1 file for ${r}"; continue 2; fi
+      j=0; for k in ${fn[@]}; do ((j++)); done; if [[ ${j} -ne 1 ]]; then echo -e "${BOLD_CYAN}${sub_name}${RESET}: Found more than 1 file for ${r}"; continue 2; fi
 
       if [[ -z ${fn} ]]; then
         echo "Could not find ${i}-file.."
@@ -178,14 +178,12 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in `basename ${0}`: call_nighresmassp exited with non-zero status"
+      echo "ERROR in $(basename ${0}): call_nighresmassp exited with non-zero status"
       exit 1
     fi
 
   else
-
-    echo "${sub_name}: MASSP-label image already exists"
-
+    print_output_exists "${sub_name}" "${massp}"
   fi
 
 done

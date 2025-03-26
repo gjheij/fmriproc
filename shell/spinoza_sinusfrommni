@@ -144,7 +144,7 @@ for subID in ${search}; do
             print_cmd ${cmd}
             eval ${cmd}
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              echo "ERROR in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
             fi
 
@@ -154,7 +154,7 @@ for subID in ${search}; do
             print_cmd ${cmd}
             eval ${cmd}
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
+              echo "ERROR in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
             fi
 
@@ -169,13 +169,13 @@ for subID in ${search}; do
             print_cmd ${cmd}
             eval ${cmd}
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: call_t12ratio exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_t12ratio exited with non-zero status"
               exit 1
             fi
           fi
 
         else
-          echo "${sub_name}: Could not find t1 and-/or t2 file in \"${pn_anat}\""
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find t1 and-/or t2 file in \"${pn_anat}\""
           continue
         fi
 
@@ -194,7 +194,7 @@ for subID in ${search}; do
             # got SyN registration
             call_antsapplytransforms -i "1 0" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} "${mat_file} ${warp_file}"
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
               exit 1
             fi
           elif [[ ! -z ${mat_file} && -z ${warp_file} ]]; then
@@ -205,16 +205,16 @@ for subID in ${search}; do
             eval ${cmd}
 
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
               exit 1
             fi          
           else
-            echo "${sub_name}: missing warp-files for call_antsapplytransforms"
+            echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing warp-files for call_antsapplytransforms"
             continue
           fi
 
         else
-          echo "${sub_name}: missing ${fn_nuisance}"
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing ${fn_nuisance}"
           continue
         fi
 
@@ -229,7 +229,7 @@ for subID in ${search}; do
           eval ${cmd}
 
           if [[ $? -ne 0 ]]; then
-            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
+            echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
             exit 1
           fi
 
@@ -247,28 +247,22 @@ for subID in ${search}; do
           fi
 
           if [[ $? -ne 0 ]]; then
-            echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"
+            echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
             exit 1
           fi
 
         else
-          echo "${sub_name}: Could not find file of MNI-mask in subject space. Check previous step!"
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find file of MNI-mask in subject space. Check previous step!"
         fi
       fi
 
     else
-      
-      echo "${sub_name}: `basename ${fn_out}` already exists"
-
+      print_output_exists "${sub_name}" "${fn_out}"
     fi
-
   else
-
-    echo "${sub_name}: Could not find directory \"${pn_anat}\""
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find directory \"${pn_anat}\""
     continue
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------

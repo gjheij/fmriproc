@@ -109,7 +109,7 @@ for subID in ${search}; do
 
   # check if input folder exists
   if [[ ! -d ${p} ]]; then
-    echo "${sub_name}: Directory \"${p}\" does not exist"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Directory \"${p}\" does not exist"
     continue
   fi
 
@@ -120,13 +120,13 @@ for subID in ${search}; do
     if [[ -f ${file} ]]; then
       INPUTS+=(${file})
     else
-      echo "${sub_name}: Could not find \"${r}\" image in \"${p}\""
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find \"${r}\" image in \"${p}\""
       continue 2
     fi
   done
 
   if [[ -z "${INPUTS}" ]]; then
-    echo "${sub_name}: Did not find required inputs"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Did not find required inputs"
     continue
   fi
 
@@ -156,13 +156,13 @@ for subID in ${search}; do
     if [[ ! -f ${output_root}_cruise_cortex.nii.gz ]]; then
 
       echo "Inputs are:"
-      echo " -WM : `basename ${INPUTS[1]}`"
-      echo " -GM : `basename ${INPUTS[2]}`"
-      echo " -CSF: `basename ${INPUTS[3]}`"
+      echo " -WM : ${BOLD_GREEN}$(basename ${INPUTS[1]})${RESET}"
+      echo " -GM : ${BOLD_GREEN}$(basename ${INPUTS[2]})${RESET}"
+      echo " -CSF: ${BOLD_GREEN}$(basename ${INPUTS[3]})${RESET}"
 
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
         # run regular cruise
-        echo "Creating `basename ${output}`"
+        echo "Creating ${BOLD_GREEN}$(basename ${output})${RESET}"
         call_nighrescruise \
           -m "${INPUTS[0]}" \
           -w "${INPUTS[1]}" \
@@ -174,7 +174,7 @@ for subID in ${search}; do
         if [[ $? != 0 ]]; then
           echo
           print_line -
-          echo "ERROR in `basename ${0}`: call_nighrescruise exited with non-zero status"
+          echo "ERROR in $(basename ${0}): call_nighrescruise exited with non-zero status"
           exit 1
         fi
 
@@ -190,7 +190,7 @@ for subID in ${search}; do
               continue 2
             fi
           else
-            echo "${sub_name}: reconstruction already present"
+            echo -e "${BOLD_CYAN}${sub_name}${RESET}: output already exists [${BOLD_GREEN}${output_root}-cruise_${f}.nii.gz${RESET}]"
           fi
 
         done
@@ -217,14 +217,14 @@ for subID in ${search}; do
         file=`find -L "${p}" -type f \( -name "*acq-${DATA^^}*" -and -name "*cruise_cortex.nii.gz" \) 2>/dev/null`
         cp ${file} ${output} 2>/dev/null
       else
-        echo "ERROR in `basename ${0}`: Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in ${DIR_SCRIPTS}/shell/spinoza_setup"
+        echo "ERROR in $(basename ${0}): Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in ${DIR_SCRIPTS}/shell/spinoza_setup"
         exit 1
       fi 
     else
       echo "Skipping nighres. Found something that looks like output"
     fi
   else
-    echo "${sub_name}: reconstruction already present"
+    print_output_exists "${sub_name}" "${output}"
   fi
 done
 

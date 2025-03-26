@@ -142,7 +142,7 @@ for subID in ${search}; do
   if [[ ${use_fprep} -eq 0 && ${use_fs} -eq 0 ]]; then
     if [[ ! -d ${INPUTDIR} ]]; then
       if [[ ${use_fs} -eq 0 ]]; then
-        echo "ERROR in `basename ${0}`: ${INPUTDIR} does not exist"
+        echo "ERROR in $(basename ${0}): ${INPUTDIR} does not exist"
         exit 1
       fi
     fi
@@ -221,7 +221,7 @@ for subID in ${search}; do
 
     else
 
-      echo "${sub_name}: couldn't find input in ${INPUTDIR}"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: couldn't find input in ${INPUTDIR}"
       continue
 
     fi
@@ -292,7 +292,7 @@ for subID in ${search}; do
       else
 
         if [[ -z ${input} ]]; then
-          echo "${sub_name}: No input file found"
+          echo -e "${BOLD_CYAN}${sub_name}${RESET}: No input file found"
         fi
 
       fi
@@ -300,7 +300,7 @@ for subID in ${search}; do
     else
 
       if [[ -f ${output_mask} ]]; then
-        echo "${sub_name}: inv-2 brain mask already present"
+        echo -e "${BOLD_CYAN}${sub_name}${RESET}: inv-2 brain mask already present"
       fi
     fi
 
@@ -335,11 +335,11 @@ for subID in ${search}; do
       if [[ ${use_fs} -eq 1 ]]; then
         in_dir=${SUBJECTS_DIR}/${sub_name}/mri
         if [[ ! -d ${in_dir} ]]; then
-          echo "ERROR in `basename ${0}`: FreeSurfer directory \"${in_dir}\" does not exist"
+          echo "ERROR in $(basename ${0}): FreeSurfer directory \"${in_dir}\" does not exist"
           exit 1
         fi
 
-        echo "Using FreeSurfer input"
+        echo -e "Using ${BOLD_RED}FreeSurfer${RESET} input"
         fs_anat=${in_dir}/rawavg.mgz
         fs_nii=${in_dir}/rawavg.nii.gz
         rename_base=1
@@ -348,7 +348,7 @@ for subID in ${search}; do
             call_mriconvert ${fs_anat}
           fi
         else
-          echo "ERROR in `basename ${0}`: Could not find FreeSurfer anatomy \"${fs_anat}\""
+          echo "ERROR in $(basename ${0}): Could not find FreeSurfer anatomy \"${fs_anat}\""
           exit 1
         fi
 
@@ -356,14 +356,14 @@ for subID in ${search}; do
         if [[ -f ${fs_nii} ]]; then
           input=${fs_nii}
         else
-          echo "ERROR in `basename ${0}`: \"${fs_nii}\" was not created.."
+          echo "ERROR in $(basename ${0}): \"${fs_nii}\" was not created.."
           exit 1
         fi
       elif [[ ${use_fprep} -eq 1 ]]; then
-        echo "Using fMRIprep input"
+        echo -e "Using ${BOLD_RED}fMRIprep${RESET} input"
         in_dir=${DIR_DATA_DERIV}/fmriprep/${base_path}/anat
         if [[ ! -d ${in_dir} ]]; then
-          echo "ERROR in `basename ${0}`: fMRIprep directory \"${in_dir}\" does not exist"
+          echo "ERROR in $(basename ${0}): fMRIprep directory \"${in_dir}\" does not exist"
           exit 1
         fi
         input=`find -L "${DIR_DATA_DERIV}/fmriprep/${base_path}/anat" -type f \( -name "${base}*" -and -name "*_desc-preproc_T1w.nii.gz" -and -not -name "*space*" \) 2>/dev/null`
@@ -395,7 +395,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: call_cat12 exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_cat12 exited with non-zero status"
               exit 1
             fi
 
@@ -436,7 +436,7 @@ for subID in ${search}; do
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            echo "ERROR in `basename ${0}`: call_winsorize exited with non-zero status."
+            echo "ERROR in $(basename ${0}): call_winsorize exited with non-zero status."
             exit 1
           fi
 
@@ -466,7 +466,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: call_rmbackground exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_rmbackground exited with non-zero status"
               exit 1
             fi
 
@@ -475,7 +475,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: call_winsorize exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_winsorize exited with non-zero status"
               exit 1
             fi
 
@@ -483,7 +483,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: call_rescale exited with non-zero status"
+              echo "ERROR in $(basename ${0}): call_rescale exited with non-zero status"
               exit 1
             fi
 
@@ -503,7 +503,7 @@ for subID in ${search}; do
         fi
       fi
     else
-      echo "${sub_name}: ${BOLD_GREEN}$(basename ${corrected_t1w})${RESET} present. Skipping CAT12. Use \"--ow\" to overwrite CAT12/*cat_mask.nii.gz"
+      print_output_exists "${sub_name}" "${corrected_t1w}" "Skipping CAT12. Use \"--ow\" to overwrite CAT12/*cat_mask.nii.gz"
     fi
 
     # still copy SPM-mask even if heavy CAT12-processing was turned off

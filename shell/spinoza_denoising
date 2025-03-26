@@ -322,16 +322,16 @@ for subID in ${search}; do
         if [[ $? != 0 ]]; then
           echo
           print_line -
-          echo "ERROR in `basename ${0}`: call_pybest exited with non-zero status"
+          echo "ERROR in $(basename ${0}): call_pybest exited with non-zero status"
           exit 1
         fi        
 
       else
-        echo "${sub_name}: data already denoised (use --ow to overwrite)"
+        print_output_exists "${sub_name}" "data already denoised" "Use \"--ow\" to overwrite"
       fi
 
     else
-      echo "${sub_name}: directory \"${FPREP}/${base_path}/func\" does not exist. Run and/or wait for fMRIprep first.."
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: directory \"${FPREP}/${base_path}/func\" does not exist. Run and/or wait for fMRIprep first.."
       continue
     fi
 

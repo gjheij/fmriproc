@@ -276,7 +276,7 @@ for subID in ${search}; do
         eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in `basename ${0}`: call_antsregistration exited with non-zero status"
+          echo "ERROR in $(basename ${0}): call_antsregistration exited with non-zero status"
           exit 1
         fi
 
@@ -342,7 +342,7 @@ for subID in ${search}; do
             fi
 
           else
-            echo " `basename ${output}` exists"
+            echo " $(basename ${output}) exists"
           fi
         fi
       done

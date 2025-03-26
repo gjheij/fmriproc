@@ -91,7 +91,7 @@ for subID in ${search}; do
   # Running FAST with call_fslfast
 
   if [[ ! -d ${input_dir} ]]; then
-    echo "${sub_name}: Could not find skullstripped directory. Make sure you run module 12 first"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find skullstripped directory. Make sure you run module 12 first"
     continue
   fi
 
@@ -120,7 +120,7 @@ for subID in ${search}; do
       fi
 
       if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
-        echo "Running FAST on `basename ${input_t1w}`"
+        echo "Running FAST on $(basename ${input_t1w})"
         call_fslfast ${input_t1w} ${outputroot}
       fi
 
@@ -146,20 +146,14 @@ for subID in ${search}; do
         fi
 
       done
-
       echo "Done"
-
     else
-      echo "${sub_name}: segmentations already exist"
+      print_output_exists "${sub_name}" "${outputroot}-seg.nii.gz"
     fi
-
   else
-    
-    echo "${sub_name}: No skullstripped T1-weighted image found"
+    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No skullstripped T1-weighted image found"
     continue
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------

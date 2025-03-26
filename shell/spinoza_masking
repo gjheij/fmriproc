@@ -144,7 +144,7 @@ for subID in ${search}; do
     fi
 
     if [[ -f ${MASKED} ]]; then
-      echo "${sub_name}: Masked T1-weighted image exists"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Masked T1-weighted image exists"
     else
       # print header
       print_subject_header ${subID}
@@ -172,7 +172,7 @@ for subID in ${search}; do
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            echo "ERROR in `basename ${0}`: call_gdhmasking exited with non-zero status"
+            echo "ERROR in $(basename ${0}): call_gdhmasking exited with non-zero status"
             exit 1
           fi
 
@@ -217,7 +217,7 @@ for subID in ${search}; do
         fi
 
       else
-        echo "${sub_name}: masked file already exist"
+        print_output_exists "${sub_name}" "${MASKED}"
       fi
 
     fi

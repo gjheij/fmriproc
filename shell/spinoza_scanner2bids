@@ -220,11 +220,11 @@ for subID in ${search}; do
     nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
     base_path=${sub_name}/ses-${nr}
     base=${sub_name}_ses-${nr}
-    msg="${sub_name} ses-${ses}: already processed"
+    msg="${BOLD_CYAN}${sub_name}${RESET} ses-${BOLD_RED}${ses}${RESET}: already processed"
   else
     base_path=${sub_name}
     base=${sub_name}
-    msg="${sub_name}: already processed"
+    msg="${BOLD_CYAN}${sub_name}${RESET}: already processed"
   fi  
 
   input_dir=${SOURCEDATA}/${base_path}
@@ -296,11 +296,11 @@ for subID in ${search}; do
     # echo command if running locally
     if [[ ${SGE_FLAG} -eq 0 ]]; then
       echo
-      echo ${cmd} | tr "\n" " "
+      print_cmd ${cmd} | tr "\n" " "
       echo
     fi
 
-    ${cmd}
+    eval ${cmd}
       
   else
     echo "${msg}; use \"master -m 02a --ow\" (re-runs bidsification) or \"master -m 02a --full\" (also re-runs conversion) to overwrite"

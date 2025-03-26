@@ -160,7 +160,7 @@ for subID in ${search}; do
     # Running equivolumetric layering with nighres
 
     if [[ ! -d ${input_dir}/cruise ]]; then
-      echo "${sub_name}: Could not find nighres' CRUISE directory"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find nighres' CRUISE directory"
       continue
     fi
 
@@ -197,7 +197,7 @@ for subID in ${search}; do
       # print header
       print_subject_header ${subID}
       
-      echo "Creating `basename ${output}` with ${nr_layers} layers"
+      echo -e "Creating ${BOLD_GREEN}$(basename ${output})${RESET} with ${BOLD_RED}${nr_layers}${RESET} layers"
       call_nighreslayering \
         -i ${INPUTS[0]} \
         -o ${INPUTS[1]} \
@@ -208,14 +208,12 @@ for subID in ${search}; do
       if [[ $? != 0 ]]; then
         echo
         print_line -
-        echo "ERROR in `basename ${0}`: call_nighreslayering exited with non-zero status"
+        echo "ERROR in $(basename ${0}): call_nighreslayering exited with non-zero status"
         exit 1
       fi
 
     else
-
-      echo "${sub_name}: `basename ${output}` already exists"
-
+      print_output_exists "${sub_name}" "${output}"
     fi
 
   elif [[ ${software,,} == "surface" ]]; then
@@ -264,7 +262,7 @@ for subID in ${search}; do
       eval ${run_cmd}
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in `basename ${0}`: generate_equivolumetric_surfaces exited with non-zero status"
+        echo "ERROR in $(basename ${0}): generate_equivolumetric_surfaces exited with non-zero status"
         exit 1
       fi
 
@@ -273,9 +271,7 @@ for subID in ${search}; do
     echo "Stored outputs in ${SUBJECTS_DIR}/${sub_name}/surf/?h.equi*"
     echo "Warp your surface to each individual layers using:"
     echo "for hemi in \"lh\" \"rh\"; do mri_vol2surf --src func.nii.gz --out ${hemi}.equi_intensity_??.gii --hemi lh --surf <subj>/surf/lh.equi??.pial --out_type gii; done #(where ?? is the equidistance, e.g., 0.5)"
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------

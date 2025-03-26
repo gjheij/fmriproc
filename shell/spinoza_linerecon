@@ -191,7 +191,7 @@ for subID in ${search}; do
     # exit 1
 
     if [[ -z ${bold_files} ]]; then
-      echo "${sub_name}: Could not find BOLD-data"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find BOLD-data"
       continue
     fi
 
@@ -286,12 +286,12 @@ for subID in ${search}; do
             if [[ -z ${lsd} ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: could not find LSD image.."
+              echo "ERROR in $(basename ${0}): could not find LSD image.."
               exit 1
             else
               ct=0; for i in ${lsd[@]}; do ((ct++)); done
               if [[ ${ct} -gt 1 ]]; then
-                echo "ERROR in `basename ${0}`: Found multiple LSD images.."
+                echo "ERROR in $(basename ${0}): Found multiple LSD images.."
                 for i in ${lsd[@]}; do echo " $i"; done
                 exit 1
               fi
@@ -350,11 +350,9 @@ for subID in ${search}; do
         old_lsd=${lsd}
 
       else
-        echo "${outputbase}.mat exists"
+        echo -e "${BOLD_GREEN}${outputbase}.mat${RESET} exists"
       fi
-
     done
-
   else
     echo "Could not find \"${lab_func}\""
     continue

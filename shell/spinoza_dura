@@ -132,7 +132,7 @@ for subID in ${search}; do
     inv2_mask=`find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
 
     if [[ -z ${inv2} ]]; then
-      echo "${sub_name}: Missing INV2-image. Check ${inv2_dir} for:"
+      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Missing INV2-image. Check ${inv2_dir} for:"
       echo " \"${sub_name}\""
       echo " \"echo-1\" (if DATA==MP2RAGEME)"
       echo " \"inv-2\""
@@ -160,7 +160,7 @@ for subID in ${search}; do
       mkdir -p ${outdir_dura}
     fi
 
-    echo "Creating `basename ${output_mask}`"
+    echo -e "Creating ${BOLD_GREEN}$(basename ${output_mask})${RESET}"
     echo " -inv2: ${inv2}"
     echo " -mask: ${inv2_mask}"
     echo " -out:  ${outdir_dura}/${output_root}_dura-proba.nii.gz"
@@ -194,7 +194,7 @@ for subID in ${search}; do
 
     fi
 
-    echo "Thresholding and binarizing `basename ${output_dura}`"
+    echo "Thresholding and binarizing $(basename ${output_dura})"
     if [[ -f ${MASKS}/${base_path}/tmp_$(basename ${output_dura}) ]]; then
       rm ${MASKS}/${base_path}/tmp_$(basename ${output_dura})
     fi
@@ -217,7 +217,7 @@ for subID in ${search}; do
     fi
 
   else
-    echo "`basename ${output_mask}` already exists"
+    print_output_exists "${sub_name}" "${output_mask}"
   fi
 
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ for subID in ${search}; do
   if [[ ! -f ${output_skullstrip} ]]; then
 
     echo
-    echo "Creating `basename ${output_skullstrip}`"
+    echo -e "Creating ${BOLD_GREEN}$(basename ${output_skullstrip})${RESET}"
 
     if [[ -f ${t1w} && -f ${t1map} && -f ${inv2} ]]; then
 
@@ -274,11 +274,8 @@ for subID in ${search}; do
           echo "Could not find file for mgdm output: ${f}"
         fi
       fi
-
     done
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------
