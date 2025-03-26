@@ -483,13 +483,13 @@ ${run_cmd} \
       subj_wf=${wf_folder}/${single_subj_wf}
 
       if [[ -d ${subj_wf} ]]; then
-        echo "Removing \"${subj_wf}\""
+        echo -e "Removing ${BOLD_GREEN}${subj_wf}${RESET}"
         rm -r ${subj_wf} 2>/dev/null
       else
         echo "Could not find/remove \"${subj_wf}\""
       fi
     else
-      echo "Could not find directory containing \"fmriprep\" and \"wf\" in \"${work}\""
+      echo -e "Could not find directory containing \"fmriprep\" and \"wf\" in ${BOLD_GREEN}${work}${RESET}"
     fi
   fi
 
