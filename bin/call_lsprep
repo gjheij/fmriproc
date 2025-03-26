@@ -197,10 +197,6 @@ Example
             "lsprep", 
             base_path
         )
-      
-    # make output dir
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
 
     # get layout
     layout = BIDSLayout(bids_dir, validate=False)
@@ -302,7 +298,11 @@ Example
     # check if we have tsv_files
     if not isinstance(collect_dict["tsv"], list):
         button_press = False
-    
+
+    # make output dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+            
     # initialize object
     obj_ = dataset.Dataset(
         collect_dict["func"],
