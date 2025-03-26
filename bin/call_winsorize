@@ -41,7 +41,7 @@ VERB=0
 lower=0.01
 upper=0.99
 n_bins=256
-while getopts :-:vl:u:t:-: argument
+while getopts :-:vl:u:t: argument
 do
   case ${argument} in
     -)
@@ -80,6 +80,11 @@ out=${@:$OPTIND+1:1}
 
 in_file=`fetch_filepath ${in}`
 
+if [[ ! -f ${in_file} ]]; then
+  echo "ERROR in $(basename ${0}): input file \"${in_file}\" does not exist"
+  exit 1
+fi
+
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
   intensities_pre=`fslstats ${in_file} -R`
@@ -97,11 +102,6 @@ fi
 dim=`fslval ${in_file} dim0`
 cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} ${upper} ${n_bins}"""
 
-if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): ImageMath exited with non-zero status"
-  exit 1
-fi
-
 # echo cmd
 if [[ ${VERB} -eq 1 ]]; then
   echo ${cmd}
@@ -109,6 +109,11 @@ fi
 
 # run cmd
 eval ${cmd}
+
+if [[ $? -ne 0 ]]; then
+  echo "ERROR in $(basename ${0}): ImageMath exited with non-zero status"
+  exit 1
+fi
 
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
