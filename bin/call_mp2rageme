@@ -86,12 +86,14 @@ Notes:
 ---------------------------------------------------------------------------------------------------
     """
 
-    inputdir    = None
-    outputdir   = None
-    outputbase  = "sample_desc"
-    do_stuff    = False
-    pars_file   = None
-
+    inputdir = None
+    outputdir = None
+    outputbase = "sample_desc"
+    do_stuff = False
+    pars_file = None
+    lower = 0.01
+    upper = 0.99
+    
     try:
         opts = getopt.getopt(argv,"hci:s:n:o:b:u:l:",["help", "inputdir=", "subject=", "outputdir=", "outputbase=", "ups", "mask", "pars=", "upper=", "lower="])[0]
     except getopt.GetoptError:
@@ -112,9 +114,9 @@ Notes:
         elif opt in ("-c", "--mask"):
             do_stuff = True
         elif opt in ("-l", "--lower"):
-            lower = f"-l {arg}"
+            lower = float(arg)
         elif opt in ("-u", "--upper"):
-            upper = f"-u {arg}"             
+            upper = float(arg)           
         elif opt in ("--pars"):
             pars_file = os.path.abspath(arg)
 
@@ -141,12 +143,6 @@ Notes:
 
     print("Loading all images to the memp2rage object")
     memp2rage = MEMP2RAGE(
-        echo_times=pars["echo_times"], # TEs of second inversion in seconds
-        MPRAGE_tr=pars["TR"],
-        invtimesAB=pars["inv_times"],
-        flipangleABdegree=pars["fa"],
-        nZslices=pars["nZ"],
-        FLASH_tr=pars["FLASH_tr"], # TRs of the first and second GRE block are
         inv1=select_fn[0],
         inv1ph=select_fn[1],
         inv2=[
@@ -161,6 +157,7 @@ Notes:
             select_fn[7],
             select_fn[9]
         ]
+        **pars
     )
 
     # create output directory
@@ -196,7 +193,7 @@ Notes:
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose {lower} {upper}"""
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
 
         os.system(cmd)
         if not os.path.exists(spm_mask):

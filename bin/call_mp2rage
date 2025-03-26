@@ -98,17 +98,19 @@ Notes:
     - INV2ph    ('inv-2_part-phase')
 ---------------------------------------------------------------------------------------------------
     """
-    inputdir    = None
-    outputdir   = None
-    inv1        = None
-    inv1ph      = None
-    inv2        = None
-    inv2ph      = None
-    ups         = False
-    outputbase  = "sample_desc"
-    do_stuff    = False
-    noise_beta  = None
-    pars_file   = None
+    inputdir = None
+    outputdir = None
+    inv1 = None
+    inv1ph = None
+    inv2 = None
+    inv2ph = None
+    ups = False
+    outputbase = "sample_desc"
+    do_stuff = False
+    noise_beta = None
+    pars_file = None
+    lower = 0.01
+    upper = 0.99
 
     try:
         opts = getopt.getopt(argv, "hci:o:b:u:l:", ["help", "inputdir=", "outputdir=", "outputbase=", "inv1=", "inv1ph=", "inv2=", "inv2ph=", "mask", "ups", "beta=", "skip_bg", "pars=", "lower=", "upper="])[0]
@@ -120,9 +122,7 @@ Notes:
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print(main.__doc__)
-            sys.exit()
-        elif opt in ("--ups"):
-            ups = True              
+            sys.exit()       
         elif opt in ("-i", "--inputdir"):
             inputdir = arg
         elif opt in ("-o", "--outputdir"):
@@ -130,9 +130,9 @@ Notes:
         elif opt in ("-b", "--outputbase"):
             outputbase = arg
         elif opt in ("-l", "--lower"):
-            lower = f"-l {arg}"
+            lower = float(arg)
         elif opt in ("-u", "--upper"):
-            upper = f"-u {arg}" 
+            upper = float(arg)
         elif opt in ("-c", "--mask"):
             do_stuff = True            
         elif opt in ("--skip_bg"):
@@ -149,7 +149,9 @@ Notes:
             noise_beta = int(arg)
         elif opt in ("--pars"):
             pars_file = os.path.abspath(arg)
-
+        elif opt in ("--ups"):
+            ups = True
+   
     if len(argv) < 3:
         print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
@@ -184,16 +186,13 @@ Notes:
     )
 
     print("Loading all images to the mp2rage object")
+    print(pars)
     mp2rage = MP2RAGE(
-        MPRAGE_tr=pars["TR"],
-        invtimesAB=pars["inv_times"],
-        flipangleABdegree=pars["fa"],
-        nZslices=pars["nZ"],
-        FLASH_tr=pars["FLASH_tr"],
         inv1=select_fn[0],
         inv1ph=select_fn[1],
         inv2=select_fn[2],
-        inv2ph=select_fn[3]
+        inv2ph=select_fn[3],
+        **pars
     )
 
     # make output directory
@@ -229,8 +228,9 @@ Notes:
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose {lower} {upper}"""
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
         
+        print(cmd)
         os.system(cmd)
         if not os.path.exists(spm_mask):
             raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")
