@@ -15,6 +15,133 @@ end = utils.color.END
 
 opj = os.path.join
 
+def define_mr_parameters(pars_file=None, ups=False, is_mp2rage=True):
+    """define_mr_parameters
+    
+    Returns a dictionary of MR acquisition parameters for MP2RAGE or MP2RAGE-ME sequences.
+
+    Parameters can either be loaded from a JSON file or returned as a predefined default
+    (including Universal Pulses presets for MP2RAGE). The function performs basic validation
+    to ensure required keys are present.
+
+    Parameters
+    ----------
+    pars_file : str or None, optional
+        Path to a JSON file containing sequence parameters. If None, default values are used.
+    
+    ups : bool, optional
+        If True, use Universal Pulses (UPs) parameters when `is_mp2rage` is True and `pars_file` is not provided.
+        Ignored when `is_mp2rage` is False. Default is False.
+
+    is_mp2rage : bool, optional
+        If True, load or define parameters for an MP2RAGE sequence. If False, parameters for an
+        MP2RAGE-ME (multi-echo) sequence are used. Default is True.
+
+    Returns
+    -------
+    dict
+        Dictionary containing MR parameters, with required fields depending on the sequence type:
+        
+        If `is_mp2rage` is True:
+            - "TR": Repetition time of MP2RAGE sequence (in seconds)
+            - "inv_times": List of inversion times (in seconds)
+            - "fa": List of flip angles for the two readouts (in degrees)
+            - "nZ": Number of slices
+            - "FLASH_tr": List of readout TRs (in seconds)
+        
+        If `is_mp2rage` is False:
+            - "echo_times": List of echo times (in seconds)
+            - "inv_times": List of inversion times (in seconds)
+            - "TR": Repetition time of the MP2RAGE-ME sequence (in seconds)
+            - "fa": List of flip angles
+            - "nZ": Number of slices
+            - "FLASH_tr": List of readout TRs (in seconds)
+
+    Raises
+    ------
+    ValueError
+        If a required parameter key is missing from the provided JSON file.
+
+    Notes
+    -----
+    This function is useful for standardized MP2RAGE or MP2RAGE-ME parameter extraction during
+    simulation, reconstruction, or post-processing workflows. Universal Pulses (UPs) presets can
+    be enabled with `ups=True` for modified acquisition protocols.
+    """
+
+    if is_mp2rage:
+
+        required_keys = [
+            "TR",
+            "inv_times",
+            "fa",
+            "nZ",
+            "FLASH_tr"
+        ]
+
+        # set default 0.7 MP2RAGE Phillips parameters
+        if not isinstance(pars_file, str):
+            pars = {
+                "TR": 5.5,
+                "inv_times": [0.8,2.7],
+                "fa": [6,6],
+                "nZ": 200,
+                "FLASH_tr": [0.0062,0.0062]
+            }
+
+            # UPs
+            if ups:
+                print("Using parameters for Universal Pulses (UPs)")
+                pars = {
+                    "TR": 6.778,
+                    "inv_times": [0.67,3.754],
+                    "fa": [4,4],
+                    "nZ": 150,
+                    "FLASH_tr": [0.0062,0.031273]
+                }
+        else:
+
+            print(f"Reading parameters from '{pars_file}'")
+            with open(pars_file) as f:
+                pars = json.load(f)
+
+            for i in required_keys:
+                if i not in list(pars.keys()):
+                    raise ValueError(f"Missing key '{i}' in {pars_file}")
+            
+        return pars
+
+    else:
+        # mp2rageme
+        required_keys = [
+            "echo_times",
+            "inv_times",
+            "TR",
+            "fa",
+            "nZ",
+            "FLASH_tr"
+        ]
+            
+        if not isinstance(pars_file, str):
+            pars = {
+                "echo_times": [0.006, 0.0145, 0.023, 0.0315],
+                "inv_times": [0.67, 3.68],
+                "mp2rage_tr": 6.723,
+                "fa": [4,4],
+                "nZ": 150,
+                "FLASH_tr": [0.0062,0.31246]
+            }
+        else:
+            print(f"Reading parameters from '{pars_file}'")
+            with open(pars_file) as f:
+                pars = json.load(f)
+            
+            for i in required_keys:
+                if i not in list(pars.keys()):
+                    raise ValueError(f"Missing key '{i}' in {pars_file}")
+                
+        return pars
+
 def get_minmax(file):
 
     """get_minmax
