@@ -71,13 +71,13 @@ def define_mr_parameters(pars_file=None, ups=False, is_mp2rage=True):
 
     if is_mp2rage:
 
-        required_keys = [
-            "TR",
-            "inv_times",
-            "fa",
-            "nZ",
-            "FLASH_tr"
-        ]
+        mapper = {
+            "TR": "MPRAGE_tr",
+            "inv_times": "invtimesAB",
+            "fa": "flipangleABdegree",
+            "nZ": "nZslices",
+            "FLASH_tr": "FLASH_tr"
+        }
 
         # set default 0.7 MP2RAGE Phillips parameters
         if not isinstance(pars_file, str):
@@ -105,22 +105,26 @@ def define_mr_parameters(pars_file=None, ups=False, is_mp2rage=True):
             with open(pars_file) as f:
                 pars = json.load(f)
 
-            for i in required_keys:
+            for i in list(mapper.keys()):
                 if i not in list(pars.keys()):
                     raise ValueError(f"Missing key '{i}' in {pars_file}")
-            
-        return pars
+        
+        pars_dict = {}
+        for key, val in mapper.items():
+            pars_dict[val] = pars[key]
+
+        return pars_dict
 
     else:
         # mp2rageme
-        required_keys = [
-            "echo_times",
-            "inv_times",
-            "TR",
-            "fa",
-            "nZ",
-            "FLASH_tr"
-        ]
+        mapper = {
+            "echo_times": "echo_times",
+            "TR": "MPRAGE_tr",
+            "inv_times": "invtimesAB",
+            "fa": "flipangleABdegree",
+            "nZ": "nZslices",
+            "FLASH_tr": "FLASH_tr"
+        }
             
         if not isinstance(pars_file, str):
             pars = {
@@ -136,11 +140,15 @@ def define_mr_parameters(pars_file=None, ups=False, is_mp2rage=True):
             with open(pars_file) as f:
                 pars = json.load(f)
             
-            for i in required_keys:
+            for i in list(mapper.keys()):
                 if i not in list(pars.keys()):
                     raise ValueError(f"Missing key '{i}' in {pars_file}")
                 
-        return pars
+        pars_dict = {}
+        for key, val in mapper.items():
+            pars_dict[val] = pars[key]
+
+        return pars_dict
 
 def get_minmax(file):
 
