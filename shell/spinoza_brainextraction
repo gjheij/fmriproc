@@ -28,6 +28,8 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or n)
   -o|--ow             overwrite existing files including CAT12-segmentation (takes long!)
+  -l <lower>          lower percentile (default = 0.01) for call_winsorize
+  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
   --full              do full processing with CAT12 including iterative SANLM filtering and bias 
                       correction. Default is just tissue segmentation. 
   --fs                use rawavg.mgz from FreeSurfer; overwrites the specified input
@@ -54,7 +56,9 @@ OW=0
 mode=""
 use_fs=0
 use_fprep=0
-while getopts :-:os:n:m: argument
+lower=0.01
+upper=0.99
+while getopts :-:os:n:m:u:l: argument
 do
   case ${argument} in
     -)
@@ -83,7 +87,11 @@ do
     n)  ses=${OPTARG}
           ;; 
     o)  OW=1
-          ;;                      
+          ;;
+    l)  lower=${OPTARG}
+          ;;
+    u)  upper=${OPTARG}
+          ;;               
   esac
 done
 
@@ -401,7 +409,7 @@ for subID in ${search}; do
             fi
           
           else
-            echo "`basename ${brainmask}` already exists. Skipping CAT12"
+            echo "${BOLD_GREEN}$(basename ${brainmask})${RESET} already exists. Skipping CAT12"
           fi
         else
           echo "Found existing output"
@@ -419,35 +427,23 @@ for subID in ${search}; do
         # clip and rescale m-image if needed:
         biascorr=`find -L ${BET} -type f -name "m${sub_name}*" 2>/dev/null`
         if [[ ! -z ${biascorr} ]]; then
-          
-          # val=`fslstats ${biascorr} -R | awk '{print $2}'`
-          # if (( $(echo "$val > 6.0" | bc -l) )); then
-          #   echo "Found outliers in CAT12-output, clipping image"
-          #   call_clipimage ${biascorr} 0.001 ${biascorr}
-          # fi
 
-          # # check manually were to clip
-          # echo "Opening ITK-Snap; go to \"tools\" > \"colormap editor\""
-          # itksnap -g ${biascorr} 2>/dev/null
-          # printf "Set clipping value (leave empty for default values) [ENTER]: "
-          # read CLIPVALUE
-
-          # if [[ ! -z ${CLIPVALUE} ]]; then
-          #   call_clipimage ${biascorr} 1.1 ${biascorr}
-          # fi
-
-          ImageMath 3 ${biascorr} TruncateImageIntensity ${biascorr} 0.01 0.999 256
+          # truncate and 
+          echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
+          cmd="call_winsorize -l ${lower} -u ${upper} ${biascorr}"
+          print_cmd ${cmd} && eval ${cmd}
 
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            echo "ERROR in `basename ${0}`: call_clipimage exited with non-zero status. Most likely found 2 files.."
+            echo "ERROR in `basename ${0}`: call_winsorize exited with non-zero status."
             exit 1
           fi
 
           # rescale clipped image
-          echo "Rescaling intensity-normalized T1w-image to [0,4095]"
-          call_rescale ${biascorr} 0 4095 ${corrected_t1w}
+          echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
+          cmd="call_rescale ${biascorr} 0 4095 ${corrected_t1w}"
+          print_cmd ${cmd} && eval ${cmd}
 
           # copy qform to sform
           fslorient -copyqform2sform ${corrected_t1w}
@@ -463,7 +459,10 @@ for subID in ${search}; do
           if [[ ! -z ${spm_mask} ]]; then
             echo "Getting rid of CAT12-induced background with SPM-mask"
 
-            call_rmbackground -t ${corrected_t1w} -m ${spm_mask} -i ${input} -o ${corrected_t1w}
+            cmd="call_rmbackground -t ${corrected_t1w} -m ${spm_mask} -i ${input} -o ${corrected_t1w}"
+            print_cmd ${cmd}
+            eval ${cmd}
+
             if [[ $? != 0 ]]; then
               echo
               print_line -
@@ -471,20 +470,12 @@ for subID in ${search}; do
               exit 1
             fi
 
-            # check manually were to clip
-            # echo "Opening ITK-Snap; go to \"tools\" > \"colormap editor\""
-            # itksnap -g ${corrected_t1w} 2>/dev/null
-            # printf "Set clipping value (leave empty for default values) [ENTER]: "
-            # read CLIPVALUE
-
-            # call_clipimage ${corrected_t1w} ${CLIPVALUE} # should be *1000 of clipvalue above
-
             # truncate image intensities
-            ImageMath 3 ${corrected_t1w} TruncateImageIntensity ${corrected_t1w} 0.01 0.999 256
+            call_winsorize -l 0.01 -u 0.99 ${corrected_t1w}
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in `basename ${0}`: call_clipimage exited with non-zero status"
+              echo "ERROR in `basename ${0}`: call_winsorize exited with non-zero status"
               exit 1
             fi
 
@@ -499,27 +490,20 @@ for subID in ${search}; do
             if [[ ! -d $(dirname ${spm}) ]]; then
               mkdir -p $(dirname ${spm})
             fi
-
             cp ${spm_mask} ${spm}
-
           fi
-          
         else
-          echo "Could not find m*-image; copying input to CAT12-directory"
+          echo "Could not find m*-image; copying ${BOLD_GREEN}${input}${RESET} to CAT12-directory"
           cp ${input} ${BET}
         fi
-
       else
-
         if [[ -z ${input} ]]; then
           echo "No file with \"${DATA^^}\", \"*T1w\" in \"${INPUTDIR}\""
           exit 1
         fi
-
       fi
-
     else
-      echo "${sub_name}: T1w-file present. Skipping CAT12. Use \"--ow\" to overwrite CAT12/*cat_mask.nii.gz"
+      echo "${sub_name}: ${BOLD_GREEN}$(basename ${corrected_t1w})${RESET} present. Skipping CAT12. Use \"--ow\" to overwrite CAT12/*cat_mask.nii.gz"
     fi
 
     # still copy SPM-mask even if heavy CAT12-processing was turned off
@@ -539,9 +523,11 @@ for subID in ${search}; do
       cp ${spm_mask} ${spm}
     fi
 
+    # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
     if [[ -f ${spm} && -f ${brainmask} ]]; then
-      # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
-      fslmaths ${spm} -sub ${brainmask} -thr 0 ${duramask}
+      cmd="fslmaths ${spm} -sub ${brainmask} -thr 0 ${duramask}"
+      print_cmd ${cmd} && eval ${cmd}
+      echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
     fi
 
     # If we do not have INV2 images, we did not run spinoza_qmrimaps. So, we dont have a cat_dura mask. 
@@ -552,15 +538,11 @@ for subID in ${search}; do
       if [[ -f ${sinus_out} ]]; then
         cp ${sinus_out} ${duramask} 2>/dev/null
       fi
-    fi    
-
+    fi
   else
-
     echo "No valid argument was specified. Please use ANTs/ants or FSL/fsl. Exiting script"
     exit 1
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------

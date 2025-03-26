@@ -74,6 +74,8 @@ SANLM_WITH_ANTS=0
 RUN_SANLM=1
 n_cpu=1
 use_mask=1
+lower=0.01
+upper=0.99
 while getopts :-:bos:n:x:j:u:l: argument
 do
   case ${argument} in
@@ -114,9 +116,9 @@ do
           ;;
     j)  n_cpu=${OPTARG}
           ;;
-    l)  lower="-l ${OPTARG}"
+    l)  lower=${OPTARG}
           ;;
-    u)  upper="-u ${OPTARG}"
+    u)  upper=${OPTARG}
           ;;
   esac
 done
@@ -283,11 +285,15 @@ for subID in ${search}; do
       fi
 
       # truncate and 
-      echo "Winsorizing image intensities"
-      call_winsorize ${lower} ${upper} ${output}
+      echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
+      cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
+      eval ${cmd}
 
-      echo "Rescaling to [0,4095]"
-      call_rescale ${output} 0 4095
+      if [[ ! ]]
+
+      echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
+      cmd="call_rescale ${output} 0 4095"
+      eval ${cmd}
 
       # set dtype to uint16
       echo "Set dtype to UINT16"

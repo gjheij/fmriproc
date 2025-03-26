@@ -210,7 +210,7 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   cmd="call_winsorize -l ${lower} -u ${upper} ${final_file}"
   eval ${cmd}
 
-  echo " Rescaling T1w to [0,4095]"
+  echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
   cmd="call_rescale ${final_file} 0 4095"
   eval ${cmd}
 else
@@ -261,11 +261,11 @@ if [[ ! -z ${t1map} ]]; then
   #-----------------------------------------------------------------------------
   # truncate intensities and rescale
   if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
-    echo "Truncating T1map intensities [0.01,0.99] with 256 bins"
-    cmd="call_winsorize ${t1_reg}"
+    echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
+    cmd="call_winsorize -l ${lower} -u ${upper} ${t1_reg}"
     eval ${cmd}
 
-    echo " Rescaling T1map to [0,5050]"
+    echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}5050${RESET}]"
     cmd="call_rescale ${t1_reg} 0 5050"
     eval ${cmd}
   else
