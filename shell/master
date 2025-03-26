@@ -486,7 +486,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           CRASH_FLAG="--try"
           ;;
         ups)
-          UPs="-u"
+          UPs="--ups"
           ;;
         v1)
           lbl_flag="--v1"
