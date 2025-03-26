@@ -118,7 +118,7 @@ cmd="make_antsrf_script ${INPUT} ${interp} ${output_dir} ${suffix} ${new_script}
 # call_matlab = in call_bashhelper
 if [ ${VERB} -eq 1 ]; then
   echo "creating script with:"
-  echo $cmd
+  print_cmd $cmd
 fi
 eval $cmd
 
@@ -168,7 +168,7 @@ if [[ ${open_fv} -eq 1 ]]; then
   cmd="freeview -f ${fs_dir}/lh.inflated:overlay=${lh} ${fs_dir}/rh.inflated:overlay=${rh} -viewport '3d'"
 
   if [[ ${VERB} -eq 1 ]]; then
-    echo $cmd
+    print_cmd $cmd
   fi
   eval $cmd
 fi

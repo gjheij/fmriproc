@@ -525,7 +525,7 @@ for subID in ${search}; do
 
     # echo cmd
     if [[ ${run_local} -eq 1 ]]; then
-      echo $cmd
+      print_cmd ${cmd}
     fi
 
     # run

@@ -104,7 +104,7 @@ cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} $
 
 # echo cmd
 if [[ ${VERB} -eq 1 ]]; then
-  echo ${cmd}
+  print_cmd ${cmd}
 fi
 
 # run cmd

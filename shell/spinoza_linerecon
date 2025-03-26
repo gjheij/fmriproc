@@ -330,7 +330,7 @@ for subID in ${search}; do
 
         # echo cmd if not on cluster
         if [[ ${verbose} -eq 1 ]]; then
-          echo ${cmd}
+          print_cmd ${cmd}
           echo
         fi
 
@@ -344,7 +344,7 @@ for subID in ${search}; do
         fi
 
         # run cmd
-        ${cmd}
+        eval ${cmd}
         
         # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
         old_lsd=${lsd}

@@ -194,11 +194,11 @@ if [[ ! -z ${trafos} ]]; then
 
   cmd="call_antsapplytransforms ${VERBOSE} ${INT} ${invert} ${fixed} ${moving} ${out} ${trafos}"
   if [[ ${VERB} -eq 1 ]]; then
-    echo ${cmd}
+    print_cmd ${cmd}
   fi
 
   # run
-  ${cmd}
+  eval ${cmd}
 
   if [[ $? -ne 0 ]]; then
     echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"

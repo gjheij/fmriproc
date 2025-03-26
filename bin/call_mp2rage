@@ -230,7 +230,7 @@ Notes:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
         cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
         
-        print(cmd)
+        utils.verbose(cmd, True, highlight=True)
         os.system(cmd)
         if not os.path.exists(spm_mask):
             raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")

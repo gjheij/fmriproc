@@ -236,8 +236,8 @@ if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
   """
 
   # run
-  echo ${cmd}
-  ${cmd}
+  print_cmd ${cmd}
+  eval ${cmd}
 
   if [[ $? != 0 ]]; then
     echo

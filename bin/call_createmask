@@ -99,7 +99,7 @@ Example:
     if not os.path.exists(fsl_mask):
         utils.verbose("Make mask with FSL from INV2-image", verbose)
         cmd = f"bet2 {input_file} {opj(opd(input_file), 'tmp')} -m -f 0.2"
-        utils.verbose(cmd, verbose)
+        utils.verbose(cmd, verbose, highlight=True)
         
         try:
             os.system(cmd)
@@ -110,7 +110,7 @@ Example:
     if not os.path.exists(output_file):
         utils.verbose("Make mask with SPM from INV2-image", verbose)
         cmd = f'call_spmmask --clean {input_file} {output_file}'
-        utils.verbose(cmd, verbose)
+        utils.verbose(cmd, verbose, highlight=True)
         try:
             os.system(cmd)
         except:
@@ -143,8 +143,8 @@ Example:
         utils.verbose("Removing noise pattern around the brain", verbose)
         try:
             cmd = f"call_rmbackground -t {t1_file} -m {output_file} -i {input_file} -o {t1_file}"
-            print(cmd)
-            result = subprocess.run(
+            utils.verbose(cmd, verbose, highlight=True)
+            _ = subprocess.run(
                 cmd,
                 shell=True,
                 check=True,
@@ -165,14 +165,14 @@ Example:
         try:
             # Truncate image intensities
             tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-            cmd_truncate = f"call_winsorize -l {lower} -u {upper} {t1_file} {tmp_file}"
+            cmd = f"call_winsorize -l {lower} -u {upper} {t1_file} {tmp_file}"
 
             print("Truncating image intensities ["+rb+str(lower)+end+","+rb+str(upper)+end+"] with "+rb+"256"+end+" bins")
-            print(cmd_truncate)
+            utils.verbose(cmd, verbose, highlight=True)
 
             # Run ImageMath
             _ = subprocess.run(
-                cmd_truncate,
+                cmd,
                 shell=True,
                 check=True,
                 capture_output=True,
@@ -186,12 +186,12 @@ Example:
             # Clip positive values if the minimum is not zero
             if out_[0] != 0:
                 print("Clipping original output at "+rb+str(clip_value)+end)
-                cmd_clip = f"call_clipimage {tmp_file} {clip_value} {t1_file}"
-                print(cmd_clip)
+                cmd = f"call_clipimage {tmp_file} {clip_value} {t1_file}"
+                utils.verbose(cmd, verbose, highlight=True)
 
                 # Run call_clipimage
                 _ = subprocess.run(
-                    cmd_clip,
+                    cmd,
                     shell=True,
                     check=True,
                     capture_output=True,

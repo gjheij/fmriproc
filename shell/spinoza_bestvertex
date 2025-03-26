@@ -388,8 +388,8 @@ for subID in ${search}; do
       ${aparc_flag} \
       ${skip_prf_info}"""
     
-    echo ${cmd}
-    ${cmd}
+    print_cmd ${cmd}
+    eval ${cmd}
 
     if [[ $? != 0 ]]; then
       echo

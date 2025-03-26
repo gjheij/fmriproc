@@ -166,8 +166,8 @@ for subID in ${search}; do
             -t ${t1w_fn}"""
 
           # echo command
-          echo ${cmd}
-          ${cmd}
+          print_cmd ${cmd}
+          eval ${cmd}
 
           if [[ $? != 0 ]]; then
             echo
@@ -246,14 +246,14 @@ for subID in ${search}; do
         if [[ ! -z ${MASKED} ]]; then
           # echo " apply mask to masked T1-weighted image"
           cmd="""fslmaths ${MASKED} -mas ${mask_img} ${bet_t1w}"""
-          echo $cmd
-          $cmd
+          print_cmd $cmd
+          eval $cmd
         fi
 
         if [[ ! -z ${t1map} ]]; then
           cmd="""fslmaths ${t1map} -mas ${mask_img} ${bet_t1m}"""
-          echo $cmd
-          $cmd
+          print_cmd $cmd
+          eval $cmd
         fi
 
       fi

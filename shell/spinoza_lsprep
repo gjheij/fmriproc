@@ -187,7 +187,7 @@ for subID in ${search}; do
 
     # echo command
     if [[ ${run_local} -eq 1 ]]; then
-      echo $cmd
+      print_cmd ${cmd}
     fi
 
     (
@@ -198,7 +198,7 @@ for subID in ${search}; do
     ) >> ${log_file}
     
     # execute cmd
-    ${cmd}
+    eval ${cmd}
 
   done
 

@@ -155,8 +155,8 @@ for subID in ${search}; do
 
             # mask t2 with brain mask
             cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
-            echo ${cmd}
-            ${cmd}
+            print_cmd ${cmd}
+            eval ${cmd}
             if [[ $? -ne 0 ]]; then
               echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
               exit 1
@@ -165,8 +165,8 @@ for subID in ${search}; do
             # threshold
             cmd="""fslmaths $(dirname ${t2})/tmp_$(basename ${t2}) -uthr 10000 -bin ${fn_nuisance}"""
             echo
-            echo ${cmd}
-            ${cmd}
+            print_cmd ${cmd}
+            eval ${cmd}
             if [[ $? -ne 0 ]]; then
               echo "ERROR in `basename ${0}`: fslmaths exited with non-zero code"
               exit 1
@@ -180,8 +180,8 @@ for subID in ${search}; do
               --t1 ${t1} \
               --t2 ${t2} \
               -o ${pn_anat}/${base}_acq-${DATA^^}"""
-            echo ${cmd}
-            ${cmd}
+            print_cmd ${cmd}
+            eval ${cmd}
             if [[ $? -ne 0 ]]; then
               echo "ERROR in `basename ${0}`: call_t12ratio exited with non-zero status"
               exit 1
@@ -223,8 +223,8 @@ for subID in ${search}; do
             # got affine registration
             cmd="""call_antsapplytransforms --gen ${fn_nuisance} ${mni_mask} ${fn_mni} ${mat_file}"""
             echo
-            echo ${cmd}
-            ${cmd}
+            print_cmd ${cmd}
+            eval ${cmd}
 
             if [[ $? -ne 0 ]]; then
               echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status"
@@ -246,8 +246,8 @@ for subID in ${search}; do
           echo
           echo "Multiplying template mask with nuisance-image"
           cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
-          echo ${cmd}
-          ${cmd}
+          print_cmd ${cmd}
+          eval ${cmd}
 
           if [[ $? -ne 0 ]]; then
             echo "ERROR in `basename ${0}`: fslmaths exited with non-zero status"

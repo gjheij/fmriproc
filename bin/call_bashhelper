@@ -67,6 +67,21 @@ load_colors() {
   export BOLD_BLUE BOLD_MAGENTA BOLD_CYAN BOLD_WHITE
 }
 
+# load the colors
+load_colors
+
+# print executable in color
+print_cmd() {
+  local cmd="$*"
+
+  # Extract the first word (executable)
+  local executable="${cmd%% *}"
+  local rest="${cmd#${executable}}"
+
+  # Print with just the executable in color
+  echo -e "${BOLD_BLUE}${executable}${RESET}${rest}"
+}
+
 activate_conda() {
   local env_name="$1"
   if [[ -z "$env_name" ]]; then
@@ -116,7 +131,7 @@ print_subject_header() {
   local total_width="${TERMINAL_WIDTH:-99}"
 
   # Colored subject ID
-  local base_msg="Processing sub-${BOLD_RED}${subject}${RESET}"
+  local base_msg="Processing ${BOLD_CYAN}${SUBJECT_PREFIX}${subject}${RESET}"
   local plain_msg="Processing sub-${subject}"  # uncolored for length calculation
   local msg="*** ${base_msg} ***"
   local plain_full="*** ${plain_msg} ***"

@@ -81,11 +81,11 @@ fi
 
 if [[ ${IN_TYPE} == "vol" ]]; then
   cmd="mri_vol2vol --mov ${MOV} --targ ${TAR} --regheader --o ${OUT} ${reg_flag}"
-  echo ${cmd} && exec ${cmd}
+  print_cmd ${cmd} && eval ${cmd}
 
 elif [[ ${IN_TYPE} == "seg" ]]; then
-  cmd"mri_label2vol --seg ${MOV} --temp ${TAR} --o ${OUT} --regheader ${MOV}"
-  echo ${cmd} && exec ${cmd}
+  cmd="mri_label2vol --seg ${MOV} --temp ${TAR} --o ${OUT} --regheader ${MOV}"
+  print_cmd ${cmd} && eval ${cmd}
 else
   echo "invalid option ${IN_TYPE}"
   Usage >&2

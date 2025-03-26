@@ -256,7 +256,7 @@ for subID in ${search}; do
 
             # execute command
             if [[ ${run_local} -eq 1 ]]; then
-              echo ${cmd}
+              print_cmd ${cmd}
             fi
 
             eval ${cmd}
@@ -274,7 +274,7 @@ for subID in ${search}; do
             output_base=${base}_acq-${a^^}${add_run}
             if [[ ${run_local} -eq 0 ]]; then
               submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
-              call_=`which call_${a,,}`
+              call_=$(which call_${a,,})
               job="${submit} ${call_}" 
             else
               job="call_${a,,}"
@@ -293,7 +293,7 @@ for subID in ${search}; do
 
             # execute command
             if [[ ${run_local} -eq 1 ]]; then
-              echo "Processing \"${file}\""
+              echo -e "Processing \"${BOLD_GREEN}${file}${RESET}\""
             fi
             
             eval ${cmd}

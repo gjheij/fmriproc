@@ -184,7 +184,7 @@ fi
 # Run the epi_reg command
 if [[ -f ${t1head} && -f ${t1brain} ]]; then
     cmd="epi_reg --epi=${epi_file} --t1=${t1head} --t1brain=${t1brain} --out=${out_file} ${wm_flag}"
-    echo ${cmd} && exec ${cmd}
+    print_cmd ${cmd} && eval ${cmd}
 else
     echo "ERROR in `basename ${0}`: could not find t1brain/t1head-files"
     exit 1

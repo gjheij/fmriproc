@@ -637,7 +637,7 @@ for subID in ${search}; do
             ${fix_hrf}"""
 
           if [[ ${run_local} -eq 1 ]]; then
-            echo ${cmd}
+            print_cmd ${cmd}
           fi
 
           cmd_file=${prf_dir}/sub-${sub_id}_ses-${nr}_task-${task}_desc-command.txt
@@ -647,7 +647,7 @@ for subID in ${search}; do
             echo
           ) >> ${cmd_file}
 
-          ${cmd}
+          eval ${cmd}
           if [[ $? -ne 0 ]]; then
             echo "ERROR in `basename ${0}`: call_prf did not execute cleanly"
             exit 1

@@ -237,8 +237,8 @@ for task_id in ${task_ids[@]}; do
           --n-comps ${n_comps} \
           ${kwargs}"""
 
-        echo ${cmd}
-        ${cmd}
+        print_cmd ${cmd}
+        eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
           echo "ERROR in `basename ${0}`: pybest existed with non-zero status"
@@ -306,8 +306,8 @@ for task_id in ${task_ids[@]}; do
         --n-comps ${n_comps} \
           ${kwargs}"""
 
-      echo ${cmd}
-      ${cmd}
+      print_cmd ${cmd}
+      eval ${cmd}
 
       if [[ $? -ne 0 ]]; then
         echo "ERROR in `basename ${0}`: pybest existed with non-zero status"

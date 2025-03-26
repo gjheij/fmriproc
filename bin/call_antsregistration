@@ -553,7 +553,7 @@ fi
 if [[ ${VERB} -eq 1 ]]; then
   echo "antsRegistration call:"
   print_line -
-  echo ${cmd}
+  print_cmd ${cmd}
   echo
 fi
 
@@ -599,7 +599,7 @@ if [[ ${fsl_fmt} -eq 1 ]]; then
   if [[ ${VERB} -eq 1 ]]; then
     echo "ras2fsl call:"
     print_line -
-    echo ${cmd}
+    print_cmd ${cmd}
     echo
   fi
 

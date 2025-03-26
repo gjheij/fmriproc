@@ -194,8 +194,8 @@ for subID in ${search}; do
     ${mod_flag} \
     ${fd_flag}"""
 
-  echo ${cmd}
-  ${cmd}
+  print_cmd ${cmd}
+  eval ${cmd}
 
   if [[ $? != 0 ]]; then
     echo "ERROR in `basename ${0}`: call_mriqc did not execute cleanly"

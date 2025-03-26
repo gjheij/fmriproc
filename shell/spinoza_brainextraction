@@ -381,8 +381,8 @@ for subID in ${search}; do
 
           if [[ ! -f ${brainmask} ]]; then
             cmd="""call_cat12 ${mode} -s ${SPM_PATH} ${input} ${BET}"""
-            echo ${cmd}
-            ${cmd}
+            print_cmd ${cmd}
+            eval ${cmd}
 
             if [[ $? != 0 ]]; then
               echo

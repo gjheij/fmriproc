@@ -159,7 +159,7 @@ cmd="""antsApplyTransformsToPoints \
   -t ${APPLY}"""
 
 if [[ ${verb} -eq 1 ]]; then
-  echo ${cmd}
+  print_cmd ${cmd}
 fi
 eval ${cmd}
 

@@ -315,9 +315,9 @@ for subID in ${search}; do
           ${raw_flag}"""
 
         if [[ ${run_local} -eq 1 ]]; then
-          echo ${cmd}
+          print_cmd ${cmd}
         fi
-        ${cmd}
+        eval ${cmd}
 
         if [[ $? != 0 ]]; then
           echo
