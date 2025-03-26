@@ -75,6 +75,8 @@ RUN_WITH_ANTS=1
 RUN_SANLM=1
 REG_T1=1
 WINSORIZE_INTENSITIES=1
+lower=0.01
+upper=0.99
 # Check for subject & session flags
 while getopts hd:s:x:u:l:-: argument
 do
@@ -101,9 +103,9 @@ do
           fi
           ;;
       esac;; 
-    l)  lower="-l ${OPTARG}"
+    l)  lower=${OPTARG}
           ;;
-    u)  upper="-u ${OPTARG}"
+    u)  upper=${OPTARG}
           ;;          
     s)  SPM=${OPTARG}
           ;;
@@ -204,8 +206,8 @@ fi
 #-----------------------------------------------------------------------------
 # truncate intensities and rescale
 if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
-  echo " Truncating image intensities [0.01,0.99] with 256 bins"
-  cmd="call_winsorize ${lower} ${upper} ${final_file}"
+  echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
+  cmd="call_winsorize -l ${lower} -u ${upper} ${final_file}"
   eval ${cmd}
 
   echo " Rescaling T1w to [0,4095]"
