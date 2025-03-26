@@ -165,9 +165,9 @@ Example:
         try:
             # Truncate image intensities
             tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-            cmd_truncate = f"call_winsorize -l {lower} -u {upper} {tmp_file} {t1_file}"
+            cmd_truncate = f"call_winsorize -l {lower} -u {upper} {t1_file} {tmp_file}"
 
-            print("Truncating image intensities ["+rb+lower+end+","+rb+upper+" with "+rb+"256"+end+" bins")
+            print("Truncating image intensities ["+rb+str(lower)+end+","+rb+str(upper)+end+"] with "+rb+"256"+end+" bins")
             print(cmd_truncate)
 
             # Run ImageMath
@@ -186,7 +186,7 @@ Example:
             # Clip positive values if the minimum is not zero
             if out_[0] != 0:
                 print("Clipping original output at "+rb+str(clip_value)+end)
-                cmd_clip = f"call_clipimage {t1_file} {clip_value}"
+                cmd_clip = f"call_clipimage {tmp_file} {clip_value} {t1_file}"
                 print(cmd_clip)
 
                 # Run call_clipimage
