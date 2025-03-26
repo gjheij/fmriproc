@@ -288,9 +288,7 @@ for subID in ${search}; do
       echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
       cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
       eval ${cmd}
-
-      if [[ ! ]]
-
+      
       echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
       cmd="call_rescale ${output} 0 4095"
       eval ${cmd}
