@@ -129,6 +129,8 @@ mod_flag=""               # spinoza_mriqc
 fd_flag=""                # spinoza_mriqc
 t_specified=0             # keep track when t-flag is specified or --func is used (alias for -t func)
 ANAT_DEPTH=""             # all anatomical steps
+INT_LOWER=""              # lower bound for call_winsorize
+INT_UPPER=""              # upper bound for call_winsorize
 
 # use long options in bash:
 # https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
@@ -549,6 +551,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       WHICH_MOD=${OPTARG}
       NR_LAYERS="-l ${OPTARG}"
       LS_SES="-l ${OPTARG}"
+      INT_LOWER="-l ${OPTARG}"
       ;;
     v)
       VERTICES=${OPTARG}
@@ -565,6 +568,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       ;;
     u)
       CONF=${OPTARG}
+      INT_UPPER="-u ${OPTARG}"
       ;;
     r)
       ROI=${OPTARG}
@@ -1032,6 +1036,8 @@ if [[ $? -eq 0 ]]; then
     ${BIAS_FLAG} \
     ${REG_T1} \
     ${INTENSITY_FLAG} \
+    ${INT_LOWER} \
+    ${INT_UPPER} \
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
 
   if [[ $? -ne 0 ]]; then

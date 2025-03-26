@@ -14,13 +14,16 @@ call_mprage
 
 Workflow for the preprocessing of MPRAGE data so that it is compatible with the fMRIproc-pipeline.
 Steps include:
-- Brain masking using 'call_spmmask', which will create *desc-spm_mask
-- Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
-  brain mask too; seems to work well.
-- Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
+
+  - Brain masking using 'call_spmmask', which will create *desc-spm_mask
+  - Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
+    brain mask too; seems to work well.
+  - Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
 
 Options:
     -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+    -l <lower>      lower percentile (default = 0.01) for call_winsorize
+    -u <upper>      upper percentile (default = 0.99) for call_winsorize
     --spm           use SPM for bias correction (default is ANTs)
     --no_sanlm      do not apply SANLM filtering
     --no_winsor     do not apply winsoring of image intensities; would recommend this though..
@@ -73,7 +76,7 @@ RUN_SANLM=1
 REG_T1=1
 WINSORIZE_INTENSITIES=1
 # Check for subject & session flags
-while getopts hdl:s:x: argument
+while getopts hd:s:x:u:l:-: argument
 do
   case ${argument} in
     -)
@@ -98,9 +101,10 @@ do
           fi
           ;;
       esac;; 
-  
-    l)  LOG=${OPTARG}
+    l)  lower="-l ${OPTARG}"
           ;;
+    u)  upper="-u ${OPTARG}"
+          ;;          
     s)  SPM=${OPTARG}
           ;;
     x)  kwargs=${OPTARG}
@@ -201,7 +205,7 @@ fi
 # truncate intensities and rescale
 if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   echo " Truncating image intensities [0.01,0.99] with 256 bins"
-  cmd="call_winsorize ${final_file}"
+  cmd="call_winsorize ${lower} ${upper} ${final_file}"
   eval ${cmd}
 
   echo " Rescaling T1w to [0,4095]"

@@ -31,10 +31,9 @@ Arguments:
                           "nZ": 1000,
                           "FLASH_tr": [0.0062,0.0062]
                       }
-  -o|--ow             overwrite existing T1w/T1map files
-  -f|--full           overwrite all existing files (including masks)
-  -u|--ups            use settings for universal pulse (UP) [parameters are hardcoded]
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_SHORT in spinoza_setup
+  -l <lower>          lower percentile (default = 0.01) for call_winsorize
+  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
   -x <kwargs>         Additional commands to be passed to 'call_antsbias' [call_mprage]. Format 
                       should be colon-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -43,6 +42,10 @@ Arguments:
                       combine as:
                       "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
+Options:
+  -o|--ow             overwrite existing T1w/T1map files
+  -f|--full           overwrite all existing files (including masks)
+  --ups               use settings for universal pulse (UP) [parameters are hardcoded]
   --no_reg            do not register separate T1map in case you have MPRAGE image
   --no_winsor         do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so,
                       though..
@@ -50,6 +53,8 @@ Arguments:
   --sge               submit job to cluster (called with 'master -m <module> --sge')  
   --skip_bg           Do not create masks from INV2-image to remove noise from MP2RAGE   
   --force_exec        Force the execution even if the files exist already
+
+Positional:
   <project root>      directory containing the T1w and T2w files; should generally be pymp2rage-
                       folder
   <derivatives>       path to output mask directory  
@@ -78,7 +83,9 @@ kwargs=""
 spm_flag=""
 reg_flag=""
 intensity_flag=""
-while getopts :-:oufs:n:p:q:j:x: argument
+upper=""
+lower=""
+while getopts :-:ofs:n:p:q:j:x:l:u: argument
 do
   case ${argument} in
     -)
@@ -121,8 +128,10 @@ do
           ;;
     n)  ses=${OPTARG}
           ;;   
-    u)  UPs="--ups"
-          ;;  
+    l)  lower="-l ${OPTARG}"
+          ;;
+    u)  upper="-u ${OPTARG}"
+          ;;
     o)  OW=1
           ;;         
     f)  FULL_OW=1
@@ -241,13 +250,16 @@ for subID in ${search}; do
             -b ${output_base} \
             ${PARS_FLAG} \
             ${UPs} \
+            ${lower} \
+            ${upper} \
             ${SKIP_BG}"""
 
             # execute command
             if [[ ${run_local} -eq 1 ]]; then
               echo ${cmd}
             fi
-            ${cmd}
+
+            eval ${cmd}
         else
           # mprage job
           for file in ${in_files[@]}; do
@@ -275,6 +287,8 @@ for subID in ${search}; do
               ${reg_flag} \
               ${intensity_flag} \
               ${file} \
+              ${lower} \
+              ${upper} \
               ${output_dir}/${output_base}"""
 
             # execute command
@@ -288,7 +302,7 @@ for subID in ${search}; do
       fi
 
     else
-      echo "${output_base}_T1w.nii.gz already exist"
+      echo -e "Found output ${BOLD_GREEN}${t1w}${RESET}"
     fi
 
   done

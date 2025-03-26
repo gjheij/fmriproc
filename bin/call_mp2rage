@@ -19,10 +19,8 @@ import os
 import pathlib
 import sys
 import getopt
-from bids import BIDSLayout
-from lazyfmri import utils
 import shutil
-import json
+from lazyfmri import utils
 from fmriproc import image
 opj = os.path.join
 
@@ -42,15 +40,21 @@ Args:
     -o|--outputdir <dir>    path to output directory; you should specify <subject>/<ses-?> yourself
     -b|--outputbase <name>  if you don't want <subject_ID>_ses-<session>_acq-MP2RAGE, specify a dif-
                             ferent prefix for output files
+    -l|--lower              lower bound for truncing image intensities using 'call_winsorize'. Default
+                            is 0.01
+    -u|--upper              upper bound for truncing image intensities using 'call_winsorize'. Default
+                            is 0.99
+    --beta                  add beta factor to remove noise 
+                            see: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099676
+
+Options:
     -c|--mask               make INV2 mask with SPM+FSL to remove background noise induced by the 
                             combination of INV-images. Note that not doing this will results in pat-
                             terns of noise around the brain which will confuse automated segmentation 
                             softwares 
-    -u|--ups                use UP-parameters; there's different MP2RAGE-parameters for universal 
                             pulses
+    --ups                   use UP-parameters; there's different MP2RAGE-parameters for universal 
     --skip_bg               Skip background stuff (default = True)
-    --beta                  add beta factor to remove noise 
-                            see: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0099676
     --pars <file>           json-file with custom parameter settings. Should have the following format:
                             {
                                 "TR": 5.5,
@@ -59,7 +63,7 @@ Args:
                                 "nZ": 200,
                                 "FLASH_tr": [0.0062,0.0062]
                             }
-                            see: DIR_SCRIPTS/misc/mp2rage_pars.json
+                            see: $REPO_DIR/misc/mp2rage_pars.json
 
 Optional args:
     Instead of an input directory, you can also specify the paths to the individual files. The files
@@ -107,7 +111,7 @@ Notes:
     pars_file   = None
 
     try:
-        opts = getopt.getopt(argv, "huci:o:b:", ["help", "inputdir=", "outputdir=", "outputbase=", "inv1=", "inv1ph=", "inv2=", "inv2ph=", "mask", "ups", "beta=", "skip_bg", "pars="])[0]
+        opts = getopt.getopt(argv, "hci:o:b:u:l:", ["help", "inputdir=", "outputdir=", "outputbase=", "inv1=", "inv1ph=", "inv2=", "inv2ph=", "mask", "ups", "beta=", "skip_bg", "pars=", "lower=", "upper="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
         print(main.__doc__)
@@ -117,7 +121,7 @@ Notes:
         if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
-        elif opt in ("-u", "--ups"):
+        elif opt in ("--ups"):
             ups = True              
         elif opt in ("-i", "--inputdir"):
             inputdir = arg
@@ -125,8 +129,12 @@ Notes:
             outputdir = arg
         elif opt in ("-b", "--outputbase"):
             outputbase = arg
+        elif opt in ("-l", "--lower"):
+            lower = f"-l {arg}"
+        elif opt in ("-u", "--upper"):
+            upper = f"-u {arg}" 
         elif opt in ("-c", "--mask"):
-            do_stuff = True
+            do_stuff = True            
         elif opt in ("--skip_bg"):
             do_stuff = False            
         elif opt in ("--inv1"):
@@ -148,81 +156,32 @@ Notes:
         sys.exit(1)
 
     if inputdir != None:
-        # we got an input directory; look for files with "acq-MP2RAGE"
-        if inputdir.endswith("anat"):
-            bids_fn = BIDSLayout(
-                inputdir,
-                validate=False
-            ).get(
-                datatype='anat',
-                extension=['nii.gz'],
-                return_type='file'
-            )
-        else:
-            bids_fn = BIDSLayout(
-                inputdir,
-                validate=False
-            ).get(
-                extension=['nii.gz'],
-                return_type='file'
-            )
-            
-        select_fn = utils.get_file_from_substring(['acq-MP2RAGE_', 'inv'], bids_fn)
+        select_fn = utils.select_files_from_bids(inputdir)
     else:
         select_fn = []
         # we did not get an input directory; check if separate files have been specified
         fn = ["inv1", "inv1ph", "inv2", "inv2ph"]
         for r,i in enumerate([inv1, inv1ph, inv2, inv2ph]):
             if i == None:
-                raise ValueError("Missing {k}-file. Make sure you specified it with the --{k} flag".format(k=fn[r]))
+                raise ValueError(f"Missing {fn[r]}-file. Make sure you specified it with the --{fn[r]} flag")
             else:
                 if os.path.dirname(i) == "":
                     i = opj(os.getcwd(), i)
                 select_fn.append(i)
 
     if len(select_fn) != 4:
-        print("For MP2RAGE-reconstruction we should have 4 files; got {}".format(len(select_fn)))
+        print(f"For MP2RAGE-reconstruction we should have 4 files; got {len(select_fn)}")
         sys.exit(1)
     else:
         if inputdir == None:
             inputdir = os.path.dirname(select_fn[0])
 
     # set default 0.7 MP2RAGE Phillips parameters
-    if not isinstance(pars_file, str):
-        pars = {
-            "TR": 5.5,
-            "inv_times": [0.8,2.7],
-            "fa": [6,6],
-            "nZ": 200,
-            "FLASH_tr": [0.0062,0.0062]
-        }
-
-        # UPs
-        if ups:
-            print("Using parameters for Universal Pulses (UPs)")
-            pars = {
-                "TR": 6.778,
-                "inv_times": [0.67,3.754],
-                "fa": [4,4],
-                "nZ": 150,
-                "FLASH_tr": [0.0062,0.031273]
-            }
-    else:
-        required_keys = [
-            "TR",
-            "inv_times",
-            "fa",
-            "nZ",
-            "FLASH_tr"
-        ]
-
-        print(f"Reading parameters from '{pars_file}'")
-        with open(pars_file) as f:
-            pars = json.load(f)
-
-        for i in required_keys:
-            if i not in list(pars.keys()):
-                raise ValueError(f"Missing key '{i}' in {pars_file}")
+    pars = image.define_mr_parameters(
+        pars_file=pars_file,
+        ups=ups,
+        is_mp2rage=True
+    )
 
     print("Loading all images to the mp2rage object")
     mp2rage = MP2RAGE(
@@ -270,7 +229,7 @@ Notes:
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose"""
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose {lower} {upper}"""
         
         os.system(cmd)
         if not os.path.exists(spm_mask):

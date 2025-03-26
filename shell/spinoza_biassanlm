@@ -28,6 +28,8 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -j <cpus>           number of cores to use (default is 1)
+  -l <lower>          lower percentile (default = 0.01) for call_winsorize
+  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
   -o                  overwrite existing files
   --spm               run bias correction with SPM (default = False)
   --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
@@ -72,7 +74,7 @@ SANLM_WITH_ANTS=0
 RUN_SANLM=1
 n_cpu=1
 use_mask=1
-while getopts :-:bos:n:x:j: argument
+while getopts :-:bos:n:x:j:u:l: argument
 do
   case ${argument} in
     -)
@@ -111,7 +113,11 @@ do
     x)  kwargs=${OPTARG}
           ;;
     j)  n_cpu=${OPTARG}
-          ;;                
+          ;;
+    l)  lower="-l ${OPTARG}"
+          ;;
+    u)  upper="-u ${OPTARG}"
+          ;;
   esac
 done
 
@@ -275,6 +281,17 @@ for subID in ${search}; do
       else
         mv ${output_from_sanlm} ${output}
       fi
+
+      # truncate and 
+      echo "Winsorizing image intensities"
+      call_winsorize ${lower} ${upper} ${output}
+
+      echo "Rescaling to [0,4095]"
+      call_rescale ${output} 0 4095
+
+      # set dtype to uint16
+      echo "Set dtype to UINT16"
+      cmd="call_setdtype ${output}"
 
       echo "Done"
 

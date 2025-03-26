@@ -54,9 +54,11 @@ Example:
     verbose = False
     apply_mask = True
     t1_file = None
+    lower = 0.01
+    upper = 0.99
 
     try:
-        opts = getopt.getopt(argv, "hi:o:t:", ["help", "input=", "output=", "t1=", "skip_bg", "verbose"])[0]
+        opts = getopt.getopt(argv, "hi:o:t:u:l:", ["help", "input=", "output=", "t1=", "skip_bg", "verbose", "lower=", "upper="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
         print(main.__doc__)
@@ -65,13 +67,15 @@ Example:
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print(main.__doc__)
-            sys.exit()
-        elif opt in ("-u", "--ups"):
-            ups = True              
+            sys.exit()            
         elif opt in ("-i", "--input"):
             input_file = os.path.abspath(arg)
         elif opt in ("-o", "--output"):
             output_file = arg
+        elif opt in ("-u", "--upper"):
+            upper = float(arg)   
+        elif opt in ("-l", "--lower"):
+            lower = float(arg)               
         elif opt in ("-t", "--t1"):
             t1_file = os.path.abspath(arg)
         elif opt in ("--skip_bg"):
@@ -161,9 +165,9 @@ Example:
         try:
             # Truncate image intensities
             tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-            cmd_truncate = f"ImageMath 3 {tmp_file} TruncateImageIntensity {t1_file} 0 0.999 256"
+            cmd_truncate = f"call_winsorize -l {lower} -u {upper} {tmp_file} {t1_file}"
 
-            print("Truncating image intensities "+rb+"[0,0.999]"+end+" with "+rb+"256"+end+" bins")
+            print("Truncating image intensities ["+rb+lower+end+","+rb+upper+" with "+rb+"256"+end+" bins")
             print(cmd_truncate)
 
             # Run ImageMath

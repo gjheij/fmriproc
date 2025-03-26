@@ -19,12 +19,11 @@ import os
 import pathlib
 import sys
 import getopt
-import json
-from bids import BIDSLayout
-from lazyfmri.utils import get_file_from_substring, remove_files
+import shutil
+from lazyfmri import utils
 from fmriproc import image
 opj = os.path.join
-
+            
 def main(argv):
 
     """
@@ -42,10 +41,10 @@ Args:
     -o|--outputdir <dir>    path to output directory; you should specify <subject>/<ses-?> yourself
     -b|--outputbase <name>  if you don't want <subject_ID>_ses-<session>_acq-MP2RAGE, specify a dif-
                             ferent prefix for output files
-    -c|--mask               make INV2 mask with SPM+FSL to remove background noise induced by the 
-                            combination of INV-images. Note that not doing this will results in pat-
-                            terns of noise around the brain which will confuse automated segmentation 
-                            softwares 
+    -l|--lower              lower bound for truncing image intensities using 'call_winsorize'. Default
+                            is 0.01
+    -u|--upper              upper bound for truncing image intensities using 'call_winsorize'. Default
+                            is 0.99                            
     --pars <file>           json-file with custom parameter settings. Should have the following format:
                             {
                                 "TR": 6.723,
@@ -55,7 +54,13 @@ Args:
                                 "FLASH_tr": [0.0062,0.31246],
                                 "echo_times": [0.006, 0.0145, 0.023, 0.0315]
                             }
-                            see: DIR_SCRIPTS/misc/mp2rageme_pars.json
+                            see: $REPO_DIR/misc/mp2rageme_pars.json
+
+Options:
+    -c|--mask               make INV2 mask with SPM+FSL to remove background noise induced by the 
+                            combination of INV-images. Note that not doing this will results in pat-
+                            terns of noise around the brain which will confuse automated segmentation 
+                            softwares 
 Outputs:
     r2star (Nifti1Image):       Relaxation map (1/T2*)
     t2star (Nifti1Image):       T2*-weighted image
@@ -88,7 +93,7 @@ Notes:
     pars_file   = None
 
     try:
-        opts = getopt.getopt(argv,"hci:s:n:o:b:",["help", "inputdir=", "subject=", "outputdir=", "outputbase=", "ups", "mask", "pars="])[0]
+        opts = getopt.getopt(argv,"hci:s:n:o:b:u:l:",["help", "inputdir=", "subject=", "outputdir=", "outputbase=", "ups", "mask", "pars=", "upper=", "lower="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
         print(main.__doc__)
@@ -106,6 +111,10 @@ Notes:
             outputbase = arg
         elif opt in ("-c", "--mask"):
             do_stuff = True
+        elif opt in ("-l", "--lower"):
+            lower = f"-l {arg}"
+        elif opt in ("-u", "--upper"):
+            upper = f"-u {arg}"             
         elif opt in ("--pars"):
             pars_file = os.path.abspath(arg)
 
@@ -115,46 +124,20 @@ Notes:
         sys.exit(1)
 
     # Define paths to images
-    bids_fn = BIDSLayout(
+    select_fn = utils.select_files_from_bids(
         inputdir,
-        validate=False
-    ).get(
-        extension=['nii.gz'],
-        return_type='file'
+        filters=['inv', 'acq-MP2RAGEME']
     )
-
-    select_fn = get_file_from_substring(['inv', 'acq-MP2RAGEME'], bids_fn)
-    select_fn.sort()
 
     if len(select_fn) != 10:
         raise ValueError(f"For MEMP2RAGE-reconstruction we should have 10 files; got {len(select_fn)}; looked for files containing 'inv' and 'acq-MP2RAGEME' in '{inputdir}'")
 
-    if not isinstance(pars_file, str):
-        pars = {
-            "echo_times": [0.006, 0.0145, 0.023, 0.0315],
-            "inv_times": [0.67, 3.68],
-            "mp2rage_tr": 6.723,
-            "fa": [4,4],
-            "nZ": 150,
-            "FLASH_tr": [0.0062,0.31246]
-        }
-    else:
-        required_keys = [
-            "echo_times",
-            "inv_times",
-            "TR",
-            "fa",
-            "nZ",
-            "FLASH_tr"
-        ]
-
-        print(f"Reading parameters from '{pars_file}'")
-        with open(pars_file) as f:
-            pars = json.load(f)
-        
-        for i in required_keys:
-            if i not in list(pars.keys()):
-                raise ValueError(f"Missing key '{i}' in {pars_file}")
+    # define MR parameters
+    pars = image.define_mr_parameters(
+        pars_file=pars_file,
+        ups=False,
+        is_mp2rage=False
+    )
 
     print("Loading all images to the memp2rage object")
     memp2rage = MEMP2RAGE(
@@ -213,8 +196,8 @@ Notes:
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
-        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose"""
-        
+        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose {lower} {upper}"""
+
         os.system(cmd)
         if not os.path.exists(spm_mask):
             raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")

@@ -39,7 +39,13 @@
 
 -k <file>         specify a file with additional arguments, similar to FreeSurfer's expert options.
 
--l <which mod>    look for a module number given a string to search for (e.g., master -l layer)
+-l <value>        used for:
+                    - general: look for a module number given a string to search for (e.g., master -l layer)
+                    - spinoza_qmrimaps: specify upper percentile for winsorizing image intensities using
+                      call_winsorize
+                    - spinoza_bestvertex: specify from which line-scanning session to use the coordinates/
+                      normal vector from. Default = '2'
+                    - spinoza_layering: specify the number of layers to define. Default = '10'
 
 -m <module>       always required, specifies which module to run.
 
@@ -66,7 +72,10 @@
                     - spinoza_fitprfs/spinoza_denoising: limit process to a given task.
                     - spinoza_bestvertex: select pRF-parameters from specific task.
 
--u <config>       specify configuration file for fMRIprep.
+-u <input>         used for:
+                    - spinoza_qmrimaps: specify lower percentile for winsorizing image intensities using
+                      call_winsorize
+                    - spinoza_fmriprep: specify configuration file for fMRIprep.
 
 -v <value>        used for:
                     - spinoza_scanner2bids: remove first X volumes from the FUNC and FMAP during conversion.
