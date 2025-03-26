@@ -98,7 +98,7 @@ out_file=${@:$OPTIND+1:1}
 if [[ ! -z ${subject} ]]; then
 
     if [[ -z ${SUBJECTS_DIR} ]];	then
-        echo "ERROR in `basename ${0}`: FreeSurfer was requested, but SUBJECTS_DIR is not set"
+        echo "ERROR in $(basename ${0}): FreeSurfer was requested, but SUBJECTS_DIR is not set"
         exit 1
     fi
 
@@ -129,7 +129,7 @@ fi
 #-----------------------------------------------------------------------------
 # Check if we should warp anatomical stuff
 epi_file=`fetch_filepath ${epi_file}`
-out_file=`fetch_filepath ${out_file}`
+out_file=${out_file}
 
 if [[ ! -z ${matrix_file} ]]; then
 
@@ -141,7 +141,7 @@ if [[ ! -z ${matrix_file} ]]; then
     if [[ ${do_we_have_wm} -eq 1 ]]; then
         call_antsapplytransforms --gen ${wm_file} ${wm_file} $(dirname ${out_file})/wm_$(basename $out_file) ${matrix_file}
         if [[ $? -ne 0 ]]; then
-            echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status (wm-file)"
+            echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status (wm-file)"
             exit 1
         fi
         wm_file=$(dirname ${out_file})/wm_$(basename $out_file)
@@ -150,13 +150,13 @@ if [[ ! -z ${matrix_file} ]]; then
 
     call_antsapplytransforms --lin ${t1head} ${t1head} $(dirname ${out_file})/t1head_$(basename $out_file) ${matrix_file}
     if [[ $? -ne 0 ]]; then
-        echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status (t1head-file)"
+        echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status (t1head-file)"
         exit 1
     fi
 
     call_antsapplytransforms --lin ${wm_file} ${wm_file} $(dirname ${out_file})/t1brain_$(basename $out_file) ${matrix_file}
     if [[ $? -ne 0 ]]; then
-        echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with non-zero status (t1brain-file)"
+        echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status (t1brain-file)"
         exit 1
     fi	
 
@@ -186,7 +186,7 @@ if [[ -f ${t1head} && -f ${t1brain} ]]; then
     cmd="epi_reg --epi=${epi_file} --t1=${t1head} --t1brain=${t1brain} --out=${out_file} ${wm_flag}"
     print_cmd ${cmd} && eval ${cmd}
 else
-    echo "ERROR in `basename ${0}`: could not find t1brain/t1head-files"
+    echo "ERROR in $(basename ${0}): could not find t1brain/t1head-files"
     exit 1
 fi
 

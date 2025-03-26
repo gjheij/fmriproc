@@ -111,7 +111,7 @@ fi
 
 REF=`fetch_filepath ${@:$OPTIND:1}`
 MOV=`fetch_filepath ${@:$OPTIND+1:1}`
-OUT=`fetch_filepath ${@:$OPTIND+2:1}`
+OUT=${@:$OPTIND+2:1}
 TRAFOS=${@:$OPTIND+3:1}
 
 # read transformations into array
@@ -145,8 +145,8 @@ else
 fi
 
 # check if we have mgz file
-REF_ext=`fetch_extension ${REF}`
-MOV_ext=`fetch_extension ${MOV}`
+REF_ext=$(fetch_extension ${REF})
+MOV_ext=$(fetch_extension ${MOV})
 
 if [[ ${REF_ext} == "mgz" ]]; then
   call_mriconvert ${REF} && echo
@@ -165,7 +165,7 @@ fi
 cmd="antsApplyTransforms -d 3 --float 1 ${VERBOSE} -n ${INT} -e 3 -r ${REF} -i ${MOV} ${ARRAY[@]} -o ${OUT}"
 
 if [ ${VERB} -eq 1 ]; then
-  echo ${cmd}
+  print_cmd ${cmd}
   echo
 fi 
 
@@ -173,7 +173,7 @@ fi
 eval ${cmd}
 
 # check if we need to set s/qform code
-res=`check_function fslorient`
+res=$(check_function fslorient)
 if [[ ${res} -eq 0 ]]; then
   qform=`fslorient -getqformcode ${OUT}`
   sform=`fslorient -getsformcode ${OUT}`

@@ -202,7 +202,7 @@ else
 
   echo
   print_line -
-  echo "ERROR in `basename ${0}`: could not find ${txt}file"
+  echo "ERROR in $(basename ${0}): could not find ${txt}file"
   exit 1
 
 fi

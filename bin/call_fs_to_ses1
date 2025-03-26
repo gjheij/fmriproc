@@ -80,7 +80,7 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
       call_mriconvert $(dirname ${ses1})/$(basename ${ses1} .nii.gz).mgz
     fi
   else
-    echo "ERROR in `basename ${0}`: could not find ses-1 anatomy and could not use rawavg.mgz"
+    echo "ERROR in $(basename ${0}): could not find ses-1 anatomy and could not use rawavg.mgz"
     exit 1
   fi
 

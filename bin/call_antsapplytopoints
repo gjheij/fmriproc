@@ -165,7 +165,7 @@ eval ${cmd}
 
 # return command
 if [[ ${return_coord} -eq 1 ]]; then
-  coord=`call_antsreadchicken ${OUT_CSV} ${trafo_type}`
+  coord=$(call_antsreadchicken ${OUT_CSV} ${trafo_type})
   echo $coord
 fi
 

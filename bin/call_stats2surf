@@ -94,7 +94,7 @@ source call_bashhelper
 # we need SUBJECTS_DIR for mri_vol2surf
 if [[ -z ${fsdir} ]]; then
   if [[ -z ${SUBJECTS_DIR} ]]; then
-    echo "ERROR in `basename ${0}`: SUBJECTS_DIR variable not set and no new path specified.."
+    echo "ERROR in $(basename ${0}): SUBJECTS_DIR variable not set and no new path specified.."
     exit 1
   else
     fsdir=${SUBJECTS_DIR}
@@ -105,12 +105,12 @@ fi
 
 # check if we have a valid subjects-directory
 if [[ ! -d ${fsdir} ]]; then
-  echo "ERROR in `basename ${0}`: Could not find FreeSurfer"
+  echo "ERROR in $(basename ${0}): Could not find FreeSurfer"
   exit 1
 fi
 
 if [[ ! -f ${warp} ]]; then
-  echo "ERROR in `basename ${0}`: Please specify transformation file"
+  echo "ERROR in $(basename ${0}): Please specify transformation file"
   exit 1
 fi
 
@@ -124,7 +124,7 @@ if [[ -f ${input} ]]; then
   elif [[ ${ext} == "nii" ]]; then
     search=$(basename ${input} .nii)
   else
-    echo "ERROR in `basename ${0}`: input file must end with \".nii.gz\" or \".nii\", not \".${ext}\""
+    echo "ERROR in $(basename ${0}): input file must end with \".nii.gz\" or \".nii\", not \".${ext}\""
     exit 1
   fi
   
@@ -139,7 +139,7 @@ elif [[ -d ${input} ]]; then
     search="zstat"
   fi
 else
-  echo "ERROR in `basename ${0}`: Unknown input type. Must be a file or directory"
+  echo "ERROR in $(basename ${0}): Unknown input type. Must be a file or directory"
   exit 1
 fi 
 
@@ -159,7 +159,7 @@ else
 fi
 
 if [[ ! -f ${T1} ]]; then
-  echo "ERROR in `basename ${0}`: Could not locate reference image. "
+  echo "ERROR in $(basename ${0}): Could not locate reference image. "
   echo " - If the input is gfeat-directory, I'm looking for \"preproc_T1w.nii.gz\" in \"$(dirname ${warp})\""
   echo " - If the input is a FEAT-directory, I'm looking for \"highres.nii.gz\" in \"${input}\""
   echo " - If the input is a file, I'm looking for the -r flag, \"${reference}\""
@@ -194,7 +194,7 @@ for i in ${inputs[@]}; do
   fi
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in `basename ${0}`: call_antsapplytransforms exited with nonzero status"
+    echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with nonzero status"
     exit 1
   fi
   

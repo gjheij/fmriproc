@@ -54,7 +54,7 @@ ses1=`find ${INPUT_DIR}/${1}/ses-1 -type f -name "${1}*" -and -name "*T1w.nii.gz
 ses2=`find ${DIR_DATA_HOME}/${1}/ses-${2}/anat -type f -name "${1}*" -and -name "*motion1*" -and -name "*.nii.gz" 2>/dev/null`
 
 if [[ -z ${ses1} ]] || [[ -z ${ses2} ]]; then
-  echo "ERROR in `basename ${0}`: could not find ses-1 or ses-${2} anatomy"
+  echo "ERROR in $(basename ${0}): could not find ses-1 or ses-${2} anatomy"
   exit 1
 fi
 

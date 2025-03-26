@@ -113,7 +113,7 @@ fi
 
 # if file specified is in current directory, add entire path
 in_file=`fetch_filepath ${in_file}`
-out_file=`fetch_filepath ${OUTPUT}`
+out_file=${OUTPUT}
 
 out_ext=`fetch_extension ${out_file}`
 if [[ ${out_ext} == "gz" ]]; then

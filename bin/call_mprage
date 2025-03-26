@@ -141,7 +141,7 @@ fi
 
 # if file specified is in current directory, add entire path
 in_file=`fetch_filepath ${INPUT}`
-out_file=`fetch_filepath ${OUTPUT}`
+out_file=${OUTPUT}
 final_file="${out_file}_T1w.nii.gz"
 
 if [[ ! -d $(dirname ${OUTPUT}) ]]; then

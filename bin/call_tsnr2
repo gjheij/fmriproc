@@ -66,8 +66,6 @@ output=${@:$OPTIND+1:1}
 input=`fetch_filepath ${input}`   
 if [[ -z ${output} ]]; then
   output=$(dirname ${input})/$(basename ${input} .nii.gz)_tsnr.nii.gz
-else
-  output=`fetch_filepath ${output}`
 fi
 
 # calculate mean and std deviation

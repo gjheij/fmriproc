@@ -154,7 +154,7 @@ both_hemis=${output_dir}/${out_name}
 call_stackgifti ${lh} ${rh} ${both_hemis}
 
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in `basename ${0}`: call_stackgiftis exited with non-zero status"
+  echo "ERROR in $(basename ${0}): call_stackgiftis exited with non-zero status"
   exit 1
 fi
 

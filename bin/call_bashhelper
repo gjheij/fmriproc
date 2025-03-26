@@ -156,6 +156,20 @@ print_subject_header() {
   echo -e "${stars_left}${msg}${stars_right}"
 }
 
+print_output_exists() {
+  subject="${1}"
+  output="${2}"
+  extra="${3}"
+
+  if [[ -f "${output}" ]]; then
+    txt=$(basename "${output}")
+  else
+    txt="${output}"
+  fi
+
+  echo -e "${BOLD_CYAN}${subject}${RESET}: output already exists [${BOLD_GREEN}${txt}${RESET}]. ${extra}"
+}
+
 # ---------------------------------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {

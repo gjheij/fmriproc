@@ -87,7 +87,6 @@ fi
 
 # if file specified is in current directory, add entire path
 INPUT=`fetch_filepath ${INPUT}`
-OUTPUT=`fetch_filepath ${OUTPUT}`
 
 ext=`fetch_extension ${INPUT}`
 if [[ ${ext} == "gz" ]]; then

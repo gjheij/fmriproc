@@ -79,7 +79,7 @@ else
 fi
 
 if [[ ! -f ${REF} ]]; then
-  echo "ERROR in `basename ${0}`: could not find T1w-reference"
+  echo "ERROR in $(basename ${0}): could not find T1w-reference"
   exit 1
 fi
 
@@ -99,7 +99,7 @@ else
 fi
 
 if [[ ! -f ${MAN} ]]; then
-  echo "ERROR in `basename ${0}`: manual edit file was not saved.."
+  echo "ERROR in $(basename ${0}): manual edit file was not saved.."
   exit 1
 else
   fslorient -copyqform2sform ${MAN}
