@@ -517,7 +517,7 @@ function rigid_ {
 --shrink-factors ${shrink} \
 --smoothing-sigmas ${smooth}vox"""
 
-  echo $cmd
+  echo "${cmd}"
 }
 
 function affine_ {
@@ -527,7 +527,7 @@ function affine_ {
 --shrink-factors ${shrink} \
 --smoothing-sigmas ${smooth}vox"""
 
-  echo $cmd
+  echo "${cmd}"
 }
 
 function syn_ {
@@ -537,7 +537,7 @@ function syn_ {
 --shrink-factors ${shrink} \
 --smoothing-sigmas ${smooth}vox"""
 
-  echo $cmd
+  echo "${cmd}"
 }
 
 # add individual stages

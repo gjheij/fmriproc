@@ -1488,6 +1488,8 @@ if [[ $? -eq 0 ]]; then
     ${SESSION} \
     ${OW} \
     ${MAN_FLAG} \
+    ${INT_UPPER} \
+    ${INT_LOWER} \
     ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped
 
   if [[ $? -ne 0 ]]; then

@@ -214,7 +214,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     --no-sub"""
 
   # execute
-  print_cmd $cmd
+  print_cmd "${cmd}"
   eval ${cmd} 
 
   if [[ $? -ne 0 ]]; then

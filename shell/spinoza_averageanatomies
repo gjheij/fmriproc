@@ -134,7 +134,7 @@ for subID in ${search}; do
           cmd="call_calculatemean ${ref} ${in_files[@]} ${out}"
         fi
         
-        eval $cmd
+        eval "${cmd}"
       else
         print_file_not_in_dir "${sub_name}" "*acq-${ACQ[0]^^}_*, *space-*, and *${i}.nii.gz" "${input_dir}"
         exit 1

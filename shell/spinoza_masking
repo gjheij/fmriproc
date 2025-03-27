@@ -25,7 +25,9 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+  -l <lower>          lower percentile (default = 0.01) for call_winsorize
+  -u <upper>          upper percentile (default = 0.99) for call_winsorize    
+  -o|--ow             overwrite existing files
   --no_manual         do not do any further manual editing; just combine all masks and apply
   <anat dir>          parent directory containing the sub-xxx folders for anatomies
   <output skull>      output folder for masked T1w-image (with skull)
@@ -50,14 +52,19 @@ USAGE
 # Check for subject & session flags
 OW=0
 man_flag=""
-while getopts :-:os:n: argument
+lower=0.01
+upper=0.99
+while getopts :-:os:n:l:u: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in
         no_manual)
           man_flag="--no_manual"
-          ;;                                                                                             
+          ;;         
+        ow)
+          OW=1
+          ;;                                                                                                  
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
@@ -70,6 +77,10 @@ do
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
+          ;;
+    l)  lower=${OPTARG}
+          ;;
+    u)  upper=${OPTARG}
           ;;          
   esac
 done
@@ -180,13 +191,20 @@ for subID in ${search}; do
           if [[ ! -z ${MASKED} ]]; then
 
             # truncate image intensities
+            echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
             TMP=$(dirname ${MASKED})/tmp_T1w.nii.gz
-            ImageMath 3 ${TMP} TruncateImageIntensity ${MASKED} 0.01 0.99 256
+            cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
+            eval "${cmd}"
+
+            if [[ ! -z "${TMP}" ]]; then
+              print_error_msg "$(basename ${0})" "call_winsorize" "File \"${TMP}\" not created"
+              exit 1
+            fi
 
             # fetch max value
-            MM=$(fslstats ${TMP} -R)
-            min=$(echo $MM | cut -d" " -f1)
-            max=$(echo $MM | cut -d" " -f2)
+            MM=$(fslstats "${TMP}" -R)
+            min=$(echo "${MM}" | cut -d" " -f1 | xargs)
+            max=$(echo "${MM}" | cut -d" " -f2 | xargs)
 
             # clip max intensity; this leaves the minimal values untouched (they should be zero already!) 
             if [[ ${min} == "0.000000" ]]; then
@@ -246,14 +264,14 @@ for subID in ${search}; do
         if [[ ! -z ${MASKED} ]]; then
           # echo " apply mask to masked T1-weighted image"
           cmd="""fslmaths ${MASKED} -mas ${mask_img} ${bet_t1w}"""
-          print_cmd $cmd
-          eval $cmd
+          print_cmd "${cmd}"
+          eval "${cmd}"
         fi
 
         if [[ ! -z ${t1map} ]]; then
           cmd="""fslmaths ${t1map} -mas ${mask_img} ${bet_t1m}"""
-          print_cmd $cmd
-          eval $cmd
+          print_cmd "${cmd}"
+          eval "${cmd}"
         fi
       else
         print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *spm_mask.nii.gz" "${mask_dir}"
