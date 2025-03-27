@@ -109,8 +109,19 @@ if [[ $# -lt 4 ]] ; then
   exit 1
 fi
 
-REF=`fetch_filepath ${@:$OPTIND:1}`
-MOV=`fetch_filepath ${@:$OPTIND+1:1}`
+REF=$(fetch_filepath ${@:$OPTIND:1})
+MOV=$(fetch_filepath ${@:$OPTIND+1:1})
+
+if [[ ! -f ${REF} ]]; then
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  exit 1
+fi
+
+if [[ ! -f ${MOV} ]]; then
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  exit 1
+fi
+
 OUT=${@:$OPTIND+2:1}
 TRAFOS=${@:$OPTIND+3:1}
 

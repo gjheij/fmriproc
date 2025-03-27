@@ -362,6 +362,16 @@ REF=${@:$OPTIND:1}
 MOV=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
+if [[ ! -f ${REF} ]]; then
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  exit 1
+fi
+
+if [[ ! -f ${MOV} ]]; then
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  exit 1
+fi  
+
 #-----------------------------------------------------------------------------
 # set flag to extract first volume from 4D image to 0
 extract_fixed=0
@@ -369,8 +379,8 @@ extract_moving=0
 
 #-----------------------------------------------------------------------------
 # append full paths
-REF=`fetch_filepath ${REF}`
-MOV=`fetch_filepath ${MOV}`
+REF=$(fetch_filepath ${REF})
+MOV=$(fetch_filepath ${MOV})
 OUT=${OUT}
 
 #-----------------------------------------------------------------------------
@@ -429,10 +439,10 @@ if [[ -f ${REF} && -f ${MOV} ]]; then
     fi
 
     # final check
-    if [[ `fslval ${FIXED} dim0` != `fslval ${MOVING} dim0` ]]; then
+    if [[ $(fslval ${FIXED} dim0) != $(fslval ${MOVING} dim0) ]]; then
       echo "Input files have different dimensions. Fix this before continuing."
-      echo " Fixed image:   `fslval ${FIXED} dim0`"
-      echo " Moving image:  `fslval ${MOVING} dim0`"
+      echo " Fixed image:   $(fslval ${FIXED} dim0)"
+      echo " Moving image:  $(fslval ${MOVING} dim0)"
       exit 1
     fi
 
@@ -447,7 +457,7 @@ fi
 if [[ ! -z ${initial} ]]; then
 
   if [ ${VERB} -eq 1 ]; then
-    echo "Using `basename ${initial}` as initial moving transform file"
+    echo "Using $(basename ${initial}) as initial moving transform file"
   fi
   
   ext=`fetch_extension ${initial}`
