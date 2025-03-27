@@ -71,6 +71,8 @@ NORDIC=""
 runIDs=""
 comps_flag=""
 suffix="bold"
+verbose=1
+SGE_QUEUE=${SGE_QUEUE_SHORT}
 while getopts :-:os:n:c:m:q:r:f: argument
 do
   case ${argument} in
@@ -84,6 +86,7 @@ do
           ;;         
         sge)
           run_local=0
+          verbose=0
           ;;               
         ow)
           OW=1
@@ -185,10 +188,6 @@ for subID in ${search}; do
     else
       bold_files=($(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" \) | sort 2>/dev/null))
     fi
-    
-    # echo "BOLD files"
-    # for i in ${bold_files[@]}; do echo " $i"; done
-    # exit 1
 
     if [[ -z ${bold_files} ]]; then
       print_file_not_in_dir "${sub_name}" "line-scanning data (*.lab)" "${lab_func}"
@@ -299,23 +298,13 @@ for subID in ${search}; do
           fi
         fi
 
-        verbose=1
         log_file=$(dirname ${bidsfunc})/$(basename ${outputbase}).log
-        if [[ ${run_local} -eq 0 ]]; then
-          if [[ ! -z ${SGE_QUEUE} ]]; then
-            QUEUE=${SGE_QUEUE}
-          else
-            QUEUE=${SGE_QUEUE_SHORT}
-          fi
-
-          submit=$(generate_submission_command ${QUEUE} 1 $(basename ${log_file} .log) ${log_file})
-          call_=$(which call_linerecon)
-          job="${submit} ${call_}"
-          verbose=0
-        else
-          echo "Running recon for run-${run} (task-${task})"
-          job="call_linerecon"
+        if [[ ${run_local} -eq 1 && ${verbose} -eq 1 ]]; then
+          echo -e "Running recon for run-${BOLD_RED}${run}${RESET} (task-${BOLD_RED}${task}${RESET})"
         fi
+
+        # decide the job type
+        job="$(decide_job_type "call_linerecon" "$(basename ${log_file} .log)" "${run_local}" "${log_file}" "1" "${SGE_QUEUE}")"
 
         # define cmd
         cmd="""${job} \

@@ -304,6 +304,7 @@ crash_flag=""
 mask_flag=""
 mode="anat"
 workdir="${PATH_HOME}/fmriprep/${PROJECT}"
+SGE_QUEUE=${SGE_QUEUE_LONG}
 while getopts :-:ols:r:n:f:m:j:k:q:u:a:w: argument
 do
 case ${argument} in
@@ -470,7 +471,7 @@ for subID in ${search}; do
   confFile=$(generate_config_file "$conf" "${n_runs[@]}")
 
   # decide the job type
-  job="$(decide_job_type "call_fmriprep" "$sub_name" "$run_local" "$workdir" "$n_cpus" "fmriprep")"
+  job="$(decide_job_type "call_feat" "${sub_name}_desc-fmriprep" "${run_local}" "${workdir}" "${n_cpus}" "${SGE_QUEUE}")"
 
   # define the command
   cmd="""${job} \

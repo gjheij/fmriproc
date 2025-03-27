@@ -56,6 +56,7 @@ remove_wf=0
 mod_flag=""
 n_cpus=1
 fd_flag=""
+SGE_QUEUE=${SGE_QUEUE_SHORT}
 while getopts :-:ls:r:n:f:m:c:k:q:j: argument
 do
   case ${argument} in
@@ -168,18 +169,11 @@ for subID in ${search}; do
   # decide the job type (depending on SGE, can be either qsub or call_fmriprep; for anything else it's call_fmriprep)
   if [[ ${run_local} -eq 1 ]]; then
     # print header
-    print_subject_header ${sub_name}    
-    job="call_mriqc"
-  else
-    if [[ ! -z ${SGE_QUEUE} ]]; then
-      QUEUE=${SGE_QUEUE}
-    else
-      QUEUE=${SGE_QUEUE_LONG}
-    fi
-    submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${sub_name}_desc-mriqc ${workdir})
-    call_=$(which call_mriqc)
-    job="${submit} ${call_}"
+    print_subject_header ${sub_name}
   fi
+  
+  # decide the job type
+  job="$(decide_job_type "call_mriqc" "${sub_name}_desc-mriqc" "${run_local}" "${workdir}" "${n_cpus}" "${SGE_QUEUE}")"
 
   # execute the command
   cmd="""${job} \

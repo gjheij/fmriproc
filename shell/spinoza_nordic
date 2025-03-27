@@ -75,6 +75,7 @@ n_cpus=1
 run_local=1
 mag_only=0
 tsnr_flag="--tsnr"
+SGE_QUEUE=${SGE_QUEUE_LONG}
 while getopts :-:os:n:r:q:j: argument
 do
   case ${argument} in
@@ -262,33 +263,34 @@ for subID in ${search}; do
         fi
 
         # decide on job execution
-        if [[ ${run_local} -eq 0 ]]; then
-          if [[ ! -z ${SGE_QUEUE} ]]; then
-            QUEUE=${SGE_QUEUE}
-          else
-            QUEUE=${SGE_QUEUE_LONG}
-          fi
-
-          submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${mag_img} _bold.nii.gz)_desc-nordic ${DIR_LOGS})
-          call_=$(which call_nordic)
-          job="${submit} ${call_}"
-        else
+        if [[ ${run_local} -eq 1 ]]; then
           # print message
           echo "Running NORDIC.."
           echo -e " -mag:    ${BOLD_GREEN}${mag_img}${RESET}"
           echo -e " -phase:  ${BOLD_GREEN}${ph_img}${RESET}"
           echo -e " -type:   ${BOLD_GREEN}${tt}${RESET}"
-          job="call_nordic"
         fi
-        
+
+        # decide the job type
+        job="$(decide_job_type "call_nordic" "$(basename ${mag_img} _bold.nii.gz)_desc-nordic" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+
         # run if basenames of phase and magnitude match
         if [[ $(basename ${ph_img} ${ph_tag}.nii.gz) == $(basename ${mag_img} .nii.gz) ]]; then
           out=${func_folder}/$(basename ${mag_img})
           
-          ${job} \
+          # define command
+          cmd="""${job} \
             ${mag_flag} \
             ${tsnr_flag} \
-            ${mag_img} ${ph_img} ${out}
+            ${mag_img} ${ph_img} ${out}"""
+
+          # print command
+          if [[ ${run_local} -eq 1 ]]; then
+            print_cmd "${cmd}"
+          fi
+
+          # run command
+          eval "${cmd}"
 
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_nordic"

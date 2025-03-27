@@ -76,6 +76,7 @@ pre_only=0
 pyb_only=0
 force_exec=0
 kwargs_flags=""
+SGE_QUEUE=${SGE_QUEUE_LONG}
 
 # check if variable is set in setup file
 if [[ -z ${PYBEST_SPACE} ]]; then
@@ -283,23 +284,15 @@ for subID in ${search}; do
       # execute
       if [[ ${execute_cmd} -eq 1 ]]; then
 
-        # append sub
+        # decide the job type
+        job="$(decide_job_type "call_pybest" "${base}_desc-pybest" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+
         if [[ ${run_local} -eq 0 ]]; then
-          if [[ ! -z ${SGE_QUEUE} ]]; then
-            QUEUE=${SGE_QUEUE}
-          else
-            QUEUE=${SGE_QUEUE_LONG}
-          fi
-          job=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-pybest ${DIR_LOGS})
-        else
-          # print header
-          print_subject_header ${sub_name}         
-          job="bash"
+          print_subject_header ${sub_name}
         fi
 
         # full path is needed for qsub
-        call_=$(which call_pybest)
-        cmd="""${job} ${call_} \
+        cmd="""${job} \
           -s ${sub_id} \
           ${ses_flag} \
           -o ${DENOISE} \

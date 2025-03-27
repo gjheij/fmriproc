@@ -135,7 +135,7 @@ enrich_with_par_data() {
   local ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
 
   if [[ ${ext_lower} == *"par"* ]]; then
-    echo "  Storing information from $(basename "${par_f}") in json file"
+    echo -e "  Storing information from ${BOLD_RED}$(basename "${par_f}")${RESET} in json file"
     pars_for_json --merge "${par_f}" "${json_bids}"
   fi
 
@@ -713,7 +713,7 @@ scrape_and_link_fieldmaps() {
   [[ ! -d "${func_dir}" ]] && return
   [[ ! -d "${fmap_dir}" ]] && mkdir -p "${fmap_dir}"
 
-  echo " Scanning for deviating PEPolar fieldmaps in ${tmp_dir}"
+  echo -e " Scanning for ${BOLD_RED}deviating PEPolar${RESET} fieldmaps in \"${tmp_dir}\""
 
   # Collect BOLD files
   local -a bolds=()

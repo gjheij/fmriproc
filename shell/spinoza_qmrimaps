@@ -85,6 +85,7 @@ reg_flag=""
 intensity_flag=""
 upper=""
 lower=""
+SGE_QUEUE=${SGE_QUEUE_SHORT}
 while getopts :-:ofs:n:p:q:j:x:l:u: argument
 do
   case ${argument} in
@@ -165,12 +166,6 @@ else
   unset IFS
 fi
 
-if [[ ! -z ${SGE_QUEUE} ]]; then
-  QUEUE=${SGE_QUEUE}
-else
-  QUEUE=${SGE_QUEUE_SHORT}
-fi
-
 #-----------------------------------------------------------------------------
 # intro
 start_timer "Derive T1w/T1map from ${DATA} using pymp2rage"
@@ -235,13 +230,7 @@ for subID in ${search}; do
 
           # decide job execution
           output_base=${base}_acq-${a^^}
-          if [[ ${run_local} -eq 0 ]]; then
-            submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
-            call_=$(which call_${a,,})
-            job="${submit} ${call_}" 
-          else
-            job="call_${a,,}"
-          fi
+          job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
 
           # define command
           cmd="""${job} \
@@ -276,13 +265,7 @@ for subID in ${search}; do
 
             # decide job execution
             output_base=${base}_acq-${a^^}${add_run}
-            if [[ ${run_local} -eq 0 ]]; then
-              submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
-              call_=$(which call_${a,,})
-              job="${submit} ${call_}" 
-            else
-              job="call_${a,,}"
-            fi
+            job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
 
             # define command
             cmd="""${job} \

@@ -102,6 +102,7 @@ MRI_SYSTEM_FLAG=""
 SKIP_TR_FLAG=""
 CUT_VOLS=""
 TRIM_FMAP=""
+SGE_QUEUE=${SGE_QUEUE_SHORT}
 while getopts :-:os:n:r:q:d:t:v: argument
 do
   case ${argument} in
@@ -232,15 +233,15 @@ for subID in ${search}; do
   bids_dir=${PROJECT_ROOT}/${base_path}
 
   # full overwrite
-  [[ $FULL_OW -eq 1 ]] && rm -rf "$output_dir" "$bids_dir"
+  [[ $FULL_OW -eq 1 ]] && rm -rf "${output_dir}" "${bids_dir}"
   
-  if [[ ! -d "$input_dir" ]]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: input ${BOLD_GREEN}${input_dir}${RESET} does not exist"
-    continue
+  if [[ ! -d "$"input_dir"" ]]; then
+    print_directory_not_exist "${sub_name}" "${input_dir}"
+    exit 1
   fi
 
   # check if input directory exists
-  if [[ ! -d "$bids_dir/anat" || ! -d "$bids_dir/func" || -n "$OW" || $DEBUG_MODE -eq 1 || -n "$PHYS_FLAG" ]]; then
+  if [[ ! -d "${bids_dir}/anat" || ! -d "${bids_dir}/func" || -n "${OW}" || ${DEBUG_MODE} -eq 1 || -n "${PHYS_FLAG}" ]]; then
 
     if [[ ${SES_TYPE} == "lines" ]]; then
       intro_txt="Exotic session (e.g., line-scanning); using call_dcm2niix"
@@ -249,7 +250,7 @@ for subID in ${search}; do
     fi
 
     # decide the job type
-    job="$(decide_job_type "call_bids" "$sub_name" "$run_local" "$DIR_LOGS" 1 "dcm2bids")"
+    job="$(decide_job_type "call_bids" "${base}_desc-dcm2bids" "${run_local}" "${DIR_LOGS}" "1" "${SGE_QUEUE}")"
 
     if [[ ${DEBUG_MODE} -eq 1 ]]; then
       echo " OW          = ${OW}"

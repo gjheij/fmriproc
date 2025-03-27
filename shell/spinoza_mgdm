@@ -60,6 +60,7 @@ OW=0
 type=""
 run_local=1
 n_cpus=1
+SGE_QUEUE=${SGE_QUEUE_LONG}
 while getopts :-:os:n:t:q:j: argument
 do
   case ${argument} in
@@ -115,12 +116,6 @@ else
   unset IFS
 fi
 
-if [[ ! -z ${SGE_QUEUE} ]]; then
-  QUEUE=${SGE_QUEUE}
-else
-  QUEUE=${SGE_QUEUE_LONG}
-fi
-
 #-----------------------------------------------------------------------------
 # intro
 start_timer "MGDM segmentation with Nighres"
@@ -169,16 +164,8 @@ for subID in ${search}; do
   execute_cmd=0
   if [[ ${type} == "gdh" ]]; then
     if [[ ! -f ${mgdm_seg} ]]; then
+      run_mode="Running ${BOLD_RED}GhD-version${RESET} of MGDM with ${BOLD_BLUE}call_gdhmgdm${RESET}"
       execute_cmd=1
-
-      run_mode="Running GhD-version of MGDM with call_gdhmgdm"
-      if [[ ${run_local} -eq 0 ]]; then
-        submit=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${output_root}-mgdm ${DIR_LOGS})
-        call_=$(which call_gdhmgdm)
-        run_cmd="${submit} ${call_}"
-      else
-        run_cmd="call_gdhmgdm"
-      fi
 
       if [[ ! -f ${mask_outside} ]]; then
         reason="Could not find \"outside\" mask.. [GdH]"
@@ -198,7 +185,11 @@ for subID in ${search}; do
         fi
       fi
 
-      cmd="""${run_cmd} \
+      # decide the job type
+      job="$(decide_job_type "call_gdhmgdm" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+
+      # define command
+      cmd="""${job} \
         -s ${sub_name} \
         -n ${nr} \
         -a ${input_dir} \
@@ -218,7 +209,7 @@ for subID in ${search}; do
     if [[ ! -f ${mgdm_seg} ]]; then
 
       execute_cmd=1
-      run_mode="Running regular version of MGDM with call_nighresmgdm"
+      run_mode="Running ${BOLD_RED}regular version${RESET} of MGDM with ${BOLD_BLUE}call_nighresmgdm${RESET}"
 
       if [[ -z ${bet_uni} ]]; then
         execute_cmd=0
@@ -229,16 +220,12 @@ for subID in ${search}; do
         execute_cmd=0
         reason="Could not find skullstripped T1map-image.. "
       fi
+      
+      # decide the job type
+      job="$(decide_job_type "call_nighresmgdm" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
-      if [[ ${run_local} -eq 0 ]]; then
-        submit=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${output_root}-mgdm ${DIR_LOGS})
-        call_=$(which call_nighresmgdm)
-        run_cmd="${submit} ${call_}"
-      else
-        run_cmd="call_nighresmgdm"
-      fi
-
-      cmd="""${run_cmd} \
+      # define command
+      cmd="""${job} \
         -t ${bet_uni} \
         -m ${bet_t1m} \
         -o ${masked_seg} \
@@ -255,7 +242,7 @@ for subID in ${search}; do
 
       # print header
       print_subject_header ${sub_name}
-      echo ${run_mode}
+      echo -e ${run_mode}
       print_create_img "${mgdm_seg}"
     fi
 

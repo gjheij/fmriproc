@@ -63,6 +63,7 @@ fi
 # Check for subject & session flags
 OW=0
 run_local=1
+SGE_QUEUE=${SGE_QUEUE_SHORT}
 while getopts :-:cs:n:q:x:j: argument
 do
   case ${argument} in
@@ -180,6 +181,10 @@ for subID in ${search}; do
       job="call_lsprep"
     fi
 
+    # decide the job type
+    job="$(decide_job_type "call_lsprep" "${base}_desc-lsprep" "${run_local}" "${log_file}" "${n_cpus}" "${SGE_QUEUE}")"
+
+    # define command
     cmd="""${job} \
       -s sub-${subID} \
       -n ${s_id} \

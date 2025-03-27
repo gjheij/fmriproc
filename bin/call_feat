@@ -40,6 +40,7 @@ USAGE
 
 # Check for subject & session flags
 submit=0
+run_local=1
 n_cpus=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
 job_name="feat"
@@ -50,6 +51,7 @@ do
       case "${OPTARG}" in
         sge)
           submit=1
+          run_local=0
           if [[ ! -d ${DIR_LOGS} ]]; then
             mkdir -p ${DIR_LOGS} 2>/dev/null
           fi
@@ -88,10 +90,6 @@ echo "#!/bin/bash"
 echo "feat ${fsf_file}"
 ) > ${fsf_script}
 
-if [[ ${submit} -eq 1 ]]; then
-  job=$(generate_submission_command ${SGE_QUEUE} ${n_cpus} ${base_name} ${DIR_LOGS})
-else
-  job="bash"
-fi
-
-${job} ${fsf_script}
+job="$(decide_job_type "call_feat" "${base_name}" "${run_local}" "${DIR_LOGS} "${n_cpus}" "${SGE_QUEUE}")"
+cmd="${job} ${fsf_script}"
+eval "${cmd}

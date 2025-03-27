@@ -159,6 +159,8 @@ folds_flag=""
 skip_flag=""
 trans_flag=""
 fix_hrf=""
+SGE_QUEUE=${SGE_QUEUE_LONG}
+
 while getopts :-:los:n:m:t:x:c:v:j:k:q:r:p:f: argument
 do
   case ${argument} in
@@ -586,20 +588,9 @@ for subID in ${search}; do
 
           fi
 
-          if [[ ${run_local} -eq 0 ]]; then
-            if [[ ! -z ${SGE_QUEUE} ]]; then
-              QUEUE=${SGE_QUEUE}
-            else
-              QUEUE=${SGE_QUEUE_LONG}
-            fi
+          # decide job
+          job="$(decide_job_type "call_prf" "${base}_task-${task}_model-${model}" "${run_local}" "${prf_dir}" "${n_cpus}" "${SGE_QUEUE}")"
 
-            submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_task-${task}_model-${model} ${prf_dir})
-            call_=$(which ${script_name})
-            job="${submit} ${call_}"
-          else
-            job=${script_name}
-          fi
-  
           # define call to call_prf
           export DISPLAY=:0
           cmd="""${job} ${grid_flag} ${fit_hrf} ${clip_flag} \

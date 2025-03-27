@@ -51,7 +51,7 @@ fi
 
 n_cpus=1
 run_local=1
-
+SGE_QUEUE=${SGE_QUEUE_LONG}
 # Check for subject & session flags
 while getopts s:n:j:q argument
 do
@@ -86,12 +86,6 @@ fi
 INPUT=${@:$OPTIND:1}
 SKULL=${@:$OPTIND+1:1}
 OUTPUT=${@:$OPTIND+2:1}
-
-if [[ ! -z ${SGE_QUEUE} ]]; then
-  QUEUE=${SGE_QUEUE}
-else
-  QUEUE=${SGE_QUEUE_LONG}
-fi
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -175,20 +169,24 @@ for subID in ${search}; do
     echo "Done"
     print_create_img "${massp}"
 
-    if [[ ${run_local} -eq 1 ]]; then
-      call_=$(which call_nighresmassp)
-      submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpus} ${base}_acq-${DATA^^}_desc-massp ${DIR_LOGS})
-      job="${submit} ${call_}"
-    else
-      job="call_nighresmassp"
-    fi
+    # decide the job type
+    job="$(decide_job_type "call_nighresmassp" "${base}_acq-${DATA^^}_desc-massp" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
-    ${job} \
+    # define command
+    cmd="""${job} \
       -s ${sub_id} \
       -n ${nr} \
       -i ${use_dir} \
       -o ${output_dir} \
-      -b ${base}_acq-${DATA^^}_desc
+      -b ${base}_acq-${DATA^^}_desc"""
+
+    # print command
+    if [[ ${run_local} -eq 1 ]]; then
+      print_cmd "${cmd}"
+    fi
+
+    # run command
+    eval "${cmd}"
 
     if [[ $? != 0 ]]; then
       echo
