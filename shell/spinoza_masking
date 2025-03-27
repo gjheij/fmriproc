@@ -167,7 +167,7 @@ for subID in ${search}; do
         
         # print header
         print_subject_header ${sub_name}
-        
+
         # if we cannot do masking, then just copy the input image as "masked" image
         if [[ ! -z ${MASK} ]]; then
           echo "Remove background noise with call_gdhmasking"
@@ -286,9 +286,11 @@ done
 # to input this directory as project root for fMRIprep
 if [[ -f "${DIR_DATA_HOME}/dataset_description.json" ]]; then
   if [[ ! -f "${OUTPUT}/dataset_description.json" ]]; then
-    ln -s "${DIR_DATA_HOME}/dataset_description.json" "${OUTPUT}/dataset_description.json"
+    ln -s "${DIR_DATA_HOME}/dataset_description.json" "${OUTPUT}/dataset_description.json" 2>/dev/null
 
-    if [[ $? -ne 0 ]]; then 
+    if [[ $? -ne 0 ]]; then
+      echo
+      print -
       echo "WARNING: could not create symlink for dataset_description; this might result in problems with fMRIprep!"
     fi
   fi
