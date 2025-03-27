@@ -40,6 +40,16 @@ generate_submission_command() {
     echo "$command"
 }
 
+check_python_package() {
+  local package="$1"
+  
+  python -c "import ${package}" 2>/dev/null
+  if [[ $? -ne 0 ]]; then
+    echo "Python package '${package}' is not installed. Exiting."
+    exit 1
+  fi
+}
+
 print_line() {
   local char="${1:-=}"  # default to '='
   local width="${TERMINAL_WIDTH:-99}"

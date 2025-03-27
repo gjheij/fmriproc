@@ -107,6 +107,14 @@ fi
 #intro
 start_timer "Subcortex Parcellation with MASSP from Nighres"
 
+# nighres required this module
+check_python_package "nighres"
+
+if [[ ! -d ${INPUT} ]]; then
+  print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
+  continue
+fi
+
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do

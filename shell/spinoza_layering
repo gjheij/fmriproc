@@ -130,6 +130,14 @@ fi
 # intro
 start_timer "Equivolumetric layering using ${software^^}"
 
+# nighres required this module
+check_python_package "nighres"
+
+if [[ ! -d ${INPUT} ]]; then
+  print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
+  continue
+fi
+
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do

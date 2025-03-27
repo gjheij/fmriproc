@@ -67,7 +67,7 @@ if [[ $# -lt 3 ]] ; then
   exit 1
 fi
 
-NIGHRES=${@:$OPTIND:1}
+INPUT=${@:$OPTIND:1}
 TOBESAMPLED=${@:$OPTIND+1:1}
 TAG=${@:$OPTIND+2:1}
 
@@ -85,6 +85,14 @@ fi
 # intro
 start_timer "Profile sampling with Nighres"
 
+# nighres required this module
+check_python_package "nighres"
+
+if [[ ! -d ${INPUT} ]]; then
+  print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
+  continue
+fi
+
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do
@@ -94,7 +102,7 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  nighres_dir=${NIGHRES}/${base_path}
+  nighres_dir=${INPUT}/${base_path}
   sampled_dir=${TOBESAMPLED}/${base_path}
 
   #--------------------------------------------------------------------------------------------------------------------------------------------
