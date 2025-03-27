@@ -320,23 +320,17 @@ for subID in ${search}; do
         eval ${cmd}
 
         if [[ $? != 0 ]]; then
-          echo
-          print_line -
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_pybest exited with non-zero status"
+          print_error_msg "$(basename ${0})" "call_pybest"
           exit 1
-        fi        
-
+        fi
       else
         print_output_exists "${sub_name}" "data already denoised" "Use \"--ow\" to overwrite"
       fi
-
     else
       print_directory_not_exist "${sub_name}" "${FPREP}/${base_path}/func"
       continue
     fi
-
   fi
-
 done
 
 #-----------------------------------------------------------------------------

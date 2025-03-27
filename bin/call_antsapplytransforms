@@ -183,6 +183,13 @@ fi
 # eval doesn't quit script like 'exec' does
 eval ${cmd}
 
+if [[ $? != 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "antsApplyTransforms"
+  exit 1
+fi
+
 # check if we need to set s/qform code
 res=$(check_function fslorient)
 if [[ ${res} -eq 0 ]]; then

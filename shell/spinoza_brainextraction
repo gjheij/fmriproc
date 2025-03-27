@@ -422,9 +422,7 @@ for subID in ${search}; do
           print_cmd ${cmd} && eval ${cmd}
 
           if [[ $? != 0 ]]; then
-            echo
-            print_line -
-            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_winsorize exited with non-zero status."
+            print_error_msg "$(basename ${0})" "call_winsorize"
             exit 1
           fi
 
@@ -432,6 +430,13 @@ for subID in ${search}; do
           echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
           cmd="call_rescale ${biascorr} 0 4095 ${corrected_t1w}"
           print_cmd ${cmd} && eval ${cmd}
+
+          if [[ $? != 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "call_rescale"
+            exit 1
+          fi
 
           # copy qform to sform
           fslorient -copyqform2sform ${corrected_t1w}
@@ -454,16 +459,14 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_rmbackground exited with non-zero status"
+              print_error_msg "$(basename ${0})" "call_rmbackground"
               exit 1
             fi
 
             # truncate image intensities
             call_winsorize -l 0.01 -u 0.99 ${corrected_t1w}
             if [[ $? != 0 ]]; then
-              echo
-              print_line -
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_winsorize exited with non-zero status"
+              print_error_msg "$(basename ${0})" "call_winsorize"
               exit 1
             fi
 

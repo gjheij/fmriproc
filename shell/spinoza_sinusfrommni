@@ -233,8 +233,10 @@ for subID in ${search}; do
           print_cmd ${cmd}
           eval ${cmd}
 
-          if [[ $? -ne 0 ]]; then
-            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero status"
+          if [[ $? != 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "fslmaths"
             exit 1
           fi
 

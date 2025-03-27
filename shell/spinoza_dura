@@ -194,7 +194,12 @@ for subID in ${search}; do
         if [[ -f ${out_prob} ]]; then
           mv "${out_prob}" "${output_dura}"
         else
-          print_error_msg "$(basename ${0})" "call_nighresdura"
+          if [[ $? -ne 0 ]]; then
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "call_nighresdura"
+              exit 1
+          fi
         fi
 
       else
@@ -259,9 +264,12 @@ for subID in ${search}; do
         -o ${outdir_skull} \
         -b ${output_root}
       
-      if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_nighresskullstrip"
-      fi
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_nighresskullstrip"
+          exit 1
+        fi
     else
       echo "Found nighres output for skullstripping module"
     fi

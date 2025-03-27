@@ -394,7 +394,7 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_targetvertex exited with non-zero status"
+      print_error_msg "$(basename ${0})" "call_targetvertex"
       exit 1
     fi
 

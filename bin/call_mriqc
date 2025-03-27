@@ -180,7 +180,9 @@ if [[ ${fd_only} -eq 0 ]]; then
     fi
 
     if [[ ! -f ${mriqc_container} ]]; then
-      echo "Could not find singularity image \"${mriqc_container}\" for fmriprep.."
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "" "Could not find singularity image \"${mriqc_container}\" for MRIqc.."
       exit 1
     fi 
 
@@ -220,7 +222,7 @@ if [[ ${fd_only} -eq 0 ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mriqc exited with non-zero status"
+    print_error_msg "$(basename ${0})" "MRIqc"
     exit 1
   fi
 

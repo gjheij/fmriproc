@@ -166,31 +166,6 @@ EOF
   echo "$confFile"
 }
 
-decide_job_type() {
-  local sub_name="$1"
-  local run_local="$2"
-  local workdir="$3"
-  local n_cpus="$4"
-
-  local job=""
-  local echo_cmd=1
-  local call_=""
-  local submit=""
-  local QUEUE=""
-
-  if [[ ${run_local} -eq 1 ]]; then
-    job="call_fmriprep"
-  else
-    QUEUE="${SGE_QUEUE:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
-    call_="$(which call_fmriprep)"
-    submit=$(generate_submission_command "${QUEUE}" "${n_cpus}" "${sub_name}_desc-fmriprep" "${workdir}")
-    job="${submit} ${call_}"
-  fi
-
-  # Return job command and echo flag as global variables if needed
-  echo "${job}"
-}
-
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -495,7 +470,7 @@ for subID in ${search}; do
   confFile=$(generate_config_file "$conf" "${n_runs[@]}")
 
   # decide the job type
-  job="$(decide_job_type "$sub_name" "$run_local" "$workdir" "$n_cpus")"
+  job="$(decide_job_type "call_fmriprep" "$sub_name" "$run_local" "$workdir" "$n_cpus" "fmriprep")"
 
   # define the command
   cmd="""${job} \
@@ -530,10 +505,10 @@ for subID in ${search}; do
     # run
     eval ${cmd}
     
-  if [[ $? != 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_fmriprep did not execute cleanly"
-    exit 1
-  fi
+    if [[ $? -ne 0 ]]; then
+      print_error_msg "$(basename ${0})" "${cmd}"
+      exit 1
+    fi
 
 done
 

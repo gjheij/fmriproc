@@ -263,9 +263,11 @@ for task_id in ${task_ids[@]}; do
           --post
 
         if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"pre\""
           exit 1
-        fi          
+        fi
       fi
     fi
     echo "Done"
@@ -286,9 +288,11 @@ for task_id in ${task_ids[@]}; do
           --pre
 
         if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"pre\""
           exit 1
-        fi         
+        fi  
       fi
     fi
 
@@ -310,9 +314,11 @@ for task_id in ${task_ids[@]}; do
       eval ${cmd}
 
       if [[ $? -ne 0 ]]; then
-        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): pybest existed with non-zero status"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "pybest"
         exit 1
-      fi 
+      fi
     fi
 
     # undo z-scoring
@@ -330,9 +336,11 @@ for task_id in ${task_ids[@]}; do
           --post
 
         if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
           exit 1
-        fi
+        fi  
       fi
 
       echo "Done"
@@ -386,9 +394,11 @@ for task_id in ${task_ids[@]}; do
 
             # check if execution was ok
             if [[ $? -ne 0 ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero status"
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "fslmaths"
               exit 1
-            fi
+            fi  
 
           done
           echo "Done"

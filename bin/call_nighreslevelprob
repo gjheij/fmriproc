@@ -64,9 +64,9 @@ Example:
             output_base = arg
 
     if len(argv) < 3:
-            print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-            print(main.__doc__)
-            sys.exit()
+        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit()
 
     # Just plop everything in dir of segmentation
     levelset_to_probability(

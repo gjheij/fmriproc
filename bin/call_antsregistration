@@ -363,11 +363,15 @@ MOV=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
 if [[ ! -f ${REF} ]]; then
+  echo
+  print_line -
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 fi
 
 if [[ ! -f ${MOV} ]]; then
+  echo
+  print_line -
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 fi  
@@ -391,15 +395,17 @@ if [[ -f ${REF} && -f ${MOV} ]]; then
   # check extension
   REF=$(validate_extension ${REF})
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
-    echo ${REF}
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "validate_extension"
     exit 1
   fi
 
   MOV=$(validate_extension ${MOV})
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
-    echo ${MOV}
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "validate_extension"
     exit 1
   fi
 
@@ -580,7 +586,7 @@ eval ${cmd}
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): antsRegistration exited with non-zero status.."
+  print_error_msg "$(basename ${0})" "antsRegistration"
   exit 1
 fi
 

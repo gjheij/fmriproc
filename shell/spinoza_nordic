@@ -291,8 +291,8 @@ for subID in ${search}; do
             ${mag_img} ${ph_img} ${out}
 
           if [[ $? -ne 0 ]]; then
-            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_nordic exited with non-zero status"
-            continue
+            print_error_msg "$(basename ${0})" "call_nordic"
+            exit 1
           fi
         else
           echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mismatch between \"$(basename ${ph_img} ${ph_tag}.nii.gz)\" & \"$(basename ${mag_img} .nii.gz)\""

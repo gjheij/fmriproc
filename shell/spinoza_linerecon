@@ -345,7 +345,14 @@ for subID in ${search}; do
 
         # run cmd
         eval ${cmd}
-        
+
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_linerecon"
+          exit 1
+        fi
+
         # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
         old_lsd=${lsd}
 

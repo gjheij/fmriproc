@@ -270,7 +270,9 @@ for subID in ${search}; do
       eval ${run_cmd}
 
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "generate_equivolumetric_surfaces"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${CMD}"
         exit 1
       fi
 

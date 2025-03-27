@@ -111,7 +111,9 @@ fi
 eval ${cmd}
 
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ImageMath exited with non-zero status"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ImageMath"
   exit 1
 fi
 

@@ -127,7 +127,11 @@ run_id=$(get_id ${fn_nordic} "run")
 # winsorize intensities of nordic
 echo "Winsorizing intensities of magnitude image"
 call_winsorize ${fn_mag}
-        
+if [[ $? -ne 0 ]]; then
+  print_error_msg "$(basename ${0})" "call_winsorize"
+  exit 1
+fi
+
 #-----------------------------------------------------------------------------
 # Create new script (matlab scripts cannot have hyphens, so switch them out for underscores..)
 new_script=$(dirname ${fn_mag})/$(echo "$(basename ${fn_mag} .nii.gz)" | tr '-' '_').m #nordic${run_id}.m
@@ -146,8 +150,20 @@ if [[ -f ${fn_mag} && -f ${fn_phase} ]]; then
     # echo "Calculating tSNR pre-NORDIC"
     # call_tsnr2 --clean ${fn_mag} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_pre_nordic${nii_ext}
     tsnr_out=$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpre_bold${nii_ext}
+    
     call_tsnr ${fn_mag} ${tsnr_out}
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_tsnr"
+      exit 1
+    fi
+
     call_winsorize ${tsnr_out}
+    if [[ $? -ne 0 ]]; then
+      print_error_msg "$(basename ${0})" "call_winsorize"
+      exit 1
+    fi    
   fi
   
   # call_matlab = in call_bashhelper
@@ -155,7 +171,9 @@ if [[ -f ${fn_mag} && -f ${fn_phase} ]]; then
   call_matlab ${new_script}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR: matlab exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "make_nordic_script"
     exit 1
   fi
 
@@ -192,9 +210,21 @@ if [[ ${make_tsnr} -eq 1 ]]; then
   # echo "Calculating tSNR post-NORDIC"
   # call_tsnr2 --clean ${nord_file} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_post_nordic${nii_ext}
   tsnr_out=$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpost_bold${nii_ext}
+
   call_tsnr ${nord_file} ${tsnr_out}
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_tsnr"
+    exit 1
+  fi
+
   call_winsorize ${tsnr_out}
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_winsorize"
+    exit 1
+  fi
 fi
 
 # copy geometry from input image
-fslcpgeom ${nord_file} ${nord_file}
+call_copyheader ${fn_mag} ${nord_file}

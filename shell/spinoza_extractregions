@@ -251,8 +251,10 @@ for subID in ${search}; do
           -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
 
         if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
           print_error_msg "$(basename ${0})" "call_nighresextractregions"
-          continue
+          exit 1
         fi
 
         executed_nighres=1
@@ -314,8 +316,11 @@ for subID in ${search}; do
         -o ${mask_dir} \
         -b ${base}_acq-${DATA^^}
 
-      if [[ $? != 0 ]]; then
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
         print_error_msg "$(basename ${0})" "${cmd}"
+        exit 1
       fi
     fi
   fi

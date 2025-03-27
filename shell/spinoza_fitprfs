@@ -560,12 +560,12 @@ for subID in ${search}; do
             dm_file=${prf_dir}/design_task-${task}.mat
 
             if [[ ! -f ${bold_file} ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not file with \"hemi-LR\" and \"avg_bold.npy\" in \"${prf_dir}\""
+              print_file_not_in_dir "${sub-name}" "\"hemi-LR\" and \"avg_bold.npy\"" "${prf_dir}"
               exit 1
             fi
 
             if [[ ! -f ${dm_file} ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not file \"${dm_file}\""
+              print_file_not_exist "${sub_name}" "${dm_file}"
               exit 1
             fi
              
@@ -649,7 +649,9 @@ for subID in ${search}; do
 
           eval ${cmd}
           if [[ $? -ne 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_prf"
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${script_name}"
             exit 1
           fi
         fi

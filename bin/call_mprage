@@ -178,8 +178,8 @@ fi
 echo " Bias correction with ${software}.."
 eval ${cmd}
 
-if [[ ! -f "${bias_file}" ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): bias correction failed"
+if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
+  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
   exit 1
 fi
 
@@ -190,8 +190,8 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
   echo " Denoising with SANLM.."
   eval ${cmd}
 
-  if [[ ! -f ${final_file} ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmsanlm failed, final output file not created"
+  if [[ $? -ne 0 || ! -f ${final_file} ]]; then
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 
@@ -210,9 +210,21 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   cmd="call_winsorize -l ${lower} -u ${upper} ${final_file}"
   eval ${cmd}
 
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_winsorize"
+    exit 1
+  fi
+
   echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
   cmd="call_rescale ${final_file} 0 4095"
   eval ${cmd}
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -  
+    print_error_msg "$(basename ${0})" "call_rescale"
+    exit 1
+  fi
 else
   echo " Winsorizing turned off.. will not touch image intensities"
 fi
@@ -222,6 +234,13 @@ fi
 echo "Set dtype to UINT16"
 cmd="call_setdtype ${final_file}"
 eval ${cmd}
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -  
+  print_error_msg "$(basename ${0})" "call_setdtype"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # check for separate T1map, probably needs to be registered; give same output name for consistency sake
@@ -245,14 +264,15 @@ if [[ ! -z ${t1map} ]]; then
     fi
 
     # applying warp
-    cmd="call_antsapplytransforms ${final_file} ${t1map} ${t1_reg} ${genaff}"
     echo " Applying warp.."
+    cmd="call_antsapplytransforms ${final_file} ${t1map} ${t1_reg} ${genaff}"
     eval ${cmd}
     
-    if [[ ! -f ${t1_reg} ]]; then
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+    if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
+
   else
     echo " Not registering T1map, simply copy existing file to output folder"
     cp "${t1map}" "${t1_reg}" 2>/dev/null
@@ -265,9 +285,21 @@ if [[ ! -z ${t1map} ]]; then
     cmd="call_winsorize -l ${lower} -u ${upper} ${t1_reg}"
     eval ${cmd}
 
+    if [[ $? -ne 0 ]]; then
+      print_error_msg "$(basename ${0})" "call_winsorize"
+      exit 1
+    fi
+
     echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}5050${RESET}]"
     cmd="call_rescale ${t1_reg} 0 5050"
     eval ${cmd}
+    
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -  
+      print_error_msg "$(basename ${0})" "call_rescale"
+      exit 1
+    fi
   else
     echo " Winsorizing turned off.. will not touch image intensities"
   fi

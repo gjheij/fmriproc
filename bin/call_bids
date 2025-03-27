@@ -959,7 +959,9 @@ fi
 # PARREC TO NIFTI
 if [[ -d ${tmp_dir} ]]; then
   if [[ -z "$(ls -A $tmp_dir)" ]]; then
-    echo "Directory exists, but is empty. You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth}). Append \"--full -d <depth>\" to your call. "
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "" "\"${tmp_dir}\" exists, but is empty. You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth}). Append \"--full -d <depth>\" to your call. "
     exit 1
   else
     echo "Directory exists, skipping conversion (use \"--full\" to overwrite this folder too)." 
@@ -971,12 +973,20 @@ else
     -i ${input_dir} \
     -o ${tmp_dir} \
     -d ${searchDepth}
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_dcm2niix"
+    exit 1
+  fi
 fi
 
 # check if we got something
 if [[ -z "$(ls -A $tmp_dir)" ]]; then
   echo
-  echo -e "${BOLD_RED}ERROR${RESET} in call_bids: Directory exists, but is empty. Either dcm2niix or parrec2nii failed"
+  print_line -
+  print_error_msg "$(basename ${0})" "" "\"${tmp_dir}\" exists, but is empty."
   echo "You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth})."
   echo "Append \"--full -d <depth>\" to your call"
   echo "Check the log file: \"${input_dir}/log.txt\""

@@ -40,6 +40,33 @@ generate_submission_command() {
     echo "$command"
 }
 
+decide_job_type() {
+  local script_name "$1"
+  local sub_name="$2"
+  local run_local="$3"
+  local workdir="$4"
+  local n_cpus="$5"
+  local desc="$6"
+
+  local job=""
+  local echo_cmd=1
+  local call_=""
+  local submit=""
+  local QUEUE=""
+
+  if [[ ${run_local} -eq 1 ]]; then
+    job="${script_name}"
+  else
+    QUEUE="${SGE_QUEUE:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
+    call_="$(which ${script_name})"
+    submit=$(generate_submission_command "${QUEUE}" "${n_cpus}" "${sub_name}_desc-${desc}" "${workdir}")
+    job="${submit} ${call_}"
+  fi
+
+  # Return job command and echo flag as global variables if needed
+  echo "${job}"
+}
+
 check_python_package() {
   local package="$1"
   

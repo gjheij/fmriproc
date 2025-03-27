@@ -260,6 +260,10 @@ for subID in ${search}; do
             fi
 
             eval ${cmd}
+            if [[ $? -ne 0 ]]; then
+              print_error_msg "$(basename ${0})" "call_${a,,}"
+              exit 1
+            fi
         else
           # mprage job
           for file in ${in_files[@]}; do
@@ -297,6 +301,10 @@ for subID in ${search}; do
             fi
             
             eval ${cmd}
+            if [[ $? -ne 0 ]]; then
+              print_error_msg "$(basename ${0})" "call_${a,,}"
+              exit 1
+            fi
           done
         fi
       fi

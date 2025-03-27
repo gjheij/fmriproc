@@ -106,7 +106,7 @@ fi
 ext=$(fetch_extension ${INPUT})
 if [[ ${ext} == "gz" ]]; then
   in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
-  gunzip -c ${INPUT} > ${in_file}
+  gunzip -fc ${INPUT} > ${in_file}
 else
   in_file=${INPUT}
 fi
@@ -141,9 +141,10 @@ make_mask_script ${SPM_PATH} ${in_file} ${tmp_out} ${new_script}
 # call_matlab = in call_bashhelper
 call_matlab ${new_script}
 
-# check if output exists
-if [[ ! -f ${tmp_out} ]]; then
-  echo "ERROR: mask was not created; guessing matlab exited with non-zero status"
+if [[ $? -ne 0 || ! -f "${tmp_out}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "make_mask_script"
   exit 1
 fi
 

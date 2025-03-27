@@ -135,6 +135,14 @@ for subID in ${search}; do
         fi
         
         eval "${cmd}"
+
+        if [[ $? != 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_calculatemean"
+          exit 1
+        fi
+
       else
         print_file_not_in_dir "${sub_name}" "*acq-${ACQ[0]^^}_*, *space-*, and *${i}.nii.gz" "${input_dir}"
         exit 1

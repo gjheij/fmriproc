@@ -135,9 +135,7 @@ fi
 # Fetch moving files
 ff=$(find ${INPUTDIR} -type f -name "*.nii.gz" 2>/dev/null)
 if [[ -z ${ff} ]]; then
-  echo
-  print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find files in input directory!"
+  print_file_not_in_dir "${SUB}" "*.nii.gz" "${INPUTDIR}"
   exit 1
 fi
 
@@ -176,8 +174,6 @@ for f in ${ff[@]}; do
     print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? != 0 ]]; then
-      echo
-      print_line -
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
       exit 1
     fi
@@ -204,7 +200,7 @@ for f in ${qq[@]}; do
     cmd="call_ctxsurfmove ${SUB} ${f} ${transform_ctx}"
     print_cmd "${cmd}" && eval "${cmd}"
 
-    if [[ $? != 0 ]]; then
+    if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "call_ctxsurfmove"

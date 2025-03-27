@@ -275,14 +275,9 @@ for subID in ${search}; do
         echo -e "$(print_cmd ${cmd} | tr '\n' ' ')"
         eval ${cmd}
 
-        if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsregistration exited with non-zero status"
+        if [[ $? -ne 0 || ! -f ${output_dir}/${base}_${ext}genaff.mat]]; then
+          print_error_msg "$(basename ${0})" "call_antsregistration"
           exit 1
-        fi
-
-        if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${output_dir}/${base}_${ext}genaff.mat\" was not created"
-          continue
         fi
 
         if [[ ${reg_type} == "--syn" ]]; then
@@ -337,10 +332,9 @@ for subID in ${search}; do
             eval ${cmd}
 
             if [[ $? -ne 0 ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms failed with \"${cmd}\""
+              print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi
-
           else
             echo " $(basename ${output}) exists"
           fi

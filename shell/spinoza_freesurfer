@@ -210,7 +210,7 @@ for subID in ${search}; do
   if [ ${ct} -gt 1 ]; then
     echo 
     print_line -
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Found multiple T1w-files (${ct})"
+    print_error_msg "$(basename ${0})" "Found multiple T1w-files (${ct})"
     for ii in ${input_t1w[@]}; do echo " ${ii}"; done
     echo "Rename or delete one and rerun"
     echo 
@@ -267,7 +267,7 @@ for subID in ${search}; do
             if [ ${ct} -gt 1 ]; then
               echo 
               print_line -
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Found multiple T2w-files (${ct})"
+              print_error_msg "$(basename ${0})" "Found multiple T2w-files (${ct})"
               for ii in ${input_t2w[@]}; do echo " ${ii}"; done
               echo "Rename or delete one and rerun"
               echo 
@@ -276,7 +276,9 @@ for subID in ${search}; do
               echo "Including T2w: \"${input_t2w}\""
               T2_flag="-p ${input_t2w}"
             else
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): not sure what went wrong.."
+              echo 
+              print_line -            
+              print_error_msg "$(basename ${0})" "Not sure what went wrong.."
               exit 1
             fi
 
@@ -284,7 +286,7 @@ for subID in ${search}; do
             T2_flag=""
           fi
         else
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): T2-path was given, but \"${T2}/${base_path}\" does not exist"
+          print_error_msg "$(basename ${0})" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
         fi
       else
         T2_flag=""
@@ -293,7 +295,11 @@ for subID in ${search}; do
       # cmd
       if [[ ${STAGE} != "all" ]]; then
         if [[ -z ${start_flag} ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon. Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
+          echo 
+          print_line -            
+          print_error_msg "$(basename ${0})"
+          echo "  recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon."
+          echo "  Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
           exit 1
         fi
       fi
@@ -316,15 +322,21 @@ for subID in ${search}; do
       print_cmd ${cmd}
       eval ${cmd}      
 
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "call_freesurfer"
+        exit 1
+      fi
+
     else
       print_output_exists "${sub_name}" "subject already in FreeSurfer's SUBJECTS_DIR"
     fi
 
   else
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No T1-weighted image found in ${BOLD_GREEN}${T1_DIR}${RESET}"
+    print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${T1_DIR}"
     continue
   fi
-
 done
 
 #-----------------------------------------------------------------------------

@@ -200,6 +200,12 @@ for subID in ${search}; do
     # execute cmd
     eval ${cmd}
 
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_lsprep"
+      exit 1
+    fi
   done
 
 done

@@ -209,5 +209,4 @@ fix_compression ${log}
 
 #-----------------------------------------------------------------------------
 # try to add the path to the par/dcm file to the bold/epi files for later reference
-source call_bashhelper
 add_par_file ${pathInput} ${pathOutput}
