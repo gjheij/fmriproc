@@ -272,7 +272,7 @@ for subID in ${search}; do
           ${moving} \
           ${output_dir}/${base}_${ext}"""
 
-        echo "$(echo ${cmd} | tr '\n' ' ')"
+        echo -e "$(print_cmd ${cmd} | tr '\n' ' ')"
         eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
