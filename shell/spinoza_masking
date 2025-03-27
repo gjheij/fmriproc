@@ -157,8 +157,6 @@ for subID in ${search}; do
     if [[ -f ${MASKED} ]]; then
       print_output_exists "${sub_name}" "${MASKED}"
     else
-      # print header
-      print_subject_header ${sub_name}
 
       if [[ ! -f ${MASKED} ]]; then
 
@@ -166,6 +164,9 @@ for subID in ${search}; do
           print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
           continue
         fi
+        
+        # print header
+        print_subject_header ${sub_name}
         
         # if we cannot do masking, then just copy the input image as "masked" image
         if [[ ! -z ${MASK} ]]; then
