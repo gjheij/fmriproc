@@ -354,7 +354,7 @@ for subID in ${search}; do
       fi
     done
   else
-    print_directory_not_exist "${lab_func}"
+    print_directory_not_exist "${sub_name}" "${lab_func}"
     continue
   fi
 

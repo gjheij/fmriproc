@@ -123,7 +123,7 @@ for subID in ${search}; do
   skull_dir=${SKULL}/${base_path}
 
   if [[ ! -d ${input_dir} ]]; then
-    print_directory_not_exist "${input_dir}"
+    print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   else
     search_for_mask="cat_dura"

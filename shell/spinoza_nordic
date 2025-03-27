@@ -158,7 +158,7 @@ for subID in ${search}; do
   print_subject_header ${sub_name}
 
   if [ ! -d ${func_folder} ]; then
-    print_directory_not_exist "${func_folder}"
+    print_directory_not_exist "${sub_name}" "${func_folder}"
     exit 1
   else
 

@@ -95,7 +95,7 @@ for subID in ${search}; do
 
   for dir in "${input_dir}" "${inv2_dir}"; do
     if [ ! -d ${dir} ]; then
-      print_directory_not_exist "${dir}"
+      print_directory_not_exist "${sub_name}" "${dir}"
       continue
     fi
   done

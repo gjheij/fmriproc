@@ -160,7 +160,7 @@ for subID in ${search}; do
     # Running equivolumetric layering with nighres
 
     if [[ ! -d ${input_dir}/cruise ]]; then
-      print_directory_not_exist "${input_dir}/cruise"
+      print_directory_not_exist "${sub_name}" "${input_dir}/cruise"
       continue
     fi
 
@@ -224,7 +224,7 @@ for subID in ${search}; do
     # Running equivolumetric layering with surface tools
 
     if [[ ! -d ${input_dir} ]]; then
-      print_directory_not_exist "${input_dir}" "Run FreeSurfer first.."
+      print_directory_not_exist "${sub_name}" "${input_dir}" "Run FreeSurfer first.."
       continue
     fi
 

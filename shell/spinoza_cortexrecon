@@ -109,7 +109,7 @@ for subID in ${search}; do
 
   # check if input folder exists
   if [[ ! -d ${p} ]]; then
-    print_directory_not_exist "${p}"
+    print_directory_not_exist "${sub_name}" "${p}"
     continue
   fi
 

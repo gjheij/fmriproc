@@ -663,7 +663,7 @@ for subID in ${search}; do
     done
 
   else
-    print_directory_not_exist "${full_input}"
+    print_directory_not_exist "${sub_name}" "${full_input}"
   fi
 
 done

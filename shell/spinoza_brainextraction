@@ -142,7 +142,7 @@ for subID in ${search}; do
   if [[ ${use_fprep} -eq 0 && ${use_fs} -eq 0 ]]; then
     if [[ ! -d ${INPUTDIR} ]]; then
       if [[ ${use_fs} -eq 0 ]]; then
-        print_directory_not_exist "${INPUTDIR}"
+        print_directory_not_exist "${sub_name}" "${INPUTDIR}"
         exit 1
       fi
     fi

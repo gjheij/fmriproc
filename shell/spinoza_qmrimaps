@@ -194,7 +194,7 @@ for subID in ${search}; do
   fi
 
   if [[ ! -d ${input_dir} ]]; then
-    print_directory_not_exist "${input_dir}"
+    print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   else
     if [[ ${run_local} -eq 1 ]]; then

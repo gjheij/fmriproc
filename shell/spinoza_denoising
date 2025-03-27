@@ -331,7 +331,7 @@ for subID in ${search}; do
       fi
 
     else
-      print_directory_not_exist "${FPREP}/${base_path}/func"
+      print_directory_not_exist "${sub_name}" "${FPREP}/${base_path}/func"
       continue
     fi
 
