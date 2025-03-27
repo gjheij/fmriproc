@@ -41,7 +41,7 @@ generate_submission_command() {
 }
 
 decide_job_type() {
-  local script_name "$1"
+  local script_name="$1"
   local sub_name="$2"
   local run_local="$3"
   local workdir="$4"
@@ -238,7 +238,8 @@ print_file_not_exist() {
 print_error_msg() {
   script="${1}"
   func="${2}"
-  echo -e "${BOLD_RED}ERROR${RESET} in ${script}: ${BOLD_BLUE}${func}${RESET} exited with non-zero status"
+  extra="${3}"
+  echo -e "${BOLD_RED}ERROR${RESET} in ${script}: ${BOLD_BLUE}${func}${RESET} exited with non-zero status. ${extra}"
 }
 
 # ---------------------------------------------------------------------------------------------------

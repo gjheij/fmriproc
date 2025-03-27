@@ -218,8 +218,8 @@ for subID in ${search}; do
 
   # Check if required files exist
   if [[ ! -f ${fixed_file} || -z ${moving_files} ]]; then
-    echo "Missing input images"
-    continue
+    print_error_msg "$(basename ${0})" "find" "Could not find ${BOLD_GREEN}FIXED${RESET} and ${BOLD_GREEN}MOVING${RESET} images for TYPE=\"${BOLD_RED}${TYPE}${RESET}\" (code=\"${BOLD_RED}${code}${RESET}\"). Is your setup correct?"
+    exit 1
   fi
 
   if [[ ! -d ${output_dir} ]]; then
@@ -273,10 +273,17 @@ for subID in ${search}; do
           ${output_dir}/${base}_${ext}"""
 
         echo -e "$(print_cmd ${cmd} | tr '\n' ' ')"
-        eval ${cmd}
+        # eval ${cmd}
 
-        if [[ $? -ne 0 || ! -f ${output_dir}/${base}_${ext}genaff.mat]]; then
-          print_error_msg "$(basename ${0})" "call_antsregistration"
+        if [[ $? -ne 0 || ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
+
+          # debugging purposes
+          if [[ $? -eq 0 ]]; then
+            echo
+            print_line -
+          fi
+
+          print_error_msg "$(basename ${0})" "call_antsregistration" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
           exit 1
         fi
 
