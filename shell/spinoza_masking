@@ -290,7 +290,7 @@ if [[ -f "${DIR_DATA_HOME}/dataset_description.json" ]]; then
 
     if [[ $? -ne 0 ]]; then
       echo
-      print -
+      print_line -
       echo "WARNING: could not create symlink for dataset_description; this might result in problems with fMRIprep!"
     fi
   fi
