@@ -132,7 +132,7 @@ else
 fi
 
 if [[ ! -z ${ses} ]]; then
-  nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+  nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
 fi
 
 if [[ ! -z ${n_echoes} ]]; then
@@ -174,7 +174,7 @@ for subID in ${search}; do
     if [[ ! -z ${runs} ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
-        run_f=`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" -and -name "*run-${r}*" \) 2>/dev/null`
+        run_f=$(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" -and -name "*run-${r}*" \) 2>/dev/null)
         b_files+=(${run_f})
       done
 
@@ -183,7 +183,7 @@ for subID in ${search}; do
       unset IFS
 
     else
-      bold_files=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" \) | sort 2>/dev/null`)
+      bold_files=($(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" \) | sort 2>/dev/null))
     fi
     
     # echo "BOLD files"
@@ -205,16 +205,16 @@ for subID in ${search}; do
       ((count++))
 
       # fetch run
-      run=`run_id ${bold}`
+      run=$(run_id ${bold})
       if [[ ${run} -eq 0 ]]; then
         run=${count}
       fi
 
       # fetch task
-      task=`task_id ${bold}`
+      task=$(task_id ${bold})
 
       # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
-      par_file=(`find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null`)
+      par_file=($(find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null))
       if [[ -f ${par_file} ]]; then
         if [[ ${#par_file[@]} -gt 1 ]]; then
           echo "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
@@ -224,11 +224,11 @@ for subID in ${search}; do
           par_file=${par_file[0]}
         fi
         
-        fileparts=`read_par ${par_file} "Protocol name"`
-        task=`task_id ${fileparts}`
+        fileparts=$(read_par ${par_file} "Protocol name")
+        task=$(task_id ${fileparts})
 
         # read echoes from PAR file, verify against specified nr of echoes
-        n_par_echo=`read_par ${par_file} "number of echoes"`
+        n_par_echo=$(read_par ${par_file} "number of echoes")
         if [[ -z ${echo_flag} ]]; then
           if [[ ! -z ${n_par_echo} ]]; then
             if [[ ${run_local} -eq 1 ]]; then
@@ -263,7 +263,7 @@ for subID in ${search}; do
       if [[ ${execute_cmd} -eq 1 ]]; then
 
         # find corresponding LSD-image
-        lsd=`find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`
+        lsd=$(find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null)
         
         ct=0
         for ii in ${lsd[@]}; do ((ct++)); done
@@ -282,7 +282,7 @@ for subID in ${search}; do
             lsd=${old_lsd}
           else
             # try any LSD file..
-            lsd=(`find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null`)
+            lsd=($(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null))
             if [[ -z ${lsd} ]]; then
               echo
               print_line -
@@ -309,7 +309,7 @@ for subID in ${search}; do
           fi
 
           submit=$(generate_submission_command ${QUEUE} 1 $(basename ${log_file} .log) ${log_file})
-          call_=`which call_linerecon`
+          call_=$(which call_linerecon)
           job="${submit} ${call_}"
           verbose=0
         else
@@ -337,8 +337,8 @@ for subID in ${search}; do
         if [[ ${run_local} -eq 0 || ${verbose} -eq 1 ]]; then
           (
             echo ""
-            echo "### New invocation of call_linerecon @ `date`"
-            echo "`echo ${cmd} | tr '\n' ' '`"
+            echo "### New invocation of call_linerecon @$(date)"
+            echo "$(echo ${cmd} | tr '\n' ' ')"
             echo ""
           ) >> ${log_file}
         fi
@@ -357,7 +357,6 @@ for subID in ${search}; do
     print_directory_not_exist "${sub_name}" "${lab_func}"
     continue
   fi
-
 done
 
 #-----------------------------------------------------------------------------

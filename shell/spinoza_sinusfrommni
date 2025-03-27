@@ -128,9 +128,9 @@ for subID in ${search}; do
       print_subject_header ${sub_name}
 
       # calculate T1w/T2w ratio
-      t1=`find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-      t2=`find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T2w.nii.gz" -and -not -name "tmp*" \) 2>/dev/null`
-      mask=`find "${pn_anat}" -type f \( -name "*spm_mask.nii.gz" \) 2>/dev/null`
+      t1=$(find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+      t2=$(find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T2w.nii.gz" -and -not -name "tmp*" \) 2>/dev/null)
+      mask=$(find "${pn_anat}" -type f \( -name "*spm_mask.nii.gz" \) 2>/dev/null)
       if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
 
         if [[ ! -z ${t2} ]]; then
@@ -168,6 +168,7 @@ for subID in ${search}; do
                 --t1 ${t1} \
                 --t2 ${t2} \
                 -o ${pn_anat}/${base}_acq-${DATA^^}"""
+
               print_cmd ${cmd}
               eval ${cmd}
               if [[ $? -ne 0 ]]; then
@@ -191,8 +192,8 @@ for subID in ${search}; do
 
           # fetch template and warp files created with spinoza_registration in step before
           mni_mask=${DIR_SCRIPTS}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
-          mat_file=`find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null`
-          warp_file=`find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null`
+          mat_file=$(find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null)
+          warp_file=$(find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null)
           
           if [[ ! -z ${mat_file} && ! -z ${warp_file} ]]; then
             # got SyN registration

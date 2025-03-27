@@ -166,7 +166,7 @@ if [[ -f ${log} ]]; then
 fi
 
 # redirect output to log-file so we can monitor catastrophic errors
-n_par_files=(`find ${pathInput} -type f -iname "*par"`)
+n_par_files=($(find ${pathInput} -type f -iname "*par"))
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
   echo "Found ${#n_par_files[@]} PAR-files, using 'parrec2nii'"

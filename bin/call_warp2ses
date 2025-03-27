@@ -85,7 +85,7 @@ fi
 
 if [[ -z ${warp_file} ]]; then
   # check in planning folder
-  warp_file=`find ${DIR_DATA_SOURCE}/${sub}/ses-2/planning/nifti -type f -name "*genaff.mat" 2>/dev/null`
+  warp_file=$(find ${DIR_DATA_SOURCE}/${sub}/ses-2/planning/nifti -type f -name "*genaff.mat" 2>/dev/null)
   if [[ -z ${warp_file} ]]; then
     echo "ERROR: could not find warp-file.."
     Usage
@@ -101,7 +101,7 @@ fi
 
 # check in DIR_DATA_HOME/<sub>/ses-<to_ses>/anat
 if [[ -z ${ref_img} ]]; then
-  ref_img=`find ${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat -type f -name "*acq-${space^^}*" -and -not -name "*space-*" -and -name "*.nii.gz" 2>/dev/null`
+  ref_img=$(find ${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat -type f -name "*acq-${space^^}*" -and -not -name "*space-*" -and -name "*.nii.gz" 2>/dev/null)
   if [[ -z ${ref_img} ]]; then
     echo "ERROR: could not find reference image.."
     Usage
@@ -171,7 +171,7 @@ echo "Output session  = ${to_ses,,  }"
 #-----------------------------------------------------------------------------
 # check if we have something between actual files and ses-x tag
 echo "Start warping.."
-fn=`find ${input} -type f -name "*${search}*" -and -name "*.nii.gz" 2>/dev/null`
+fn=$(find ${input} -type f -name "*${search}*" -and -name "*.nii.gz" 2>/dev/null)
 for f in ${fn[@]}; do
 
   # re-direct output to ses-2 directory and insert "space-ses<to_ses>"
@@ -192,7 +192,7 @@ for f in ${fn[@]}; do
         call_resample ${f} ${ref_img} ${newf}
 
         if [[ $? -eq 0 ]]; then
-          echo " wrote `basename ${newf}`"
+          echo " wrote $(basename ${newf})"
         else
           echo "ERROR: call_resample did not execute cleanly"
           exit 1
@@ -204,39 +204,30 @@ for f in ${fn[@]}; do
         call_ctxsurfmove ${sub} ${f} ${newf}
 
         if [[ $? -eq 0 ]]; then
-          echo " wrote `basename ${newf}`"
+          echo " wrote $(basename ${newf})"
         else
           echo "ERROR: call_ctxsurfmove did not execute cleanly"
           exit 1
         fi
-
       else
-
         echo "ERROR: unknown option ${to_ses} was specifed. Either use integers, or \"ctx\" or \"fs\" in special cases"
         exit 1
-
       fi
-
     fi
-
   else
 
     newf=${out_dir}/${sub}_ses-${to_ses}_$(basename ${f} | cut -d "_" -f3-)
-
     if [[ ! -f ${newf} ]]; then
       call_antsapplytransforms -i ${invert} ${ref_img} ${f} ${newf} ${warp_file}
 
       if [[ $? -eq 0 ]]; then
-        echo " wrote `basename ${newf}`"
+        echo " wrote $(basename ${newf})"
       else
         echo "ERROR: call_antsapplytransforms did not execute cleanly"
         exit 1
       fi
-
     fi
-
   fi
-
 done
 
 echo "Done"

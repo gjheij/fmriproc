@@ -139,12 +139,12 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # Check if we can mask inputs
-    mask=`find ${DIR_DATA_DERIV}/manual_masks/${base_path} -type f \( -name "*acq-${DATA^^}*" -and -name "*brainmask.nii.gz" \) 2>/dev/null`
+    mask=$(find ${DIR_DATA_DERIV}/manual_masks/${base_path} -type f \( -name "*acq-${DATA^^}*" -and -name "*brainmask.nii.gz" \) 2>/dev/null)
     declare -a INPUTS=()
 
     echo "Should we mask inputs?"
     for i in "R1" "R2s" "QSM"; do
-      fn=`find ${input_dir} -type f \( -name "*${i}.nii.gz" \) 2>/dev/null`
+      fn=$(find ${input_dir} -type f \( -name "*${i}.nii.gz" \) 2>/dev/null)
 
       j=0; for k in ${fn[@]}; do ((j++)); done; if [[ ${j} -ne 1 ]]; then echo -e "${BOLD_CYAN}${sub_name}${RESET}: Found more than 1 file for ${r}"; continue 2; fi
 
@@ -168,7 +168,7 @@ for subID in ${search}; do
     print_create_img "${massp}"
 
     if [[ ${run_local} -eq 1 ]]; then
-      call_=`which call_nighresmassp`
+      call_=$(which call_nighresmassp)
       submit=$(generate_submission_command ${SGE_QUEUE_LONG} ${n_cpus} ${base}_acq-${DATA^^}_desc-massp ${DIR_LOGS})
       job="${submit} ${call_}"
     else

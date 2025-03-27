@@ -42,13 +42,13 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 # read full file paths
-real=`fetch_filepath ${1}`
-imag=`fetch_filepath ${2}`
+real=$(fetch_filepath ${1})
+imag=$(fetch_filepath ${2})
 out=${3}
 
 # check dimensions
 for f in ${real} ${imag}; do
-	dim=`fslval ${f} dim4`
+	dim=$(fslval ${f} dim4)
 	if [[ ${dim} -lt 2 ]]; then
 		echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${f} only has ${dim} dimensions. This file must contain 2x 3D images"
 		exit 1
@@ -56,7 +56,7 @@ for f in ${real} ${imag}; do
 done
 
 # loop through inversions
-for inv in `seq 1 2`; do
+for inv in $(seq 1 2); do
 	
   echo "Dealing with INV-${inv}"
   echo " Combine real/imag into complex.."

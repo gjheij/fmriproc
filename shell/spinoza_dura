@@ -102,23 +102,23 @@ for subID in ${search}; do
   
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then
-    inv2=`find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -name "*echo-1*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null`      
+    inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -name "*echo-1*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
     search_for=${DATA^^}
   else
     # take the MP2RAGE INV-2 if DATA == AVERAGE
     if [[ ${DATA} == "AVERAGE" ]]; then
-      inv2=`find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-MP2RAGE_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null`
+      inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-MP2RAGE_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
     else
-      inv2=`find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null`
+      inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
     fi
     search_for="MP2RAGE"
   fi
 
   # LOOK FOR THE T1W IMAGE
-  t1w=`find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+  t1w=$(find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
 
   # LOOK FOR THE T1-MAP IMAGE
-  t1map=`find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
+  t1map=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
 
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running dura mask module with call_nighresdura
@@ -136,7 +136,7 @@ for subID in ${search}; do
     # print header
     print_subject_header ${sub_name}
 
-    inv2_mask=`find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+    inv2_mask=$(find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
     
     # look for a bunch of files
     if [[ -z ${inv2} ]]; then
@@ -268,7 +268,7 @@ for subID in ${search}; do
 
     declare -a NIGH_OUT=(mask inv2 t1w t1map)
     for f in ${NIGH_OUT[@]}; do
-      out=`find "${outdir_skull}" -type f \( -name "*${f}*" -and -name "*${DATA^^}*" \) 2>/dev/null`
+      out=$(find "${outdir_skull}" -type f \( -name "*${f}*" -and -name "*${DATA^^}*" \) 2>/dev/null)
 
       if [[ ! -f ${outdir_skull}/${output_root}-strip_${f}.nii.gz ]]; then
         if [[ ! -z ${out} ]]; then

@@ -61,7 +61,7 @@ echo " Creating binary mask of partial FOV"
 MASK=$(dirname ${MOV})/$(basename ${MOV} .nii.gz)_mask.nii.gz
 fslmaths ${MOV} -bin ${MASK}
 
-if [[ `fslval ${MASK} dim0` -eq 4 ]]; then
+if [[ $(fslval ${MASK} dim0) -eq 4 ]]; then
   fslroi ${MASK} ${MASK} 0 1
 fi
 

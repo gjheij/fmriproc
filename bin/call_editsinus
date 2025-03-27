@@ -60,12 +60,12 @@ if [[ ! -z ${sub} ]]; then
     base_dir=${sub}
     base="${sub}"
   else
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base="${sub}_ses-${nr}"
     base_dir=${sub}/ses-${nr}
   fi
 
-  REF=`find ${DIR_DATA_DERIV}/cat12/${base_dir} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null`
+  REF=$(find ${DIR_DATA_DERIV}/cat12/${base_dir} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
   MAN=${DIR_DATA_DERIV}/manual_masks/${base_dir}/${base}_acq-${space^^}_desc-sagittalsinus.nii.gz
   
 else
@@ -79,7 +79,7 @@ if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
-  echo "Creating `basename ${man}` with call_createimg"    
+  echo "Creating $(basename ${man}) with call_createimg"    
   call_createimg ${REF} ${MAN}
 fi
 

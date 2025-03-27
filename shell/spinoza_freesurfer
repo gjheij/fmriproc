@@ -204,7 +204,7 @@ for subID in ${search}; do
 
   # check number of T1w-files
   T1_DIR=${T1}/${base_path}
-  input_t1w=`find "${T1_DIR}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+  input_t1w=$(find "${T1_DIR}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
 
   ct=0; for ii in ${input_t1w[@]}; do ((ct++)); done
   if [ ${ct} -gt 1 ]; then
@@ -235,7 +235,7 @@ for subID in ${search}; do
         if [[ ! -d ${SUBJECTS_DIR}/${sub_name}/surf ]]; then
           execute=1
         else
-        nr_files=`ls -l ${SUBJECTS_DIR}/${sub_name}/surf | grep "total" | cut -d' ' -f2`
+        nr_files=$(ls -l ${SUBJECTS_DIR}/${sub_name}/surf | grep "total" | cut -d' ' -f2)
           if [ ${nr_files} -eq 0 ]; then
             execute=1
           fi
@@ -259,7 +259,7 @@ for subID in ${search}; do
       if [ ! -z ${T2} ]; then
         if [[ -d ${T2}/${base_path} ]]; then
 
-          input_t2w=`find "${T2}/${base_path}" -type f \( -name "*FLAIR*" -and -name "*.nii.gz" -or -name "*T2w*" -and -name "*.nii.gz" \) 2>/dev/null`
+          input_t2w=$(find "${T2}/${base_path}" -type f \( -name "*FLAIR*" -and -name "*.nii.gz" -or -name "*T2w*" -and -name "*.nii.gz" \) 2>/dev/null)
           if [[ ! -z ${input_t2w} ]]; then
 
             # throw error if multiple files are found

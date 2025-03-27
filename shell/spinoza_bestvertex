@@ -293,7 +293,7 @@ for subID in ${search}; do
   else
     if [[ ${OW} -eq 1 ]]; then
       if [[ -f ${line_orientation_file} ]]; then
-        nr=`find -L $(dirname ${line_orientation_file}) -type f -name "${base}*" -and -name "*desc-coords.csv" | wc -w`
+        nr=$(find -L $(dirname ${line_orientation_file}) -type f -name "${base}*" -and -name "*desc-coords.csv" | wc -w)
         fname=$(dirname ${line_orientation_file})/${base}_backup-${nr}_desc-coords.csv
         mv ${line_orientation_file} ${fname}
       fi
@@ -337,9 +337,9 @@ for subID in ${search}; do
 
       # find prf parameters
       if [[ ! -z ${search_pars} ]]; then
-        pars=`find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -name "*${search_pars}*" \) 2>/dev/null`
+        pars=$(find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -name "*${search_pars}*" \) 2>/dev/null)
       else
-        pars=`find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -not -name "*_roi-*" \) 2>/dev/null`        
+        pars=$(find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -not -name "*_roi-*" \) 2>/dev/null)
       fi
 
       if [[ -z ${pars} ]]; then
@@ -350,7 +350,7 @@ for subID in ${search}; do
       fi
 
       if [[ ${srf_file} -eq 1 ]]; then
-        srf_file=`find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null`
+        srf_file=$(find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null)
         srf_file_flag="--srf_file ${srf_file}"
         if [[ -z ${srf_file} ]]; then
           echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""

@@ -397,7 +397,7 @@ for subID in ${search}; do
     fi
 
     # fetch PNG-directories, sort, and save in array
-    PNG_UNSORTED=`find ${png_dir} -type d \( -name "*Screenshots*" \) 2>/dev/null`
+    PNG_UNSORTED=$(find ${png_dir} -type d \( -name "*Screenshots*" \) 2>/dev/null)
     IFS=$'\n' PNGS_DIR=($(sort <<<"${PNG_UNSORTED[*]}"))
     unset IFS    
     
@@ -425,9 +425,9 @@ for subID in ${search}; do
           exit 1
         fi
 
-        prf_params=`find ${prf_dir} -type f \( -name "*${use_model}*" -and -name "*roi-${roi}*" -and -name "*${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.pkl" \) 2>/dev/null`
+        prf_params=$(find ${prf_dir} -type f \( -name "*${use_model}*" -and -name "*roi-${roi}*" -and -name "*${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.pkl" \) 2>/dev/null)
       else
-        prf_params=`find ${prf_dir} -type f \( -name "*${use_model}*" -and -name "*${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.pkl" -and -not -name "*roi-*" \) 2>/dev/null`
+        prf_params=$(find ${prf_dir} -type f \( -name "*${use_model}*" -and -name "*${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.pkl" -and -not -name "*roi-*" \) 2>/dev/null)
       fi
       
       if [[ ${OW} -eq 1 ]]; then
@@ -476,7 +476,7 @@ for subID in ${search}; do
               fi
 
               # check if directory contains png-files
-              if [[ -z `find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null` ]]; then
+              if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null) ]]; then
                 echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no *.png-files in \"${use_pngdir}\""
                 continue
               fi
@@ -491,7 +491,7 @@ for subID in ${search}; do
                 use_pngdir=${task_dirs[0]}
 
                 # check if directory contains png-files
-                if [[ -z `find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null` ]]; then
+                if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null$( ]]; then
                   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no *.png-files in \"${use_pngdir}\""
                   continue
                 fi
@@ -521,16 +521,16 @@ for subID in ${search}; do
 
               if [[ -d ${use_pngdir} ]]; then
                 # check first if we have a json file
-                screen_=`find $(dirname ${use_pngdir}) -type f \( -name "*screen.json" \) 2>/dev/null`
+                screen_=$(find $(dirname ${use_pngdir}) -type f \( -name "*screen.json" \) 2>/dev/null)
                 if [[ -f ${screen_} ]]; then
                   clip_flag="--clip ${screen_}"
                 else
                   # if not, check if we have yml file (should contain "screen_delim"-key)
-                  screen_=`find $(dirname ${use_pngdir}) -type f \( -name "*.yml" \) 2>/dev/null`
+                  screen_=$(find $(dirname ${use_pngdir}) -type f \( -name "*.yml" \) 2>/dev/null)
                   if [[ -f ${screen_} ]]; then
 
                     # check if we have "screen_delim"-key in yml file
-                    if [[ ! -z `grep "screen_delim" ${screen_}` ]]; then
+                    if [[ ! -z $(grep "screen_delim" ${screen_}) ]]; then
                       clip_flag="--clip ${screen_}"
                     else
                       clip_flag=""
@@ -556,7 +556,7 @@ for subID in ${search}; do
             script_name="call_refit"
 
             # check bold file/ design matrix
-            bold_file=`find ${prf_dir} -type f \( -name "*hemi-LR_*" -and -name "*avg_bold.npy" \) 2>/dev/null`
+            bold_file=$(find ${prf_dir} -type f \( -name "*hemi-LR_*" -and -name "*avg_bold.npy" \) 2>/dev/null)
             dm_file=${prf_dir}/design_task-${task}.mat
 
             if [[ ! -f ${bold_file} ]]; then
@@ -594,7 +594,7 @@ for subID in ${search}; do
             fi
 
             submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_task-${task}_model-${model} ${prf_dir})
-            call_=`which ${script_name}`
+            call_=$(which ${script_name})
             job="${submit} ${call_}"
           else
             job=${script_name}
@@ -642,8 +642,8 @@ for subID in ${search}; do
 
           cmd_file=${prf_dir}/sub-${sub_id}_ses-${nr}_task-${task}_desc-command.txt
           (
-            echo "### New invocation of call_prf @`date`"
-            echo "`echo ${cmd} | tr '\n' ' '`"
+            echo "### New invocation of call_prf @$(date)"
+            echo "$(echo ${cmd} | tr '\n' ' ')"
             echo
           ) >> ${cmd_file}
 

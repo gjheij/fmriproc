@@ -100,7 +100,7 @@ for subID in ${search}; do
     continue
   fi
 
-  input_t1w=`find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+  input_t1w=$(find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
 
   declare -a OUTPUTS=(mixeltype pve_0 pve_1 pve_2 pveseg seg)
   outputroot=${output_dir}/${base}_acq-${DATA^^}_desc

@@ -206,13 +206,13 @@ for subID in ${search}; do
   # loop through available datatype (see spinoza_setup)
   for a in ${ACQ[@]}; do
 
-    t1w=`find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
-    t1map=`find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1map.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
+    t1w=$(find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
+    t1map=$(find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1map.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
 
     if [[ ${DATA^^} == "MPRAGE" ]]; then
-      in_files=(`find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null`)
+      in_files=($(find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null))
     else
-      in_files=`find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -not -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null`
+      in_files=$(find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -not -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null)
     fi
 
     # check if we should overwrite
@@ -237,7 +237,7 @@ for subID in ${search}; do
           output_base=${base}_acq-${a^^}
           if [[ ${run_local} -eq 0 ]]; then
             submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${output_base}_desc-${a,,} ${DIR_LOGS})
-            call_=`which call_${a,,}`
+            call_=$(which call_${a,,})
             job="${submit} ${call_}" 
           else
             job="call_${a,,}"
@@ -265,7 +265,7 @@ for subID in ${search}; do
           for file in ${in_files[@]}; do
             # set output name based on acquisition strategy
             add_run=""
-            run=`get_id ${file} run`
+            run=$(get_id ${file} run)
             if [[ ! -z ${run} ]]; then
               add_run="_run-${run}"
             fi
@@ -312,7 +312,7 @@ for subID in ${search}; do
 
     # copy T2w-file to pymp2rage folder for later convenience
     if [[ ${f} != "T1w" ]]; then
-      f_files=`find -L "${input_dir}" -type f \( -name "*${f}.nii.gz" \) 2>/dev/null`
+      f_files=$(find -L "${input_dir}" -type f \( -name "*${f}.nii.gz" \) 2>/dev/null)
       if [ ! -z ${f_files} ]; then
         ct=0; for ii in ${f_files[@]}; do ((ct++)); done
         ix=0

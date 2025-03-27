@@ -63,7 +63,7 @@ if [[ ! -d $CTX/${SUBJECT} ]]; then
 fi
 
 orig=${FS}/${SUBJECT}/mri/orig.nii.gz
-ses2=`find ${DIR_DATA_HOME}/${SUBJECT}/ses-${SESSION}/anat -type f -name "${SUBJECT}*" -and -name "*acq-MP2RAGE_T1w.nii.gz" 2>/dev/null`
+ses2=$(find ${DIR_DATA_HOME}/${SUBJECT}/ses-${SESSION}/anat -type f -name "${SUBJECT}*" -and -name "*acq-MP2RAGE_T1w.nii.gz" 2>/dev/null)
 
 # convert mgz to nifti
 if [[ ! -f ${orig} ]]; then

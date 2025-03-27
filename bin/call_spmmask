@@ -103,7 +103,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # Get extension from input file
-ext=`fetch_extension ${INPUT}`
+ext=$(fetch_extension ${INPUT})
 if [[ ${ext} == "gz" ]]; then
   in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
   gunzip -c ${INPUT} > ${in_file}
@@ -112,10 +112,10 @@ else
 fi
 
 # if file specified is in current directory, add entire path
-in_file=`fetch_filepath ${in_file}`
+in_file=$(fetch_filepath ${in_file})
 out_file=${OUTPUT}
 
-out_ext=`fetch_extension ${out_file}`
+out_ext=$(fetch_extension ${out_file})
 if [[ ${out_ext} == "gz" ]]; then
   is_niigz=1
   tmp_out=$(dirname ${out_file})/$(basename ${out_file} .gz)

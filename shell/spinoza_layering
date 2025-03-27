@@ -142,7 +142,7 @@ for subID in ${search}; do
     input_dir=${INPUT}/${sub_name}
     base="${sub_name}"
   else
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
 
     # remove this statement if you have multiple freesurfer sessions
     if [[ $(basename ${INPUT}) == *"freesurfer"* ]]; then
@@ -167,7 +167,7 @@ for subID in ${search}; do
     declare -a LAYER=(gwb cgb)
     declare -a INPUTS=()
     for r in ${LAYER[@]}; do
-      file=`find "${input_dir}/cruise" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null`
+      file=$(find "${input_dir}/cruise" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
       if [[ -f ${file} ]]; then
         INPUTS+=(${file})
       else

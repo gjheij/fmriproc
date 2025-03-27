@@ -116,8 +116,8 @@ fi
 
 # check if input was directory or file
 if [[ -f ${input} ]]; then
-  input=`fetch_filepath ${input}`
-  ext=`fetch_extension ${input}`
+  input=$(fetch_filepath ${input})
+  ext=$(fetch_extension ${input})
 
   if [[ ${ext} == "gz" ]]; then
     search=$(basename ${input} .nii.gz)
@@ -133,9 +133,9 @@ if [[ -f ${input} ]]; then
 elif [[ -d ${input} ]]; then
   set_zstat_id=1
   if [[ ! -z ${search} ]]; then
-    input=`find "${input}" -maxdepth 1 -type f \( -name "*.nii.gz" -and -name "*${search}*" -and -not -name "*space-*" \) 2>/dev/null`
+    input=$(find "${input}" -maxdepth 1 -type f \( -name "*.nii.gz" -and -name "*${search}*" -and -not -name "*space-*" \) 2>/dev/null)
   else
-    input=`find "${input}" -maxdepth 1 -type f \( -name "*rendered_thresh*" -and -name "*.nii.gz" \) 2>/dev/null`
+    input=$(find "${input}" -maxdepth 1 -type f \( -name "*rendered_thresh*" -and -name "*.nii.gz" \) 2>/dev/null)
     search="zstat"
   fi
 else
@@ -150,9 +150,9 @@ unset IFS
 # get the reference anatomy (in native space)
 if [[ -z ${reference} ]]; then
   if [[ ${input} == *".gfeat"* ]]; then
-    T1=`find $(dirname ${warp}) -type f \( -name "*preproc_T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null`
+    T1=$(find $(dirname ${warp}) -type f \( -name "*preproc_T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
   else
-    T1=`find "${input}" -type f \( -name "*highres*" -and -name "*.nii.gz" \) 2>/dev/null`
+    T1=$(find "${input}" -type f \( -name "*highres*" -and -name "*.nii.gz" \) 2>/dev/null)
   fi
 else
   T1=${reference}
@@ -181,7 +181,7 @@ for i in ${inputs[@]}; do
   # set output name for space-T1w file
   if [[ ${set_zstat_id} -eq 1 ]]; then
     STRING=$(basename ${i})
-    nr=`echo "${STRING//[!0-9]/}"`
+    nr=$(echo "${STRING//[!0-9]/}")
     new_warp=${i}/${subj_ID}_space-T1w_desc-${search}${nr}.nii.gz
   else
     new_warp=$(dirname ${i})/${subj_ID}_space-T1w_desc-${search}.nii.gz
@@ -189,7 +189,7 @@ for i in ${inputs[@]}; do
 
   # warp to T1w-space
   if [[ ! -f ${new_warp} ]]; then
-    echo "Warping `basename ${i}` image to T1w-space"
+    echo "Warping $(basename ${i}) image to T1w-space"
     call_antsapplytransforms ${T1} ${i} ${new_warp} ${warp}
   fi
 
@@ -200,8 +200,8 @@ for i in ${inputs[@]}; do
   
   # threshold zstat-images
   if [[ ! -z ${thresh} ]]; then
-    if [[ `fslstats ${i} -R | awk '{print $1}'` != "0.000000" ]]; then
-      echo "  thresholding `basename ${new_warp}` with z=${thresh}"
+    if [[ $(fslstats ${i} -R | awk '{print $1}') != "0.000000" ]]; then
+      echo "  thresholding $(basename ${new_warp}) with z=${thresh}"
       fslmaths ${new_warp} -thr ${thresh} ${new_warp}
     fi
   fi

@@ -168,7 +168,7 @@ for subID in ${search}; do
   declare -a INPUTS=()
 
   for r in ${MGDM[@]}; do
-    file=`find "${mgdm_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null`
+    file=$(find "${mgdm_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
 
     # check for multiple files..
     j=0; for i in ${file[@]}; do ((j++)); done

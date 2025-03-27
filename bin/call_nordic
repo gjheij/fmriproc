@@ -81,11 +81,11 @@ source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Add entire path if just filename is specified
-fn_mag=`fetch_filepath ${IMG_MAGN}`
-fn_phase=`fetch_filepath ${IMG_PHASE}`
-fn_nordic=`fetch_filepath ${IMG_NORDIC}`
+fn_mag=$(fetch_filepath ${IMG_MAGN})
+fn_phase=$(fetch_filepath ${IMG_PHASE})
+fn_nordic=$(fetch_filepath ${IMG_NORDIC})
 
-ext_mag=`fetch_extension ${IMG_MAGN}`
+ext_mag=$(fetch_extension ${IMG_MAGN})
 if [[ ${ext_mag} == "gz" ]]; then
   nii_mag=".nii.gz"
 else
@@ -93,13 +93,13 @@ else
   gzip -f ${fn_mag}
 fi
 
-ext_ph=`fetch_extension ${IMG_PHASE}`
+ext_ph=$(fetch_extension ${IMG_PHASE})
 if [[ ${ext_ph} == "nii" ]]; then
   gzip -f ${fn_phase}
 fi
 
 # check if datatype != FLOAT64; might crash..
-dtype=`fslval ${fn_mag} data_type`
+dtype=$(fslval ${fn_mag} data_type)
 if [ ${dtype} == "FLOAT64" ]; then
   echo "Changing data_type of magnitude-image from float64 to uint16"
   call_setdtype ${fn_mag}
@@ -110,7 +110,7 @@ call_json ${json_mag} "Nordic" "off"
 
 #-----------------------------------------------------------------------------
 # Get extension from input file
-ext_nordic=`fetch_extension ${fn_nordic}`
+ext_nordic=$(fetch_extension ${fn_nordic})
 
 # nordic output
 if [[ ${ext_nordic} == "gz" ]]; then
@@ -121,7 +121,7 @@ fi
 fn_nordic=$(dirname ${fn_nordic})/$(basename ${fn_nordic} ${nii_ext})
 
 # try to get run-ID from input file
-run_id=`run_id ${fn_nordic}`
+run_id=$(get_id ${fn_nordic} "run")
 
 #-----------------------------------------------------------------------------
 # winsorize intensities of nordic

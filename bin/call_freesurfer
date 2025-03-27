@@ -244,7 +244,7 @@ CMD(){
 
   # check if function exists, will throw an error if it doesn't exist
   fn_exists freesurfer
-  echo "Using FreeSurfer from: `which freesurfer`"
+  echo "Using FreeSurfer from: $(which freesurfer)"
 
   if [[ ${run_local} -eq 0 ]]; then
     echo "Submitting job to cluster with ${n_cpus} core(s)"
@@ -322,14 +322,14 @@ CHECK_INPUTS(){
     fi
   else
     if [[ ${1} == "all" || ${1} == *"1"* ]]; then
-      T1=`fetch_filepath ${T1}`
+      T1=$(fetch_filepath ${T1})
       T1_flag="-i ${T1}"
     fi
   fi
 
   if [[ ! -z ${T2} ]]; then
     # also got a T2 weighted image
-    T2=`fetch_filepath ${T2}`
+    T2=$(fetch_filepath ${T2})
 
     # check if input if FLAIR or T2
     if [[ ${T2} == *"T2w.nii.gz"* ]]; then
@@ -390,7 +390,7 @@ CHECK_EXECUTION(){
       reason="directory \"${SUBJECTS_DIR}/${subj_ID}\" is empty"
       execute=1
     else
-      nr_files=`ls -l ${SUBJECTS_DIR}/${subj_ID}/surf | grep "total" | cut -d' ' -f2`
+      nr_files=$(ls -l ${SUBJECTS_DIR}/${subj_ID}/surf | grep "total" | cut -d' ' -f2)
       if [ ${nr_files} -eq 0 ]; then
         reason="directory \"${SUBJECTS_DIR}/${subj_ID}/surf\" is empty"
         execute=1

@@ -206,8 +206,8 @@ if [[ ! -z ${KWARGS_FILE} ]]; then
 
     re="[[:space:]]+"
     if [[ $line =~ $re ]]; then
-      fl=`echo ${line} | cut -d" " -f1`
-      ar=`echo ${line} | cut -d" " -f2`
+      fl=$(echo ${line} | cut -d" " -f1)
+      ar=$(echo ${line} | cut -d" " -f2)
     else
       fl=${line}
       ar=""
@@ -455,7 +455,7 @@ ${run_cmd} \
       
       # find files
       fprep_=${derivatives}/fmriprep/${base_dir}/func
-      mni_files=(`find -L ${fprep_} -type f \( -name "*MNI152*" -and -name "*_desc-preproc_bold.nii.gz" \) 2>/dev/null`)
+      mni_files=($(find -L ${fprep_} -type f \( -name "*MNI152*" -and -name "*_desc-preproc_bold.nii.gz" \) 2>/dev/null))
 
       # loop
       if [[ ! -z ${mni_files} ]]; then
@@ -477,7 +477,7 @@ ${run_cmd} \
 
   # check if we should clean working directory
   if [[ ${clean_wd} -eq 1 ]]; then  
-    wf_folder=`find ${work} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null`
+    wf_folder=$(find ${work} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
 
     if [[ ! -z ${wf_folder} ]]; then
       subj_wf=${wf_folder}/${single_subj_wf}
@@ -496,7 +496,7 @@ ${run_cmd} \
   #-----------------------------------------------------------------------------
   # fMRIPrep's boldref seems to be messy lately (snow-like noise pattern instead of an image)
   if [[ ${BOLDREF} -eq 1 ]]; then
-    bold_files=`find ${derivatives}/fmriprep/*${subj_ID}/ -type f -name "*preproc_bold.nii.gz" 2>/dev/null`
+    bold_files=$(find ${derivatives}/fmriprep/*${subj_ID}/ -type f -name "*preproc_bold.nii.gz" 2>/dev/null)
     IFS=$'\n' bold_files=($(sort <<<"${bold_files[*]}"))
     unset IFS
 
@@ -522,7 +522,7 @@ fi
 # copy the bold-to-T1w warps from the fmriprep_wf
 if [[ ${WARP_ONLY} -eq 1 ]]; then
   for tt in "fwd" "inv"; do
-    xfms=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null`)
+    xfms=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null))
     if [[ ! -z ${xfms} ]]; then
 
       if [[ ${tt} == "fwd" ]]; then
@@ -533,11 +533,11 @@ if [[ ${WARP_ONLY} -eq 1 ]]; then
 
       echo "Copying \"${m}\" tfm-files"
       for xfm in ${xfms[@]}; do
-        wf_name=`python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${xfm}', '${subj_ID}', prefix='${pref}'))"`
+        wf_name=$(python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${xfm}', '${subj_ID}', prefix='${pref}'))")
         
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
-          ses_id=`echo ${wf_name} | cut -d'_' -f2`
+          ses_id=$(echo ${wf_name} | cut -d'_' -f2)
           base_dir=${pref}${subj_ID}/${ses_id}
         else
           base_dir=${pref}${subj_ID}
@@ -562,28 +562,28 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       tag=""
       msg="space-func"
       err="bold_bold_trans_wf"
-      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
     elif [[ ${output_space[ct]} == "fsl" ]]; then
       tag="_space-MNI152NLin6Asym_res-1"
       msg="space-MNI152NLin6Asym_res-1"
       err="bold_std_trans_wf/*MNI152NLin6Asym*"
-      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
     elif [[ ${output_space[ct]} == "anat" ]]; then
       tag="_space-T1w"
       msg="space-T1w"
       err="bold_t1_trans_wf"
-      fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null`)
+      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
     fi
 
     # fetch time course files
     if [[ ! -z ${fetch_files} ]]; then
       echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed files"
       for ff in ${fetch_files[@]}; do
-        wf_name=`python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+        wf_name=$(python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))")
         
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
-          ses_id=`echo ${wf_name} | cut -d'_' -f2`
+          ses_id=$(echo ${wf_name} | cut -d'_' -f2)
           base_dir=${pref}${subj_ID}/${ses_id}
         else
           base_dir=${pref}${subj_ID}
@@ -604,25 +604,25 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       if [[ ${output_space[ct]} == "func" ]]; then
         tag=""
         msg="space-func"
-        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
       elif [[ ${output_space[ct]} == "fsl" ]]; then
         tag="_space-MNI152NLin6Asym_res-1"
         msg="space-MNI152NLin6Asym_res-1"
-        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
       elif [[ ${output_space[ct]} == "anat" ]]; then
         tag="_space-T1w"
         msg="space-T1w"
-        fetch_files=(`find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null`)
+        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
       fi      
 
       if [[ ! -z ${fetch_files} ]]; then
         echo "Copying ${#fetch_files[@]} \"${msg}\"-transformed brain masks"
         for ff in ${fetch_files[@]}; do
-          wf_name=`python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))"`
+          wf_name=$(python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${ff}', '${subj_ID}', prefix='${pref}'))")
           
           # check ses-flag
           if [[ ${wf_name} == *"ses-"* ]]; then
-            ses_id=`echo ${wf_name} | cut -d'_' -f2`
+            ses_id=$(echo ${wf_name} | cut -d'_' -f2)
             base_dir=${pref}${subj_ID}/${ses_id}
           else
             base_dir=${pref}${subj_ID}
@@ -648,17 +648,17 @@ done
 if [[ ${FD_ONLY} -eq 1 ]]; then
   echo "Finding FD-timecourse files"
   work_dir=${work}/fmriprep*wf/${single_subj_wf}
-  fd_files=(`find -L ${work_dir}/${func_wf}*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null`)
+  fd_files=($(find -L ${work_dir}/${func_wf}*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null))
   if [ ! -z ${fd_files} ]; then
 
     # find # fdvars timecourse for Marco
     for fd in ${fd_files[@]}; do
 
-      wf_name=`python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${fd}', '${subj_ID}', prefix='${pref}'))"`
+      wf_name=$(python -c "from lazyfmri.utils import disassemble_fmriprep_wf; print(disassemble_fmriprep_wf('${fd}', '${subj_ID}', prefix='${pref}'))")
       
       # check ses-flag
       if [[ ${wf_name} == *"ses-"* ]]; then
-        ses_id=`echo ${wf_name} | cut -d'_' -f2`
+        ses_id=$(echo ${wf_name} | cut -d'_' -f2)
         base_dir=${pref}${subj_ID}/${ses_id}
       else
         base_dir=${pref}${subj_ID}

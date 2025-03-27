@@ -61,13 +61,13 @@ if [[ ! -z ${sub} ]]; then
     base_dir=${sub}
     base="${sub}"
   else
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base="${sub}_ses-${nr}"
     base_dir=${sub}/ses-${nr}
   fi
 
-  REF=`find ${DIR_DATA_DERIV}/cat12/${base_dir} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null`
-  SEG=`find ${DIR_DATA_DERIV}/manual_masks/${base_dir} -type f -name "${sub}*" -and -name "*cruise_cortex.nii.gz" 2>/dev/null`
+  REF=$(find ${DIR_DATA_DERIV}/cat12/${base_dir} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+  SEG=$(find ${DIR_DATA_DERIV}/manual_masks/${base_dir} -type f -name "${sub}*" -and -name "*cruise_cortex.nii.gz" 2>/dev/null)
   MAN=${DIR_DATA_DERIV}/manual_masks/${base_dir}/${base}_acq-${DATA}_desc-manualseggm.nii.gz
 
 else
@@ -87,7 +87,7 @@ if [[ ! -f ${MAN} ]]; then
   if [[ ! -d ${DIR_DATA_DERIV}/manual_masks/${base_dir} ]]; then
     mkdir -p ${DIR_DATA_DERIV}/manual_masks/${base_dir}
   fi
-  echo "Creating `basename ${MAN}` with call_createimg"    
+  echo "Creating $(basename ${MAN}) with call_createimg"    
   call_createimg ${REF} ${MAN}
 fi
 

@@ -169,9 +169,9 @@ for subID in ${search}; do
       mkdir -p ${tmp_folder}
 
       # skip 3D images
-      func_files=(`find ${func_folder} -type f -name "*.nii.gz" 2>/dev/null`)
+      func_files=($(find ${func_folder} -type f -name "*.nii.gz" 2>/dev/null))
       for ff in ${func_files[@]}; do
-        dim=`fslval ${ff} dim0`
+        dim=$(fslval ${ff} dim0)
         if [[ ${dim} -gt 3 ]]; then
           cp ${ff} ${tmp_folder} 2>/dev/null
           
@@ -189,16 +189,16 @@ for subID in ${search}; do
 
   # check BOLD files
   if [[ -z ${runs} ]]; then
-    IMGS=`find "${tmp_folder}" -type f \( -name "*bold.nii.gz" \) 2>/dev/null`
+    IMGS=$(find "${tmp_folder}" -type f \( -name "*bold.nii.gz" \) 2>/dev/null)
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       IMGS=()
       for r in ${n_runs[@]}; do
-        run_f=`find "${tmp_folder}" -type f \( -name "*run-${r}*" -and -name "*bold.nii.gz" \) 2>/dev/null`
+        run_f=$(find "${tmp_folder}" -type f \( -name "*run-${r}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
         IMGS+=(${run_f})
       done
     else
-      IMGS=`find "${tmp_folder}" -type f \( -name "*run-${n_runs}*" -and -name "*bold.nii.gz" \) 2>/dev/null`
+      IMGS=$(find "${tmp_folder}" -type f \( -name "*run-${n_runs}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
     fi
   fi
   IFS=$'\n' mag_imgs=($(sort <<<"${IMGS[*]}"))
@@ -213,7 +213,7 @@ for subID in ${search}; do
   for mag_img in ${mag_imgs[@]}; do
 
     # check if dim>3
-    dim=`fslval ${mag_img} dim0`
+    dim=$(fslval ${mag_img} dim0)
     if [[ ${dim} -gt 3 ]]; then
       
       # check if json has "NORDIC" field; definitely do nordic if there's no json file; also do it if there's no nifti in func/
@@ -223,7 +223,7 @@ for subID in ${search}; do
         if [[ ! -f ${func_folder}/$(basename ${mag_img}) ]]; then
           do_nordic=1
         else
-          did_nordic=`cat ${json_f} | grep "Nordic"`
+          did_nordic=$(cat ${json_f} | grep "Nordic")
           if [[ ! -z ${did_nordic} ]]; then
             do_nordic=0
           else
@@ -270,7 +270,7 @@ for subID in ${search}; do
           fi
 
           submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${mag_img} _bold.nii.gz)_desc-nordic ${DIR_LOGS})
-          call_=`which call_nordic`
+          call_=$(which call_nordic)
           job="${submit} ${call_}"
         else
           # print message
@@ -305,7 +305,7 @@ for subID in ${search}; do
 
   if [[ ${run_local} -eq 1 ]]; then
     # remove any left over unzipped files
-    nii_files=`find ${func_folder} -type f -name "*.nii" 2>/dev/null`
+    nii_files=$(find ${func_folder} -type f -name "*.nii" 2>/dev/null)
     if [[ ! -z ${nii_files} ]]; then
       rm -r ${nii_files} 2>/dev/null
     fi

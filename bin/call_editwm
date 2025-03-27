@@ -60,7 +60,7 @@ if [[ ! -z ${sub} ]]; then
     base_dir=${sub}
     base="${sub}"
   else
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base="${sub}_ses-${nr}"
     base_dir=${sub}/ses-${nr}
   fi
@@ -88,7 +88,7 @@ if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
-  echo "Creating `basename ${MAN}` with call_createimg"    
+  echo "Creating $(basename ${MAN}) with call_createimg"    
   call_createimg ${FS_DIR}/mri/rawavg.nii.gz ${MAN}
 fi
 

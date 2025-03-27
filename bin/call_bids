@@ -1047,11 +1047,11 @@ if [[ ${phys_only} -eq 0 ]]; then
     if [[ ! -z ${runs} ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
-        run_f=`find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*run-${r}*" -and -iname "*acq-3DEPI*" -and -name "*bold*" -and -name "*.nii.gz" -and -not -name "*_ph.nii.gz" \) 2>/dev/null`
+        run_f=$(find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*run-${r}*" -and -iname "*acq-3DEPI*" -and -name "*bold*" -and -name "*.nii.gz" -and -not -name "*_ph.nii.gz" \) 2>/dev/null)
         b_files+=(${run_f})
       done
     else
-      b_files=`find -L "${input_dir}" -type f \( -name "${base}*" -and -iname "*acq-3DEPI*" -and -name "*bold*" -and -name "*.nii.gz" -and -not -name "*_ph.nii.gz" \) 2>/dev/null`
+      b_files=$(find -L "${input_dir}" -type f \( -name "${base}*" -and -iname "*acq-3DEPI*" -and -name "*bold*" -and -name "*.nii.gz" -and -not -name "*_ph.nii.gz" \) 2>/dev/null)
     fi
 
   else
@@ -1059,11 +1059,11 @@ if [[ ${phys_only} -eq 0 ]]; then
     if [[ ! -z ${runs} ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
-        run_f=`find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*run-${r}*" -and -name "*bold.nii.gz" \) 2>/dev/null`
+        run_f=$(find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*run-${r}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
         b_files+=(${run_f})
       done
     else  
-      b_files=`find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*bold.nii.gz" \) 2>/dev/null`
+      b_files=$(find -L "${input_dir}" -type f \( -name "${base}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
     fi
   fi
 
@@ -1088,7 +1088,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       # sort out sequence development editor suffix
       if [[ ${sde} -eq 1 ]]; then
-        fmap=`echo ${bold} | sed "s,bold,epi,g"`
+        fmap=$(echo ${bold} | sed "s,bold,epi,g")
       else
         fmap=$(dirname ${bold})/$(basename ${bold} _bold.nii.gz)_epi.nii.gz
       fi
@@ -1161,16 +1161,16 @@ if [[ ${phys_only} -eq 0 ]]; then
   #---------------------------------------------------------------------------------------------------------
   # check for event files
   if [[ -z ${runs} ]]; then
-    tsv_files=(`find -L "${input_dir}" -type f \( -name "*.tsv*" \) | sort 2>/dev/null`)
+    tsv_files=($(find -L "${input_dir}" -type f \( -name "*.tsv*" \) | sort 2>/dev/null))
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       tsv_files=()
       for r in ${n_runs[@]}; do
-        run_f=`find -L "${input_dir}" -type f \( -name "*run-${r}*" -and -name "*.tsv" \) 2>/dev/null`
+        run_f=$(find -L "${input_dir}" -type f \( -name "*run-${r}*" -and -name "*.tsv" \) 2>/dev/null)
         tsv_files+=(${run_f})
       done
     else
-      tsv_files=`find -L "${input_dir}" -type f \( -name "*run-${n_runs}*" -and -name "*.tsv" \) 2>/dev/null`
+      tsv_files=$(find -L "${input_dir}" -type f \( -name "*run-${n_runs}*" -and -name "*.tsv" \) 2>/dev/null)
     fi
   fi
 
@@ -1214,16 +1214,16 @@ if [[ ${phys_only} -eq 0 ]]; then
   #---------------------------------------------------------------------------------------------------------
   # check for eyetracker files
   if [[ -z ${runs} ]]; then
-    edf_files=(`find -L "${input_dir}" -type f \( -name "*.edf*" \) 2>/dev/null`)
+    edf_files=($(find -L "${input_dir}" -type f \( -name "*.edf*" \) 2>/dev/null))
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       edf_files=()
       for r in ${n_runs[@]}; do
-        run_f=`find -L "${input_dir}" -type f \( -name "*run-${r}*" -and -name "*.edf" \) 2>/dev/null`
+        run_f=$(find -L "${input_dir}" -type f \( -name "*run-${r}*" -and -name "*.edf" \) 2>/dev/null)
         edf_files+=(${run_f})
       done
     else
-      edf_files=`find -L "${input_dir}" -type f \( -name "*.edf*" \) 2>/dev/null`
+      edf_files=$(find -L "${input_dir}" -type f \( -name "*.edf*" \) 2>/dev/null)
     fi
   fi
 
@@ -1265,7 +1265,7 @@ fi
 
 #---------------------------------------------------------------------------------------------------------
 # check for physio files
-phys=(`find -L "${input_dir}" -type f \( -name "*SCANPHYS*" -and -name "*bold*" -and -name "*.log" \) | sort 2>/dev/null`)
+phys=($(find -L "${input_dir}" -type f \( -name "*SCANPHYS*" -and -name "*bold*" -and -name "*.log" \) | sort 2>/dev/null))
 if [[ ! -z ${phys} ]]; then
 
   echo " Found physio file(s)"
@@ -1317,7 +1317,7 @@ if [[ ! -z ${phys} ]]; then
     phys_base=${base}${add_task}${add_run}${add_acq}
 
     # look for accompanying func/par file
-    func_phys=`find ${bids_dir}/func -type f -iname "${phys_base}*" -and -name "*.nii.gz"`
+    func_phys=$(find ${bids_dir}/func -type f -iname "${phys_base}*" -and -name "*.nii.gz")
 
     if [[ ! -z ${func_phys} ]]; then
       phys_base=$(basename ${func_phys} _bold.nii.gz)_physio.log

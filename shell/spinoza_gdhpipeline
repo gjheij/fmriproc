@@ -457,7 +457,7 @@ if [[ ${RUN_MGDM} != "no" ]]; then
   #   exit 1
   # fi
 
-  dura_fn=`find ${MASKS} -type f -name "*-outside*"`
+  dura_fn=$(find ${MASKS} -type f -name "*-outside*")
   if [[ -z ${dura_fn} ]]; then
     echo
     echo "ERROR: Could not find dura mask in ${MASKS}!!"

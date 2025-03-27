@@ -78,7 +78,7 @@ fi
 in=${@:$OPTIND:1}
 out=${@:$OPTIND+1:1}
 
-in_file=`fetch_filepath ${in}`
+in_file=$(fetch_filepath ${in})
 
 if [[ ! -f ${in_file} ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input file \"${in_file}\" does not exist"
@@ -87,7 +87,7 @@ fi
 
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
-  intensities_pre=`fslstats ${in_file} -R`
+  intensities_pre=$(fslstats ${in_file} -R)
   echo "pre: ${intensities_pre}"
 fi
 
@@ -99,7 +99,7 @@ else
 fi
 
 # set dimensions and define command
-dim=`fslval ${in_file} dim0`
+dim=$(fslval ${in_file} dim0)
 cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} ${upper} ${n_bins}"""
 
 # echo cmd
@@ -117,7 +117,7 @@ fi
 
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
-  intensities_post=`fslstats ${out_file} -R`
+  intensities_post=$(fslstats ${out_file} -R)
   echo "post: ${intensities_post}"
 fi
 

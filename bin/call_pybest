@@ -123,7 +123,7 @@ done
 
 # sort out kwargs
 if [[ ! -z ${kwargs} ]]; then
-  kwargs=`echo $kwargs | tr ',' ' ' | tr '=' ' '`
+  kwargs=$(echo $kwargs | tr ',' ' ' | tr '=' ' ')
 fi
 
 if [[ $# -lt 4 ]] ; then
@@ -343,9 +343,9 @@ for task_id in ${task_ids[@]}; do
     out_dir=${output_dir}/${base_dir}
 
     if [[ ${in_space} == "func" ]]; then
-      mask=(`find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*desc-preproc_mask.nii.gz" -and -not -name "*space-*" 2>/dev/null`)
+      mask=($(find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*desc-preproc_mask.nii.gz" -and -not -name "*space-*" 2>/dev/null))
     else
-      mask=(`find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-preproc_mask.nii.gz" 2>/dev/null`)
+      mask=($(find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-preproc_mask.nii.gz" 2>/dev/null))
     fi
 
     n_masks=${#mask[@]}
@@ -365,9 +365,9 @@ for task_id in ${task_ids[@]}; do
 
         # search for bold files
         if [[ ${in_space} == "func" ]]; then
-          bold_files=(`find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null`)
+          bold_files=($(find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null))
         else
-          bold_files=(`find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-denoised_bold.nii.gz" 2>/dev/null`)
+          bold_files=($(find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-denoised_bold.nii.gz" 2>/dev/null))
         fi
 
         echo "Applying \"${mask}\" to ${#bold_files[@]} nifti-files"

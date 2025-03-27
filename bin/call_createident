@@ -69,8 +69,8 @@ fi
 fname=${@:$OPTIND:1}
 image=${@:$OPTIND+1:1}
 
-fname=`fetch_filepath ${fname}`
-ext=`fetch_extension ${fname}`
+fname=$(fetch_filepath ${fname})
+ext=$(fetch_extension ${fname})
 
 if [ -f ${fname} ]; then
   rm -r ${fname}
@@ -122,8 +122,8 @@ else
       in_plane=1
       between_slice=1
     else
-      in_plane=`fslval ${image} pixdim2`
-      between_slice=`fslval ${image} pixdim3`
+      in_plane=$(fslval ${image} pixdim2)
+      between_slice=$(fslval ${image} pixdim3)
     fi
     
     # from https://surfer.nmr.mgh.harvard.edu/fswiki/RegisterDat

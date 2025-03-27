@@ -75,9 +75,9 @@ fi
 source call_bashhelper
 
 # if file specified is in current directory, add entire path
-INPUT=`fetch_filepath ${INPUT}`
+INPUT=$(fetch_filepath ${INPUT})
 
-ext=`fetch_extension ${INPUT}`
+ext=$(fetch_extension ${INPUT})
 if [[ ${ext} == "gz" ]]; then
   in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
   gunzip -c ${INPUT} > ${in_file}
@@ -107,9 +107,9 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
-mask_img=`find $(dirname ${in_file}) -type f -name "*pcereb*" 2>/dev/null`
-gm_img=`find $(dirname ${in_file}) -type f -name "*seg1*" 2>/dev/null`
-wm_img=`find $(dirname ${in_file}) -type f -name "*seg2*" 2>/dev/null`
+mask_img=$(find $(dirname ${in_file}) -type f -name "*pcereb*" 2>/dev/null)
+gm_img=$(find $(dirname ${in_file}) -type f -name "*seg1*" 2>/dev/null)
+wm_img=$(find $(dirname ${in_file}) -type f -name "*seg2*" 2>/dev/null)
 if [[ ! -z ${mask_img} ]]; then
   if [[ ${ext} == "gz" ]]; then
     gzip -fc ${mask_img} > ${OUTPUT}_desc-cereb_mask.nii.gz 2>/dev/null

@@ -262,7 +262,7 @@ function reverse_array {
 
 function recache_mpl_fonts {
   
-  cache_file=`find ~/.cache/matplotlib -type f -name "*fontlist*"`
+  cache_file=$(find ~/.cache/matplotlib -type f -name "*fontlist*")
   if [[ ! -z ${cache_file} ]]; then
     rm -r ${cache_file} 2>/dev/null
   fi
@@ -367,7 +367,7 @@ function search_character_substring {
   input=${1}
   searchstring=${2}
   rest=${input#*$searchstring}
-  starts_at=`echo $(( ${#input} - ${#rest} - ${#searchstring} ))`
+  starts_at=$(echo $(( ${#input} - ${#rest} - ${#searchstring} )))
   echo $starts_at
 }
 
@@ -406,12 +406,12 @@ USAGE
       echo "Please specify a key (e.g., \"RepetitionTime\") to read"
     else
       # reads x lines, cuts the :, removes white spaces, and removes carriage return
-      json_key=`cat ${json_file} | grep ${read_key} | cut -d':' -f2`
+      json_key=$(cat ${json_file} | grep ${read_key} | cut -d':' -f2)
       if [ ! -z ${json_key} ]; then
         if [[ ${json_key} == *","* ]]; then
-          json_key=`echo ${json_key} | cut -d"," -f1`
+          json_key=$(echo ${json_key} | cut -d"," -f1)
         fi
-        json_key=`echo ${json_key} |  xargs | sed 's/\r$//'`
+        json_key=$(echo ${json_key} |  xargs | sed 's/\r$//')
         echo ${json_key}
       else
         echo ""
@@ -594,8 +594,8 @@ collect_session_info() {
 function pe_from_dcm {
 
   dcm_file=${1}
-  axis=`read_dcm ${dcm_file} PhaseEncodingDirection`
-  csa_dir=`read_dcm ${dcm_file} polarity`
+  axis=$(read_dcm ${dcm_file} PhaseEncodingDirection)
+  csa_dir=$(read_dcm ${dcm_file} polarity)
 
   # phase encoding direction; check variable in setup file
   if [ ! -z ${PE_DIR_BOLD} ]; then
@@ -677,7 +677,7 @@ USAGE
     line_startpar=`grep -n -m 1 "${str}" ${par} | sed  's/\([0-9]*\).*/\1/'`
 
     # get TR column
-    tr_column=(`sed -n "$((${line_startpar}+2)),$ p" ${par} | awk '{ print $32 }' | sed 's/\r$//'`)
+    tr_column=($(sed -n "$((${line_startpar}+2)),$ p" ${par} | awk '{ print $32 }' | sed 's/\r$//'))
 
     tr_file=$(dirname ${par})/tr.txt
     if [[ -f ${tr_file} ]]; then
@@ -760,11 +760,11 @@ USAGE
 
           # if file > philips
           if [ -f ${par} ]; then
-            ext=`fetch_extension ${par}`
+            ext=$(fetch_extension ${par})
             ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
             if [[ ${ext_lower} == *"par"* ]]; then
-              pat=`read_par ${par} "Patient name"`
-              prot=`read_par ${par} "Protocol name"`
+              pat=$(read_par ${par} "Patient name")
+              prot=$(read_par ${par} "Protocol name")
 
               # assuming dcm2niix command above did not change!
               nifti_from_par=${pathOutput}/${pat}_${prot}
@@ -778,9 +778,9 @@ USAGE
             if [[ "$(basename ${par})" =~ ^[0-9] ]]; then
 
               # reconstruct filename from dcm file for each directory
-              dcm_tmp=`find ${par} -type f -name "*.dcm" | head -n 1`
-              pat=`read_dcm ${dcm_tmp} "PatientName"`
-              prot=`read_dcm ${dcm_tmp} "ProtocolName"`
+              dcm_tmp=$(find ${par} -type f -name "*.dcm" | head -n 1)
+              pat=$(read_dcm ${dcm_tmp} "PatientName")
+              prot=$(read_dcm ${dcm_tmp} "ProtocolName")
 
               # assuming dcm2niix command above did not change!
               nifti_from_dcm=${pathOutput}/${pat}_${prot}
@@ -964,58 +964,58 @@ USAGE
     wf_ppm=3.35
 
     # EPI factor
-    epi_f=`read_par ${par_file} "EPI factor"`
+    epi_f=$(read_par ${par_file} "EPI factor")
 
     # water fat shift
-    WFS=`read_par ${par_file} "Water Fat shift"`
+    WFS=$(read_par ${par_file} "Water Fat shift")
 
     # WFS (freq)
-    WFS_hz=`echo "${FIELD_STRENGTH} * ${wf_ppm} * ${gyro}" |bc -l`
+    WFS_hz=$(echo "${FIELD_STRENGTH} * ${wf_ppm} * ${gyro}" | bc -l)
 
     # total read out time
-    TRT=`echo "${WFS} / ${WFS_hz}" | bc -l`
+    TRT=$(echo "${WFS} / ${WFS_hz}" | bc -l)
 
     # effective echo spacing (EPI factor +1)
-    EES=`echo "${TRT}/(${epi_f}+1)" | bc -l`
+    EES=$(echo "${TRT}/(${epi_f}+1)" | bc -l)
 
     # phase encoding direction; check variable in setup file
     if [ -z ${PE_DIR_BOLD} ]; then
-      PE=`read_par ${par_file} "Preparation direction"`
+      PE=$(read_par ${par_file} "Preparation direction")
     else
       PE=${PE_DIR_BOLD}
     fi
 
-    ADD_PE=`fprep_pe ${PE}`
+    ADD_PE=$(fprep_pe ${PE})
 
     # protocol name
-    PROT=`read_par ${par_file} "Protocol name"`
+    PROT=$(read_par ${par_file} "Protocol name")
 
     # EPI factor
-    EPI_FACTOR=`read_par ${par_file} "EPI factor"`
+    EPI_FACTOR=$(read_par ${par_file} "EPI factor")
 
     # protocol name
-    PROT_NAME=`read_par ${par_file} "Protocol name"`
+    PROT_NAME=$(read_par ${par_file} "Protocol name")
 
     # acquisition scheme
-    AQ=`read_par ${par_file} "Scan mode"`
+    AQ=$(read_par ${par_file} "Scan mode")
 
     # flip PE if protocol name is BOLD but json file EPI
     txt=""
     if [[ ${PROT} == *"_bold"* ]]; then
       if [[ -f ${json_file} ]]; then
         if [[ $(basename ${json_file}) == *"epi.json"* ]]; then
-          ADD_PE=`fprep_pe ${PE} 1`
+          ADD_PE=$(fprep_pe ${PE} 1)
           txt="flipped for epi_json"
         else
-          ADD_PE=`fprep_pe ${PE} 0`
+          ADD_PE=$(fprep_pe ${PE} 0)
           txt="not flipped"
         fi
       else
-        ADD_PE=`fprep_pe ${PE} 0`
+        ADD_PE=$(fprep_pe ${PE} 0)
         txt="not flipped"
       fi
     elif [[ ${PROT} == *"_epi"* ]]; then
-      ADD_PE=`fprep_pe ${PE} 1`
+      ADD_PE=$(fprep_pe ${PE} 1)
       txt="flipped for epi_json"
     fi
 
@@ -1170,7 +1170,7 @@ function dykstra_distance {
     print_line -
     echo
   else
-    dist=`mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2`
+    dist=$(mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2)
 
     # write output to json file
     if [[ ! -z ${6} ]]; then
@@ -1193,7 +1193,7 @@ function flywheel2bids {
     fi
 
     # get SeriesDescription
-    SD=`cat ${ii} | grep "SeriesDescription" | cut -d ":" -f2 | cut -d" " -f2 | cut -d"," -f1 | tr -d '"'`
+    SD=$(cat ${ii} | grep "SeriesDescription" | cut -d ":" -f2 | cut -d" " -f2 | cut -d"," -f1 | tr -d '"')
     outbase=${fname}_${SD}${suff}
     mv ${ii} $(dirname $ii)/${outbase}.json
     mv $(dirname $ii)/$(basename ${ii} .json).nii.gz $(dirname $ii)/${outbase}.nii.gz
@@ -1232,7 +1232,7 @@ function get_id {
 
   # get rid of dots by assuming the tag-of-interest precedes dot (lazy solution)
   if [[ ${tag} == *"."* ]]; then
-    tag=`echo ${tag} | cut -d"." -f1`
+    tag=$(echo ${tag} | cut -d"." -f1)
   fi
 
   echo ${tag}
@@ -1406,7 +1406,7 @@ function fetch_extension {
 function fetch_filepath {
 
   # if file specified is in current directory, add entire path
-  if [[ `echo ${1:0:1}` != "/" ]]; then
+  if [[ $(echo ${1:0:1}) != "/" ]]; then
     INPUT=$(readlink -f "${1}")
   else
     INPUT=${1}
@@ -1826,7 +1826,7 @@ function make_physio_script {
     local n_slices=${7}
     local job_name="${8}"
 
-    ext=`fetch_extension "${input_file}"`
+    ext=$(fetch_extension "${input_file}")
     if [[ ${ext,,} == "log" ]]; then
       vendor="philips"
     else
@@ -1835,7 +1835,7 @@ function make_physio_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Create PhysIO regressors from SCANPHYSLOG"
+    echo "% Created on $(date). Create PhysIO regressors from SCANPHYSLOG"
     echo ""
     echo "clear;"
 
@@ -1957,7 +1957,7 @@ function make_cat_script {
   else
 
     # find cat directory
-    cat12_dir=`find -L ${1} -type d -name "*cat12*" -print -quit 2>/dev/null`
+    cat12_dir=$(find -L ${1} -type d -name "*cat12*" -print -quit 2>/dev/null)
     if [[ -z ${cat12_dir} ]]; then
       echo "Could not find CAT12-directory in \"${1}\""
       exit 1
@@ -1965,7 +1965,7 @@ function make_cat_script {
 
     # Check if we have compatible version; we're using 12.6!!
 
-    VER=`cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null`
+    VER=$(cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null)
     ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
     if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
       if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
@@ -1991,7 +1991,7 @@ function make_cat_script {
       exit 1
     fi
 
-    tpm_dir=`find -L ${1} -type d -name "*tpm*" -print -quit 2>/dev/null`
+    tpm_dir=$(find -L ${1} -type d -name "*tpm*" -print -quit 2>/dev/null)
     if [[ -z ${tpm_dir} ]]; then
       echo "Could not find template-directory in \"${1}\""
       exit 1

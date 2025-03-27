@@ -101,20 +101,20 @@ if [[ -z ${pathInput} ]]; then
 fi
 
 # check if input is directory or loose file
-pathInput=`fetch_filepath ${pathInput}`
+pathInput=$(fetch_filepath ${pathInput})
 if [[ -d ${pathInput} ]]; then
-  ff=`find ${pathInput} -type f -iname "*.par" 2>/dev/null`
+  ff=$(find ${pathInput} -type f -iname "*.par" 2>/dev/null)
 elif [[ -f ${pathInput} ]]; then
   if [[ $(basename ${pathInput}) == *".txt"* ]]; then
     # do same stuff as in call_dcm2niix
-    tmp=`cat ${pathInput} | grep "Catastrophic" | cut -d"." -f2 | xargs | sed 's/\r$//'`
+    tmp=$(cat ${pathInput} | grep "Catastrophic" | cut -d"." -f2 | xargs | sed 's/\r$//')
     IFS=$' ' tmp2=($(sort <<<"${tmp[*]}"))
     unset IFS
 
     # find actual par file (dcm2niix log file does not have extension)
     ff=()
     for par in ${tmp2[@]}; do
-      par_fn=`find $(dirname ${par}) -type f -iname "$(basename ${par})*.par" 2>/dev/null`
+      par_fn=$(find $(dirname ${par}) -type f -iname "$(basename ${par})*.par" 2>/dev/null)
       if [ -f ${par_fn} ]; then
         ff+=(${par_fn})
       fi
@@ -161,7 +161,7 @@ fi
 #-----------------------------------------------------------------------------
 # Run it
 for par in ${par_files[@]}; do
-  ext=`fetch_extension ${par}`
+  ext=$(fetch_extension ${par})
   orig_out=${pathOutput}/$(basename ${par} .${ext}).nii.gz
   if [ ! -f ${orig_out} ]; then
     ${cmd} --scaling fp --verbose ${COMPR} -o ${pathOutput} ${par}
@@ -174,13 +174,13 @@ for par in ${par_files[@]}; do
   fi
 
   # rename according to Protocol Name & Patient Name | read_par comes from call_bashhelper
-  pat=`read_par ${par} "Patient name"`
-  prot=`read_par ${par} "Protocol name"`
+  pat=$(read_par ${par} "Patient name")
+  prot=$(read_par ${par} "Protocol name")
 
   # check if volumes are doubled (in case ofll phase data)
   phase=0
-  dyns=`read_par ${par} "number of dynamics"`
-  vols=`fslval ${orig_out} dim4 | xargs`
+  dyns=$(read_par ${par} "number of dynamics")
+  vols=$(fslval ${orig_out} dim4 | xargs)
 
   bids_out=${pathOutput}/${pat}_${prot}
   if [ ${vols} != ${dyns} ]; then
@@ -205,8 +205,8 @@ for par in ${par_files[@]}; do
 
     # check if phase data is interleaved or at the end by looking at the column of image_type in the par-file. 0=mag|3=phase.
     str="=== IMAGE INFORMATION ="
-    line_startpar=`grep -n -m 1 "${str}" ${par} | sed  's/\([0-9]*\).*/\1/'`
-    image_type_column=(`sed -n "$((${line_startpar}+2)),$ p" ${par} | awk '{ print $5 }' | sed -e 's/[^0-9]//g' | sed 's/\r$//'`)
+    line_startpar=$(grep -n -m 1 "${str}" ${par} | sed  's/\([0-9]*\).*/\1/')
+    image_type_column=($(sed -n "$((${line_startpar}+2)),$ p" ${par} | awk '{ print $5 }' | sed -e 's/[^0-9]//g' | sed 's/\r$//'))
 
     # If first two numbers are 0, we assume that phase comes after mag
     if [[ ${image_type_column[0]} -eq ${image_type_column[${second_idx}]} ]]; then
@@ -290,7 +290,7 @@ END
   if [[ ${bids_out} == *"_bold"* ]]; then
 
     # get location where 0.00 turns into TR
-    tr=`tr_from_par ${par} ${use_case}`
+    tr=$(tr_from_par ${par} ${use_case})
 
     # check if it's not 999 (= errpr message from tr_from_par) or 0.0
     if [[ "${tr}" == "999" ]]; then
@@ -305,13 +305,13 @@ END
     call_json ${json_f} RepetitionTime ${tr}
 
     # set dtype to uint16
-    dtype=`fslval ${bids_out}.nii.gz data_type`
+    dtype=$(fslval ${bids_out}.nii.gz data_type)
     if [ ${dtype} == "FLOAT64" ]; then
       echo -e "Changing data_type of ${orig_out} from float64 to ${BOLD_RED}uint16${RESET}"
       call_setdtype ${bids_out}.nii.gz
     fi
 
-    epi=`echo $(basename ${bids_out} | sed "s|_bold|_epi|g")`
+    epi=$(echo $(basename ${bids_out} | sed "s|_bold|_epi|g"))
     if [ -f $(dirname ${bids_out})/${epi}.nii.gz ]; then
       base_path=""
       if [[ ${pat} == *"ses"* ]]; then
@@ -324,7 +324,7 @@ END
       if [ -f ${epi_json} ]; then
         declare -a find_keys=("EchoTime")
         for key in ${find_keys[@]}; do
-          val=`read_json ${epi_json} ${key}`
+          val=$(read_json ${epi_json} ${key})
           if [[ ! -z ${val} ]]; then
             echo "Found ${key}: ${val}"
             call_json ${json_f} ${key} ${val}
@@ -344,9 +344,6 @@ END
       # add IntendedFor field
       call_json ${epi_json} IntendedFor,ConversionSoftware ${base_path}/func/$(basename ${bids_out}).nii.gz,parrec2nii
       call_json ${json_f} ConversionSoftware parrec2nii
-  
     fi
-
   fi
-
 done

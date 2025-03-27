@@ -147,7 +147,7 @@ for subID in ${search}; do
 
   # parse kwargs
   if [[ ! -z ${LSPREP_KWARGS} ]]; then
-    LSPREP_KWARGS=`echo ${LSPREP_KWARGS} | tr '=' ' ' | tr ',' ' '`
+    LSPREP_KWARGS=$(echo ${LSPREP_KWARGS} | tr '=' ' ' | tr ',' ' ')
   fi
 
   if [[ ${run_local} -eq 1 ]]; then
@@ -174,7 +174,7 @@ for subID in ${search}; do
         QUEUE=${SGE_QUEUE_SHORT}
       fi
       submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-lsprep ${log_file})
-      call_=`which call_lsprep`
+      call_=$(which call_lsprep)
       job="${submit} ${call_}"
     else
       job="call_lsprep"
@@ -192,8 +192,8 @@ for subID in ${search}; do
 
     (
       echo ""
-      echo "### New invocation of call_lsprep @ `date`"
-      echo "`echo ${cmd} | tr '\n' ' '`"
+      echo "### New invocation of call_lsprep @$(date)"
+      echo "$(echo ${cmd} | tr '\n' ' ')"
       echo ""
     ) >> ${log_file}
     

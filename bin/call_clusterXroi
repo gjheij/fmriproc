@@ -117,10 +117,10 @@ design=${featdir}/design.fsf
 howManyContrasts="$(grep -n "ncon_orig" ${design} | head -n 1 | cut -d: -f1)"
 
   # at which line nr is this string?
-lineNrContrasts=`sed -n ''"${howManyContrasts}p"'' ${design}`
+lineNrContrasts=$(sed -n ''"${howManyContrasts}p"'' ${design})
 
   # get value at this line number
-nrContrasts=`echo "${lineNrContrasts}" | cut -d' ' -f 3`
+nrContrasts=$(echo "${lineNrContrasts}" | cut -d' ' -f 3)
 
 echo "Found ${nrContrasts} contrasts"
 # Now get all the contrasts in a text file. We make a while loop that stores the
@@ -137,8 +137,8 @@ i=${start}
 while [[ ${i} -le ${nrContrasts} ]]; do
 
   tmp1="$(grep -n "conname_real.${i}" ${design} | head -n 1 | cut -d: -f1)"
-  tmp2=`sed -n ''"${tmp1}p"'' ${design}`
-  tmp3=`echo "${tmp2}" | cut -d'"' -f2`
+  tmp2=$(sed -n ''"${tmp1}p"'' ${design})
+  tmp3=$(echo "${tmp2}" | cut -d'"' -f2)
 
   printf "${i}_${tmp3}\n" >> ${outdir}/contrasts.txt
   printf "${i}_${tmp3} >> contrasts.txt\n"
@@ -146,7 +146,7 @@ while [[ ${i} -le ${nrContrasts} ]]; do
 
 done
 
-listContrasts=`sed -e '' ${outdir}/contrasts.txt`
+listContrasts=$(sed -e '' ${outdir}/contrasts.txt)
 
 #-----------------------------------------------------------------------------
 # Here we will specify which contrasts we want to have the values from the time
@@ -160,7 +160,7 @@ echo "Make clusterXroi masks.."
 for i in ${listContrasts}; do
 
   # Get nr of contrast
-  nr=`grep -oP '(?<!\d)\d{1}(?!\d)' <<< ${i}`
+  nr=$(grep -oP '(?<!\d)\d{1}(?!\d)' <<< ${i})
 
   # check if we got a 3rd level input folder
   if [[ ${gfeatdir} == *".gfeat"* ]]; then
@@ -170,7 +170,7 @@ for i in ${listContrasts}; do
       
       if [[ ! -f ${out} ]]; then
         fslmaths ${clusterMask} -bin ${out}
-        printf " Created `basename ${out}`\n"
+        printf " Created $(basename ${out})\n"
       else
         printf " $(basename ${out}) already present\n"
       fi
@@ -187,14 +187,12 @@ for i in ${listContrasts}; do
       
       if [[ ! -f ${out} ]]; then
         fslmaths ${clusterMask} -bin ${out}
-        printf " Created `basename ${out}`\n"
+        printf " Created $(basename ${out})\n"
       else
         printf " $(basename ${out}) already present\n"
       fi
-
     fi
   fi
-
 done
 
 #-----------------------------------------------------------------------------
@@ -209,7 +207,7 @@ for mask in ${maskdir}/bin.thr*.nii.gz; do
 
   for nr in ${nr_zstat[@]}; do
 
-    i=`find ${outdir} -type f \( -name "*bin_group_zstat${nr}*" \) 2>/dev/null`
+    i=$(find ${outdir} -type f \( -name "*bin_group_zstat${nr}*" \) 2>/dev/null)
 	  roi=$(basename ${mask} | cut -d "." -f3)
 
     if [[ ! -z ${run_ID} ]]; then
@@ -219,8 +217,7 @@ for mask in ${maskdir}/bin.thr*.nii.gz; do
     fi
 
     if [[ ! -f ${out} ]]; then
-      # printf " `basename ${mask}`\tx  `basename ${i}`\n"
-      echo " Creating `basename ${out}`"
+      echo " Creating $(basename ${out})"
       fslmaths ${i} -mul ${mask} ${out}
     else
       printf " $(basename ${mask}): multiplied mask already present\n"
@@ -238,7 +235,7 @@ else
   in=${featdir}/filtered_func_data.nii.gz
 fi
 
-printf "\nExtracting timeseries from `basename ${in}`\n"
+printf "\nExtracting timeseries from $(basename ${in})\n"
 
 for file in ${outdir}/${subj_ID}*.nii.gz; do
 
@@ -251,14 +248,14 @@ for file in ${outdir}/${subj_ID}*.nii.gz; do
   out=${pathTextFiles}/$(basename ${file} _mask.nii.gz)_tc.txt
 
   if [[ ! -f ${out} ]]; then
-    printf " Writing `basename ${out}`\n"
+    printf " Writing $(basename ${out})\n"
     fslmeants \
       -i ${in} \
       -o ${out} \
       -m ${file}
 
   else
-	  printf " `basename ${out}` already present\n"
+	  printf " $(basename ${out}) already present\n"
   fi
 
 done
@@ -273,7 +270,7 @@ fi
 if [[ ! -f ${all_rois} ]]; then
 
   declare -a ROI=()
-  f=`find ${pathTextFiles} -type f \( -name "*_tc.txt" \) 2>/dev/null`
+  f=$(find ${pathTextFiles} -type f \( -name "*_tc.txt" \) 2>/dev/null)
   for k in ${f[@]}; do
 
 	q=desc

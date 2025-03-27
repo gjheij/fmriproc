@@ -66,7 +66,7 @@ fi
 
 if [[ ${SOFTWARE,,} == "ants" ]]; then
   orig=${FS}/${SUBJECT}/mri/orig.nii.gz
-  ses1=`find ${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1 -type f -name "${SUBJECT}*" -and -name "*T1w.nii.gz" 2>/dev/null`
+  ses1=$(find ${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1 -type f -name "${SUBJECT}*" -and -name "*T1w.nii.gz" 2>/dev/null)
 
   # convert mgz to nifti
   if [[ ! -f ${orig} ]]; then

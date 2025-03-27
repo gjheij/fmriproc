@@ -5,7 +5,7 @@
 #$ -pe smp 1
 #
 # https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
-if [ -z `echo ${BASH}` ]; then
+if [ -z $(echo ${BASH}) ]; then
   echo "Make sure \"bash\" >v4.0 is installed"
   exit 1
 else
@@ -1080,7 +1080,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})
 
   ${job} spinoza_registration \
     ${REG_TYPE} \
@@ -1126,7 +1126,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   ${job} spinoza_registration \
     ${REG_TYPE} \
@@ -1212,7 +1212,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})
 
   if [[ ! -z ${DRAW_SAG} ]]; then
     DRAW_SAG="--${DRAW_SAG}"
@@ -1256,7 +1256,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   # check for lsprep kwargs
   KWARGS_FLAG=""
@@ -1316,7 +1316,7 @@ if [[ $? -eq 0 ]]; then
       ANAT_DEPTH=3
     fi
 
-    INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+    INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
     fprep_flag=""
     if [[ ${fprep_input} -eq 1 ]]; then
       fprep_flag="--fprep"
@@ -1403,7 +1403,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   ${job} spinoza_dura \
     ${SUBJECT} \
@@ -1446,7 +1446,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
   
   ${job} spinoza_sagittalsinus ${SUBJECT} ${SESSION} ${OW} ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}
 
@@ -1481,7 +1481,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   ${job} spinoza_masking \
     ${SUBJECT} \
@@ -1521,7 +1521,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=5
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   # check for expert file
   if [ ! -z ${KWARGS} ]; then
@@ -1602,7 +1602,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=6
   fi
 
-  INPUT_DIR=`find_hierarchical_anatomy ${ANAT_DEPTH}`  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
   ${job} spinoza_fmriprep \
     ${WARP_ONLY} \
@@ -2174,7 +2174,7 @@ if [[ $? -eq 0 ]]; then
   echo "[${module}] Cerebellum segmentation with SUIT"
 
   # check where inputs live
-  INPUT_DIR=`find_hierarchical_anatomy 6`
+  INPUT_DIR=$(find_hierarchical_anatomy 6)
 
   # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
   ${job} spinoza_suit \

@@ -217,7 +217,7 @@ for subID in ${search}; do
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
   if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base_path=${sub_name}/ses-${nr}
     base=${sub_name}_ses-${nr}
     msg="${BOLD_CYAN}${sub_name}${RESET} ses-${BOLD_RED}${ses}${RESET}: already processed"
@@ -278,7 +278,7 @@ for subID in ${search}; do
       echo " TRIM FMAP   = ${TRIM_FMAP}"
     fi
 
-    call_=`which call_bids`
+    call_=$(which call_bids)
     cmd="""${job} ${call_} \
       ${SES_FLAG} \
       ${ADD_INV} \

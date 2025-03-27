@@ -79,7 +79,7 @@ make_html_start ${MASK_DIR}/${SUB_ID}.html
 
 declare -a SEG=("label-GM" 'label-WM' 'label-CSF' 'cruise_cortex')
 for r in ${SEG[@]}; do
-    file=`find "${MASK_DIR}" -type f \( -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null`
+    file=$(find "${MASK_DIR}" -type f \( -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
     if [[ -f ${file} ]]; then
         echo " Add: $(basename ${file} .nii.gz).png"
         call_slicer -b $(basename ${file} .nii.gz).png -d ${MASK_DIR}/figures -o ${file} ${ANAT}

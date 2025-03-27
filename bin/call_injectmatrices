@@ -120,7 +120,7 @@ if [[ ! -d ${ft_dir} ]]; then
 fi
 
 # find all .feat directories and run command
-all_feats=(`find ${ft_dir} -type d -name "*.feat"`)
+all_feats=($(find ${ft_dir} -type d -name "*.feat"))
 for ft in ${all_feats[@]}; do
   fix_reg_dir ${ft}
 done

@@ -310,7 +310,7 @@ for subID in ${search}; do
       for out in ${WARP_2_MP2RAGE[@]}; do
         
         # check if file exists and warp it
-        suff=`echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1`
+        suff=$(echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1)
         in_file=$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz
         if [ -f ${in_file} ]; then
 

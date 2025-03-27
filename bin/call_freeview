@@ -94,8 +94,8 @@ else
 fi
 
 # pycortex also creates fiducial; load that in if it exists
-lh_point=`find ${FS}/${SUBJECT}/mri -type f \( -name "*space-fs*" -and -name "*hemi-L*" \) 2>/dev/null`
-rh_point=`find ${FS}/${SUBJECT}/mri -type f \( -name "*space-fs*" -and -name "*hemi-R*" \) 2>/dev/null`
+lh_point=$(find ${FS}/${SUBJECT}/mri -type f \( -name "*space-fs*" -and -name "*hemi-L*" \) 2>/dev/null)
+rh_point=$(find ${FS}/${SUBJECT}/mri -type f \( -name "*space-fs*" -and -name "*hemi-R*" \) 2>/dev/null)
 
 if [[ ${VIEWPORT} -eq 1 ]]; then
 
@@ -271,7 +271,7 @@ else
 
   elif [[ ${type} == "anat" ]]; then
 
-    T2=`find ${FS}/${SUBJECT}/mri -type f \( -name "*T2.mgz" \) 2>/dev/null`
+    T2=$(find ${FS}/${SUBJECT}/mri -type f \( -name "*T2.mgz" \) 2>/dev/null)
 
     if [[ ${point} == "yes" ]]; then
 

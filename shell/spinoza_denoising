@@ -211,7 +211,7 @@ for subID in ${search}; do
     sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
     if [[ ! -z ${ses} ]]; then
-      nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+      nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
       if [[ ${ses} != "all" ]]; then
         base_path=${sub_name}/ses-${nr}
         base=${sub_name}_ses-${nr}
@@ -250,9 +250,9 @@ for subID in ${search}; do
         # also check if there's files in the directories
         searchdir=${DENOISE}/${base_path}/denoising
         if [[ ${PYBEST_SPACE} == "func" ]]; then
-          func_files=`find ${searchdir} -type f -name "*_desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null`
+          func_files=$(find ${searchdir} -type f -name "*_desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null)
         else
-          func_files=`find ${searchdir} -type f -name "*space-${PYBEST_SPACE}*" -and -name "*_desc-denoised_bold.nii.gz" 2>/dev/null`
+          func_files=$(find ${searchdir} -type f -name "*space-${PYBEST_SPACE}*" -and -name "*_desc-denoised_bold.nii.gz" 2>/dev/null)
         fi
 
         if [[ -z ${func_files} ]]; then
@@ -298,7 +298,7 @@ for subID in ${search}; do
         fi
 
         # full path is needed for qsub
-        call_=`which call_pybest`
+        call_=$(which call_pybest)
         cmd="""${job} ${call_} \
           -s ${sub_id} \
           ${ses_flag} \

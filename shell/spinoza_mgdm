@@ -145,9 +145,9 @@ for subID in ${search}; do
   
   #----------------------------------------------------------------------------------------------------------------------------------------------
   # Look for files
-  bet_uni=`find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-  bet_t1m=`find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
-  mask_outside=`find "${mask_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*-outside*" -and -name "*.nii.gz" \) 2>/dev/null`
+  bet_uni=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+  bet_t1m=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
+  mask_outside=$(find "${mask_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*-outside*" -and -name "*.nii.gz" \) 2>/dev/null)
 
   # Define nighres output names
   output_root="${base}_acq-${DATA^^}_desc"
@@ -183,7 +183,7 @@ for subID in ${search}; do
       fi
 
       fs_mask=${SUBJECTS_DIR}/${sub_name}/mri/brainmask.mgz
-      brainmask=`find -L "${input_dir}" -type f \( -name "mask*" -and -name "*acq-${DATA^^}*" \) 2>/dev/null`
+      brainmask=$(find -L "${input_dir}" -type f \( -name "mask*" -and -name "*acq-${DATA^^}*" \) 2>/dev/null)
       if [[ -f ${fs_mask} ]]; then
         use_mask="fs"
       else

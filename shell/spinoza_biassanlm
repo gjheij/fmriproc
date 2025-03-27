@@ -176,7 +176,7 @@ for subID in ${search}; do
     mkdir -p ${OUTPUTDIR}
   fi
 
-  spm_mask=`find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+  spm_mask=$(find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
   IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
   unset IFS 
   count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
@@ -204,10 +204,10 @@ for subID in ${search}; do
 
   # parse into string
   if [[ ! -z ${kwargs} ]]; then
-    kwargs=`echo ${kwargs} | tr ' =' ' ' | tr ':' ' '`
+    kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ':' ' ')
   fi
 
-  input=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
+  input=$(find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
   if [[ ! -z ${input} ]]; then
 
     output=${OUTPUTDIR}/$(basename ${input})
@@ -216,7 +216,7 @@ for subID in ${search}; do
       rm ${output} 2>/dev/null
     fi
 
-    t1map=`find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
+    t1map=$(find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
     if [[ ! -z ${t1map} ]]; then
       # copy t1map to output for later reference
       cp ${t1map} $(dirname ${output})

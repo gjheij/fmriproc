@@ -123,7 +123,7 @@ if [[ ! -d ${outputdir}/${SUB}/warped ]]; then
 fi
 
 # Fetch matrix
-tmp_genaff=`find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -and -name "*to-ses2*" -and -name "*genaff*" -and -name "*.mat" \) 2>/dev/null`
+tmp_genaff=$(find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -and -name "*to-ses2*" -and -name "*genaff*" -and -name "*.mat" \) 2>/dev/null)
 if [[ ! -z ${tmp_genaff} ]]; then
   from_fs_to_ses2=${tmp_genaff}
 else
@@ -133,7 +133,7 @@ else
 fi
 
 # Fetch moving files
-ff=`find ${INPUTDIR} -type f -name "*.nii.gz" 2>/dev/null`
+ff=$(find ${INPUTDIR} -type f -name "*.nii.gz" 2>/dev/null)
 if [[ -z ${ff} ]]; then
   echo
   print_line -
@@ -155,7 +155,7 @@ if [[ ! -f ${fs_ref} ]]; then
   fi
 
 else
-  echo "FreeSurfer reference: `basename ${fs_ref}`"
+  echo "FreeSurfer reference: $(basename ${fs_ref})"
 fi
 
 for f in ${ff[@]}; do
@@ -164,7 +164,7 @@ for f in ${ff[@]}; do
   transform_fs=${outputdir}/${SUB}/warped/$(basename ${f} | cut -d'_' -f-3)_space-fs_$(basename ${f} | cut -d"_" -f4-)
   if [[ ! -f ${transform_fs} ]]; then
 
-    echo " creating `basename ${transform_fs}`"
+    print_create_img "${transform_fs}"
     if [[ ${f} == *"layers"* ]]; then
       interp="gen"
     elif [[ ${f} == *"cortex"* ]]; then
@@ -172,17 +172,18 @@ for f in ${ff[@]}; do
     else
       interp="nn"
     fi
-    call_antsapplytransforms -i 1 --${interp} ${fs_ref} ${f} ${transform_fs} ${from_fs_to_ses2}
+    cmd="call_antsapplytransforms -i 1 --${interp} ${fs_ref} ${f} ${transform_fs} ${from_fs_to_ses2}"
+    print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransform exited with non-zero status"
+      print_error_msg "$(basename ${0})" "call_antsapplytransforms"
       exit 1
     fi
 
   else
-    echo " $(basename ${transform_fs}) exists"
+    print_output_exists "${SUB}" "${transform_fs}"
   fi
 
 done
@@ -192,25 +193,26 @@ echo "Done"
 # Step 2; warp all files in FS-space to pycortex space (corrects for pycortex induced offset)
 echo
 echo "[STEP 2]: map warped FreeSurfer files to Pycortex"
-qq=`find ${outputdir}/${SUB}/warped -type f -name "*space-fs*" -and -name "*.nii.gz" 2>/dev/null`
+qq=$(find ${outputdir}/${SUB}/warped -type f -name "*space-fs*" -and -name "*.nii.gz" 2>/dev/null)
 for f in ${qq[@]}; do
 
   # use linescanning.utils.replace_string to replace 'space-fs' with 'space-ctx'
   transform_ctx=$(echo ${f} | sed 's,space-fs,space-ctx,')
   if [[ ! -f ${transform_ctx} ]]; then
 
-    echo " creating `basename ${transform_ctx}`"
-    call_ctxsurfmove ${SUB} ${f} ${transform_ctx}
+    print_create_img "${transform_ctx}"
+    cmd="call_ctxsurfmove ${SUB} ${f} ${transform_ctx}"
+    print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_ctxsurfmove exited with non-zero status"
+      print_error_msg "$(basename ${0})" "call_ctxsurfmove"
       exit 1
     fi
 
   else
-    echo " $(basename ${transform_fs}) exists"
+    print_output_exists "${SUB}" "${transform_ctx}"
   fi
 
 done
@@ -222,9 +224,10 @@ echo
 echo "[STEP 3]: create the warp that pycortex needs for the viewer"
 
 if [[ ! -d ${outputdir}/${SUB}/transforms/fs2ctx ]]; then
-  ref=`find ${outputdir}/${SUB}/warped -type f -name "*space-ctx*" -and -name "*.nii.gz" -print -quit 2>/dev/null`
+  ref=$(find ${outputdir}/${SUB}/warped -type f -name "*space-ctx*" -and -name "*.nii.gz" -print -quit 2>/dev/null)
   if [[ ! -z ${ref} ]]; then
-    call_ctxtransform -s ${SUB} -c ${outputdir} -i ${ref} -w "fs2ctx"
+    cmd="call_ctxtransform -s ${SUB} -c ${outputdir} -i ${ref} -w fs2ctx"
+    print_cmd "${cmd}" && eval "${cmd}"
   fi
 fi
 

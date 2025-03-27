@@ -63,7 +63,7 @@ input=${@:$OPTIND:1}
 output=${@:$OPTIND+1:1}
 
 # define output
-input=`fetch_filepath ${input}`   
+input=$(fetch_filepath ${input})
 if [[ -z ${output} ]]; then
   output=$(dirname ${input})/$(basename ${input} .nii.gz)_tsnr.nii.gz
 fi

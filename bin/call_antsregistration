@@ -278,21 +278,21 @@ function check_stage_inputs {
     read -ra parsed <<< "$defaults"
 
     # invert indices
-    tmp=`echo ${parsed[@]} | rev`
+    tmp=$(echo ${parsed[@]} | rev)
     IFS=' ' read -ra parsed_inv <<< "$tmp"
 
     # get indices
     par_inv=${parsed_inv[@]:0:${n_levels}}
 
     # invert indices
-    par=`echo ${par_inv[@]} | rev`
+    par=$(echo ${par_inv[@]} | rev)
 
     # combine with 'x'
-    par=`echo ${par[@]} | sed 's/ /x/g'`
+    par=$(echo ${par[@]} | sed 's/ /x/g')
   else
     read -r -a parsed <<< "$arr"
     if [[ ${#parsed[@]} -ne ${n_levels} ]]; then
-      echo "  Got more values for \"${in_type}\" (`echo ${arr}`) than levels ($n_levels)"
+      echo "  Got more values for \"${in_type}\" ($(echo ${arr})) than levels ($n_levels)"
       exit 1
     else
       par=${arr}
@@ -306,14 +306,14 @@ function check_stage_inputs {
 function validate_extension {
 
   in_file=${1}
-  ext_file=`fetch_extension "${in_file}"`
+  ext_file=$(fetch_extension "${in_file}")
   if [[ ${ext_file} == "gz" ]] || [[ ${ext_file} == "nii" ]]; then
     :
   else
     # convert mgz to nii.gz
     if [[ ${ext_file} == "mgz" ]]; then
-      ll=`call_mriconvert ${in_file} 2>/dev/null`
 
+      call_mriconvert ${in_file}
       if [[ $? -ne 0 ]]; then
         echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_mriconvert exited with non-zero status"
         exit 1
@@ -331,21 +331,21 @@ function validate_extension {
 
 # check if we got custom inputs, whether we should use defaults, and whether specified values match the number of levels specified
 # if check_stage_inputs fails, the returned value will be the error message, so we can conveniently make a traceback
-shrink=`check_stage_inputs shrink`
+shrink=$(check_stage_inputs shrink)
 if [[ $? -ne 0 ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${shrink}
   exit 1
 fi
 
-converg=`check_stage_inputs converge`
+converg=$(check_stage_inputs converge)
 if [[ $? -ne 0 ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${converg}
   exit 1
 fi
 
-smooth=`check_stage_inputs smooth`
+smooth=$(check_stage_inputs smooth)
 if [[ $? -ne 0 ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${smooth}
@@ -389,14 +389,14 @@ OUT=${OUT}
 if [[ -f ${REF} && -f ${MOV} ]]; then
 
   # check extension
-  REF=`validate_extension ${REF}`
+  REF=$(validate_extension ${REF})
   if [[ $? -ne 0 ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
     echo ${REF}
     exit 1
   fi
 
-  MOV=`validate_extension ${MOV}`
+  MOV=$(validate_extension ${MOV})
   if [[ $? -ne 0 ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
     echo ${MOV}
@@ -404,8 +404,8 @@ if [[ -f ${REF} && -f ${MOV} ]]; then
   fi
 
   # check dimensions
-  DIMfixed=`fslval ${REF} dim0`
-  DIMmoving=`fslval ${MOV} dim0`
+  DIMfixed=$(fslval ${REF} dim0)
+  DIMmoving=$(fslval ${MOV} dim0)
   if [[ $DIMfixed != $DIMmoving ]]; then
 
     # check if we can extract first volume of time-series
@@ -460,7 +460,7 @@ if [[ ! -z ${initial} ]]; then
     echo "Using $(basename ${initial}) as initial moving transform file"
   fi
   
-  ext=`fetch_extension ${initial}`
+  ext=$(fetch_extension ${initial})
   if [[ $ext != "txt" ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${initial}\" is not a text file. It should be if it's an initial moving transform file"
     exit 1
@@ -475,7 +475,7 @@ fi
 # Deal with mask file if the argument is not empty.
 if [[ ! -z ${mask} ]]; then
   if [ ${VERB} -eq 1 ]; then
-    echo "Using `basename ${mask}` as mask file"
+    echo "Using $(basename ${mask}) as mask file"
   fi
   MASK=$(echo "-x [NULL,${mask}]")
 fi
@@ -575,7 +575,7 @@ fi
 echo ${cmd} >> ${OUT}command.txt
 
 # Execute command
-${cmd}
+eval ${cmd}
 
 if [[ $? -ne 0 ]]; then
   echo

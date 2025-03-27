@@ -82,8 +82,8 @@ while getopts :-:s:e:l: arg; do
 done
 
 print_line -
-start=`date +%s`
-start_date=`date`
+start=$(date +%s)
+start_date=$(date)
 echo "call_distance; started @${start_date}"
 echo 
 
@@ -114,54 +114,6 @@ echo "label = ${label}"
 echo "start = ${start_v}"
 echo "end   = ${end_v}"
 echo "out   = ${OUT}"
-
-function dykstra_distance {
-
-  if [[ $# -eq 0 ]]; then
-    echo
-    print_line -
-    echo "dykstra_distance"
-    echo
-    echo "Wrapper for mris_pmake. Calculates the distance between <startVertex> & <endVertex> using Dykstra's"
-    echo "algorithm."
-    echo
-    echo "Usage"
-    echo "----------"
-    echo "  dykstra_distance <subject> <hemi> <surface> <startVertex> <endVertex> <json file>"
-    echo ""
-    echo "Parameters"
-    echo "----------"
-    echo "subject: str"
-    echo "  subject ID as per FreeSurfer output"
-    echo "hemi: str"
-    echo "  hemisphere to process. Must be one of \"lh\" or \"rh\""
-    echo "surface: str"
-    echo "  surface name to process, e.g., \"fiducial\". Defaults to \"inflated\""
-    echo "startVertex: int"
-    echo "  vertex to calculate distances TO"
-    echo "endVertex: int"
-    echo "  vertex to calculate distances FROM"
-    echo "json file: str"
-    echo "  store the output in a key-value pair between <endVertex> and the output from mris_pmake"
-    echo ""
-    echo "Example"
-    echo "----------"
-    echo "  dykstra_distance sub-001 lh fiducial 1053 784"
-    echo "  dykstra_distance sub-001 lh fiducial 1053 784 sub-001_desc-distances.json"
-    echo ""
-    print_line -
-    echo
-  else
-    dist=`mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2`
-
-    # write output to json file
-    if [[ ! -z ${6} ]]; then
-      call_json ${6} "${5}" "${dist}"
-    else
-      echo ${dist}
-    fi
-  fi
-}
 
 function clean {
   rm -r $PWD/M_weights_distance.mat 2>/dev/null
@@ -206,7 +158,7 @@ END
   count=0
   while true; do
     res=("$(python -c "${PYTHON_CODE}")")
-    tmp_vertices=`echo ${res} | cut -d"[" -f2 | cut -d"]" -f1`
+    tmp_vertices=$(echo ${res} | cut -d"[" -f2 | cut -d"]" -f1)
     IFS=', ' read -r -a empty_verts <<< "${tmp_vertices}"
     unset IFS
     if [[ ${#empty_verts[@]} -eq 0 ]]; then
@@ -234,8 +186,8 @@ else
   if [[ ! -z ${label} ]]; then
 
     if [[ ! -f ${OUT} ]]; then
-      res=("$(python -c "`read_vertices`")")
-      lbl_vertices=`echo ${res} | cut -d"[" -f2 | cut -d"]" -f1`
+      res=("$(python -c "$(read_vertices)")")
+      lbl_vertices=$(echo ${res} | cut -d"[" -f2 | cut -d"]" -f1)
       IFS=', ' read -r -a vertices <<< "${lbl_vertices}"
       unset IFS
       echo "${hemi}.${label} contains ${#vertices[@]} vertices"
@@ -253,8 +205,8 @@ fi
 
 echo
 print_line -
-end=`date +%s`
-end_date=`date`
+end=$(date +%s)
+end_date=$(date)
 printf "Done at ${end_date}\n"
 
 let deltatime=end-start

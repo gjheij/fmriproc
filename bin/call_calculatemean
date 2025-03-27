@@ -47,7 +47,7 @@ if [[ ! -f ${output} ]]; then
 
     # Print which files we're concatenating
     echo "Merging the following files:"
-    for i in ${inputs[@]}; do echo " `basename ${i}`"; done
+    for i in ${inputs[@]}; do echo " $(basename ${i})"; done
 
     # Execute command
     COMMAND "${output}" "${inputs[@]}"

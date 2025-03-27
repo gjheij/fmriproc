@@ -176,10 +176,10 @@ else
 fi
 
 if [[ ${set_tr} -eq 1 ]]; then
-  TR_float_sec=`fslval ${INPUT} pixdim4`
+  TR_float_sec=$(fslval ${INPUT} pixdim4)
 
   # convert to integer in milliseconds to be consistent with fMRIprep
-  TR_int_ms="$(printf '%d' `echo "${TR_float_sec} * 1000" | bc` 2>/dev/null)"
+  TR_int_ms="$(printf '%d' $(echo "${TR_float_sec} * 1000" | bc) 2>/dev/null)"
   echo "Setting TR to ${TR_int_ms}"
 else
   TR_int_ms=""

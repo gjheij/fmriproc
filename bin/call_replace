@@ -106,9 +106,9 @@ if [[ -d ${search_dir} ]]; then
       echo "Locating files"
     fi
     
-    search_files=(`find ${search_dir} -type f`)
+    search_files=($(find ${search_dir} -type f))
   else
-    search_files=(`find ${search_dir} -maxdepth 1 -type f`)
+    search_files=($(find ${search_dir} -maxdepth 1 -type f))
   fi
 
   for file in ${search_files[@]}; do

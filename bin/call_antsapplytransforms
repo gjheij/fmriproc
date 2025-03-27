@@ -186,8 +186,8 @@ eval ${cmd}
 # check if we need to set s/qform code
 res=$(check_function fslorient)
 if [[ ${res} -eq 0 ]]; then
-  qform=`fslorient -getqformcode ${OUT}`
-  sform=`fslorient -getsformcode ${OUT}`
+  qform=$(fslorient -getqformcode ${OUT})
+  sform=$(fslorient -getsformcode ${OUT})
 
   # set qform with sform
   if [[ ${qform} -eq 0 ]]; then

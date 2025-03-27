@@ -48,10 +48,10 @@ if [[ ! -d $CTX/${1} ]]; then
 fi
 
 # find anatomy directory hierarchically
-INPUT_DIR=`find_hierarchical_anatomy 3`
+INPUT_DIR=$(find_hierarchical_anatomy 3)
 
-ses1=`find ${INPUT_DIR}/${1}/ses-1 -type f -name "${1}*" -and -name "*T1w.nii.gz" 2>/dev/null`
-ses2=`find ${DIR_DATA_HOME}/${1}/ses-${2}/anat -type f -name "${1}*" -and -name "*motion1*" -and -name "*.nii.gz" 2>/dev/null`
+ses1=$(find ${INPUT_DIR}/${1}/ses-1 -type f -name "${1}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+ses2=$(find ${DIR_DATA_HOME}/${1}/ses-${2}/anat -type f -name "${1}*" -and -name "*motion1*" -and -name "*.nii.gz" 2>/dev/null)
 
 if [[ -z ${ses1} ]] || [[ -z ${ses2} ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find ses-1 or ses-${2} anatomy"

@@ -111,9 +111,9 @@ fi
 
 
 # find anatomy directory hierarchically
-INPUT_DIR=`find_hierarchical_anatomy ${search_depth}`
-ses1=`find ${INPUT_DIR}/${sub_id}/ses-1 -type f -name "${sub_id}*" -and -name "*T1w.nii.gz" 2>/dev/null`
-ses2=`find ${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat -type f -name "${sub_id}*" -and -name "*acq-MP2RAGE*" -and -name "*T1w.nii.gz" 2>/dev/null`
+INPUT_DIR=$(find_hierarchical_anatomy ${search_depth})
+ses1=$(find ${INPUT_DIR}/${sub_id}/ses-1 -type f -name "${sub_id}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+ses2=$(find ${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat -type f -name "${sub_id}*" -and -name "*acq-MP2RAGE*" -and -name "*T1w.nii.gz" 2>/dev/null)
 
 if [[ -z ${ses1} ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no T1w file in \"${INPUT_DIR}/${sub_id}/ses-1\""
@@ -153,7 +153,7 @@ fi
 # define job execution
 if [[ ${run_local} -eq 0 ]]; then
   submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${aff}) ${DIR_LOGS})
-  call_=`which call_antsregistration`
+  call_=$(which call_antsregistration)
   job="${submit} ${call_}"
   verbose="--verbose"
 else
@@ -178,7 +178,7 @@ if [[ ${debug} -eq 0 ]]; then
   (
   echo ""
   echo "### New invocation of call_antsregistration @ `date`"
-  echo "`echo ${cmd} | tr '\n' ' '`"
+  echo "$(echo ${cmd} | tr '\n' ' ')"
   echo ""
   ) >> ${log_file}
   eval ${cmd}

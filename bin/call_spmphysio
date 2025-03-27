@@ -122,19 +122,19 @@ if [[ ! -d ${SPM_PATH} ]]; then
 fi
 
 # fetch full paths
-INPUT=`fetch_filepath ${INPUT}`
+INPUT=$(fetch_filepath ${INPUT})
 
 #-----------------------------------------------------------------------------
 # Fetch number of volumes
 if [[ -z ${VOLS} ]]; then
   if [[ ! -z ${FUNC} ]]; then
-    FUNC=`fetch_filepath ${FUNC}`
+    FUNC=$(fetch_filepath ${FUNC})
     if [[ -f ${FUNC} ]]; then
       # check if we're dealing with nifti or mat
       if [[ ${FUNC} == *".nii.gz"* ]]; then
-        VOLS=`fslval ${FUNC} dim4`
-        TR=`fslval ${FUNC} pixdim4`
-        N_SLICES=`fslval ${FUNC} dim1`
+        VOLS=$(fslval ${FUNC} dim4)
+        TR=$(fslval ${FUNC} pixdim4)
+        N_SLICES=$(fslval ${FUNC} dim1)
       elif [[ ${FUNC} == *".mat"* ]]; then
         VOLS=`python -c "from scipy.io import loadmat; k = loadmat('${FUNC}'); tag = list(k.keys())[-1]; print(k[tag].shape[-1])"`
       else
@@ -185,7 +185,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # fetch full paths in case only a filename was specified
-INPUT=`fetch_filepath ${INPUT}`
+INPUT=$(fetch_filepath ${INPUT})
 
 #-----------------------------------------------------------------------------
 # Do some preprocessing with 'scanphyslog2bids' from Lukas Snoek:
@@ -244,7 +244,7 @@ if [[ ${RUN_MATLAB} -eq 1 ]]; then
   call_matlab ${new_script} >> ${log_file}
 
   # check if matlab succeeded
-  ff=`cat ${log_file} | grep "Failed: TAPAS PhysIO Toolbox" | cut -d"." -f2 | xargs | sed 's/\r$//'`
+  ff=$(cat ${log_file} | grep "Failed: TAPAS PhysIO Toolbox" | cut -d"." -f2 | xargs | sed 's/\r$//')
   if [[ ! -z ${ff} ]]; then
     mv ${log_file} $(dirname ${INPUT})/$(basename ${INPUT} .log)_error.log
     echo "ERROR: matlab exited with non-zero status"

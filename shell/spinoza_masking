@@ -107,7 +107,7 @@ for subID in ${search}; do
   
   # set ses and session flag
   if [[ ! -z ${ses} ]]; then
-    nr=`echo ${ses} | sed -e 's/^[[:space:]]*//'`
+    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base_path=${sub_name}/ses-${nr}
     base=${sub_name}_ses-${nr}
     ses_flag="-n ${nr}"
@@ -127,10 +127,10 @@ for subID in ${search}; do
     continue
   else
     search_for_mask="cat_dura"
-    t1w_fn=`find ${input_dir} -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null`
-    t1m_fn=`find ${input_dir} -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null`
-    MASKED=`find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null`
-    MASK=`find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*${search_for_mask}*" \) 2>/dev/null`
+    t1w_fn=$(find ${input_dir} -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+    t1m_fn=$(find ${input_dir} -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
+    MASKED=$(find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
+    MASK=$(find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*${search_for_mask}*" \) 2>/dev/null)
 
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
@@ -144,7 +144,7 @@ for subID in ${search}; do
     fi
 
     if [[ -f ${MASKED} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Masked T1-weighted image exists"
+      print_output_exists "${sub_name}" "${MASKED}"
     else
       # print header
       print_subject_header ${sub_name}
@@ -152,7 +152,7 @@ for subID in ${search}; do
       if [[ ! -f ${MASKED} ]]; then
 
         if [[ ! -f ${t1w_fn} ]]; then
-          echo "No T1w-image in \"${input_dir}\""
+          print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
           continue
         fi
         
@@ -176,7 +176,7 @@ for subID in ${search}; do
             exit 1
           fi
 
-          MASKED=`find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null`
+          MASKED=$(find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
           if [[ ! -z ${MASKED} ]]; then
 
             # truncate image intensities
@@ -184,9 +184,9 @@ for subID in ${search}; do
             ImageMath 3 ${TMP} TruncateImageIntensity ${MASKED} 0.01 0.99 256
 
             # fetch max value
-            MM=`fslstats ${TMP} -R`
-            min=`echo $MM | cut -d" " -f1`
-            max=`echo $MM | cut -d" " -f2`
+            MM=$(fslstats ${TMP} -R)
+            min=$(echo $MM | cut -d" " -f1)
+            max=$(echo $MM | cut -d" " -f2)
 
             # clip max intensity; this leaves the minimal values untouched (they should be zero already!) 
             if [[ ${min} == "0.000000" ]]; then
@@ -237,9 +237,9 @@ for subID in ${search}; do
         mkdir -p ${skull_dir}
       fi
 
-      MASKED=`find "${output_dir}" -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null`
-      mask_img=`find ${mask_dir} -type f \( -name "*acq-${DATA^^}_*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
-      t1map=`find "${input_dir}" -type f \( -name "*T1map*" -and -name "*acq-${DATA^^}_*" -and -name "*.nii.gz" \) 2>/dev/null`
+      MASKED=$(find "${output_dir}" -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
+      mask_img=$(find ${mask_dir} -type f \( -name "*acq-${DATA^^}_*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
+      t1map=$(find "${input_dir}" -type f \( -name "*T1map*" -and -name "*acq-${DATA^^}_*" -and -name "*.nii.gz" \) 2>/dev/null)
 
       if [[ ! -z ${mask_img} ]]; then
         echo "Skullstripping files for mgdm-input"
@@ -255,7 +255,8 @@ for subID in ${search}; do
           print_cmd $cmd
           eval $cmd
         fi
-
+      else
+        print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *spm_mask.nii.gz" "${mask_dir}"
       fi
       echo "Done"
     fi
@@ -264,9 +265,9 @@ done
 
 # the dataset_description file is required by fMRIprep, so create a symlink to masked_<> directory to be able
 # to input this directory as project root for fMRIprep
-if [[ -f ${DIR_DATA_HOME}/dataset_description.json ]]; then
-  if [[ ! -f ${OUTPUT}/dataset_description.json ]]; then
-    ln -s ${DIR_DATA_HOME}/dataset_description.json ${OUTPUT}/dataset_description.json
+if [[ -f "${DIR_DATA_HOME}/dataset_description.json" ]]; then
+  if [[ ! -f "${OUTPUT}/dataset_description.json" ]]; then
+    ln -s "${DIR_DATA_HOME}/dataset_description.json" "${OUTPUT}/dataset_description.json"
 
     if [[ $? -ne 0 ]]; then 
       echo "WARNING: could not create symlink for dataset_description; this might result in problems with fMRIprep!"

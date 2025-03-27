@@ -40,7 +40,7 @@ else
   fi
 fi
 
-funcs=(`find ${fprep_dir} -type f -name "*preproc_bold.nii.gz" | sort`)
+funcs=($(find ${fprep_dir} -type f -name "*preproc_bold.nii.gz" | sort))
 if [ ${#funcs[@]} -eq 0 ]; then
   echo "Could not find files with \"*preproc_bold.nii.gz\" in \"${fprep_dir}\""
   exit 1

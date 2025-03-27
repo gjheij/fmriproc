@@ -138,7 +138,7 @@ fi
 if [[ ! -f ${IN_CSV} ]]; then
   tmp_chicken=$(dirname ${OUT_CSV})/tmp.csv
 
-  in_coord=`echo $IN_CSV | tr -d '"'`
+  in_coord=$(echo $IN_CSV | tr -d '"')
   call_antsmakechicken ${in_coord} ${tmp_chicken} ${trafo_type}
   input_csv=${tmp_chicken}
 

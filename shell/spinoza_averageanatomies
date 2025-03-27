@@ -121,12 +121,12 @@ for subID in ${search}; do
     if [[ ! -f ${out} ]]; then
 
       # look for warped files
-      in_files=(`find "${input_dir}" -type f \( -name "*space-*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null`)
+      in_files=($(find "${input_dir}" -type f \( -name "*space-*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null))
       if [[ ! -z ${in_files} ]]; then
         # MP2RAGE+MP2RAGEME if number of "space-" files is 1
         if [[ ${#in_files[@]} -eq 1 ]]; then
-          in_1=`find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
-          in_2=`find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[1]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null`
+          in_1=$(find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null)
+          in_2=$(find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[1]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null)
           cmd="call_calculatemean ${in_1} ${in_2} ${out}"
         else
           # Multiple MP(2)RAGE(S) if number of "space-" files >1
@@ -146,14 +146,14 @@ for subID in ${search}; do
       fi
       
       # check if registration induced NANs
-      NAN=`fslstats ${out} -R | awk '{print $1}'`
+      NAN=$(fslstats ${out} -R | awk '{print $1}')
       if [[ ${NAN} == "-nan" ]]; then
         echo "Found NaNs, replacing these values with zeroes"
         fslmaths ${out} -nan ${out}
       fi
 
       # check if registration induced NANs
-      ZERO=`fslstats ${out} -R | awk '{print $1}'`
+      ZERO=$(fslstats ${out} -R | awk '{print $1}')
       if [[ ${ZERO} != "0" ]]; then
 
         if [[ ${i} == "T1w" ]]; then
@@ -172,7 +172,7 @@ for subID in ${search}; do
   done
 
   # check if we can copy SPM mask from MP2RAGE
-  spm_mask=`find ${input_dir} -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*desc-spm_mask.nii.gz" \) 2>/dev/null`
+  spm_mask=$(find ${input_dir} -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*desc-spm_mask.nii.gz" \) 2>/dev/null)
   if [ ! -z ${spm_mask} ]; then
   
     # sort so we can verify there's only 1 file
@@ -187,7 +187,7 @@ for subID in ${search}; do
     cp "${spm}" "${final_spm}"
   fi
 
-  t2_newspace=`find ${input_dir} -type f \( -name "*acq-3DTSE*" -and -name "*space*" \) 2>/dev/null`
+  t2_newspace=$(find ${input_dir} -type f \( -name "*acq-3DTSE*" -and -name "*space*" \) 2>/dev/null)
   if [ ! -z ${t2_newspace} ]; then
     cp ${t2_newspace} ${output_dir}/${base}_acq-${DATA}_T2w.nii.gz 2>/dev/null
   fi  
