@@ -253,7 +253,7 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
       echo ${run_mode}
-      echo -e "Creating ${BOLD_GREEN}$(basename ${mgdm_seg})${RESET}"
+      print_create_img "${mgdm_seg}"
     fi
 
     # execute command
@@ -262,7 +262,7 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in $(basename ${0}): ${cmd} exited with non-zero status"
+      print_error_msg "$(basename ${0})" "${cmd}"
       exit 1
     fi
 

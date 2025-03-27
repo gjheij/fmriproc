@@ -171,7 +171,7 @@ for subID in ${search}; do
       if [[ -f ${file} ]]; then
         INPUTS+=(${file})
       else
-        echo "Could not find \"$r\" image in cruise directory. Make sure naming is correct"
+        print_file_not_in_dir "${sub_name}" "*${r}*" "${input_dir}/cruise"
         continue
       fi
     done
@@ -197,7 +197,7 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
       
-      echo -e "Creating ${BOLD_GREEN}$(basename ${output})${RESET} with ${BOLD_RED}${nr_layers}${RESET} layers"
+      print_create_img "${output}" "N_layers=${nr_layers}"
       call_nighreslayering \
         -i ${INPUTS[0]} \
         -o ${INPUTS[1]} \
@@ -208,7 +208,7 @@ for subID in ${search}; do
       if [[ $? != 0 ]]; then
         echo
         print_line -
-        echo "ERROR in $(basename ${0}): call_nighreslayering exited with non-zero status"
+        print_error_msg "$(basename ${0})" "call_nighreslayering"
         exit 1
       fi
 
@@ -240,7 +240,7 @@ for subID in ${search}; do
       rm ${input_dir}/surf/${i}.equi* 2>/dev/null
 
       # run cmd
-      echo "Running generate_equivolumetric_surfaces on ${i} with ${nr_layers} layers"
+      echo -e "Running ${BOLD_BLUE}generate_equivolumetric_surfaces${RESET} on ${i} with ${nr_layers} layers"
       run_cmd="""${CMD} \
         --smoothing  0 \
         ${input_dir}/surf/${i}.pial \
@@ -258,11 +258,11 @@ for subID in ${search}; do
       
       # run command
       echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
-      echo ${run_cmd}
+      print_cmd ${run_cmd}
       eval ${run_cmd}
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in $(basename ${0}): generate_equivolumetric_surfaces exited with non-zero status"
+        print_error_msg "$(basename ${0})" "generate_equivolumetric_surfaces"
         exit 1
       fi
 

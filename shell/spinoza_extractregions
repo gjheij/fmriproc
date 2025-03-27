@@ -173,7 +173,7 @@ for subID in ${search}; do
     # check for multiple files..
     j=0; for i in ${file[@]}; do ((j++)); done
     if [[ ${j} -eq 0 ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find any file for ${r}. DATA-variable is probably set incorrectly: ${DATA}"
+      print_file_not_in_dir "${sub_name}" "*${r}*" "${mgdm_dir}" "DATA-variable is probably set incorrectly: ${DATA}"
       continue 2
     elif [[ ${j} -gt 1 ]]; then
       echo -e "${BOLD_CYAN}${sub_name}${RESET}: Found more than 1 file for ${r}"
@@ -183,13 +183,13 @@ for subID in ${search}; do
     if [[ -f ${file} ]]; then
       INPUTS+=(${file})
     else
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find \"${r}\" image in nighres directory"
+      print_file_not_in_dir "${sub_name}" "*${r}*" "${mgdm_dir}"
       continue
     fi
   done
 
   if [[ -z "${INPUTS}" ]]; then
-    echo "Did not find required inputs"
+    print_file_not_in_dir "${sub_name}" "MGDM" "${mgdm_dir}" "Run MGDM first"
     continue
   fi
 
@@ -232,7 +232,7 @@ for subID in ${search}; do
 
       if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
 
-        echo -e "Creating ${BOLD_GREEN}$(basename ${output})${RESET} with suffix: ${BOLD_RED}${suff}${RESET}"
+        print_create_img "${output}" "Suffix=\"${suff}\""
         call_nighresextractregions \
           -s "${INPUTS[0]}" \
           -b "${INPUTS[1]}" \
@@ -243,8 +243,7 @@ for subID in ${search}; do
           -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
 
         if [[ $? -ne 0 ]]; then
-          echo
-          echo "ERROR in spinoza_extractregions: call_nighresextractregions exited with non-zero status"
+          print_error_msg "$(basename ${0})" "call_nighresextractregions"
           continue
         fi
 
@@ -265,8 +264,7 @@ for subID in ${search}; do
     else
 
       if [[ ${executed_nighres} -eq 0 ]]; then
-        echo
-        echo "**************************************** Processing ${sub_name} ***************************************"
+        print_subject_header ${sub_name}
       fi
       
       fs=${SUBJECTS_DIR}/${sub_name}
@@ -281,10 +279,10 @@ for subID in ${search}; do
       done
 
       if [[ -d ${cat12_dir} ]]; then
-        echo "Creating custom levelset from fmriprep+FS+MGDM+CAT12"
+        print_create_img "custom levelset" "Input=(fmriprep+FS+MGDM+CAT12)"
         cat12=${cat12_dir}
       else
-        echo "Creating custom levelset from fmriprep+FS+MGDM"
+        print_create_img "custom levelset" "Input=(fmriprep+FS+MGDM)"
         cat12=""
       fi
 
@@ -309,7 +307,7 @@ for subID in ${search}; do
         -b ${base}_acq-${DATA^^}
 
       if [[ $? != 0 ]]; then
-        echo "WARNING: Could not create combined segmentations, continuing.."
+        print_error_msg "$(basename ${0})" "${cmd}"
       fi
     fi
   fi

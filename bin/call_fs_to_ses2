@@ -71,7 +71,7 @@ if [[ ! -f ${orig} ]]; then
 fi
 
 if [[ -z ${ses2} ]]; then
-  echo "ERROR in $(basename ${0}): could not find ses-${SESSION} anatomy"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find ses-${SESSION} anatomy"
   exit 1
 fi
 

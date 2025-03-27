@@ -276,12 +276,12 @@ for subID in ${search}; do
         eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): call_antsregistration exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsregistration exited with non-zero status"
           exit 1
         fi
 
         if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
-          echo "ERROR in $(basename ${0}): \"${output_dir}/${base}_${ext}genaff.mat\" was not created"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${output_dir}/${base}_${ext}genaff.mat\" was not created"
           continue
         fi
 
@@ -337,7 +337,7 @@ for subID in ${search}; do
             eval ${cmd}
 
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): call_antsapplytransforms failed with \"${cmd}\""
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms failed with \"${cmd}\""
               exit 1
             fi
 

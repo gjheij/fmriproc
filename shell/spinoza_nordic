@@ -205,7 +205,7 @@ for subID in ${search}; do
   unset IFS
 
   if [[ -z ${mag_imgs} ]]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find \"bold.nii.gz\"-images in \"${tmp_folder}\"?"
+    print_file_not_in_dir "${sub_name}" "*bold.nii.gz" "${tmp_folder}"
     exit 1
   fi
 
@@ -291,11 +291,11 @@ for subID in ${search}; do
             ${mag_img} ${ph_img} ${out}
 
           if [[ $? -ne 0 ]]; then
-            echo "ERROR in $(basename ${0}): call_nordic exited with non-zero status"
+            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_nordic exited with non-zero status"
             continue
           fi
         else
-          echo "ERROR in $(basename ${0}): mismatch between \"$(basename ${ph_img} ${ph_tag}.nii.gz)\" & \"$(basename ${mag_img} .nii.gz)\""
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mismatch between \"$(basename ${ph_img} ${ph_tag}.nii.gz)\" & \"$(basename ${mag_img} .nii.gz)\""
         fi
       else
         echo -e "Found NORDIC tag; ${BOLD_GREEN}${mag_img}${RESET} already NORDIC'ed (use --ow to overwrite)"

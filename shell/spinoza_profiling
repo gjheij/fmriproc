@@ -105,8 +105,7 @@ for subID in ${search}; do
 
     # print header
     print_subject_header ${sub_name}
-
-    echo -e "Creating ${BOLD_GREEN}$(basename ${sampled_data})${RESET}"
+    print_create_img "${sampled_data}"
     
     #-----------------------------------------------------------------------------
     # Check if we can mask inputs
@@ -114,12 +113,12 @@ for subID in ${search}; do
     tobesampled=`find ${sampled_dir} -maxdepth 2 -type f \( -name "*${TAG}*" \) 2>/dev/null`
 
     if [[ -z ${boundaries} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find boundaries-file in ${BOLD_GREEN}${nighres_dir}/layering${RESET}. Create it with spinoza_layering ($(master -m -l layering))"
+      print_file_not_in_dir "${sub_name}" "boundaries" "${nighres_dir}/layering" "Create it with spinoza_layering ($(master -m -l layering))"
       continue
     fi
 
     if [[ -z ${tobesampled} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: could not find file for sampling (\"*${TAG}\") in ${BOLD_GREEN}${sampled_dir}${RESET}."
+      print_file_not_in_dir "${sub_name}" "sampling [\"*${TAG}\"]" "${sampled_dir}"
       continue
     fi
 
@@ -132,7 +131,7 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in $(basename ${0}): call_nighresprofsamp exited with non-zero status"
+      print_error_msg "$(basename ${0})" "call_nighresprofsamp"
       exit 1
     fi
 

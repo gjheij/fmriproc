@@ -214,16 +214,11 @@ for subID in ${search}; do
         fi
 
       else
-
-        echo "`basename ${final_brain} exists`. Skipping brain extraction"
-
+        print_output_exists "${sub_name}" "${final_brain}" "Skipping brain extraction"
       fi
-
     else
-
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: couldn't find input in ${INPUTDIR}"
+      print_directory_not_exist "${sub_name}" "${INPUTDIR}"
       continue
-
     fi
 
   elif [[ ${SOFTWARE,,} == "fsl" ]]; then
@@ -335,7 +330,7 @@ for subID in ${search}; do
       if [[ ${use_fs} -eq 1 ]]; then
         in_dir=${SUBJECTS_DIR}/${sub_name}/mri
         if [[ ! -d ${in_dir} ]]; then
-          echo "ERROR in $(basename ${0}): FreeSurfer directory \"${in_dir}\" does not exist"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): FreeSurfer directory \"${in_dir}\" does not exist"
           exit 1
         fi
 
@@ -348,7 +343,7 @@ for subID in ${search}; do
             call_mriconvert ${fs_anat}
           fi
         else
-          echo "ERROR in $(basename ${0}): Could not find FreeSurfer anatomy \"${fs_anat}\""
+          print_directory_not_exist "${sub_name}" "${fs_anat}"
           exit 1
         fi
 
@@ -356,14 +351,14 @@ for subID in ${search}; do
         if [[ -f ${fs_nii} ]]; then
           input=${fs_nii}
         else
-          echo "ERROR in $(basename ${0}): \"${fs_nii}\" was not created.."
+          print_file_not_exist "${sub_name}" "${fs_nii}" "Converting did not succeed"
           exit 1
         fi
       elif [[ ${use_fprep} -eq 1 ]]; then
         echo -e "Using ${BOLD_RED}fMRIprep${RESET} input"
         in_dir=${DIR_DATA_DERIV}/fmriprep/${base_path}/anat
         if [[ ! -d ${in_dir} ]]; then
-          echo "ERROR in $(basename ${0}): fMRIprep directory \"${in_dir}\" does not exist"
+          print_directory_not_exist "${sub_name}" "${in_dir}" "Run fMRIPrep first.."
           exit 1
         fi
         input=`find -L "${DIR_DATA_DERIV}/fmriprep/${base_path}/anat" -type f \( -name "${base}*" -and -name "*_desc-preproc_T1w.nii.gz" -and -not -name "*space*" \) 2>/dev/null`
@@ -395,7 +390,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in $(basename ${0}): call_cat12 exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_cat12 exited with non-zero status"
               exit 1
             fi
 
@@ -436,7 +431,7 @@ for subID in ${search}; do
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            echo "ERROR in $(basename ${0}): call_winsorize exited with non-zero status."
+            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_winsorize exited with non-zero status."
             exit 1
           fi
 
@@ -466,7 +461,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in $(basename ${0}): call_rmbackground exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_rmbackground exited with non-zero status"
               exit 1
             fi
 
@@ -475,7 +470,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in $(basename ${0}): call_winsorize exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_winsorize exited with non-zero status"
               exit 1
             fi
 
@@ -483,7 +478,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo "ERROR in $(basename ${0}): call_rescale exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_rescale exited with non-zero status"
               exit 1
             fi
 
@@ -498,7 +493,7 @@ for subID in ${search}; do
         fi
       else
         if [[ -z ${input} ]]; then
-          echo "No file with \"${DATA^^}\", \"*T1w\" in \"${INPUTDIR}\""
+          print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *T1w.nii.gz" "${INPUTDIR}"
           exit 1
         fi
       fi

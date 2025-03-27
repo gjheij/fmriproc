@@ -116,12 +116,12 @@ ses1=`find ${INPUT_DIR}/${sub_id}/ses-1 -type f -name "${sub_id}*" -and -name "*
 ses2=`find ${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat -type f -name "${sub_id}*" -and -name "*acq-MP2RAGE*" -and -name "*T1w.nii.gz" 2>/dev/null`
 
 if [[ -z ${ses1} ]]; then
-  echo "ERROR in $(basename ${0}): no T1w file in \"${INPUT_DIR}/${sub_id}/ses-1\""
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no T1w file in \"${INPUT_DIR}/${sub_id}/ses-1\""
   exit 1
 fi
 
 if [[ -z ${ses2} ]]; then
-  echo "ERROR in $(basename ${0}): ses-${ses_id} in \"${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat\""
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ses-${ses_id} in \"${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat\""
   exit 1
 fi
 

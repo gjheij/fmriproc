@@ -37,7 +37,7 @@ fi
 if [[ ! -f $1 ]]; then
   echo
   print_line -
-  echo "ERROR in $(basename ${0}); could not find input image"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); could not find input image"
   exit 1
 fi
 

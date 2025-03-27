@@ -212,7 +212,7 @@ for task_id in ${task_ids[@]}; do
           --pre
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
           exit 1
         fi
       fi
@@ -241,7 +241,7 @@ for task_id in ${task_ids[@]}; do
         eval ${cmd}
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): pybest existed with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): pybest existed with non-zero status"
           exit 1
         fi
 
@@ -263,7 +263,7 @@ for task_id in ${task_ids[@]}; do
           --post
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
           exit 1
         fi          
       fi
@@ -286,7 +286,7 @@ for task_id in ${task_ids[@]}; do
           --pre
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
           exit 1
         fi         
       fi
@@ -310,7 +310,7 @@ for task_id in ${task_ids[@]}; do
       eval ${cmd}
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in $(basename ${0}): pybest existed with non-zero status"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): pybest existed with non-zero status"
         exit 1
       fi 
     fi
@@ -330,7 +330,7 @@ for task_id in ${task_ids[@]}; do
           --post
 
         if [[ $? -ne 0 ]]; then
-          echo "ERROR in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--post) existed with non-zero status"
           exit 1
         fi
       fi
@@ -386,14 +386,14 @@ for task_id in ${task_ids[@]}; do
 
             # check if execution was ok
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero status"
               exit 1
             fi
 
           done
           echo "Done"
         else
-          echo "ERROR in $(basename ${0}): could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\"" 
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\"" 
           exit 1
         fi
       fi

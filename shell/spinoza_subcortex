@@ -149,7 +149,7 @@ for subID in ${search}; do
       j=0; for k in ${fn[@]}; do ((j++)); done; if [[ ${j} -ne 1 ]]; then echo -e "${BOLD_CYAN}${sub_name}${RESET}: Found more than 1 file for ${r}"; continue 2; fi
 
       if [[ -z ${fn} ]]; then
-        echo "Could not find ${i}-file.."
+        print_file_not_in_dir "${sub_name}" "*${i}.nii.gz" "${input_dir}"
         continue
       else
         # check if we can mask inputs; otherwise continue as usual
@@ -158,14 +158,14 @@ for subID in ${search}; do
           out=${skull_dir}/$(basename ${fn} "_${i}.nii.gz")_desc-skullstrip_${i}.nii.gz
           fslmaths ${fn} -mas ${mask} ${out}
           use_dir=${skull_dir}
-          printf "[`fslstats ${out} -R`]\n"
+          printf "[$(fslstats ${out} -R)]\n"
         else
           use_dir=${input_dir}
         fi
       fi
     done
     echo "Done"
-    echo "Create `basename ${massp}`"
+    print_create_img "${massp}"
 
     if [[ ${run_local} -eq 1 ]]; then
       call_=`which call_nighresmassp`
@@ -185,14 +185,12 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in $(basename ${0}): call_nighresmassp exited with non-zero status"
+      print_error_msg "$(basename ${0})" "call_nighresmassp"
       exit 1
     fi
-
   else
     print_output_exists "${sub_name}" "${massp}"
   fi
-
 done
 
 #-----------------------------------------------------------------------------

@@ -81,7 +81,7 @@ out=${@:$OPTIND+1:1}
 in_file=`fetch_filepath ${in}`
 
 if [[ ! -f ${in_file} ]]; then
-  echo "ERROR in $(basename ${0}): input file \"${in_file}\" does not exist"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input file \"${in_file}\" does not exist"
   exit 1
 fi
 
@@ -111,7 +111,7 @@ fi
 eval ${cmd}
 
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): ImageMath exited with non-zero status"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ImageMath exited with non-zero status"
   exit 1
 fi
 

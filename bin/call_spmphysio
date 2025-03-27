@@ -138,15 +138,15 @@ if [[ -z ${VOLS} ]]; then
       elif [[ ${FUNC} == *".mat"* ]]; then
         VOLS=`python -c "from scipy.io import loadmat; k = loadmat('${FUNC}'); tag = list(k.keys())[-1]; print(k[tag].shape[-1])"`
       else
-        echo "ERROR in $(basename ${0}): unknown input type. Use a Nifti-image or .mat file as per Luisa's reconstruction"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): unknown input type. Use a Nifti-image or .mat file as per Luisa's reconstruction"
         exit 1
       fi
     else
-      echo "ERROR in $(basename ${0}): could not find func-file \"${FUNC}\""
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find func-file \"${FUNC}\""
       exit 1
     fi
   else
-    echo "ERROR in $(basename ${0}): could not derive number of volumes. Either use the -v flag to specify it or -f file to derive the number of voxels"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not derive number of volumes. Either use the -v flag to specify it or -f file to derive the number of voxels"
     exit 1
   fi
 fi
@@ -206,7 +206,7 @@ if [[ ${RUN_PHYS} -eq 1 ]]; then
   eval ${cmd}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): scanphyslog2bids exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): scanphyslog2bids exited with non-zero status"
     exit 1
   fi
 
@@ -228,7 +228,7 @@ if [[ ${RUN_MATLAB} -eq 1 ]]; then
   # create the matlab script
   make_physio_script ${SPM_PATH} ${PHYSIO_INPUT} ${TR} ${VOLS} ${OUTPUT} ${N_DUMMY} ${N_SLICES} ${new_script}
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): make_physio_script exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): make_physio_script exited with non-zero status"
     exit 1
   fi
 

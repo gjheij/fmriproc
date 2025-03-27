@@ -160,7 +160,7 @@ echo " Generating brain mask with SPM.."
 eval ${cmd}
 
 if [[ ! -f "${mask_file}" ]]; then  
-  echo "ERROR in $(basename ${0}): call_spmmask failed, mask-file not created"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmmask failed, mask-file not created"
   exit 1
 fi
 
@@ -179,7 +179,7 @@ echo " Bias correction with ${software}.."
 eval ${cmd}
 
 if [[ ! -f "${bias_file}" ]]; then
-  echo "ERROR in $(basename ${0}): bias correction failed"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): bias correction failed"
   exit 1
 fi
 
@@ -191,7 +191,7 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
   eval ${cmd}
 
   if [[ ! -f ${final_file} ]]; then
-    echo "ERROR in $(basename ${0}): call_spmsanlm failed, final output file not created"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmsanlm failed, final output file not created"
     exit 1
   fi
 
@@ -250,7 +250,7 @@ if [[ ! -z ${t1map} ]]; then
     eval ${cmd}
     
     if [[ ! -f ${t1_reg} ]]; then
-      echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
       exit 1
     fi
   else

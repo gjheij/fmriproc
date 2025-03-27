@@ -40,8 +40,7 @@ check_and_copy_anat() {
       if [[ -f "${fs_rawavg}" ]]; then
         call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
       else
-        echo "ERROR in $(basename "$0"): Could not find T1w-file in \"${anat_dir}\"."
-        echo "Please copy a file containing \"_T1w.nii.gz\" to \"${func_dir}/${base_path}/anat\"."
+        print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${anat_dir}" "Please copy a file containing \"_T1w.nii.gz\" to \""${anat_dir}"\"."
         exit 1
       fi
     fi    
@@ -532,7 +531,7 @@ for subID in ${search}; do
     eval ${cmd}
     
   if [[ $? != 0 ]]; then
-    echo "ERROR in $(basename ${0}): call_fmriprep did not execute cleanly"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_fmriprep did not execute cleanly"
     exit 1
   fi
 

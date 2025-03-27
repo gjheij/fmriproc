@@ -245,7 +245,7 @@ for subID in ${search}; do
         ${sanlm_} ${input} ${output_from_sanlm} ${kwargs}
 
         if [[ ! -f ${output_from_sanlm} ]]; then
-          echo "ERROR in $(basename ${0}): call_spmsanlm exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmsanlm exited with non-zero status"
           exit 1
         fi
 
@@ -267,7 +267,7 @@ for subID in ${search}; do
         fi
 
         if [[ ! -f ${output} ]]; then
-          echo "ERROR in $(basename ${0}): ${cmd} exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${cmd} exited with non-zero status"
           exit 1
         fi
 

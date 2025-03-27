@@ -66,7 +66,7 @@ if [[ `fslval ${MASK} dim0` -eq 4 ]]; then
 fi
 
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero status"
   exit 1
 fi
 
@@ -77,7 +77,7 @@ XFM=$(dirname ${OUT})/$(basename ${OUT} .nii.gz)_desc-
 call_antsregistration --lin -x ${MASK} ${REF} ${MOV} ${XFM}
 
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): call_antsregistration exited with non-zero status"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsregistration exited with non-zero status"
   exit 1
 fi
 
@@ -87,7 +87,7 @@ echo " Apply transformation to moving image"
 call_antsapplytransforms ${REF} ${MOV} ${OUT} ${XFM}genaff.mat
 
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
   exit 1
 fi
 

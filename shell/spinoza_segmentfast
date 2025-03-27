@@ -96,7 +96,7 @@ for subID in ${search}; do
   # Running FAST with call_fslfast
 
   if [[ ! -d ${input_dir} ]]; then
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find skullstripped directory. Make sure you run module 12 first"
+    print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   fi
 
@@ -156,7 +156,7 @@ for subID in ${search}; do
       print_output_exists "${sub_name}" "${outputroot}-seg.nii.gz"
     fi
   else
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: No skullstripped T1w-image in ${BOLD_GREEN}${input_dir}${RESET}"
+    print_file_not_in_dir "${sub_name}" "T1w" "${input_dir}"
     continue
   fi
 done

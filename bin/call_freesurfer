@@ -210,7 +210,7 @@ fi
 # check if we got expert file
 if [[ ! -z ${EXPERT_FILE} ]]; then
   if [[ ! -f ${EXPERT_FILE} ]]; then
-    echo "ERROR in $(basename ${0}): specified expert file \"${EXPERT_FILE}\" does not exist"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): specified expert file \"${EXPERT_FILE}\" does not exist"
     exit 1
   fi
   expert_flag="-expert ${EXPERT_FILE}"
@@ -219,7 +219,7 @@ if [[ ! -z ${EXPERT_FILE} ]]; then
   # check if there's an expert-options file already and whether the user has specified a protocol
   if [[ -f ${SUBJECTS_DIR}/${subj_ID}/scripts/expert-options ]]; then
     if [[ -z ${XOPTS_} ]]; then
-      echo "ERROR in $(basename ${0}): an expert-options file was specified, but one already exists."
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): an expert-options file was specified, but one already exists."
       echo "Please specify the protocol to deal with this with one of the following flags:"
       echo "  1) --xopts-use;       use the existing file"
       echo "  2) --xopts-clean;     delete the existing file"
@@ -353,7 +353,7 @@ CHECK_INPUTS(){
         fi
       fi
     else
-      echo "ERROR in $(basename ${0}): file must end with T2w.nii.gz or FLAIR.nii.gz"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): file must end with T2w.nii.gz or FLAIR.nii.gz"
       exit 1
     fi
   else

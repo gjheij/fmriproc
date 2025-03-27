@@ -191,7 +191,7 @@ for subID in ${search}; do
     # exit 1
 
     if [[ -z ${bold_files} ]]; then
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find BOLD-data (*.mat) in ${BOLD_GREEN}${lab_func}${RESET}"
+      print_file_not_in_dir "${sub_name}" "BOLD-data (*.mat)" "${lab_func}"
       continue
     fi
 
@@ -286,12 +286,12 @@ for subID in ${search}; do
             if [[ -z ${lsd} ]]; then
               echo
               print_line -
-              echo "ERROR in $(basename ${0}): could not find LSD image.."
+              print_file_not_in_dir "${sub_name}" "LSD" "${lab_func}"
               exit 1
             else
               ct=0; for i in ${lsd[@]}; do ((ct++)); done
               if [[ ${ct} -gt 1 ]]; then
-                echo "ERROR in $(basename ${0}): Found multiple LSD images.."
+                echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Found multiple LSD images.."
                 for i in ${lsd[@]}; do echo " $i"; done
                 exit 1
               fi

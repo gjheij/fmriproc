@@ -313,7 +313,7 @@ if [[ ${FS} != "no" ]]; then
       if [[ $? != 0 ]]; then
         echo
         print_line -
-        echo "ERROR in $(basename ${0}): call_gdhinject exited with non-zero status"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_gdhinject exited with non-zero status"
         exit 1
       fi
     fi
@@ -400,7 +400,7 @@ if [[ ${FPREP} != "no" ]]; then
     # PID=$(qstat | grep -A0 "qsub_test" | awk '{print $1}')
 
     if [[ -z ${PID} ]]; then
-      echo "ERROR in $(basename ${0}): could not find PID of fMRIprep-job. Probably erroneous submission"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find PID of fMRIprep-job. Probably erroneous submission"
       exit 1
     fi
 
@@ -432,7 +432,7 @@ if [[ ${FPREP} != "no" ]]; then
   if [[ $? != 0 ]]; then
     echo
     print_line -
-    echo "ERROR in $(basename ${0}): job submission was unsuccessful"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): job submission was unsuccessful"
     exit 1
   fi
 
@@ -477,7 +477,7 @@ if [[ ${RUN_MGDM} != "no" ]]; then
   if [[ $? != 0 ]]; then
     echo
     print_line -
-    echo "ERROR in $(basename ${0}): call_gdhmgdm exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_gdhmgdm exited with non-zero status"
     exit 1
   fi
 fi

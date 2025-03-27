@@ -267,7 +267,7 @@ function check_stage_inputs {
     arr=${smooth}
     defaults=3x2x1x0
   else
-    echo "ERROR in $(basename ${0}): unknown input type \"${in_type}\". Must be one of \"converge\", \"shrink\", or \"smooth\""
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): unknown input type \"${in_type}\". Must be one of \"converge\", \"shrink\", or \"smooth\""
     exit 1
   fi
   
@@ -315,13 +315,13 @@ function validate_extension {
       ll=`call_mriconvert ${in_file} 2>/dev/null`
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in $(basename ${0}): call_mriconvert exited with non-zero status"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_mriconvert exited with non-zero status"
         exit 1
       fi
 
       in_file=$(dirname ${in_file})/$(basename ${in_file} .${ext_file}).nii.gz
     else
-      echo "ERROR in $(basename ${0}); Input must be a nii(.gz) or .mgz file, not \"${ext_file}\""
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); Input must be a nii(.gz) or .mgz file, not \"${ext_file}\""
       exit 1
     fi
   fi
@@ -333,21 +333,21 @@ function validate_extension {
 # if check_stage_inputs fails, the returned value will be the error message, so we can conveniently make a traceback
 shrink=`check_stage_inputs shrink`
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): check_stage_inputs exited with non-zero status:"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${shrink}
   exit 1
 fi
 
 converg=`check_stage_inputs converge`
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): check_stage_inputs exited with non-zero status:"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${converg}
   exit 1
 fi
 
 smooth=`check_stage_inputs smooth`
 if [[ $? -ne 0 ]]; then
-  echo "ERROR in $(basename ${0}): check_stage_inputs exited with non-zero status:"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
   echo ${smooth}
   exit 1
 fi
@@ -381,14 +381,14 @@ if [[ -f ${REF} && -f ${MOV} ]]; then
   # check extension
   REF=`validate_extension ${REF}`
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): validate_extension exited with non-zero status:"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
     echo ${REF}
     exit 1
   fi
 
   MOV=`validate_extension ${MOV}`
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): validate_extension exited with non-zero status:"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): validate_extension exited with non-zero status:"
     echo ${MOV}
     exit 1
   fi
@@ -452,7 +452,7 @@ if [[ ! -z ${initial} ]]; then
   
   ext=`fetch_extension ${initial}`
   if [[ $ext != "txt" ]]; then
-    echo "ERROR in $(basename ${0}): \"${initial}\" is not a text file. It should be if it's an initial moving transform file"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${initial}\" is not a text file. It should be if it's an initial moving transform file"
     exit 1
   else
     # If we have an initial moving transform matrix, insert this line in the command
@@ -570,7 +570,7 @@ ${cmd}
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  echo "ERROR in $(basename ${0}): antsRegistration exited with non-zero status.."
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): antsRegistration exited with non-zero status.."
   exit 1
 fi
 

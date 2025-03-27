@@ -944,7 +944,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_linerecon exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_linerecon exited with non-zero status"
     exit 1
   fi
 
@@ -989,7 +989,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_linerecon exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_linerecon exited with non-zero status"
     exit 1
   fi
 
@@ -1041,7 +1041,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_qmrimaps exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_qmrimaps exited with non-zero status"
     exit 1
   fi
 
@@ -1096,7 +1096,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/ants
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_registration exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_registration exited with non-zero status"
     exit 1
   fi
 
@@ -1142,7 +1142,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/ants mni
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_registration exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_registration exited with non-zero status"
     exit 1
   fi
 
@@ -1178,7 +1178,7 @@ if [[ $? -eq 0 ]]; then
     spinoza_averageanatomies ${SUBJECT} ${SESSION} ${INPUT_DIR} ${DIR_DATA_DERIV}/pymp2rage
 
     if [[ $? -ne 0 ]]; then
-      echo "ERROR in master: spinoza_averageanatomies exited with non-zero status"
+      echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_averageanatomies exited with non-zero status"
       exit 1
     fi
 
@@ -1226,7 +1226,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): spinoza_sinusfrommni exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): spinoza_sinusfrommni exited with non-zero status"
     exit 1
   fi
 
@@ -1276,7 +1276,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): spinoza_biassanlm exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): spinoza_biassanlm exited with non-zero status"
     exit 1
   fi
 
@@ -1335,7 +1335,7 @@ if [[ $? -eq 0 ]]; then
   fi
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_brainextraction exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_brainextraction exited with non-zero status"
     exit 1
   fi
 
@@ -1373,7 +1373,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_HOME}
     
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: ${module_name} exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: ${module_name} exited with non-zero status"
     exit 1
   fi
 
@@ -1412,7 +1412,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_dura exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_dura exited with non-zero status"
     exit 1
   fi
 
@@ -1451,7 +1451,7 @@ if [[ $? -eq 0 ]]; then
   ${job} spinoza_sagittalsinus ${SUBJECT} ${SESSION} ${OW} ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_sagittalsinus exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_sagittalsinus exited with non-zero status"
     exit 1
   fi
 
@@ -1491,7 +1491,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_masking exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_masking exited with non-zero status"
     exit 1
   fi
 
@@ -1550,7 +1550,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${FS_stage} ${DIR_DATA_HOME}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_freesurfer exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_freesurfer exited with non-zero status"
     exit 1
   fi
 
@@ -1634,7 +1634,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV} ${DIR_DATA_HOME}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_fmriprep exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_fmriprep exited with non-zero status"
     exit 1
   fi
 
@@ -1702,7 +1702,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/pybest
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_denoising exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_denoising exited with non-zero status"
     exit 1
   fi
 
@@ -1797,7 +1797,7 @@ if [[ $? -eq 0 ]]; then
     ${PRF_INPUT} ${DIR_DATA_DERIV}/prf ${PNG_DIR}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_fitprfs exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_fitprfs exited with non-zero status"
     exit 1
   fi
 
@@ -1861,7 +1861,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_HOME} ${DIR_DATA_DERIV} ${LABEL_FILE}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_bestvertex exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_bestvertex exited with non-zero status"
     exit 1
   fi
 
@@ -1889,7 +1889,7 @@ if [[ $? -eq 0 ]]; then
   ${job} spinoza_segmentfast ${SUBJECT} ${SESSION} ${OW} ${SKULLSTRIP} ${DIR_DATA_DERIV}/fsl
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_segmentfast exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_segmentfast exited with non-zero status"
     exit 1
   fi
 
@@ -1924,7 +1924,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_mgdm exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_mgdm exited with non-zero status"
     exit 1
   fi
 
@@ -1964,7 +1964,7 @@ if [[ $? -eq 0 ]]; then
     ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_extractregions exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_extractregions exited with non-zero status"
     exit 1
   fi
 
@@ -2006,7 +2006,7 @@ if [[ $? -eq 0 ]]; then
 
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_cortexrecon exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_cortexrecon exited with non-zero status"
     exit 1
   fi
 
@@ -2038,7 +2038,7 @@ if [[ $? -eq 0 ]]; then
     SOFTWARE="surface"
     INPUT_DIR=${FS}
   else
-    echo "ERROR in $(basename ${0}): Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
     exit 1
   fi
 
@@ -2050,7 +2050,7 @@ if [[ $? -eq 0 ]]; then
      ${INPUT_DIR} ${SOFTWARE}
   
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_layering exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_layering exited with non-zero status"
     exit 1
   fi
 
@@ -2078,7 +2078,7 @@ if [[ $? -eq 0 ]]; then
   ${job} spinoza_segmentsubcortex ${SUBJECT} ${SESSION} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_segmentsubcortex exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_segmentsubcortex exited with non-zero status"
     exit 1
   fi
 
@@ -2113,7 +2113,7 @@ if [[ $? -eq 0 ]]; then
   ${job} spinoza_line2surface -s ${subject} -y ${DIR_DATA_HOME}/${subject}/ses-2/anat/${subject}_ses-2_acq-MP2RAGE_T1w.nii.gz -o ${CTX} -i ${NIGHRES}/${subject}/ses-2
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_line2surface exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_line2surface exited with non-zero status"
     exit 1
   fi
 
@@ -2148,7 +2148,7 @@ if [[ $? -eq 0 ]]; then
   ${job} spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} ${KWARGS}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_segmentsubcortex exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_segmentsubcortex exited with non-zero status"
     exit 1
   fi
 
@@ -2184,7 +2184,7 @@ if [[ $? -eq 0 ]]; then
     ${INPUT_DIR} ${DIR_DATA_DERIV}/suit
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in master: spinoza_suit exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in master: spinoza_suit exited with non-zero status"
     exit 1
   fi
 

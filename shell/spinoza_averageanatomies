@@ -136,12 +136,12 @@ for subID in ${search}; do
         
         eval $cmd
       else
-        echo "ERROR in $(basename ${0}): could not find files with \"*acq-${ACQ[0]^^}_*\", \"*space-*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+        print_file_not_in_dir "${sub_name}" "*acq-${ACQ[0]^^}_*, *space-*, and *${i}.nii.gz" "${input_dir}"
         exit 1
       fi
 
       if [[ ! -f ${out} ]]; then
-        echo "ERROR in $(basename ${0}): \"${out}\" not created.."
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${out}\" not created.."
         exit 1
       fi
       
@@ -183,8 +183,8 @@ for subID in ${search}; do
     spm=${spm_imgs[0]}
 
     # rename
-    echo -e "Creating ${BOLD_GREEN}${base}_acq-${DATA}_desc-spm-mask.nii.gz${RESET}"
-    cp ${spm} ${output_dir}/${base}_acq-${DATA}_desc-spm_mask.nii.gz 2>/dev/null
+    final_spm="${output_dir}/${base}_acq-${DATA}_desc-spm_mask.nii.gz 2>/dev/null"
+    cp "${spm}" "${final_spm}"
   fi
 
   t2_newspace=`find ${input_dir} -type f \( -name "*acq-3DTSE*" -and -name "*space*" \) 2>/dev/null`

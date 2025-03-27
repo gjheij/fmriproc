@@ -322,7 +322,7 @@ for subID in ${search}; do
         if [[ $? != 0 ]]; then
           echo
           print_line -
-          echo "ERROR in $(basename ${0}): call_pybest exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_pybest exited with non-zero status"
           exit 1
         fi        
 

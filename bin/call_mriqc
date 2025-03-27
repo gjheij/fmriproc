@@ -188,7 +188,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     if [[ ${project} != *"${binding}"* ]]; then
       echo
       print_line -
-      echo "ERROR in $(basename ${0}); your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
       exit 1
     fi
 
@@ -220,7 +220,7 @@ if [[ ${fd_only} -eq 0 ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    echo "ERROR in $(basename ${0}): mriqc exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mriqc exited with non-zero status"
     exit 1
   fi
 
@@ -229,7 +229,7 @@ if [[ ${fd_only} -eq 0 ]]; then
   if [[ ! -z ${html_files} ]]; then
     mv ${html_files[@]} ${derivatives}/sub-${subj_ID} 2>/dev/null
   else
-    echo "ERROR in $(basename ${0}): could not find html-files. This is suspicious.."
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find html-files. This is suspicious.."
     exit 1
   fi
 

@@ -123,7 +123,7 @@ elif [[ -f ${pathInput} ]]; then
     ff=${pathInput}
   fi
 else
-  echo "ERROR in $(basename ${0}): input \"${pathInput}\" does not exist. Please specify a PAR-file, the log.txt from dcm2niix, or a directory containing PAR-files"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input \"${pathInput}\" does not exist. Please specify a PAR-file, the log.txt from dcm2niix, or a directory containing PAR-files"
   exit 1
 fi
 
@@ -199,7 +199,7 @@ for par in ${par_files[@]}; do
       anat=1
       add_txt=" | I'm assuming we're dealing with ${BOLD_RED}MP2RAGE${RESET} data"
     else
-      echo "ERROR in $(basename ${0}): unknown number of image types in ${par}: ${is_anat}. Is this a sequence other than bold (M/P) or MP2RAGE (M/P for INV1/INV2)?"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): unknown number of image types in ${par}: ${is_anat}. Is this a sequence other than bold (M/P) or MP2RAGE (M/P for INV1/INV2)?"
       exit 1
     fi
 

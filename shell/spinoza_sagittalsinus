@@ -151,14 +151,14 @@ for subID in ${search}; do
 
           # if we have a mask-image, we can create a sinus mask directly from the T2-image. Use ratio otherwise
           if [[ ! -z ${mask} ]]; then
-            echo "Creating sinus mask directly from T2-image"
+            print_create_img "${fn_nuisance}" "Using T2-only"
 
             # mask t2 with brain mask
             cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
             print_cmd ${cmd}
             eval ${cmd}
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): fslmaths exited with non-zero code"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
             fi
 
@@ -168,7 +168,7 @@ for subID in ${search}; do
             print_cmd ${cmd}
             eval ${cmd}
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): fslmaths exited with non-zero code"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
             fi
 
@@ -177,15 +177,16 @@ for subID in ${search}; do
           else
 
             if [[ -f ${t1} && -f ${t2} ]]; then
-              echo "Creating T1w/T2w + thresholded image"
+              print_create_img "T1w/T2w ratio"
               cmd="""call_t12ratio \
                 --t1 ${t1} \
                 --t2 ${t2} \
                 -o ${pn_anat}/${base}_acq-${DATA^^}"""
+
               print_cmd ${cmd}
               eval ${cmd}
               if [[ $? -ne 0 ]]; then
-                echo "ERROR in $(basename ${0}): call_t12ratio exited with non-zero status"
+                echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_t12ratio exited with non-zero status"
                 exit 1
               fi
             else
@@ -194,7 +195,7 @@ for subID in ${search}; do
             fi
           fi
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find ${BOLD_RED}T2w${RESET}-file in ${BOLD_GREEN}${pn_anat}${RESET}"
+          print_file_not_in_dir "${sub_name}" "T2w" "${pn_anat}"
           continue
         fi
       fi
@@ -212,7 +213,7 @@ for subID in ${search}; do
             # got SyN registration
             call_antsapplytransforms -i "1 0" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} "${mat_file} ${warp_file}"
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
               exit 1
             fi
           elif [[ ! -z ${mat_file} && -z ${warp_file} ]]; then
@@ -223,7 +224,7 @@ for subID in ${search}; do
             eval ${cmd}
 
             if [[ $? -ne 0 ]]; then
-              echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
               exit 1
             fi          
           else
@@ -232,7 +233,7 @@ for subID in ${search}; do
           fi
 
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing ${fn_nuisance}"
+          print_file_not_exist "${sub_name}" "${fn_nuisance}"
           continue
         fi
       fi
@@ -246,7 +247,7 @@ for subID in ${search}; do
           eval ${cmd}
 
           if [[ $? -ne 0 ]]; then
-            echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
+            print_error_msg "$(basename ${0})" "fslmaths"
             exit 1
           fi
 
@@ -259,24 +260,18 @@ for subID in ${search}; do
               echo "\"${cmd}\""
             else
               echo "Openening ITK-Snap for verification"
-              ${cmd}
+              eval ${cmd}
             fi
           fi
-
-          if [[ $? -ne 0 ]]; then
-            echo "ERROR in $(basename ${0}): fslmaths exited with non-zero status"
-            exit 1
-          fi
-
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find file of MNI-mask in subject space. Check previous step!"
+          print_file_not_exist "${sub_name}" "${fn_mni}"
         fi
       fi
     else
       print_output_exists "${sub_name}" "${fn_out}"
     fi
   else
-    echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find directory \"${pn_anat}\""
+    print_directory_not_exist "${sub_name}" "${pn_anat}"
     continue
   fi
 

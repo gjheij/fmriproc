@@ -343,7 +343,7 @@ for subID in ${search}; do
       fi
 
       if [[ -z ${pars} ]]; then
-        echo "Could not find pRF file with \"model-${model}\", \"stage-${stage}\", \"task-${task}\", and \"*prf_params.${prf_ext}\"${txt} in \"${prf_dir}\""
+        print_file_not_in_dir "${sub_name}" "*model-${model}*, *stage-${stage}*, *task-${task}*, *prf_params.${prf_ext}${txt}" "${prf_dir}"
         continue
       else
         pars_flag="-p ${pars}"
@@ -353,7 +353,7 @@ for subID in ${search}; do
         srf_file=`find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null`
         srf_file_flag="--srf_file ${srf_file}"
         if [[ -z ${srf_file} ]]; then
-          echo "ERROR in $(basename ${0}): \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
           exit 1
         fi
       else
@@ -394,7 +394,7 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      echo "ERROR in $(basename ${0}): call_targetvertex exited with non-zero status"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_targetvertex exited with non-zero status"
       exit 1
     fi
 

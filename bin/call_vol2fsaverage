@@ -201,7 +201,7 @@ if [[ ! -z ${trafos} ]]; then
   eval ${cmd}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
     exit 1
   fi
   
@@ -228,7 +228,7 @@ for ii in "lh" "rh"; do
   mri_vol2surf --src ${INPUT} --out ${fsnative} ${REG} --hemi ${ii} --projfrac ${proj_frac}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): mri_vol2surf exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mri_vol2surf exited with non-zero status"
     exit 1
   fi
 
@@ -247,7 +247,7 @@ for ii in "lh" "rh"; do
       --tval ${fsaverage}
 
     if [[ $? -ne 0 ]]; then
-      echo "ERROR in $(basename ${0}): mri_surf2surf exited with non-zero status"
+      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mri_surf2surf exited with non-zero status"
       exit 1
     fi
   fi
@@ -270,7 +270,7 @@ for space in ${exec_spaces[@]}; do
   call_stackgifti ${lh} ${rh} ${both_hemis}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): call_stackgiftis exited with non-zero status"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_stackgiftis exited with non-zero status"
     exit 1
   fi
 
@@ -285,7 +285,7 @@ for space in ${exec_spaces[@]}; do
       call_giftimeta ${rh} "${TR_int_ms}"
 
       if [[ $? -ne 0 ]]; then
-        echo "ERROR in $(basename ${0}): call_giftimeta exited with non-zero status"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_giftimeta exited with non-zero status"
         exit 1
       fi
     fi

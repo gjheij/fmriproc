@@ -99,9 +99,6 @@ for subID in ${search}; do
       continue
     fi
   done
-
-  # print header
-  print_subject_header ${sub_name}
   
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then
@@ -126,8 +123,8 @@ for subID in ${search}; do
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running dura mask module with call_nighresdura
   output_root="${base}_acq-${DATA^^}_desc"
-	output_dura=${outdir_dura}/${output_root}-dura_proba.nii.gz
-  output_mask=${MASKS}/${base_path}/${output_root}-dura_orig.nii.gz
+	output_dura="${outdir_dura}/${output_root}-dura_proba.nii.gz"
+  output_mask="${MASKS}/${base_path}/${output_root}-dura_orig.nii.gz"
 
   # check if we should overwrite
   if [[ ${OW} -eq 1 ]]; then
@@ -136,8 +133,12 @@ for subID in ${search}; do
 
   if [[ ! -f ${output_mask} ]]; then
 
-    inv2_mask=`find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+    # print header
+    print_subject_header ${sub_name}
 
+    inv2_mask=`find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null`
+    
+    # look for a bunch of files
     if [[ -z ${inv2} ]]; then
       echo -e "${BOLD_CYAN}${sub_name}${RESET}: Missing INV2-image. Check ${inv2_dir} for:"
       echo " \"${sub_name}\""
@@ -149,29 +150,26 @@ for subID in ${search}; do
     fi
 
     if [[ -z ${t1w} ]]; then
-      echo -e "No T1w-image in ${BOLD_GREEN}${input_dir}${RESET}"
+      print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${input_dir}"
       continue
     fi
 
     if [[ -z ${t1map} ]]; then
-      echo -e "No T1map-image in ${BOLD_GREEN}${input_dir}${RESET}"
-      echo "No T1map-image in \"${input_dir}\""
+      print_file_not_in_dir "${sub_name}" "*T1map.nii.gz" "${input_dir}"
       continue
     fi
 
     if [[ -z ${inv2_mask} ]]; then
-      echo -e "No brain mask \"*spm_mask\" in ${BOLD_GREEN}${mask_dir}${RESET}"
+      print_file_not_in_dir "${sub_name}" "*spm-mask.nii.gz" "${inv2_dir}"
       continue
     fi
 
+    # create output directory
     if [[ ! -d ${outdir_dura} ]]; then
       mkdir -p ${outdir_dura}
     fi
 
-    echo -e "Creating ${BOLD_GREEN}$(basename ${output_mask})${RESET}"
-    echo " -inv2: ${inv2}"
-    echo " -mask: ${inv2_mask}"
-    echo " -out:  ${outdir_dura}/${output_root}_dura-proba.nii.gz"
+    print_create_img "${output_mask}"
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
@@ -180,48 +178,53 @@ for subID in ${search}; do
 
     if [[ ! -f ${output_dura} ]]; then
 
-      if [[ ! -f ${outdir_dura}/${output_root}_dura-proba.nii.gz ]]; then
+      out_prob="${outdir_dura}/${output_root}_dura-proba.nii.gz"
+      if [[ ! -f "${out_prob}" ]]; then
         echo "First running nighres to estimate the dura"
+        echo " -inv2: ${inv2}"
+        echo " -mask: ${inv2_mask}"
+        echo " -out:  ${out_prob}"
 
-        if [[ -f ${inv2} && -d ${outdir_dura} ]]; then
-          call_nighresdura -i "${inv2}" -m "${inv2_mask}" -o "${outdir_dura}" -b "${output_root}"
+        call_nighresdura \
+          -i "${inv2}" \
+          -m "${inv2_mask}" \
+          -o "${outdir_dura}" \
+          -b "${output_root}"
 
-          if [[ -f ${outdir_dura}/${output_root}_dura-proba.nii.gz ]]; then
-            mv ${outdir_dura}/${output_root}_dura-proba.nii.gz ${output_dura}
-          fi
-
+        if [[ -f ${out_prob} ]]; then
+          mv "${out_prob}" "${output_dura}"
         else
-          echo "Missing input files"
-          continue
+          print_error_msg "$(basename ${0})" "call_nighresdura"
         fi
 
       else
         echo "Found nighres output. Renaming it"
-        mv ${outdir_dura}/${output_root}_dura-proba.nii.gz ${output_dura}
+        mv "${out_prob}" "${output_dura}"
       fi
 
     fi
 
+    tmp_dura="${MASKS}/${base_path}/tmp_$(basename ${output_dura})"
     echo "Thresholding and binarizing $(basename ${output_dura})"
-    if [[ -f ${MASKS}/${base_path}/tmp_$(basename ${output_dura}) ]]; then
-      rm ${MASKS}/${base_path}/tmp_$(basename ${output_dura})
+    if [[ -f "${tmp_dura}" ]]; then
+      rm "${tmp_dura}" 2>/dev/null
     fi
 
     # thresholding
-    if [[ -f ${output_dura} ]]; then
-      fslmaths ${output_dura} -thr 0.8 ${MASKS}/${base_path}/tmp_$(basename ${output_dura})
+    if [[ -f "${output_dura}" ]]; then
+      fslmaths "${output_dura}" -thr 0.8 "${tmp_dura}"
 
       # binarizing
-      fslmaths ${MASKS}/${base_path}/tmp_$(basename ${output_dura}) -bin ${output_mask}
-      fslcpgeom ${inv2_mask} ${output_mask}
+      fslmaths "${tmp_dura}" -bin "${output_mask}"
+      fslcpgeom "${inv2_mask}" "${output_mask}"
 
     else
-      echo "Could not find nighres' dura output"
+      print_file_not_exist "${sub_name}" "${output_dura}"
     fi
 
     # clearing out directory
-    if [[ -f ${MASKS}/${base_path}/tmp_$(basename ${output_dura}) ]]; then
-      rm ${MASKS}/${base_path}/tmp_$(basename ${output_dura})
+    if [[ -f "${tmp_dura}" ]]; then
+      rm "${tmp_dura}" 2>/dev/null
     fi
 
   else
@@ -231,43 +234,36 @@ for subID in ${search}; do
   #----------------------------------------------------------------------------------------------------------------------------------------------------------
   # Running skullstrip module with call_nighresskullstrip.py
 
-	output_skullstrip=${outdir_skull}/${output_root}-strip_mask.nii.gz
+	output_skullstrip="${outdir_skull}/${output_root}-strip_mask.nii.gz"
 
   # check if we should overwrite
   if [[ ${OW} -eq 1 ]]; then
-    rm ${output_skullstrip} 2>/dev/null
+    rm "${output_skullstrip}" 2>/dev/null
   fi
 
-  if [[ ! -f ${output_skullstrip} ]]; then
+  if [[ ! -f "${output_skullstrip}" ]]; then
 
     echo
-    echo -e "Creating ${BOLD_GREEN}$(basename ${output_skullstrip})${RESET}"
+    print_create_img "${output_skullstrip}"
 
-    if [[ -f ${t1w} && -f ${t1map} && -f ${inv2} ]]; then
+    if [[ ! -d ${outdir_skull} ]]; then
+      mkdir -p ${outdir_skull}
+    fi
 
-      if [[ ! -d ${outdir_skull} ]]; then
-        mkdir -p ${outdir_skull}
+    output_skullnighres=${outdir_skull}/${output_root}_strip_mask.nii.gz
+    if [[ ! -f ${output_skullnighres} ]]; then
+      call_nighresskullstrip \
+        -i ${inv2} \
+        -t ${t1w} \
+        -m ${t1map} \
+        -o ${outdir_skull} \
+        -b ${output_root}
+      
+      if [[ $? -ne 0 ]]; then
+        print_error_msg "$(basename ${0})" "call_nighresskullstrip"
       fi
-
-      output_skullnighres=${outdir_skull}/${output_root}_strip_mask.nii.gz
-      if [[ ! -f ${output_skullnighres} ]]; then
-        call_nighresskullstrip -i ${inv2} -t ${t1w} -m ${t1map} -o ${outdir_skull} -b ${output_root}
-      else
-        echo "Found nighres output for skullstripping module"
-      fi
-
     else
-      printf "Missing following file(s): "
-			if [[ ! -f ${t1w} ]]; then
-				echo "t1-weighted image "
-			elif [[ ! -f ${t1map} ]]; then
-				echo "t1map image"
-			elif [[ ! -f ${inv2} ]]; then
-				echo "2nd inversion image"
-			else
-				echo "multiple images not found"
-			fi
-			continue
+      echo "Found nighres output for skullstripping module"
     fi
 
     declare -a NIGH_OUT=(mask inv2 t1w t1map)
@@ -279,7 +275,7 @@ for subID in ${search}; do
           mv ${out} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
           fslcpgeom ${inv2} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
         else
-          echo "Could not find file for mgdm output: ${f}"
+          print_file_not_in_dir "${sub_name}" "${f}" "${outdir_skull}"
         fi
       fi
     done

@@ -120,7 +120,7 @@ for subID in ${search}; do
     if [[ -f ${file} ]]; then
       INPUTS+=(${file})
     else
-      echo -e "${BOLD_CYAN}${sub_name}${RESET}: Could not find \"${r}\" image in \"${p}\""
+      print_file_not_in_dir "${sub_name}" "${r}" "${p}"
       continue 2
     fi
   done
@@ -162,7 +162,7 @@ for subID in ${search}; do
 
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
         # run regular cruise
-        echo "Creating ${BOLD_GREEN}$(basename ${output})${RESET}"
+        print_create_img "${output}"
         call_nighrescruise \
           -m "${INPUTS[0]}" \
           -w "${INPUTS[1]}" \
@@ -174,7 +174,7 @@ for subID in ${search}; do
         if [[ $? != 0 ]]; then
           echo
           print_line -
-          echo "ERROR in $(basename ${0}): call_nighrescruise exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_nighrescruise exited with non-zero status"
           exit 1
         fi
 
@@ -186,11 +186,11 @@ for subID in ${search}; do
             if [[ ! -z ${out} ]]; then
               mv ${out} ${output_root}-cruise_${f}.nii.gz
             else
-              echo "Could not find file for cruise output: ${f}"
+              print_file_not_in_dir "${sub_name}" "${f}""$(dirname ${output})" "Needed for CRUISE.."
               continue 2
             fi
           else
-            echo -e "${BOLD_CYAN}${sub_name}${RESET}: output already exists [${BOLD_GREEN}${output_root}-cruise_${f}.nii.gz${RESET}]"
+            print_output_exists "${sub_name}" "${output_root}-cruise_${f}.nii.gz"
           fi
 
         done
@@ -204,24 +204,42 @@ for subID in ${search}; do
         gwb=${output_root}-cruise_gwb.nii.gz
 
         # create WM/GM levelset from probability
-        echo "Creating `basename ${gwb}`"
-        call_nighresproblevel -p ${INPUTS[1]} -d $(dirname ${output_root}) -n $(basename ${output_root})
-        mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
+        print_create_img "${gwb}"
+        call_nighresproblevel \
+          -p ${INPUTS[1]} \
+          -d $(dirname ${output_root}) \
+          -n $(basename ${output_root})
+        
+        if [[ ! -z ${output_root}-p2l_surf.nii.gz ]]; then
+          print_error_msg "$(basename ${0})" "call_nighresproblevel" "gwb-image not created"
+          exit 1
+        else
+          mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
+        fi
 
         # create GM/CSF levelset from probability
-        echo "Creating `basename ${cgb}`"
-        call_nighresproblevel -p ${INPUTS[2]} -d $(dirname ${output_root}) -n $(basename ${output_root})
-        mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null
+        print_create_img "${cgb}"
+        call_nighresproblevel \
+          -p ${INPUTS[2]} \
+          -d $(dirname ${output_root}) \
+          -n $(basename ${output_root})
+
+        if [[ ! -z ${output_root}-p2l_surf.nii.gz ]]; then
+          print_error_msg "$(basename ${0})" "call_nighresproblevel" "cwb-image not created"
+          exit 1
+        else
+          mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null
+        fi
 
         # copy cruise image from manual_masks to cruise directory
         file=`find -L "${p}" -type f \( -name "*acq-${DATA^^}*" -and -name "*cruise_cortex.nii.gz" \) 2>/dev/null`
         cp ${file} ${output} 2>/dev/null
       else
-        echo "ERROR in $(basename ${0}): Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in ${DIR_SCRIPTS}/shell/spinoza_setup"
+        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in \"${BOLD_GREEN}${CONFIG_FILE}${RESET}\""
         exit 1
       fi 
     else
-      echo "Skipping nighres. Found something that looks like output"
+      print_output_exists "${sub_name}" "${output_root}_cruise_cortex.nii.gz"
     fi
   else
     print_output_exists "${sub_name}" "${output}"

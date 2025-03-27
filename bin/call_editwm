@@ -80,7 +80,7 @@ if [[ -d ${FS_DIR} ]]; then
   call_mriconvert ${FS_DIR}/mri/rawavg.mgz
   call_mriconvert ${FS_DIR}/mri/wm.mgz
 else
-  echo "ERROR in $(basename ${0}): could not find subject in FreeSurfer directory"
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find subject in FreeSurfer directory"
   exit 1
 fi
 
@@ -96,7 +96,7 @@ echo "Opening ITK-Snap"
 itksnap -g ${FS_DIR}/mri/rawavg.nii.gz -o ${FS_DIR}/mri/wm.nii.gz -s ${MAN} 2>/dev/null
 
 if [[ ! -f ${MAN} ]]; then
-  echo "ERROR in $(basename ${0}): manual edit file was not saved.."
+  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): manual edit file was not saved.."
   exit 1
 else
   fslorient -copyqform2sform ${MAN}

@@ -577,7 +577,7 @@ process_linescanning_bold_lab() {
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          echo "ERROR in $(basename "$0"): call_createline exited with non-zero status"
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename "$0"): call_createline exited with non-zero status"
           exit 1
         fi
 
@@ -976,7 +976,7 @@ fi
 # check if we got something
 if [[ -z "$(ls -A $tmp_dir)" ]]; then
   echo
-  echo "ERROR in call_bids: Directory exists, but is empty. Either dcm2niix or parrec2nii failed"
+  echo -e "${BOLD_RED}ERROR${RESET} in call_bids: Directory exists, but is empty. Either dcm2niix or parrec2nii failed"
   echo "You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth})."
   echo "Append \"--full -d <depth>\" to your call"
   echo "Check the log file: \"${input_dir}/log.txt\""

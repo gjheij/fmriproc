@@ -50,7 +50,7 @@ out=${3}
 for f in ${real} ${imag}; do
 	dim=`fslval ${f} dim4`
 	if [[ ${dim} -lt 2 ]]; then
-		echo "ERROR in $(basename ${0}): ${f} only has ${dim} dimensions. This file must contain 2x 3D images"
+		echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${f} only has ${dim} dimensions. This file must contain 2x 3D images"
 		exit 1
 	fi
 done
@@ -67,7 +67,7 @@ for inv in `seq 1 2`; do
   ${cmd}
 
   if [[ $? -ne 0 ]]; then
-    echo "ERROR in $(basename ${0}): fslcomplex -complex exited with non-zero error"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslcomplex -complex exited with non-zero error"
     exit 1
   fi
   
@@ -90,7 +90,7 @@ for inv in `seq 1 2`; do
     done
 
   else
-    echo "ERROR in $(basename ${0}): complex file \"${cplx}\" does not exist"
+    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): complex file \"${cplx}\" does not exist"
     exit 1
   fi
 done
