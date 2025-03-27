@@ -191,7 +191,7 @@ for subID in ${search}; do
     # exit 1
 
     if [[ -z ${bold_files} ]]; then
-      print_file_not_in_dir "${sub_name}" "BOLD-data (*.mat)" "${lab_func}"
+      print_file_not_in_dir "${sub_name}" "line-scanning data (*.lab)" "${lab_func}"
       continue
     fi
 
