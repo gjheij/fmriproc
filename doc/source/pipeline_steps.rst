@@ -202,10 +202,10 @@ To run **MRIqc for functional images only**:
 .. code-block:: bash
 
     # only functional files
-    master -m 02b --func_only
+    master -m 02b --func-only
 
     # MRIqc for anatomical images only
-    master -m 02b --anat_only
+    master -m 02b --anat-only
 
     # specific session
     master -m 02b -n 1
@@ -403,7 +403,7 @@ To apply **Pybest denoising** on the functional data:
     master -m 16  # spinoza_denoising
 
     # do not use unzscoring
-    master -m 16 --no_raw
+    master -m 16 --no-raw
 
     # submit to cluster
     master -m 16 --sge -j 10

@@ -35,7 +35,7 @@
                     - spinoza_denoising: input directory for pybest
                     - spinoza_lineplanning: file to use for registration with ses-1
 
--j <n_jobs>       number of jobs to use when submitting to SoGE. Used in multiple modules.
+-j <n-jobs>       number of jobs to use when submitting to SoGE. Used in multiple modules.
 
 -k <file>         specify a file with additional arguments, similar to FreeSurfer's expert options.
 
@@ -81,7 +81,7 @@
                     - spinoza_scanner2bids: remove first X volumes from the FUNC and FMAP during conversion.
                       Alternatively, you can keep the volumes, run fMRIPrep, and then use 'call_truncate' to
                       remove the first X volumes from the time series. By default, the volumes are cut from
-                      both the FUNC and FMAP, unless '--skip_fmap" is specified, in which case it leaves the
+                      both the FUNC and FMAP, unless '--skip-fmap" is specified, in which case it leaves the
                       FMAPs alone and only removes the X first volumes from the FUNC.
                     - spinoza_bestvertex: manually insert vertices for best_vertex.
                     - spinoza_fitprfs: volumes to cut from timeseries.
@@ -103,7 +103,7 @@ Options:
 
 --clean           remove the single-subject workflow folder completely.
 
---comb_only       skip nighres, only combine segmentations.
+--comb-only       skip nighres, only combine segmentations.
 
 --debug           run debug mode for extra input/output checks.
 
@@ -114,17 +114,17 @@ Options:
 
 --fd              only get FD-timecourse file.
 
---fetch_anat      retrieve the nifti-files in T1w-space.
+--fetch-anat      retrieve the nifti-files in T1w-space.
 
---fetch_fsl       retrieve the MNI-transformed nifti-files.
+--fetch-fsl       retrieve the MNI-transformed nifti-files.
 
---fetch_func      retrieve the nifti-files in func-space.
+--fetch-func      retrieve the nifti-files in func-space.
 
---fix_hrf         fit the HRF in iterative fitting.
+--fix-hrf         fit the HRF in iterative fitting.
 
 --f(mri)prep      use fMRIPrep output for pRF-fitting.
 
---force_exec      force the execution of FreeSurfer.
+--force-exec      force the execution of FreeSurfer/Pybest.
 
 --fsaverage       overwrite PYBEST_SPACE and use FSAverage.
 
@@ -164,81 +164,81 @@ Options:
 
 --masks           fetch brain masks.
 
---merge_ses       average pRF data from all sessions.
+--merge-ses       average pRF data from all sessions.
 
---multi_design    assumes all runs have task-specific design directories.
+--multi-design    assumes all runs have task-specific design directories.
 
 --nighres         use nighres software for reconstruction/layering.
 
---no_bbr          force no-BBR in fMRIPrep.
+--no-bbr          force no-BBR in fMRIPrep.
 
---no_bounds       disable grid bounds in fitting.
+--no-bounds       disable grid bounds in fitting.
 
---no_clip         prevent design matrix clipping.
+--no-clip         prevent design matrix clipping.
 
---no_fit          stop after saving averaged data.
+--no-fit          stop after saving averaged data.
 
---no_freeview     disable FreeView.
+--no-freeview     disable FreeView.
 
---no_highres      disable high-res FreeSurfer.
+--no-highres      disable high-res FreeSurfer.
 
---no_lpi          skip reorienting to LPI.
+--no-lpi          skip reorienting to LPI.
 
---no_manual       prevent manual mask editing.
+--no-manual       prevent manual mask editing.
 
---no_mask         do not use brain mask for SANLM/Bias correction with ANTs
+--no-mask         do not use brain mask for SANLM/Bias correction with ANTs
 
---no_nordic       disable NORDIC denoising.
+--no-nordic       disable NORDIC denoising.
 
---no_raw          do NOT unzscore the output from pybest (default is to do so)
+--no-raw          do NOT unzscore the output from pybest (default is to do so)
 
---no_reg          do not register separate T1map in case you have MPRAGE image
+--no-reg          do not register separate T1map in case you have MPRAGE image
 
---no_t2           disable T2 reuse.
+--no-t2           disable T2 reuse.
 
---no_tsnr         disable tSNR calculation.
+--no-tsnr         disable tSNR calculation.
 
---no_winsor       do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so, though..
+--no-winsor       do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so, though..
 
 --ofsl            output FSL-compatible matrix.
 
 --phys            run physiology-only conversion.
 
---post_only       run only post-processing step.
+--post-only       run only post-processing step.
 
---pre_only        run only pre-processing step.
+--pre-only        run only pre-processing step.
 
---pyb_only        run only pybest step.
+--pyb-only        run only pybest step.
 
 --raw             use the raw, un-zscore'd output from pybest, rather than percent signal change
 
 --refit           refit existing data; uses a simplified call to fmriproc.prf.pRFmodelFitting 
                   using call_prfrefit
 
---remove_surf_wf  remove surface reconstruction workflow.
+--remove-surf-wf  remove surface reconstruction workflow.
 
---remove_wf       remove full workflow folder.
+--remove-wf       remove full workflow folder.
 
 --rh              use right hemisphere.
 
 --rigid           use rigid-body registration.
 
---save_grid       save gridsearch parameters.
+--save-grid       save gridsearch parameters.
 
---separate_hrf    fit HRF in two stages.
+--separate-hrf    fit HRF in two stages.
 
 --sge             submit jobs to cluster.
 
---skip_fmap       do not trim the time series from FMAPs when '-v <cut volumes' is specified with spinoza_scanner2bids.
+--skip-fmap       do not trim the time series from FMAPs when '-v <cut volumes' is specified with spinoza_scanner2bids.
                   By default, it is assumed that all your functional files have dummy-saving turned on, so if '-v 5' is
                   specified, the first 5 volumes will be removed from both the FUNC and FMAPs.
 
---skip_tr         do not overwrite the TR in the header during call_bids. Generally not recommended,
+--skip-tr         do not overwrite the TR in the header during call_bids. Generally not recommended,
                   but exists for debugging purposes.
 
---skip_prf_info   skip creating best_vertices.csv.
+--skip-prf-info   skip creating best_vertices.csv.
 
---srf_file        fetch SRFs file.
+--srf-file        fetch SRFs file.
 
 --syn             use syn-registration.
 
@@ -254,7 +254,7 @@ Options:
 
 --verbose         enable verbose logging.
 
---warp_only       skip full processing but create boldref images.
+--warp-only       skip full processing but create boldref images.
 
 --xopts-clean     delete existing expert options file.
 
