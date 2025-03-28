@@ -199,7 +199,9 @@ if [[ ${RUN} -eq 1 ]]; then
   # we should have p* files by now
   ff=$(find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" \))
   if [[ -z ${ff} ]]; then
-    echo "ERROR: could not find segmentation files in $(dirname ${in_file}). Matlab must have exited with non-zero status"
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "CAT12:Segmentation" "Segmentation files not created"
     exit 1
   fi
 
@@ -215,9 +217,10 @@ if [[ ${RUN} -eq 1 ]]; then
 
   # check for error-directory
   if [[ -d $(dirname "${in_file}")/err ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in basename ${0}: CAT12 encountered an error"
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "CAT12:Segmentation" "CAT12 encountered an error"
     exit 1
-    rm -r $(dirname "${in_file}")/err # info is in the report-file; delete this directory
   fi
 fi
 
@@ -241,10 +244,12 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
 
   # copy geometry from input file
   cmd="call_copyheader "${INPUT}" "${out_file}""
-  eval ${cmd}
+  eval "${cmd}"
+  # check for error-directory
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslcpgeom exited with non-zero status"
-    echo "${cmd}"
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 done
@@ -253,7 +258,15 @@ done
 img_for_mask=$(find ${OUTPUT} -type f -name "p0*") 2>/dev/null
 if [ ! -z ${img_for_mask} ]; then
   echo "Create mask from brain extracted segmentation image \"p0\""
-  fslmaths ${img_for_mask} -bin ${OUTPUT}/mask$(basename ${img_for_mask})
+  cmd="fslmaths ${img_for_mask} -bin ${OUTPUT}/mask$(basename ${img_for_mask})"
+  eval "${cmd}"
+  
+  if [[ $? -ne 0 ]]; then
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    exit 1
+  fi
 fi
 
 # clean up if folders exists (depending on version)

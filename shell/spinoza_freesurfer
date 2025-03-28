@@ -28,10 +28,10 @@ Flagged arguments:
   -o|--ow             overwrite existing files
   -x <file>           use expert file
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  --force_exec        Force execution even though directory exists already
+  --force-exec        Force execution even though directory exists already
   --local             Force local processing even though cluster is available
-  --no_highres        Turn of highres mode by setting '-highres' flag empty
-  --no_t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
+  --no-highres        Turn of highres mode by setting '-highres' flag empty
+  --no-t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
                       '-r'. By default, we'll re-use the T2 if present. Same flag should be 
                       used for not re-using FLAIR images  
   --sge               Submit the script to a cluster using a template script
@@ -106,8 +106,8 @@ do
         freeview)
           FREEVIEW=1
           ;;            
-        force_exec)
-          force_flag="--force_exec"
+        force-exec)
+          force_flag="--force-exec"
           ;;          
         sge)
           sge_flag="--sge"
@@ -118,11 +118,11 @@ do
         ow)
           OW=1
           ;;          
-        no_highres)
-          highres_flag="--no_highres"
+        no-highres)
+          highres_flag="--no-highres"
           ;;  
-        no_t2)
-          use_t2_flag="--no_t2"
+        no-t2)
+          use_t2_flag="--no-t2"
           ;;                       
         xopts-use)
           XOPTS_="--xopts-use"
@@ -210,7 +210,7 @@ for subID in ${search}; do
   if [ ${ct} -gt 1 ]; then
     echo 
     print_line -
-    print_error_msg "$(basename ${0})" "Found multiple T1w-files (${ct})"
+    print_error_msg "$(basename ${0})" "find" "Found multiple T1w-files (${ct})"
     for ii in ${input_t1w[@]}; do echo " ${ii}"; done
     echo "Rename or delete one and rerun"
     echo 
@@ -253,7 +253,7 @@ for subID in ${search}; do
 
       # print header
       print_subject_header ${sub_name}
-      echo "Running FreeSurfer on $(basename ${input_t1w}) with autorecon \"${STAGE}\""
+      echo -e "Running FreeSurfer on ${BOLD_GREEN}${input_t1w}${RESET} with autorecon \"${STAGE}\""
 
       # LOOK FOR T2-/FLAIR WEIGHTED IMAGE
       if [ ! -z ${T2} ]; then
@@ -267,26 +267,22 @@ for subID in ${search}; do
             if [ ${ct} -gt 1 ]; then
               echo 
               print_line -
-              print_error_msg "$(basename ${0})" "Found multiple T2w-files (${ct})"
+              print_error_msg "$(basename ${0})" "find" "Found multiple T2w-files (${ct})"
               for ii in ${input_t2w[@]}; do echo " ${ii}"; done
               echo "Rename or delete one and rerun"
               echo 
               exit 1
             elif [ ${ct} -eq 1 ]; then
-              echo "Including T2w: \"${input_t2w}\""
+              echo -e "Including ${BOLD_RED}T2w${RESET}: ${BOLD_GREEN}${input_t2w}${RESET}"
               T2_flag="-p ${input_t2w}"
-            else
-              echo 
-              print_line -            
-              print_error_msg "$(basename ${0})" "Not sure what went wrong.."
-              exit 1
             fi
-
           else
             T2_flag=""
           fi
         else
-          print_error_msg "$(basename ${0})" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
+          echo 
+          print_line -        
+          print_error_msg "$(basename ${0})" "path" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
         fi
       else
         T2_flag=""
@@ -297,7 +293,7 @@ for subID in ${search}; do
         if [[ -z ${start_flag} ]]; then
           echo 
           print_line -            
-          print_error_msg "$(basename ${0})"
+          print_error_msg "$(basename ${0})" "stage-flag"
           echo "  recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon."
           echo "  Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
           exit 1
@@ -319,20 +315,14 @@ for subID in ${search}; do
         ${use_t2_flag} \
         ${force_flag}"""
 
-      print_cmd ${cmd}
-      eval ${cmd}      
-
+      print_cmd "${cmd}" && eval "${cmd}"
       if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "call_freesurfer"
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi
-
     else
       print_output_exists "${sub_name}" "subject already in FreeSurfer's SUBJECTS_DIR"
     fi
-
   else
     print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${T1_DIR}"
     continue

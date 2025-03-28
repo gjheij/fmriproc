@@ -104,16 +104,16 @@ cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} $
 
 # echo cmd
 if [[ ${VERB} -eq 1 ]]; then
-  print_cmd ${cmd}
+  print_cmd "${cmd}"
 fi
 
 # run cmd
-eval ${cmd}
+eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "ImageMath"
+  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
   exit 1
 fi
 

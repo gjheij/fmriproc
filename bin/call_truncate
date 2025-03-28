@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import ast
 import os
 import sys, getopt
 from lazyfmri import utils, dataset
@@ -23,18 +22,18 @@ Args:
     -s|--subject    subject ID used throughout the pipeline
     -f|--fprep      fmriprep directory
     -o|--output     output directory
-    -c|--cut_vols   nr of volumes to cut. Default = 5
+    -c|--cut-vols   nr of volumes to cut. Default = 5
     -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
     -t|--tr         set TimeStep field in the gifti's metadata (Repetition time in milliseconds!)
 
 Options
-    --no_confounds  skip confounds even if you have them
+    --no-confounds  skip confounds even if you have them
     --fsaverage     use only fsaverage (default is to use both)
     --fsnative      use only fsnative (default is to use both)
     --verbose       print progress to terminal
     --ow|--overwrite overwrite existing output files
-    --full_ow       delete output_folder/subject
-    --conf_only     only do the confound files
+    --full-ow       delete output_folder/subject
+    --conf-only     only do the confound files
 
 Example:
     call_truncate -s sub-001 -c 5
@@ -57,7 +56,7 @@ Example:
     tr = None
 
     try:
-        opts = getopt.getopt(argv,"hf:s:o:c:x:t:",["subject=", "fprep=", "cut_vols=", "fsaverage", "fsnative", "no_confounds", "verbose", "overwrite", "ow", "full_ow", "filters=", "conf_only","tr="])[0]
+        opts = getopt.getopt(argv,"hf:s:o:c:x:t:",["subject=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -70,7 +69,7 @@ Example:
             subject = arg
         elif opt in ("-f", "--fprep"):
             fprep_dir = arg
-        elif opt in ("-c", "--cut_vols"):
+        elif opt in ("-c", "--cut-vols"):
             cut_vols = int(arg)
         elif opt in ("-o", "--output"):
             output = arg
@@ -80,7 +79,7 @@ Example:
             search_list = ["space-fsaverage"]
         elif opt in ("--fsnative"):
             search_list = ["space-fsnative"]
-        elif opt in ("--no_confounds"):
+        elif opt in ("--no-confounds"):
             confounds = False
         elif opt in ("--verbose"):
             verbose = True  
@@ -88,9 +87,9 @@ Example:
             overwrite = True
         elif opt in ("--t","--tr"):
             tr = float(arg)
-        elif opt in ("--full_ow"):
+        elif opt in ("--full-ow"):
             full_ow = True     
-        elif opt in ("--conf_only"):
+        elif opt in ("--conf-only"):
             conf_only = True             
         elif opt in ("-x","--filters"):
             filters = arg

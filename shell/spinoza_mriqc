@@ -21,8 +21,8 @@ Usage:
 
 Arguments:
   --local         don't submit to SGE, run locally
-  --anat_only     only include anatomical images in the process (default is everything it can find)
-  --func_only     only include functional images in the process (default is everything it can find)  
+  --anat-only     only include anatomical images in the process (default is everything it can find)
+  --func-only     only include functional images in the process (default is everything it can find)  
   --fd            only get FD-timecourse file without initializing MRIqc
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05. use 'group' 
                   if you want group statistics
@@ -68,13 +68,13 @@ do
         sge)
           run_local=0
           ;;             
-        anat_only)
-          mod_flag="--anat_only"
+        anat-only)
+          mod_flag="--anat-only"
           ;;   
-        func_only)
-          mod_flag="--func_only"
+        func-only)
+          mod_flag="--func-only"
           ;;        
-        remove_wf)
+        remove-wf)
           remove_wf=1
           ;;    
         fd)
@@ -188,11 +188,10 @@ for subID in ${search}; do
     ${mod_flag} \
     ${fd_flag}"""
 
-  print_cmd ${cmd}
-  eval ${cmd}
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "call_mriqc"
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 

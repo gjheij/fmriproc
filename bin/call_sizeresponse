@@ -28,19 +28,19 @@ a stimulus set specific for each pRF (= slower, but more accurate representation
 
 Parameters
 ----------
-    -i|--in_file    file containing pRF estimates; if formatted according to BIDS, we can derive an 
+    -i|--in-file    file containing pRF estimates; if formatted according to BIDS, we can derive an 
                     output name from its elements
-    -o|--out_file   output dataframe indexed on subject, stimulus type, stimulus size, by nr of ver-
+    -o|--out-file   output dataframe indexed on subject, stimulus type, stimulus size, by nr of ver-
                     tices. If nothing is specified, we'll try to read the file components from `in_
                     file`, and append {"_desc-srfs_unique.csv"|"_desc-srfs_centered.csv"}
     --unique        create unique stimulus sets for each pRF so that the simulation is more accurate. 
                     Default is to center the pRF in the visual field
-    --act_only      Only create size-response functions (activation component)
-    --suppr_only    Only create hole-response functions (suppression component)
-    --screen_dist   Distance viewer to screen (default = 196cm)
-    --screen_cm     Screen sizes for x,y. Default is [70,39.8], representing the actual screen size.
+    --act-only      Only create size-response functions (activation component)
+    --suppr-only    Only create hole-response functions (suppression component)
+    --screen-dist   Distance viewer to screen (default = 196cm)
+    --screen-cm     Screen sizes for x,y. Default is [70,39.8], representing the actual screen size.
                     If you want a square screen, specify 1 value
-    --screen_pix    Nr of pixels on the screen for x,y. Default is [1920,1080]. If you want a
+    --screen-pix    Nr of pixels on the screen for x,y. Default is [1920,1080]. If you want a
                     square screen, specify 1 value
     --factor        stimulus factor; the lower the number, the larger the stimulus range. Default 
                     = 1, resulting in stimulus sizes of 20dva
@@ -56,7 +56,7 @@ Example
 ----------
     call_sizeresponse -i sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
     call_sizeresponse -i prf_estimates.pkl -o srfs.csv --unique
-    in_file=/data1/projects/MicroFunc/Jurjen/projects/VE-SRF/derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl; qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered -q long.q -pe smp 20 -wd $(dirname ${in_file}) $DIR_SCRIPTS/bin/call_sizeresponse -i ${in_file} --verbose --parallel
+    in-file /data1/projects/MicroFunc/Jurjen/projects/VE-SRF/derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl; qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered -q long.q -pe smp 20 -wd $(dirname ${in_file}) $DIR_SCRIPTS/bin/call_sizeresponse -i ${in_file} --verbose --parallel
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -74,7 +74,7 @@ Example
     parallel = False
 
     try:
-        opts = getopt.getopt(argv,"hi:o:",["help", "in_file=", "out_file=", "unique", "act_only", "suppr_only", "screen_dist=", "screen_cm=", "screen_pix=", "factor=", "verbose", "parallel"])[0]
+        opts = getopt.getopt(argv,"hi:o:",["help", "in-file=", "out-file=", "unique", "act-only", "suppr-only", "screen-dist=", "screen-cm=", "screen-pix=", "factor=", "verbose", "parallel"])[0]
     except getopt.GetoptError:
         print("ERROR IN ARGUMENT HANDLING!")
         print(main.__doc__)
@@ -84,23 +84,23 @@ Example
         if opt in ('-h', "--help"):
             print(main.__doc__)
             sys.exit()
-        elif opt in ('-i', "--in_file"):
+        elif opt in ('-i', "--in-file"):
             in_file = arg
-        elif opt in ('-o', "--out_file"):
+        elif opt in ('-o', "--out-file"):
             out_file = arg
         elif opt in ("--unique"):
             center_prf = False
-        elif opt in ("--act_only"):
+        elif opt in ("--act-only"):
             srf_act = True
             srf_suppr = False
-        elif opt in ("--suppr_only"):
+        elif opt in ("--suppr-only"):
             srf_act = False
             srf_suppr = True
-        elif opt in ("--screen_dist"):
+        elif opt in ("--screen-dist"):
             screen_distance_cm = arg
-        elif opt in ("--screen_cm"):
+        elif opt in ("--screen-cm"):
             screen_size_cm = ast.literal_eval(arg)
-        elif opt in ("--screen_pix"):
+        elif opt in ("--screen-pix"):
             screen_size_px = ast.literal_eval(arg)
         elif opt in ("--factor"):
             stim_factor = arg

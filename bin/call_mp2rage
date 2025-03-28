@@ -54,7 +54,7 @@ Options:
                             softwares 
                             pulses
     --ups                   use UP-parameters; there's different MP2RAGE-parameters for universal 
-    --skip_bg               Skip background stuff (default = True)
+    --skip-bg               Skip background stuff (default = True)
     --pars <file>           json-file with custom parameter settings. Should have the following format:
                             {
                                 "TR": 5.5,
@@ -113,7 +113,7 @@ Notes:
     upper = 0.99
 
     try:
-        opts = getopt.getopt(argv, "hci:o:b:u:l:", ["help", "inputdir=", "outputdir=", "outputbase=", "inv1=", "inv1ph=", "inv2=", "inv2ph=", "mask", "ups", "beta=", "skip_bg", "pars=", "lower=", "upper="])[0]
+        opts = getopt.getopt(argv, "hci:o:b:u:l:", ["help", "inputdir=", "outputdir=", "outputbase=", "inv1=", "inv1ph=", "inv2=", "inv2ph=", "mask", "ups", "beta=", "skip-bg", "pars=", "lower=", "upper="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
         print(main.__doc__)
@@ -135,7 +135,7 @@ Notes:
             upper = float(arg)
         elif opt in ("-c", "--mask"):
             do_stuff = True            
-        elif opt in ("--skip_bg"):
+        elif opt in ("--skip-bg"):
             do_stuff = False            
         elif opt in ("--inv1"):
             inv1 = os.path.abspath(arg)

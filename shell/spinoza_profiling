@@ -130,16 +130,17 @@ for subID in ${search}; do
       continue
     fi
 
-    call_nighresprofsamp \
+    cmd="""call_nighresprofsamp \
       -l ${boundaries} \
       -s ${tobesampled} \
       -d ${nighres_dir}/profiling \
-      -n ${base}_acq-${DATA^^}_desc-profile_${TAG}
+      -n ${base}_acq-${DATA^^}_desc-profile_${TAG}"""
 
+    print_cmd "${cmd}" && eval "${cmd}"
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "call_nighresprofsamp"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
 

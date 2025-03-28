@@ -51,13 +51,13 @@ Args:
   -x <expert opts>    expert option file that maps to '-expert'. 
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   --freeview          Open FreeView automatically (default is NO!)
-  --force_exec        Force execution even though directory exists already
+  --force-exec        Force execution even though directory exists already
   --sge               Submit the script to a cluster using a template script
   --local             Force local processing even though cluster is available
-  --no_t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
+  --no-t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
                       '-r'. By default, we'll re-use the T2 if present. Same flag should be 
                       used for not re-using FLAIR images
-  --no_highres        Turn of highres mode by setting '-highres' flag empty
+  --no-highres        Turn of highres mode by setting '-highres' flag empty
   --xopts-use         maps to '-xopts-use' for existing expert option file; use existing file
   --xopts-clean       maps to '-xopts-clean' for existing expert option file; delete existing 
                       file
@@ -139,7 +139,7 @@ do
         freeview)
           FREEVIEW=1
           ;;            
-        force_exec)
+        force-exec)
           FORCE_EXEC=1
           ;;          
         sge)
@@ -148,10 +148,10 @@ do
         local)
           run_local=1
           ;;   
-        no_highres)
+        no-highres)
           highres_flag=""
           ;; 
-        no_t2)
+        no-t2)
           reuse_t2=0
           ;;            
         xopts-use)
@@ -210,16 +210,21 @@ fi
 # check if we got expert file
 if [[ ! -z ${EXPERT_FILE} ]]; then
   if [[ ! -f ${EXPERT_FILE} ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): specified expert file \"${EXPERT_FILE}\" does not exist"
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "file" "Specified expert file \"${EXPERT_FILE}\" does not exist"
     exit 1
   fi
   expert_flag="-expert ${EXPERT_FILE}"
   echo "Expert options: \"${EXPERT_FILE}\""
 
   # check if there's an expert-options file already and whether the user has specified a protocol
-  if [[ -f ${SUBJECTS_DIR}/${subj_ID}/scripts/expert-options ]]; then
+  subj_xopts="${SUBJECTS_DIR}/${subj_ID}/scripts/expert-options"
+  if [[ -f "${subj_xopts}" ]]; then
     if [[ -z ${XOPTS_} ]]; then
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): an expert-options file was specified, but one already exists."
+      echo 
+      print_line -
+      print_error_msg "$(basename ${0})" "file" "An expert-options file was specified, but one already exists [${BOLD_GREEN}${subj_xopts}${RESET}]."
       echo "Please specify the protocol to deal with this with one of the following flags:"
       echo "  1) --xopts-use;       use the existing file"
       echo "  2) --xopts-clean;     delete the existing file"
@@ -353,7 +358,9 @@ CHECK_INPUTS(){
         fi
       fi
     else
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): file must end with T2w.nii.gz or FLAIR.nii.gz"
+      echo 
+      print_line -
+      print_error_msg "$(basename ${0})" "file" "File must end with *T2w.nii.gz or *FLAIR.nii.gz [${BOLD_GREEN}$(basename ${T2})${RESET}]"
       exit 1
     fi
   else
@@ -382,7 +389,7 @@ ISRUNNING(){
 
 CHECK_EXECUTION(){
 
-  # execute either when there's no directory, or when there's no files in /surf, or force_exec=1
+  # execute either when there's no directory, or when there's no files in /surf, or force-exec=1
   execute=0
 
   if [[ -d ${SUBJECTS_DIR}/${subj_ID} ]]; then
@@ -398,7 +405,7 @@ CHECK_EXECUTION(){
     fi
     
     if [ ${FORCE_EXEC} -eq 1 ]; then
-      reason="--force_exec was specified"
+      reason="--force-exec was specified"
       execute=1
     fi
   else
@@ -497,7 +504,7 @@ else
       echo "Reason to execute: ${reason}"
       CMD "${subj_ID}" "${stage}" "-all" "${T1_flag}" "${T2_flag}"
     else
-      echo "This step is already complete; use '--force_exec' to force execution"    
+      echo "This step is already complete; use '--force-exec' to force execution"    
     fi
 
   elif [[ ${stage} == "12" ]]; then
@@ -527,8 +534,9 @@ else
       # check if specified edit stage is an allowed option
       if [[ ! " ${allowed_edits[*]} " =~ " ${edit} " ]]; then
         Usage >&2
-        echo
-        echo "ERROR: To run this mode, you need to specify \"cp\", \"wm\", \"pial\", or \"aseg\" to let me know your type of edit.."
+        echo 
+        print_line -
+        print_error_msg "$(basename ${0})" "mode" "To run this mode, you need to specify \"cp\", \"wm\", \"pial\", or \"aseg\" to let me know your type of edit.."
         exit 1
       fi
 
@@ -557,7 +565,7 @@ else
       echo "Reason to execute: ${reason}"
       CMD "${subj_ID}" "${stage}" "-autorecon1" "${T1_flag}" "${T2_flag}"
     else
-      echo "This step is already complete; use '--force_exec' to force execution"
+      echo "This step is already complete; use '--force-exec' to force execution"
     fi
 
   elif [[ ${stage} == "2" ]]; then

@@ -28,11 +28,11 @@ Parameters
                     (default = $DIR_DATA_DERIV/feat/level1
     -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
     -o|--out        path to output directory (default = $DIR_DATA_DERIV/roi_extract)
-    -n|--n_vox      number of highest/lowest voxels to select from a stats/covariate image (default = 15 highest). To fetch
+    -n|--vox        number of highest/lowest voxels to select from a stats/covariate image (default = 15 highest). To fetch
                     "lowest" voxels, use "--loweset"
     -b|--base       basename for output. Will also be used to create a subfolder in <output_dir>. "_desc-<description>" will
                     be appended automatically
-    -j|--n_jobs     number of jobs/cpus to use for timecourse extraction. Default is however many subjects are included
+    -j|--jobs       number of jobs/cpus to use for timecourse extraction. Default is however many subjects are included
                     (generally about 8). 
                     If you're submitting this script to a cluster, the number of cores requested should match the number of
                     subjects to ensure transparancy about the used resources.
@@ -118,14 +118,13 @@ Parameters
 Options (flag only)
 ----------
     -h|--help       print this help info
-    --lowest        Select lowest voxels in a given ROI. Use "--n_vox" to set the number of voxels to select (default = 15)
+    --lowest        Select lowest voxels in a given ROI. Use "--vox" to set the number of voxels to select (default = 15)
     --verbose       turn on verbose
-    --skip_points   do not plot the individual datapoints in the bar plot
     --subjects      Use the parameters from subject-specific profiles. These are more volatile, but do give insights in the
                     distributions. 
                     Default is to use the parameters extracted from the averaged profiles (same as line plot).
                     Advantage of this is that they match the profiles much, but you lose the subject distribution
-    --no_fit        Do not perform deconvolution, just extract data and exit
+    --no-fit        Do not perform deconvolution, just extract data and exit
     --fprep         Default to DIR_DATA_DERIV/fmriprep as input directory
     --pybest        Default to DIR_DATA_DERIV/fmriprep as input directory
     --fsl_mni       Set space to MNI152NLin6Asym (FSL template)
@@ -167,12 +166,12 @@ Example
 >>>     --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
 >>>     --base test7 \
 >>>     --verbose \
->>>     --n_jobs 1 \
+>>>     --jobs 1 \
 >>>     --colors "#1B9E77","#D95F02" \
 >>>     --par time_to_peak
->>> qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no_fit
->>> call_extract --ft /path/derivatives/feat/level1_motion --out /path/derivatives/roi_extract --base test --verbose --no_fit --rois /path/ROIs --filters conv-,integral-left
->>> call_extract --fprep --out /path/derivatives/roi_extract --base test --verbose --no_fit
+>>> qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no-fit
+>>> call_extract --ft /path/derivatives/feat/level1_motion --out /path/derivatives/roi_extract --base test --verbose --no-fit --rois /path/ROIs --filters conv-,integral-left
+>>> call_extract --fprep --out /path/derivatives/roi_extract --base test --verbose --no-fit
     """
 
     proj_dir = os.environ.get("DIR_DATA_HOME")
@@ -209,7 +208,7 @@ Example
     tr = 1
 
     try:
-        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "n_jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","n_vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no_fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="])[0]
+        opts = getopt.getopt(argv,"hp:f:i:o:b:j:r:n:t:",["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         print(main.__doc__, flush=True)
@@ -227,9 +226,9 @@ Example
             output_dir = arg    
         elif opt in ("-b", "--base"):
             output_base = arg                        
-        elif opt in ("-j", "--n_jobs"):
+        elif opt in ("-j", "--jobs"):
             n_jobs = int(arg) 
-        elif opt in ("-n", "--n_vox"):
+        elif opt in ("-n", "--vox"):
             n_vox = int(arg)
         elif opt in ("--verbose"):
             verbose = True 
@@ -269,7 +268,7 @@ Example
 
         elif opt in ("--lowest"):
             highest_vox = False
-        elif opt in ("--no_fit"):
+        elif opt in ("--no-fit"):
             do_fit = False            
         elif opt in ("--include_pars"):
             include_pars = arg

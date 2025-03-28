@@ -161,8 +161,8 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         anat)
           space_flag="--anat"
           ;;
-        anat_only)
-          mod_flag="--anat_only"
+        anat-only)
+          mod_flag="--anat-only"
           ;;        
         ap)
           pe_dir_flag="--ap"
@@ -182,7 +182,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         cmd)
           cmd_flag="--cmd"
           ;;
-        comb_only)
+        comb-only)
           COMB_ONLY="-c"
           ;;
         ctx)
@@ -210,23 +210,23 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         fd)
           fd_flag="--fd"
           ;;
-        fetch_anat)
-          fetch_anat_flag="--fetch_anat"
+        fetch-anat)
+          fetch_anat_flag="--fetch-anat"
           ;;
-        fetch_fsl)
-          fetch_fsl_flag="--fetch_fsl"
+        fetch-fsl)
+          fetch_fsl_flag="--fetch-fsl"
           ;;
-        fetch_func)
-          fetch_func_flag="--fetch_func"
+        fetch-func)
+          fetch_func_flag="--fetch-func"
           ;;
-        fix_hrf)
-          FIX_FLAG="--fix_hrf"
+        fix-hrf)
+          FIX_FLAG="--fix-hrf"
           ;;
         fmriprep)
           fprep_input=1
           ;;        
-        force_exec)
-          FORCE_FLAG="--force_exec"
+        force-exec)
+          FORCE_FLAG="--force-exec"
           ;;
         fprep)
           fprep_input=1
@@ -254,8 +254,8 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           TYPE="func"
           space_flag="--func"
           ;;
-        func_only)
-          mod_flag="--func_only"
+        func-only)
+          mod_flag="--func-only"
           ;;
         gallery)
           GALLERY_FLAG="--gallery"
@@ -308,8 +308,8 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         masks)
           mask_flag="--masks"
           ;;
-        merge_ses)
-          merge_flag="--merge_ses"
+        merge-ses)
+          merge_flag="--merge-ses"
           ;;
         mni_2009)
           space_flag="--mni_2009"
@@ -317,8 +317,8 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         mni_fsl)
           space_flag="--mni_fsl"
           ;;
-        multi_design)
-          MULTIPLE_DESIGNS="--multi_design"
+        multi-design)
+          MULTIPLE_DESIGNS="--multi-design"
           ;;
         n4)
           BIAS_FLAG="--n4"
@@ -329,65 +329,65 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         nighres)
           LAYER_FLAG="nighres"
           ;;          
-        no_bbr)
-          use_bbr="--no_bbr"
+        no-bbr)
+          use_bbr="--no-bbr"
           ;;
-        no_bounds)
-          bounds_flag="--no_bounds"
+        no-bounds)
+          bounds_flag="--no-bounds"
           ;;
-        no_boldref)
-          boldref_flag="--no_boldref"
+        no-boldref)
+          boldref_flag="--no-boldref"
           ;;
-        no_clip)
-          CLIP="--no_clip"
+        no-clip)
+          CLIP="--no-clip"
           ;;
-        no_epi)
-          MAN_EPI="--no_epi"
+        no-epi)
+          MAN_EPI="--no-epi"
           ;;
-        no_fit)
-          fit_flag="--no_fit"
+        no-fit)
+          fit_flag="--no-fit"
           ;;
-        no_freeview)
-          FREEVIEW="--no_freeview"
+        no-freeview)
+          FREEVIEW="--no-freeview"
           ;;
-        no_highres)
-          highres_flag="--no_highres"
+        no-highres)
+          highres_flag="--no-highres"
           ;;
-        no_hrf)
-          FIT_HRF="--no_hrf"
+        no-hrf)
+          FIT_HRF="--no-hrf"
           ;;
-        no_lpi)
-          reorient_flag="--no_lpi"
+        no-lpi)
+          reorient_flag="--no-lpi"
           ;;
-        no_manual)
-          MAN_FLAG="--no_manual"
+        no-manual)
+          MAN_FLAG="--no-manual"
           ;;
-        no_mask)
-          USE_MASK="--no_mask"
+        no-mask)
+          USE_MASK="--no-mask"
           ;;          
-        no_nordic)
-          NORDIC="--no_nordic"
+        no-nordic)
+          NORDIC="--no-nordic"
           ;;
-        no_raw)
-          raw_flag="--no_raw"
+        no-raw)
+          raw_flag="--no-raw"
           ;;
-        no_reg)
-          REG_T1="--no_reg"
+        no-reg)
+          REG_T1="--no-reg"
           ;;          
-        no_sanlm)
-          SANLM_FLAG="--no_sanlm"
+        no-sanlm)
+          SANLM_FLAG="--no-sanlm"
           ;;          
-        no_srf)
-          SRF_FLAG="--no_srf"
+        no-srf)
+          SRF_FLAG="--no-srf"
           ;;
-        no_t2)
-          use_t2_flag="--no_t2"
+        no-t2)
+          use_t2_flag="--no-t2"
           ;;
-        no_tsnr)
-          TSNR_FLAG="--no_tsnr"
+        no-tsnr)
+          TSNR_FLAG="--no-tsnr"
           ;;
-        no_winsor)
-          INTENSITY_FLAG="--no_winsor"
+        no-winsor)
+          INTENSITY_FLAG="--no-winsor"
           ;;          
         norm)
           MODEL_FLAG="--norm"
@@ -407,14 +407,14 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         phys)
           phys_flag="--phys"
           ;;
-        post_only)
-          post_flag="--post_only"
+        post-only)
+          post_flag="--post-only"
           ;;
-        pre_only)
-          pre_flag="--pre_only"
+        pre-only)
+          pre_flag="--pre-only"
           ;;
-        pyb_only)
-          pyb_flag="--pyb_only"
+        pyb-only)
+          pyb_flag="--pyb-only"
           ;;
         raw)
           raw_flag="--raw"
@@ -422,11 +422,11 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         refit)
           REFIT_FLAG="--refit"
           ;;          
-        remove_surf_wf)
-          REMOVE_WF="--remove_surf_wf"
+        remove-surf-wf)
+          REMOVE_WF="--remove-surf-wf"
           ;;  
-        remove_wf)
-          REMOVE_WF="--remove_wf"
+        remove-wf)
+          REMOVE_WF="--remove-wf"
           ;;                    
         rh)
           HEMI_FLAG="--rh"
@@ -437,32 +437,32 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         rl)
           pe_dir_flag="--rl"
           ;;
-        save_grid)
-          save_grid="--save_grid"
+        save-grid)
+          save_grid="--save-grid"
           ;;          
         sge)
           SGE="--sge"
           ;;
-        separate_hrf)
-          FIT_HRF="--separate_hrf"
+        separate-hrf)
+          FIT_HRF="--separate-hrf"
           ;;    
-        skip_bg)
-          BG_FLAG="--skip_bg"
+        skip-bg)
+          BG_FLAG="--skip-bg"
           ;;
-        skip_fmap)
-          TRIM_FMAP="--skip_fmap"
+        skip-fmap)
+          TRIM_FMAP="--skip-fmap"
           ;;          
-        skip_prf_info)
-          skip_prf_info="--skip_prf_info"
+        skip-prf-info)
+          skip_prf_info="--skip-prf-info"
           ;;
-        skip_settings)
-          SKIP_FLAG="--skip_settings"
+        skip-settings)
+          SKIP_FLAG="--skip-settings"
           ;;
-        skip_tr)
-          SKIP_TR="--skip_tr"
+        skip-tr)
+          SKIP_TR="--skip-tr"
           ;;
-        srf_file)
-          SRF_FILE="--srf_file"
+        srf-file)
+          SRF_FILE="--srf-file"
           ;;
         spm)
           BIAS_FLAG="--spm"
@@ -497,8 +497,8 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         verbose)
           verb_flag="--verbose"
           ;;
-        warp_only)
-          WARP_ONLY="--warp_only"
+        warp-only)
+          WARP_ONLY="--warp-only"
           ;;
         xopts-clean)
           XOPTS_="--xopts-clean"

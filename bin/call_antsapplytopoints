@@ -22,10 +22,10 @@ Let's say you have a coordinate in space 1 and would like to get the coordinate 
 
 Note: there's functions in play to do this with python only as well. Below the functions associa-
 ted with each step:
-  1.) linescanning.transform.ants_registration()
-  2.) linescanning.utils.make_chicken_csv()
-  3.) linescanning.transform.ants_applytopoints
-  4.) linescanning.utils.read_chicken_csv()
+  1.) fmriproc.transform.ants_registration()
+  2.) lazyfmri.utils.make_chicken_csv()
+  3.) fmriproc.transform.ants_applytopoints
+  4.) lazyfmri.utils.read_chicken_csv()
 
 Args:
   --ras           input coordinate is RAS (default)
@@ -159,9 +159,9 @@ cmd="""antsApplyTransformsToPoints \
   -t ${APPLY}"""
 
 if [[ ${verb} -eq 1 ]]; then
-  print_cmd ${cmd}
+  print_cmd "${cmd}"
 fi
-eval ${cmd}
+eval "${cmd}"
 
 # return command
 if [[ ${return_coord} -eq 1 ]]; then

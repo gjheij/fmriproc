@@ -205,15 +205,16 @@ for subID in ${search}; do
 
         # create WM/GM levelset from probability
         print_create_img "${gwb}"
-        call_nighresproblevel \
+        cmd="""call_nighresproblevel \
           -p ${INPUTS[1]} \
           -d $(dirname ${output_root}) \
-          -n $(basename ${output_root})
-        
+          -n $(basename ${output_root})"""
+
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "call_nighresproblevel" "gwb-image not created"
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "gwb-image not created"
           exit 1
         else
           mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
@@ -221,15 +222,16 @@ for subID in ${search}; do
 
         # create GM/CSF levelset from probability
         print_create_img "${cgb}"
-        call_nighresproblevel \
+        cmd="""call_nighresproblevel \
           -p ${INPUTS[2]} \
           -d $(dirname ${output_root}) \
-          -n $(basename ${output_root})
+          -n $(basename ${output_root})"""
 
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "call_nighresproblevel" "cwb-image not created"
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "cwb-image not created"
           exit 1
         else
           mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null

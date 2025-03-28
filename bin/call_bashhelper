@@ -116,7 +116,7 @@ print_cmd() {
   local rest="${cmd#${executable}}"
 
   # Print with just the executable in color
-  echo -e "${BOLD_BLUE}${executable}${RESET}${rest}"
+  echo -e "${BOLD_BLUE}${executable}${RESET}${rest}" | xargs
 }
 
 activate_conda() {

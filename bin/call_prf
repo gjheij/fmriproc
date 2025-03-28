@@ -48,7 +48,7 @@ Arguments:
     -t|--task   <task name>         name of the experiment performed (e.g., "2R")
     -o|--out    <prf dir>           output directory containing pRF-stuff (/derivatives/prf)
     -i|--in     <input dir>         input directory (e.g., output of pybest/fMRIPrep)
-    -j|--n_jobs <nr of jobs>        number of jobs to parallellize over (default = 5)
+    -j|--jobs <nr of jobs>          number of jobs to parallellize over (default = 5)
     -p|--png    <path to pngs>      path to png's if you ran M. Aqil's experiment
     -m|--model  <model type>        one of ['gauss','dog','css','norm'], default = 'gauss'. You can 
                                     also call models with '--gauss', '--dog', '--css', or '--norm'
@@ -62,7 +62,7 @@ Arguments:
                                     tion fitting by using L-BGFS ('bgfs'). To specify a list, use 
                                     the format '-c [tc,bgfs]'. Use --tc, --bgfs, or --nelder to sync 
                                     the minmizers across stages
-    --cut_vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
+    --cut-vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
                                     Default is 0, but sometimes it's good to get rid of the initial
                                     transient
     --tr                            manually set repetition time (TR). Default = 1.5. Can be read
@@ -75,35 +75,35 @@ Options:
     --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
                     Use the -x flag if you want different minimizers for both stages
     --bold          re-calculate BOLD timecourses; otherwise use 'hemi-LR_desc-avg_bold.npy' file
-    --clip          clip the edges of design matrix in the space of 'n_pix' (by default = 100). You 
+    --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
                     will need to calculate how many pixels are to be set to zero given the visual 
                     field of the subject in the scanner (with a screensize of [1920,1080]px and 
                     height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
                     ensure it's read in like a list. Negative values will be set to zero.
-    --file_ending   Overwrite default search-targets from pybest/fMRIPrep output. E.g., for fMRI-
+    --file-ending   Overwrite default search-targets from pybest/fMRIPrep output. E.g., for fMRI-
                     Prep, we look for 'bold.func.gii' and 'desc-denoised_bold.npy' for Pybest. With
-                    <file_ending> you can specify to use the volumetric data from fMRIPrep (e.g., 
+                    <file-ending> you can specify to use the volumetric data from fMRIPrep (e.g., 
                     preproc_bold.nii.gz [also requires different 'space-' flag!]). If volumetric
                     data is supplied, we'll convert it to 2D with `linescanning.dataset.Dataset`.
                     If you want to provide cifti's or nifti's, we assume everything's been prepro-
                     cessed appropriately. There's no filtering, percent-signal changing or other
                     stuff.
     -g|--grid       only run a grid-fit with the specified model
-    --no_hrf        Do not fit the HRF during pRF-fitting. 
+    --no-hrf        Do not fit the HRF during pRF-fitting. 
     --nelder        Use Nelder-Mead minimization for both the Gaussian and Extended model.
                     Use the -x flag if you want different minimizers for both stages
-    --separate_hrf  If `True`, the fitting will consist of two stages: first, a regular fitting 
+    --separate-hrf  If `True`, the fitting will consist of two stages: first, a regular fitting 
                     without HRF estimation. Then, the fitting object of that fit is inserted as 
                     `previous_gaussian_fitter` into a new fitter object with HRF estimation turned 
                     on. Default = False. This will ensure the baseline of periods without stimulus 
                     are set to zero.
-    --fix_hrf       Fix the HRF after Gaussian iterative fit for further fitting.
-    --merge_ses     Pool the data across all sessions for averaging. 
-    --no_bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
+    --fix-hrf       Fix the HRF after Gaussian iterative fit for further fitting.
+    --merge-ses     Pool the data across all sessions for averaging. 
+    --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
                     bounds, causing 'inf' values. This is especially troublesome when fitting a
                     single timecourse. If you trust your iterative fitter, you can turn off the 
                     bounds and let the iterative take care of the parameters                    
-    --no_fit        Stop the process before fitting, right after saving out averaged data. This was 
+    --no-fit        Stop the process before fitting, right after saving out averaged data. This was 
                     useful for me to switch to percent-signal change without requiring a re-fit.
     --overwrite     If specified, we'll overwrite existing Gaussian parameters. If not, we'll look
                     for a file with ['model-gauss', 'stage-iter', 'params.pkl'] in *outputdir* and,
@@ -121,8 +121,8 @@ Options:
                     change, the input directory needs to be unzscored data.
                     PSC will be calculated following M. Aqil's strategy:
                         psc = signals*100/(mean(signals)) - median(signals_without_stimulus)
-    --pyb_type      used in combination with '--merge_ses' to differentiate 'unzscored' or 'de-
-                    noised' files. Should be one of 'unzscored' or 'denoised'. If '--merge_ses' is
+    --pyb-type      used in combination with '--merge-ses' to differentiate 'unzscored' or 'de-
+                    noised' files. Should be one of 'unzscored' or 'denoised'. If '--merge-ses' is
                     not specified, the correct session files will be selected automatically
 
 Models:
@@ -173,7 +173,7 @@ Example:
     fix_hrf = False
 
     try:
-        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:f:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no_hrf", "n_pix=", "clip=", "verbose", "file_ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no_fit", "raw", "cut_vols=", "v1", "v2", "save_grid", "merge_ses", "n_jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=","separate_hrf","bold","folds=","pyb_type=","fix_hrf","nelder"])[0]
+        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:f:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no-hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "separate-hrf", "bold", "folds=", "pyb-type=", "fix-hrf", "nelder"])[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)
@@ -205,17 +205,17 @@ Example:
             kwargs_file = arg
         elif opt in ("-f", "--folds"):
             n_folds = int(arg)
-        elif opt in ("--no_hrf"):
+        elif opt in ("--no-hrf"):
             fit_hrf = False
-        elif opt in ("--n_pix"):
+        elif opt in ("--n-pix"):
             n_pix = int(arg)
         elif opt in ("-v", "--verbose"):
             verbose = True
-        elif opt in ("-j", "--n_jobs"):
+        elif opt in ("-j", "--jobs"):
             n_jobs = int(arg)
         elif opt in ("--clip"):
             clip_dm = arg
-        elif opt in ("--file_ending"):
+        elif opt in ("--file-ending"):
             file_ending = arg
         elif opt in ("--zscore"):
             psc = False
@@ -243,13 +243,13 @@ Example:
             constraints = "bgfs"
         elif opt in ("--nelder"):
             constraints = "nelder"        
-        elif opt in ("--no_fit"):
+        elif opt in ("--no-fit"):
             do_fit = False
-        elif opt in ("--separate_hrf"):
+        elif opt in ("--separate-hrf"):
             separate_hrf = True
         elif opt in ("--constr"):
             constraints = utils.string2list(arg)
-        elif opt in ("--cut_vols"):
+        elif opt in ("--cut-vols"):
             cut_vols = int(arg)
         elif opt in ("--v1"):
             lbl = "V1_exvivo.thresh"
@@ -257,22 +257,22 @@ Example:
         elif opt in ("--v2"):
             lbl = "V2_exvivo.thresh"
             roi_tag = "V2"
-        elif opt in ("--no_bounds"):
+        elif opt in ("--no-bounds"):
             grid_bounds = False  
-        elif opt in ("--merge_ses"):
+        elif opt in ("--merge-ses"):
             merge_sessions = True  
-        elif opt in ("--fix_hrf"):
+        elif opt in ("--fix-hrf"):
             fix_hrf = True                           
-        elif opt in ("--no_grid"):
+        elif opt in ("--no-grid"):
             save_grid = False
             if grid_only:
-                print("WARNING: '--no_grid' was specified (meaning 'do not save out gridsearch parameters', though '-g' or '--grid' was specified (meaning do gridsearch only). Overruling '--no_grid'")
+                print("WARNING: '--no-grid' was specified (meaning 'do not save out gridsearch parameters', though '-g' or '--grid' was specified (meaning do gridsearch only). Overruling '--no-grid'")
                 save_grid = True         
-        elif opt in ("--save_grid"):
+        elif opt in ("--save-grid"):
             save_grid = True   
         elif opt in ("--tr"):
             tr = float(arg)         
-        elif opt in ("--pyb_type"):
+        elif opt in ("--pyb-type"):
             pybest_type = arg
 
     if len(argv) < 2:

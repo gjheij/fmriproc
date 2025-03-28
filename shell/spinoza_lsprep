@@ -42,12 +42,12 @@ Arguments:
 
 Eample:
   spinoza_lsprep -s 001 -n 3 --sge DIR_DATA_SOURCE DIR_DATA_DERIV
-  spinoza_lsprep -s 001 -n 3 -x --filter_pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
+  spinoza_lsprep -s 001 -n 3 -x --filter-pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
 
 run with master:  
   "master -m 03b -s 008 -n 3" # use all defaults from call_lsprep
-  "master -m 03b -s 008 -n 3 -x --filter_pca=0.18,--verbose,--no_button,--ow,--ica" # customize
-  "master -m 03b -s 008 -n 3 --sge -x --filter_pca=0.18,--verbose,--ica" # customize # submit
+  "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" # customize
+  "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" # customize # submit
 
 ---------------------------------------------------------------------------------------------------
 
@@ -192,23 +192,23 @@ for subID in ${search}; do
 
     # echo command
     if [[ ${run_local} -eq 1 ]]; then
-      print_cmd ${cmd}
+      print_cmd "${cmd}"
     fi
 
     (
       echo ""
       echo "### New invocation of call_lsprep @$(date)"
-      echo "$(echo ${cmd} | tr '\n' ' ')"
+      echo "$(echo ${cmd} | xargs)"
       echo ""
     ) >> ${log_file}
     
     # execute cmd
-    eval ${cmd}
+    eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "call_lsprep"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
   done

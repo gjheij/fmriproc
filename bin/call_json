@@ -3,8 +3,8 @@
 import json
 import os
 import sys
-import ast
 from lazyfmri import utils
+
 def main(argv):
 
     """

@@ -38,7 +38,7 @@ Parameters
                   empty..
                     - masked T1w: suffixed with _masked.nii.gz
                     - mask:       suffixed with _brainmask.nii.gz
-  --no_manual     Do not do any further manual edits; use the masks as is
+  --no-manual     Do not do any further manual edits; use the masks as is
 
 Returns
 ----------
@@ -69,7 +69,7 @@ if left to empty, it will look by default for the following files:
     manual  = True
 
     try:
-        opts = getopt.getopt(argv,"hs:n:i:t:m:d:o:",["subj=", "ses=", "inv=", "t1w=", "masks=", "output=", "no_manual"])[0]
+        opts = getopt.getopt(argv,"hs:n:i:t:m:d:o:",["subj=", "ses=", "inv=", "t1w=", "masks=", "output=", "no-manual"])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -90,7 +90,7 @@ if left to empty, it will look by default for the following files:
             masks = arg
         elif opt in ("-o", "--output"):
             output = arg
-        elif opt in ("--no_manual"):
+        elif opt in ("--no-manual"):
             manual = arg            
 
     if len(argv) < 1:

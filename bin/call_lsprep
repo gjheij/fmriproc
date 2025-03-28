@@ -28,20 +28,20 @@ Parameters
   -s|--subject      subject ID (full, including prefix)
   -n|--session      session ID
   -r|--run          limit processing to a certain run ID; default is to do all runs
-  -b|--bids_dir     project root folder; defaults to DIR_DATA_HOME
+  -b|--bids     project root folder; defaults to DIR_DATA_HOME
   -o|--output_dir   output directory; defaults to DIR_DATA_DERIV/lsprep
-  -c|--n_comps      number of components for ICA/PCA
+  -c|--comps      number of components for ICA/PCA
   --coil <value>    maps onto 'voxel_cutoff', which dictates which voxels are considered in the
                     linescanning.segmentations.Segmentations-class. Default = 300.
   --phase_onset     phase index which denotes stimulus onsets (default = 1, but can be 0 too)
-  --ses_trafo       transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
+  --ses-trafo       transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
                     _rec-motion1' in DIR_DATA_DERIV/pycortex/<subject>/transforms)
-  --filter_pca      cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
+  --filter-pca      cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
   --first           delete number of volumes from beginning (default = 0)
   --last            delete number of volumes from the end (default = 0)
   --tr              set repetition time (default is 0.105)
   --window          window length for low-pass filtering. Default is 7 TRs
-  --poly_order      order of polynomial for low-pass filtering. Default is 3
+  --poly-order      order of polynomial for low-pass filtering. Default is 3
   --shift           sometimes we have to move the slice relative to the saturation slabs to ensure
                     that we're sampling from our intended line. This flag allows you to shift the
                     slice with that same factor so that the white matter/CSF voxels are selected
@@ -53,13 +53,13 @@ Options
 ----------
   -v|--verbose      turn on verbose
   --ow|--overwrite  overwrite existing outputs
-  --no_report       do not create report (in case you already have one)
-  --no_acompcor     do not perform aCompCor even if you have all files
+  --no-report       do not create report (in case you already have one)
+  --no-acompcor     do not perform aCompCor even if you have all files
   --ica             denoise with ICA rather than aCompCor
-  --force_acompcor  force acompcor execution even if you do not have all files. E.g., you have mul-
+  --force-acompcor  force acompcor execution even if you do not have all files. E.g., you have mul-
                     tiple functional runs but only 1 anatomical reference image. That same anato-
                     mical image is then used for all functional runs
-  --no_button       do not add button responses to onset dataframe (default is to do so)
+  --no-button       do not add button responses to onset dataframe (default is to do so)
   --lp              do low-pass filtering ontop of any other filtering
 
 
@@ -101,7 +101,7 @@ Example
 
     # long options without argument: https://stackoverflow.com/a/54170513
     try:
-        opts = getopt.getopt(argv,"qgvh:b:d:n:r:o:f:l:i:s:c:",["help", "subject=", "bids_dir=", "session=", "ses_trafo=", "output_dir=", "filter_pca=", "run=", "no_report", "verbose", "no_acompcor", "tr=", "overwrite", "ow", "shift=","lp", "no_button", "n_comps=", "coil=", "window=", "poly_order=", "ica", "first=", "last=", "bsl", "phase_onset=", "filters=","suff=","suffix="])[0]
+        opts = getopt.getopt(argv,"qgvh:b:d:n:r:o:f:l:i:s:c:",["help", "subject=", "bids=", "session=", "ses-trafo=", "output_dir=", "filter-pca=", "run=", "no-report", "verbose", "no-acompcor", "tr=", "overwrite", "ow", "shift=","lp", "no-button", "comps=", "coil=", "window=", "poly-order=", "ica", "first=", "last=", "bsl", "phase_onset=", "filters=","suff=","suffix="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?")
         print(main.__doc__)
@@ -115,31 +115,31 @@ Example
             subject = arg   
         elif opt in ("-n", "--session"):
             ses = arg                         
-        elif opt in ("-b", "--bids_dir"):
+        elif opt in ("-b", "--bids"):
             bids_dir = arg
         elif opt in ("-o", "--output_dir"):
             output_dir = arg
         elif opt in ("-r", "--run"):
             run_id = arg
-        elif opt in ("-c", "--n_comps"):
+        elif opt in ("-c", "--comps"):
             n_comps = int(arg)
-        elif opt in ("--ses_trafo"):
+        elif opt in ("--ses-trafo"):
             ses_trafo = arg
         elif opt in ("--lowpass"):
             filter_strat = "lp"
-        elif opt in ("--filter_pca"):
+        elif opt in ("--filter-pca"):
             filter_pca = float(arg)
         elif opt in ("-v", "--verbose"):
             verbose = True
-        elif opt in ("--no_report"):
+        elif opt in ("--no-report"):
             make_report = False
-        elif opt in ("--no_acompcor"):
+        elif opt in ("--no-acompcor"):
             do_acompcor = False
         elif opt in ("--ica"):
             do_ica = True
-        elif opt in ("--force_acompcor"):
+        elif opt in ("--force-acompcor"):
             force_acompcor = True
-        elif opt in ("--no_button"):
+        elif opt in ("--no-button"):
             button_press = False
         elif opt in ("--tr"):
             t_r = float(arg)
@@ -153,7 +153,7 @@ Example
             filter_strat = "lp"
         elif opt in ("--window"):
             window_length = int(arg)
-        elif opt in ("--poly_order"):
+        elif opt in ("--poly-order"):
             poly_order = int(arg)
         elif opt in ("--phase_onset"):
             phase_onset = int(arg)     
@@ -267,7 +267,7 @@ Example
                 print(*collect_dict["anat"], sep="\n")
                 raise ValueError(f"number of func files ({len(collect_dict['func'])}) does not match number of anatomical files ({len(collect_dict['anat'])})")
             else:
-                utils.verbose(f"unequal number of FUNC files and ANAT files, but --force_acompcor was triggered, using same slice for all FUNCs", verbose)
+                utils.verbose(f"unequal number of FUNC files and ANAT files, but --force-acompcor was triggered, using same slice for all FUNCs", verbose)
                 collect_dict['anat'] = [collect_dict['anat'][0] for ii in range(len(collect_dict['func']))]
 
         if not isinstance(collect_dict['anat'], list):

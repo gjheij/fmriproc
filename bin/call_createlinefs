@@ -30,9 +30,9 @@ between two sessions, orig.nii.gz and an identity matrix are used to "warp" the 
 Args:
     -s|--subject    name of the directory as specified in the pycortex filestore directory
     -f|--fsdir      FreeSurfer directory; if left empty, SUBJECTS_DIR will be used 
-    -l|--line_ctx   file containing the information about placement of the line. If left empty
+    -l|--line-ctx   file containing the information about placement of the line. If left empty
                     we'll look for <project>/derivatives/pycortex/<subject>/line_pycortex.csv.
-    -n|--session    session ID of line-scanning session to which `line_ctx` belongs. Default = 2
+    -n|--session    session ID of line-scanning session to which `line-ctx` belongs. Default = 2
     -o|--output     new nifti-image containing the beam with the correct orientation and dimensions
                     of FreeSurfer
     --lh|--rh       which hemisphere should we do? Use 'lh' for left, 'rh' for right (default = lh)
@@ -59,7 +59,7 @@ Example:
     freeview    = True
 
     try:
-        opts = getopt.getopt(argv,"hs:f:h:l:o:n:",["help", "subject=", "line_ctx=", "fsdir=", "lh", "rh", "output=", "no-freeview", "session="])[0]
+        opts = getopt.getopt(argv,"hs:f:h:l:o:n:",["help", "subject=", "line-ctx=", "fsdir=", "lh", "rh", "output=", "no-freeview", "session="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -74,7 +74,7 @@ Example:
             session = arg
         elif opt in ("-f", "--fsdir"):
             fs_dir = arg  
-        elif opt in ("-l", "--line_ctx"):
+        elif opt in ("-l", "--line-ctx"):
             line_ctx = arg               
         elif opt in ("-o", "--output"):
             output = arg

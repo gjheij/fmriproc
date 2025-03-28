@@ -32,8 +32,8 @@ Arguments:
   -u <upper>          upper percentile (default = 0.99) for call_winsorize  
   -o                  overwrite existing files
   --spm               run bias correction with SPM (default = False)
-  --no_sanlm          do not run SANLM denoising (in case you don't have CAT12..)
-  --no_mask           do not use SPM mask for SANLM/Bias correction with ANTs
+  --no-sanlm          do not run SANLM denoising (in case you don't have CAT12..)
+  --no-mask           do not use SPM mask for SANLM/Bias correction with ANTs
   --n4                run bias correction with N4BiasCorrection (ANTs)
   --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
                       CAT12.
@@ -85,7 +85,7 @@ do
           RUN_BIASCORR=1
           RUN_WITH_ANTS=0
           ;;          
-        no_sanlm)
+        no-sanlm)
           RUN_SANLM=0
           ;;         
         denoise)
@@ -95,7 +95,7 @@ do
           RUN_BIASCORR=1
           RUN_WITH_ANTS=1
           ;;      
-        no_mask)
+        no-mask)
           use_mask=0
           ;;                                                  
         *)
@@ -245,7 +245,7 @@ for subID in ${search}; do
         ${sanlm_} ${input} ${output_from_sanlm} ${kwargs}
 
         if [[ ! -f ${output_from_sanlm} ]]; then
-          print_error_msg "$(basename ${0})" "call_spmsanlm"
+          print_error_msg "$(basename ${0})" "${sanlm_}"
           exit 1
         fi
 
@@ -267,7 +267,7 @@ for subID in ${search}; do
         fi
 
         if [[ ! -f ${output} ]]; then
-          print_error_msg "$(basename ${0})" "${cmd}"
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
           exit 1
         fi
 
@@ -282,29 +282,33 @@ for subID in ${search}; do
       # truncate and 
       echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
       cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
-      eval ${cmd}
+      eval "${cmd}"
 
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_winsorize"
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi      
 
       echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
       cmd="call_rescale ${output} 0 4095"
-      eval ${cmd}
+      eval "${cmd}"
 
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_rescale"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi      
 
       # set dtype to uint16
       echo "Set dtype to UINT16"
       cmd="call_setdtype ${output}"
-      eval ${cmd}
+      eval "${cmd}"
 
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_setdtype"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi
 

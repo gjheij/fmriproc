@@ -377,13 +377,10 @@ for subID in ${search}; do
 
           if [[ ! -f ${brainmask} ]]; then
             cmd="""call_cat12 ${mode} -s ${SPM_PATH} ${input} ${BET}"""
-            print_cmd ${cmd}
-            eval ${cmd}
+            print_cmd "${cmd}" && eval "${cmd}"
 
             if [[ $? != 0 ]]; then
-              echo
-              print_line -
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_cat12 exited with non-zero status"
+              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
               exit 1
             fi
 
@@ -419,22 +416,22 @@ for subID in ${search}; do
           # truncate and 
           echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
           cmd="call_winsorize -l ${lower} -u ${upper} ${biascorr}"
-          print_cmd ${cmd} && eval ${cmd}
+          print_cmd "${cmd}" && eval "${cmd}"
 
           if [[ $? != 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_winsorize"
+            print_error_msg "$(basename ${0})" "$(basename ${cmd})"
             exit 1
           fi
 
           # rescale clipped image
           echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
           cmd="call_rescale ${biascorr} 0 4095 ${corrected_t1w}"
-          print_cmd ${cmd} && eval ${cmd}
+          print_cmd "${cmd}" && eval "${cmd}"
 
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" "call_rescale"
+            print_error_msg "$(basename ${0})" "$(basename ${cmd})"
             exit 1
           fi
 
@@ -453,13 +450,12 @@ for subID in ${search}; do
             echo "Getting rid of CAT12-induced background with SPM-mask"
 
             cmd="call_rmbackground -t ${corrected_t1w} -m ${spm_mask} -i ${input} -o ${corrected_t1w}"
-            print_cmd ${cmd}
-            eval ${cmd}
+            print_cmd "${cmd}" && eval "${cmd}"
 
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              print_error_msg "$(basename ${0})" "call_rmbackground"
+              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
               exit 1
             fi
 
@@ -474,7 +470,7 @@ for subID in ${search}; do
             if [[ $? != 0 ]]; then
               echo
               print_line -
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_rescale exited with non-zero status"
+              print_error_msg "$(basename ${0})" "call_rescale"
               exit 1
             fi
 
@@ -517,7 +513,7 @@ for subID in ${search}; do
     # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
     if [[ -f ${spm} && -f ${brainmask} ]]; then
       cmd="fslmaths ${spm} -sub ${brainmask} -thr 0 ${duramask}"
-      print_cmd ${cmd} && eval ${cmd}
+      print_cmd "${cmd}" && eval "${cmd}"
       echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
     fi
 

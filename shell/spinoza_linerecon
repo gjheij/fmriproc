@@ -32,7 +32,7 @@ Arguments:
   -f <suffix>         add custom suffix; overwrites default of "bold"
   -o|--ow             overwrite existing files
   --debug             don't submit job, just print inputs/outputs
-  --no_nordic         turn off NORDIC denoising during reconstruction
+  --no-nordic         turn off NORDIC denoising during reconstruction
   --sge               submit job to cluster (SGE)
   <project root>      base directory containing the derivatives and the subject's folders.
   <sourcedata>        base directory containing the raw data for reconstruction
@@ -81,8 +81,8 @@ do
         debug)
           DEBUG="--debug"
           ;;   
-        no_nordic)
-          NORDIC="--no_nordic"
+        no-nordic)
+          NORDIC="--no-nordic"
           ;;         
         sge)
           run_local=0
@@ -319,7 +319,7 @@ for subID in ${search}; do
 
         # echo cmd if not on cluster
         if [[ ${verbose} -eq 1 ]]; then
-          print_cmd ${cmd}
+          print_cmd "${cmd}"
           echo
         fi
 
@@ -327,18 +327,16 @@ for subID in ${search}; do
           (
             echo ""
             echo "### New invocation of call_linerecon @$(date)"
-            echo "$(echo ${cmd} | tr '\n' ' ')"
+            echo "$(echo ${cmd} | xargs)"
             echo ""
-          ) >> ${log_file}
+          ) >> "${log_file}"
         fi
 
         # run cmd
-        eval ${cmd}
+        eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "call_linerecon"
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
           exit 1
         fi
 

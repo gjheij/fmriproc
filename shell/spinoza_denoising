@@ -35,16 +35,22 @@ Arguments:
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   -x <kwargs>         other arguments that should be passed to pybest
   --sge               submit job to cluster (called with 'master -m <module> --sge')
-  --no_raw            do NOT unzscore the output from pybest (default is to do so)
+  --no-raw            do NOT unzscore the output from pybest (default is to do so)
   --fsaverage         overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
                       native)
   --fsnative          overwrite PYBEST_SPACE-variable and use FSNative (defaults to fsnative)
   --func              overwrite PYBEST_SPACE-variable and use 'func'-space
   --anat              overwrite PYBEST_SPACE-variable and use 'T1w'-space
-  --mni_fsl           overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
-  --mni_2009          overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
+  --mni-fsl           overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
+  --mni-2009          overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
   --force             force execution despite existing files
   --sge               submit job to cluster (SGE/SLURM)
+  --pyb-only          run only pybest step.
+  --post-only         run only post-processing step.
+  --pre-only          run only pre-processing step.  
+  --force-exec        force the execution of Pybest regardless of existing files.
+
+Positional:
   <project root>      base directory containing the derivatives and the subject's folders.
   <derivatives>       path to the derivatives folder
 
@@ -88,8 +94,8 @@ do
   case ${argument} in
     -)
       case "${OPTARG}" in
-        no_raw)
-          raw_flag="--no_raw"
+        no-raw)
+          raw_flag="--no-raw"
           ;;
         ow)
           OW=1
@@ -100,7 +106,7 @@ do
         sge)
           run_local=1
           ;;     
-        force_exec)
+        force-exec)
           force_exec=1
           ;;                
         fsaverage)
@@ -115,20 +121,20 @@ do
         anat)
           PYBEST_SPACE="T1w"
           ;;      
-        mni_fsl)
+        mni-fsl)
           PYBEST_SPACE="MNI152NLin6Asym_res-1"
           ;;      
-        mni_2009)
+        mni-2009)
           PYBEST_SPACE="MNI152NLin2009cAsym_res-1"
           ;;                            
-        post_only)
-          post_flag="--post_only"
+        post-only)
+          post_flag="--post-only"
           ;;
-        pre_only)
-          pre_flag="--pre_only"
+        pre-only)
+          pre_flag="--pre-only"
           ;;
-        pyb_only)
-          pyb_flag="--pyb_only"
+        pyb-only)
+          pyb_flag="--pyb-only"
           ;;                                   
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -308,12 +314,12 @@ for subID in ${search}; do
           ${raw_flag}"""
 
         if [[ ${run_local} -eq 1 ]]; then
-          print_cmd ${cmd}
+          print_cmd "${cmd}"
         fi
-        eval ${cmd}
+        eval "${cmd}"
 
         if [[ $? != 0 ]]; then
-          print_error_msg "$(basename ${0})" "call_pybest"
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
           exit 1
         fi
       else

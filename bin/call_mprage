@@ -18,15 +18,15 @@ Steps include:
   - Brain masking using 'call_spmmask', which will create *desc-spm_mask
   - Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
     brain mask too; seems to work well.
-  - Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
+  - Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
 
 Options:
     -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
     -l <lower>      lower percentile (default = 0.01) for call_winsorize
     -u <upper>      upper percentile (default = 0.99) for call_winsorize
     --spm           use SPM for bias correction (default is ANTs)
-    --no_sanlm      do not apply SANLM filtering
-    --no_winsor     do not apply winsoring of image intensities; would recommend this though..
+    --no-sanlm      do not apply SANLM filtering
+    --no-winsor     do not apply winsoring of image intensities; would recommend this though..
     -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
                     separated flags as follows: 
                       - if you specify a flag and values | <flag>=<value>
@@ -37,7 +37,7 @@ Options:
 
                     e.g.,
                     "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
-    --no_reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
+    --no-reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
                     packages such as Nighres. This allows you to generate layerification in 
                     voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-
                     rate T1map. By default, we'll register that file to the MPRAGE T1w. If
@@ -57,7 +57,7 @@ Positional arguments
 Usage:
  call_mprage sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE             # standard
  call_mprage --spm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE       # run with SPM
- call_mprage --no_sanlm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # skip SANLM
+ call_mprage --no-sanlm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # skip SANLM
 
 ---------------------------------------------------------------------------------------------------
 
@@ -86,13 +86,13 @@ do
         spm)
           RUN_WITH_ANTS=0
           ;;          
-        no_sanlm)
+        no-sanlm)
           RUN_SANLM=0
           ;;
-        no_reg)
+        no-reg)
           REG_T1=0
           ;;       
-        no_winsor)
+        no-winsor)
           WINSORIZE_INTENSITIES=0
           ;;                 
         *)
@@ -157,7 +157,7 @@ rm $(dirname ${mask_file})/$(basename ${mask_file} .gz)* 2>/dev/null
 
 cmd="call_spmmask --clean ${in_file} ${mask_file}"
 echo " Generating brain mask with SPM.."
-eval ${cmd}
+eval "${cmd}"
 
 if [[ ! -f "${mask_file}" ]]; then  
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmmask failed, mask-file not created"
@@ -176,7 +176,7 @@ else
 fi
 
 echo " Bias correction with ${software}.."
-eval ${cmd}
+eval "${cmd}"
 
 if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
   print_error_msg "$(basename ${0})" "$(basename ${cmd})"
@@ -188,7 +188,7 @@ fi
 if [[ ${RUN_SANLM} -eq 1 ]]; then
   cmd="call_spmsanlm -s ${SPM_PATH} ${bias_file} ${final_file}"
   echo " Denoising with SANLM.."
-  eval ${cmd}
+  eval "${cmd}"
 
   if [[ $? -ne 0 || ! -f ${final_file} ]]; then
     print_error_msg "$(basename ${0})" "$(basename ${cmd})"
@@ -208,21 +208,21 @@ fi
 if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
   cmd="call_winsorize -l ${lower} -u ${upper} ${final_file}"
-  eval ${cmd}
+  eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "call_winsorize"
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 
   echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
   cmd="call_rescale ${final_file} 0 4095"
-  eval ${cmd}
+  eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
     echo
     print_line -  
-    print_error_msg "$(basename ${0})" "call_rescale"
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 else
@@ -233,12 +233,12 @@ fi
 # set dtype to uint16
 echo "Set dtype to UINT16"
 cmd="call_setdtype ${final_file}"
-eval ${cmd}
+eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
   print_line -  
-  print_error_msg "$(basename ${0})" "call_setdtype"
+  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
   exit 1
 fi
 
@@ -258,7 +258,7 @@ if [[ ! -z ${t1map} ]]; then
         ${out_file}_from-T1map_to-T1w_"""
 
       echo " Registering $(basename ${t1map}) to $(basename ${final_file}).."
-      eval ${cmd}
+      eval "${cmd}"
     else  
       echo " Using matrix: \"${genaff}\".."
     fi
@@ -266,7 +266,7 @@ if [[ ! -z ${t1map} ]]; then
     # applying warp
     echo " Applying warp.."
     cmd="call_antsapplytransforms ${final_file} ${t1map} ${t1_reg} ${genaff}"
-    eval ${cmd}
+    eval "${cmd}"
     
     if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
       print_error_msg "$(basename ${0})" "$(basename ${cmd})"
@@ -283,21 +283,21 @@ if [[ ! -z ${t1map} ]]; then
   if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
     echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
     cmd="call_winsorize -l ${lower} -u ${upper} ${t1_reg}"
-    eval ${cmd}
+    eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "call_winsorize"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
 
     echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}5050${RESET}]"
     cmd="call_rescale ${t1_reg} 0 5050"
-    eval ${cmd}
+    eval "${cmd}"
     
     if [[ $? -ne 0 ]]; then
       echo
       print_line -  
-      print_error_msg "$(basename ${0})" "call_rescale"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
   else
@@ -308,7 +308,7 @@ if [[ ! -z ${t1map} ]]; then
   # set dtype to uint16
   echo "Set dtype to UINT16"
   cmd="call_setdtype ${t1_reg}"
-  eval ${cmd}
+  eval "${cmd}"
 fi
 
 echo " Done"

@@ -117,4 +117,4 @@ else
 fi
 
 cmd="bbregister --s ${SUBJECT} --mov ${MOVING} ${CONTRAST} ${init} ${format}"
-print_cmd ${cmd} && eval ${cmd}
+print_cmd "${cmd}" && eval "${cmd}"

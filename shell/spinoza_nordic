@@ -15,7 +15,7 @@ spinoza_nordic
 
 Run NORDIC denoising on whole-brain functional data. Expects a BIDS-like folder structure with the
 magnitude data in 'func' and the phase data in 'phase'. If phase data is not present, we'll attempt
-a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no_nordic' 
+a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no-nordic' 
 folder to denote that not preprocessing has taken place, while keeping the data close. The NORDIC'ed 
 data will be placed in 'func', without any special tags to avoid that fMRIPrep gets confused. How-
 ever, it's likely you've produced the phase output with 'spinoza_scanner2bids', in which case the 
@@ -50,7 +50,7 @@ Arguments:
                 'master', so calling it there will pass on the flag here.
   -o|--ow       overwrite existing files even if "Nordic"-field is populated in json file
   --mag         use magnitude only
-  --no_tsnr     skip tSNR maps before/after NORDIC
+  --no-tsnr     skip tSNR maps before/after NORDIC
   <bids folder> parent directory containing the sub-xxx folders for functional data. Generally, 
                 this should be DIR_DATA_HOME
 
@@ -61,7 +61,7 @@ Example:
 
 Notes:
 - By default, tSNR maps from before/after NORDIC clipped to 100 will be produced and stored in the
-  no_nordic folder as '*desc-tSNRpre_bold.nii.gz' and '*desc-tSNRpost_bold.nii.gz'
+  no-nordic folder as '*desc-tSNRpre_bold.nii.gz' and '*desc-tSNRpost_bold.nii.gz'
 
 ---------------------------------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ do
         sge)
           run_local=0
           ;;   
-        no_tsnr)
+        no-tsnr)
           tsnr_flag=""
           ;;  
         mag)
@@ -293,11 +293,14 @@ for subID in ${search}; do
           eval "${cmd}"
 
           if [[ $? -ne 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_nordic"
+            print_error_msg "$(basename ${0})" "$(basename ${cmd})"
             exit 1
           fi
         else
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mismatch between \"$(basename ${ph_img} ${ph_tag}.nii.gz)\" & \"$(basename ${mag_img} .nii.gz)\""
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "filenaming" "Mismatch between \"$(basename ${ph_img} ${ph_tag}.nii.gz)\" & \"$(basename ${mag_img} .nii.gz)\". Please fix filenames."
+          exit 1
         fi
       else
         echo -e "Found NORDIC tag; ${BOLD_GREEN}${mag_img}${RESET} already NORDIC'ed (use --ow to overwrite)"

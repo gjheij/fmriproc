@@ -34,7 +34,7 @@ Parameters
   --verbose     turn on verbose
   --ix          take number of ev as output name, rather than actual event name. This can be useful
                 in cases where your events consist of long float numbers
-  --phase_onset flag to define the phase from which to extract the onset files. Usually, you have 
+  --phase-onset flag to define the phase from which to extract the onset files. Usually, you have 
                 an experiment with 2 phases: stimulus (0) and inter-trial intervals (1). Sometimes 
                 these phases are swapped, so you can use this flag to tell the function which phase
                 was the stimulus onset
@@ -43,7 +43,7 @@ Example
 ----------
 >>> call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2
 >>> call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2 --ix
->>> call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2/sub-001_task-stim_run-1_events.tsv --phase_
+>>> call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2/sub-001_task-stim_run-1_events.tsv --phase-
     onset 0
 
 ---------------------------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ Example
     phase_onset = 1
 
     try:
-        opts = getopt.getopt(argv,"hi:o:",["help", "in=", "out=", "verbose", "button", "maxdepth=", "exclude=", "filters=", "duration=", "button_duration=","ix", "phase_onset="])[0]
+        opts = getopt.getopt(argv,"hi:o:",["help", "in=", "out=", "verbose", "button", "maxdepth=", "exclude=", "filters=", "duration=", "button-duration=","ix", "phase-onset="])[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)
@@ -88,11 +88,11 @@ Example
             exclude = arg
         elif opt in ("--filters"):
             add_search = arg            
-        elif opt in ("--button_duration"):
+        elif opt in ("--button-duration"):
             button_duration = float(arg)  
         elif opt in ("--ix"):
             from_event = False
-        elif opt in ("--phase_onset"):
+        elif opt in ("--phase-onset"):
             phase_onset = int(arg)
         
     if len(argv) < 1:

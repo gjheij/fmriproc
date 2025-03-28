@@ -43,10 +43,10 @@ Parameters
                     cond in right hemisphere.
     -f|--freeview   Disable FreeView while verifying vertex location. Only do this if you already 
                     know where it's located!
-    -p|--prf_file   File containing the pRF-estimates. Required if '--use-prf' is specified
+    -p|--prf-file   File containing the pRF-estimates. Required if '--use-prf' is specified
     -e|--use_epi    Use EPI intensity data from fmriprep
     --srf           Include size-response functions (SRFs) in criteria
-    --srf_file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
+    --srf-file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
                     for the vertices that survive the initial criterias
     --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and 
                     SRFs are included, this will yield in a 4x5 grid with brainmaps of various 
@@ -105,7 +105,7 @@ Notes
     skip_prf_info = False
 
     try:
-        opts = getopt.getopt(argv,"fuhd:s:t:r:o:b:v:m:n:p:",["help", "deriv=", "sub=", "roi=", "out=", "vert=", "use-prf", "no-freeview", "prf_file=", "use-epi", "srf", "srf_file=", "gallery", "manual", "ctx", "epi_file=", "aparc","skip_prf_info"])[0]
+        opts = getopt.getopt(argv,"fuhd:s:t:r:o:b:v:m:n:p:",["help", "deriv=", "sub=", "roi=", "out=", "vert=", "use-prf", "no-freeview", "prf-file=", "use-epi", "srf", "srf-file=", "gallery", "manual", "ctx", "epi_file=", "aparc","skip-prf-info"])[0]
     except getopt.GetoptError:
         print("ERROR IN ARGUMENT HANDLING!")
         print(main.__doc__)
@@ -123,7 +123,7 @@ Notes
             out = arg
         elif opt in ("-d", "--deriv"):
             deriv = arg
-        elif opt in ("-p", "--prf_file"):
+        elif opt in ("-p", "--prf-file"):
             prf_file = arg
         elif opt in ("--epi_file"):
             epi_file = arg            
@@ -133,13 +133,13 @@ Notes
             use_prf = True                        
         elif opt in ("-f", "--no-freeview"):
             open_fv = False
-        elif opt in ("--skip_prf_info"):
+        elif opt in ("--skip-prf-info"):
             skip_prf_info = True            
         elif opt in ("--vert"):
             verts = arg
         elif opt in ("--srf"):
             srf_flag = True  
-        elif opt in ("--srf_file"):
+        elif opt in ("--srf-file"):
             srf_file = arg
         elif opt in ("--gallery"):
             gallery = True

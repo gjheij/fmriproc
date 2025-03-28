@@ -169,7 +169,7 @@ fi
 n_par_files=($(find ${pathInput} -type f -iname "*par"))
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
-  echo "Found ${#n_par_files[@]} PAR-files, using 'parrec2nii'"
+  echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
   cmd="call_parrec2nii ${prot_flag} -i ${pathInput} -o ${pathOutput}"
   {
     echo "### New invocation of call_parrec2nii @$(date)"
@@ -178,8 +178,14 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
   } >> "$log"
   
   # Convert using parrec2nii (adjust output handling if needed)
-  ${cmd} >> "$log" 2>&1
+  eval "${cmd}" >> "${log}" 2>&1
 
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    exit 1
+  fi
 else
   echo "Assuming DICOM format, using 'dcm2niix'"
   cmd_args=(
@@ -197,10 +203,17 @@ else
     echo "### New invocation of call_dcm2niix @$(date)"
     echo "${cmd}"
     echo
-  } >> "$log"
+  } >> "${log}"
 
   # Assume DICOM and use dcm2niix
-  ${cmd} >> "$log" 2>&1
+  eval "${cmd}" >> "${log}" 2>&1
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    exit 1
+  fi
 
 fi
 

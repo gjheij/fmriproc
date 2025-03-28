@@ -174,7 +174,7 @@ for f in ${ff[@]}; do
     print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? != 0 ]]; then
-      print_error_msg "$(basename ${0})" "call_antsapplytransforms"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
 
@@ -203,7 +203,7 @@ for f in ${qq[@]}; do
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "call_ctxsurfmove"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
 

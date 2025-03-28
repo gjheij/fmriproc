@@ -112,7 +112,7 @@ do
           VERBOSE="--verbose"
           VERB=1
           ;; 
-        no_fsaverage)
+        no-fsaverage)
           do_fsaverage=0
           exec_spaces=("fsnative")
           ;;                            
@@ -194,11 +194,11 @@ if [[ ! -z ${trafos} ]]; then
 
   cmd="call_antsapplytransforms ${VERBOSE} ${INT} ${invert} ${fixed} ${moving} ${out} ${trafos}"
   if [[ ${VERB} -eq 1 ]]; then
-    print_cmd ${cmd}
+    print_cmd "${cmd}"
   fi
 
   # run
-  eval ${cmd}
+  eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"

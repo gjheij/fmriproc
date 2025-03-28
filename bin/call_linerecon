@@ -36,7 +36,7 @@ Arguments:
   <basename>        basename for output. Will automatically store the output in a .mat file, so spe-
                     cify up until .mat
   --debug           don't submit job, just print inputs/outputs
-  -n|--no_nordic    skip NORDIC during reconstruction
+  -n|--no-nordic    skip NORDIC during reconstruction
 
 Example:
   call_linerecon bold.lab lsd.lab func.mat
@@ -61,7 +61,7 @@ do
         debug)
           DEBUG=1
           ;;
-        no_nordic)
+        no-nordic)
           do_nordic="off"
           ;;                                                                      
         *)
@@ -158,9 +158,10 @@ if [[ -f ${RAW} && -f ${LSD} ]]; then
   fi
 
   if [[ ${multiecho} -eq 0 ]]; then
-    # SINGLE-ECHO 
+    # SINGLE-ECHO
+    recon_cmd = "LS_recon_1way"
     (
-      echo "Data_wcsmtSNR = LS_recon_1way(nopy_lab, filelocation, Nc, 'all', TR, gausskernel, 'no', 'wcsmtSNR', nordic, varargin_par);"
+      echo "Data_wcsmtSNR = ${recon_cmd}(nopy_lab, filelocation, Nc, 'all', TR, gausskernel, 'no', 'wcsmtSNR', nordic, varargin_par);"
       echo ""
       echo "save('${OUT}','Data_wcsmtSNR');"
       echo "disp(\"Done\")"
@@ -168,12 +169,13 @@ if [[ -f ${RAW} && -f ${LSD} ]]; then
   
   elif [[ ${multiecho} -eq 1 ]]; then
     ## MULTI-ECHO w/ NORDIC
+    recon_cmd="GELINEME_NORDIC_FastRecon"
     (
       echo "Nechos = ${n_echos};"
       echo "if strcmp(nordic,'off')"
-      echo "Data = GELINEME_NORDIC_FastRecon(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
+      echo "Data = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
       echo "else"
-      echo "[Data, removed_comp] = GELINEME_NORDIC_FastRecon(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
+      echo "[Data, removed_comp] = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
       echo "end"
       echo ""
       echo "TE1 = 6.*10^(-3);"
@@ -188,10 +190,16 @@ if [[ -f ${RAW} && -f ${LSD} ]]; then
   if [[ $DEBUG -eq 0 ]]; then
     echo "Initiating call to Matlab"
     call_matlab ${newrecon} 
+
+    if [[ $? -ne 0 || ! -f "${OUT}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${recon_cmd}" "\"${BOLD_GREEN}${OUT}${RESET} not created\""
+      exit 1
+    fi
   else
     echo "Script: \"${newrecon}\""
   fi
-
 else
 
   if [[ ! -f ${LSD} ]]; then
@@ -202,7 +210,6 @@ else
 
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find ${txt}file"
+  print_error_msg "$(basename ${0})" "find" "Could not find \"${BOLD_GREEN}${txt}${RESET}\"-file"
   exit 1
-
 fi

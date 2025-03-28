@@ -24,11 +24,11 @@ Args:
   -v <VOLUMES>    nr of volumes; 'dim4' if func = *.nii.gz or 'shape[-1]' if *.mat
   -f <FUNC FILE>  functional file that contains information about the number of runs
   -d <DUMMY VOL>  number of dummy volumes before acquisition of actual data (1 dyn is typically 400 vols)
-  --no_tapas      do not run PhysIO-toolbox, only 'scanphyslog2bids'
-  --no_bids       do not run 'scanphyslog2bids'
+  --no-tapas      do not run PhysIO-toolbox, only 'scanphyslog2bids'
+  --no-bids       do not run 'scanphyslog2bids'
   --use_bids      index the final dataframe with BIDS-fields read from the filename. Maps onto 
                   the 'use_bids='-flag in linescanning.dataset.ParsePhysioFile. Default = false
-  --no_plots      skip plots from scanphyslog2bids
+  --no-plots      skip plots from scanphyslog2bids
   <input file>    SCANPHYSLOG-file that you want to convert to text file
 
   <output image   name of output image, including directory
@@ -60,16 +60,16 @@ do
   case ${argument} in
     -)
       case "${OPTARG}" in     
-        no_tapas)
+        no-tapas)
           RUN_MATLAB=0
           ;;   
-        no_bids)
+        no-bids)
           RUN_PHYS=0
           ;;  
         use_bids)
           USE_BIDS=True
           ;;     
-        no_plots)
+        no-plots)
           MAKE_PLOTS=""
           ;;                                      
         *)
@@ -203,7 +203,7 @@ if [[ ${RUN_PHYS} -eq 1 ]]; then
   
   # echo and run
   print_cmd "${cmd}"
-  eval ${cmd}
+  eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): scanphyslog2bids exited with non-zero status"

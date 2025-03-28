@@ -44,16 +44,16 @@ Arguments:
                     nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
                     ces will be left alone. Use '-a all' to keep all runs (not recommended..)     
   --docker          use command 'fmriprep-docker' to invoke docker image               
-  --warp_only       skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
-  --no_boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
+  --warp-only       skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
+  --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
   --sge             run fMRIPrep with singularity-configuration. Default singularity image should 
                     be specified in the setup file (if can with 'spinoza_fmriprep'). Otherwise,
                     use the '-i' flag to point to a singularity image.
   --clean           remove the single-subject workflow folder completely. This saves storage, but comes
                     at the price that it re-runs EVERYTHING if you restart the process.
-  --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
-  --fetch_anat      retrieve the nifti-files in T1w-space
-  --fetch_func      retrieve the nifti-files in func-space
+  --fetch-fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
+  --fetch-anat      retrieve the nifti-files in T1w-space
+  --fetch-func      retrieve the nifti-files in func-space
   --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
                     associated with the timeseries files  
   --fd              retrieve the frame-wise displacement files from the workflow folder
@@ -106,30 +106,30 @@ do
   case ${arg} in
     -)
       case "${OPTARG}" in
-        no_bbr)
+        no-bbr)
           bbr_flag="--force-no-bbr"
           # cannot use no-bbr and header registration so make init variable empty
           BOLD_T1W_INIT=""
           ;;
-        warp_only)
+        warp-only)
           WARP_ONLY=1
           ;;  
         docker)
           USE_DOCKER=1
           ;;            
-        no_boldref)
+        no-boldref)
           BOLDREF=0
           ;;
         clean)
           clean_wd=1
           ;;            
-        fetch_fsl)
+        fetch-fsl)
           fetch_fsl=1
           ;;  
-        fetch_func)
+        fetch-func)
           fetch_func=1
           ;;           
-        fetch_anat)
+        fetch-anat)
           fetch_anat=1
           ;;  
         masks)
@@ -330,7 +330,7 @@ else
     if [[ ! -f ${fprep_container} ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "" "Could not find singularity image \"${fprep_container}\" for fmriprep.."
+      print_error_msg "$(basename ${0})" "find" "Could not find singularity image \"${fprep_container}\" for fmriprep.."
       exit 1
     fi 
 
@@ -441,13 +441,12 @@ ${run_cmd} \
 """
 
   # execute
-  print_cmd ${cmd}
-  eval ${cmd}
+  print_cmd "${cmd}" && eval "${cmd}"
   
   if [[ $? != 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "${cmd}" "Job submission/execution was unsuccessful."
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Job submission/execution was unsuccessful."
     exit 1
   fi   
 

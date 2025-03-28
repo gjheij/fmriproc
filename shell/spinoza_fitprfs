@@ -17,9 +17,9 @@ Wrapper for call_prf that does the pRF-fitting using the output from pybest and 
 There's several options for design matrix cases (in order of priority):
   - Place a design-matrix file called 'design_task-<TASK_NAME>.mat' in DIR_DATA_HOME/code
   - A directory with log-directories. A global search for a directory containing "Screenshots" is 
-    done. If more directories are found and '--one_design' is specified, we'll take the first dir
+    done. If more directories are found and '--one-design' is specified, we'll take the first dir
     ectory
-  - A directory with log-directories, but '--one_design' is NOT specified, meaning that each run 
+  - A directory with log-directories, but '--one-design' is NOT specified, meaning that each run 
     will get a separate design matrix. This can be useful if you have multiple conditions that have 
     different designs.
 
@@ -63,23 +63,23 @@ Options:
   --bold          re-calculate the BOLD timecourses; otherwise use existing '*hemi-LR_desc-avg_bold.npy'   
   --fsaverage     overwrite PYBEST_SPACE-variable and use FSAverage for fitting (see your setup file)
   --fsnative      overwrite PYBEST_SPACE-variable and use FSNative for fitting (see your setup file)
-  --fix_hrf       fit the HRF going from Gaussian iterative fit to further fitting
+  --fix-hrf       fit the HRF going from Gaussian iterative fit to further fitting
   --grid          only run grid fit, skip iterative fit
-  --no_hrf        do NOT fit the HRF during pRF-fitting. See 'call_prf' for more information
-  --separate_hrf  fit the HRF in two stages. See 'call_prf' for more information
+  --no-hrf        do NOT fit the HRF during pRF-fitting. See 'call_prf' for more information
+  --separate-hrf  fit the HRF in two stages. See 'call_prf' for more information
   --local         run locally even though we have SGE available.
-  --merge_ses     average pRF data from all sessions
-  --multi_design  specifies that for all runs in the dataset have run-/task-specific screenshot di-
+  --merge-ses     average pRF data from all sessions
+  --multi-design  specifies that for all runs in the dataset have run-/task-specific screenshot di-
                   rectories. This requires that the directory names you saved must match your naming 
                   scheme of functional files as we'll match on run-/task-ID
   --nelder        Use Nelder-Mead method for minimization.
                   Use the '-x' flag if you want different minimizers for both stages
-  --no_clip       ensures that the design matrix is NOT clipped, despite the possible presence of 
+  --no-clip       ensures that the design matrix is NOT clipped, despite the possible presence of 
                   screen delimiter files
-  --no_fit        Stop the process before fitting, right after saving out averaged data. This was use-
+  --no-fit        Stop the process before fitting, right after saving out averaged data. This was use-
                   ful for me to switch to percent-signal change without requiring a re-fit.
-  --save_grid     Save out gridsearch parameters
-  --no_bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter bounds, 
+  --save-grid     Save out gridsearch parameters
+  --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter bounds, 
                   causing 'inf' values. This is especially troublesome when fitting a single time-
                   course. If you trust your iterative fitter, you can turn off the bounds and let 
                   the iterative take care of the parameters
@@ -95,7 +95,7 @@ Options:
                   maintained, but timecourses outside of the ROI are set to zero
   --sge           submit job to cluster (SGE/SLURM)
 
-Arguments:
+Positional:
   <input dir>     base input directory with pybest data (e.g., 'DIR_DATA_DERIV/pybest'). You can also 
                   point to the fmriprep-folder, in which case the gifti's of 'fsnative' will be used.
   <output dir>    base output directory for prf data (e.g., 'DIR_DATA_DERIV/prf')
@@ -104,7 +104,7 @@ Arguments:
                   we'll search for directories with 'Screenshots'. So, if you specify DIR_DATA_SOURCE 
                   for 'sub-005' and 'ses-1', we'll search in DIR_DATA_SOURCE/sub-005/ses-1/* for di-
                   rectories with "Screenshots". If multiple directories are found, it depends on the 
-                  options which directory is used: if --multi_design is specified, each directory will 
+                  options which directory is used: if --multi-design is specified, each directory will 
                   be matched with its corresponding functional run. If not, we'll take the 1st direc-
                   tory in the list.
 
@@ -117,7 +117,7 @@ Models for pRF fitting:
 Eample:
   spinoza_fitprfs DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
   spinoza_fitprfs -s 001 -n 1 DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-  spinoza_fitprfs --multi_design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
+  spinoza_fitprfs --multi-design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
   spinoza_fitprfs -g -l DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
   spinoza_fitprfs -o DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
 
@@ -166,14 +166,14 @@ do
   case ${argument} in
     -)
       case "${OPTARG}" in
-        multi_design)
+        multi-design)
           multi_design=1
           ;;           
-        no_hrf)
-          fit_hrf="--no_hrf"
+        no-hrf)
+          fit_hrf="--no-hrf"
           ;;  
-        separate_hrf)
-          fit_hrf="--separate_hrf"
+        separate-hrf)
+          fit_hrf="--separate-hrf"
           ;;             
         gauss)
           model="gauss"
@@ -202,7 +202,7 @@ do
         verbose)
           verb_flag="--verbose"
           ;;
-        no_clip)
+        no-clip)
           clip=0
           ;;    
         local)
@@ -220,11 +220,11 @@ do
         bgfs)
           use_constr="--bgfs"
           ;;    
-        no_fit)
-          fit_flag="--no_fit"
+        no-fit)
+          fit_flag="--no-fit"
           ;;      
-        save_grid)
-          save_grid="--save_grid"
+        save-grid)
+          save_grid="--save-grid"
           ;;            
         v1)
           lbl_flag="--v1"
@@ -232,11 +232,11 @@ do
         v2)
           lbl_flag="--v2"
           ;;      
-        no_bounds)
-          bounds_flag="--no_bounds"
+        no-bounds)
+          bounds_flag="--no-bounds"
           ;;     
-        merge_ses)
-          merge_flag="--merge_ses"
+        merge-ses)
+          merge_flag="--merge-ses"
           ses_id="avg"
           ;;        
         fsaverage)
@@ -251,14 +251,14 @@ do
         bold)
           redo_bold="--bold"
           ;;        
-        skip_settings)
-          skip_flag="--skip_settings"
+        skip-settings)
+          skip_flag="--skip-settings"
           ;;     
         transpose)
           trans_flag="--transpose"
           ;; 
-        fix_hrf)
-          fix_hrf="--fix_hrf"
+        fix-hrf)
+          fix_hrf="--fix-hrf"
           ;;
         sge)
           run_local=0
@@ -289,7 +289,7 @@ do
           ;;               
     x)  use_constr="--constr [${OPTARG[@]}]"
           ;;
-    v)  cut_vols="--cut_vols ${OPTARG[@]}"
+    v)  cut_vols="--cut-vols ${OPTARG[@]}"
           ;;        
     k)  kwargs_file="--kwargs ${OPTARG}"
           ;;       
@@ -381,7 +381,7 @@ for subID in ${search}; do
       pyb_flag=""
     else
       full_input=${input_dir}
-      pyb_flag="--pyb_type ${use_dir}"
+      pyb_flag="--pyb-type ${use_dir}"
     fi
   elif [[ $(basename ${INPUT}) == "fmriprep" ]]; then
     # internally, call_prf uses utils.FindFiles, which searches for files recursively. No futher addition is required
@@ -452,8 +452,8 @@ for subID in ${search}; do
             if [[ ! -z ${task_ID} ]]; then
               echo
               print_line -
-              echo "WARNING in $(basename ${0}): custom task \"${task_ID}\" was/were specified, but \"--multi_design\"-flag omitted."
-              echo "This may result in selection of the wrong png-folder. Please rerun with \"--multi_design\""
+              echo "WARNING in $(basename ${0}): custom task \"${task_ID}\" was/were specified, but \"--multi-design\"-flag omitted."
+              echo "This may result in selection of the wrong png-folder. Please rerun with \"--multi-design\""
               exit 2
             fi
 
@@ -515,7 +515,7 @@ for subID in ${search}; do
 
           echo "Using \"${use_pngdir}\" for design matrix"
 
-          # check if we have screen delimiter file (should be json file) if clip=1 (can be set to 0 by --no_clip)
+          # check if we have screen delimiter file (should be json file) if clip=1 (can be set to 0 by --no-clip)
           if [[ ${clip} -eq 1 ]]; then
 
             # check if we got manual clip information
@@ -589,7 +589,15 @@ for subID in ${search}; do
           fi
 
           # decide job
-          job="$(decide_job_type "call_prf" "${base}_task-${task}_model-${model}" "${run_local}" "${prf_dir}" "${n_cpus}" "${SGE_QUEUE}")"
+          job="$(
+            decide_job_type \
+              "${script_name}" \
+              "${base}_task-${task}_model-${model}" \
+              "${run_local}" \
+              "${prf_dir}" \
+              "${n_cpus}" \
+              "${SGE_QUEUE}"
+          )"
 
           # define call to call_prf
           export DISPLAY=:0
@@ -602,8 +610,8 @@ for subID in ${search}; do
             -p ${use_pngdir} \
             -u ${use_space} \
             --${use_model} \
-            --n_jobs ${n_cpus} \
-            --n_pix ${n_pix} \
+            --jobs ${n_cpus} \
+            --n-pix ${n_pix} \
             ${pyb_flag} \
             ${folds_flag} \
             ${tr_flag} \
@@ -624,21 +632,21 @@ for subID in ${search}; do
             ${redo_bold} \
             ${skip_flag} \
             ${trans_flag} \
-            ${par_flag}\
+            ${par_flag} \
             ${fix_hrf}"""
 
           if [[ ${run_local} -eq 1 ]]; then
-            print_cmd ${cmd}
+            print_cmd "${cmd}"
           fi
 
-          cmd_file=${prf_dir}/sub-${sub_id}_ses-${nr}_task-${task}_desc-command.txt
+          cmd_file="${prf_dir}/sub-${sub_id}_ses-${nr}_task-${task}_desc-command.txt"
           (
-            echo "### New invocation of call_prf @$(date)"
-            echo "$(echo ${cmd} | tr '\n' ' ')"
+            echo "### New invocation of ${script_name} @$(date)"
+            echo "$(echo ${cmd} | xargs)"
             echo
-          ) >> ${cmd_file}
+          ) >> "${cmd_file}"
 
-          eval ${cmd}
+          eval "${cmd}"
           if [[ $? -ne 0 ]]; then
             echo
             print_line -

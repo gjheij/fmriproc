@@ -272,9 +272,7 @@ for subID in ${search}; do
           ${moving} \
           ${output_dir}/${base}_${ext}"""
 
-        echo -e "$(print_cmd ${cmd} | tr '\n' ' ')"
-        # eval ${cmd}
-
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ $? -ne 0 || ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
 
           # debugging purposes
@@ -283,7 +281,7 @@ for subID in ${search}; do
             print_line -
           fi
 
-          print_error_msg "$(basename ${0})" "call_antsregistration" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
           exit 1
         fi
 
@@ -336,10 +334,10 @@ for subID in ${search}; do
             fi          
             echo " creating \"${output}\""
             cmd="call_antsapplytransforms -i ${invert} ${fixed_file} ${in_file} ${output} ${matrices}"
-            eval ${cmd}
+            eval "${cmd}"
 
             if [[ $? -ne 0 ]]; then
-              print_error_msg "$(basename ${0})" "call_antsapplytransforms"
+              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
               exit 1
             fi
           else

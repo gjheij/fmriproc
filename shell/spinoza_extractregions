@@ -241,15 +241,16 @@ for subID in ${search}; do
       if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
 
         print_create_img "${output}" "Suffix=\"${suff}\""
-        call_nighresextractregions \
+        cmd="""call_nighresextractregions \
           -s "${INPUTS[0]}" \
           -b "${INPUTS[1]}" \
           -p "${INPUTS[2]}" \
           -l "${INPUTS[3]}" \
           -r "${REGION}" \
           -o "${region_dir}" \
-          -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
+          -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)""""
 
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -

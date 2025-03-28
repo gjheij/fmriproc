@@ -70,13 +70,13 @@ Flagged arguments:
   --as          run affine+SyN registration
   --ras         run rigid+affine+SyN [default if '--syn' is specified]
   --histo       maps to '--use-histogram-matching', sets it to True
-  --no_collapse maps to '--collapse-output-transforms', sets it to False (default = True). safest 
+  --no-collapse maps to '--collapse-output-transforms', sets it to False (default = True). safest 
                 bet is to keep --collapse-output-transforms to 1 so you always get the same output 
-                regardless of affine or rigid registration (with --no_collapse & rigid body, the
+                regardless of affine or rigid registration (with --no-collapse & rigid body, the
                 output suffix is '0Rigid', rather than '0GenericAffine'). In the latter, all linear
                 transformations are collapsed in the same file, which makes filenaming later on more
                 predictable.
-  --no_winsor   don't winsorize the image prior to registration
+  --no-winsor   don't winsorize the image prior to registration
 
 Positional arguments (after options):
   <reference>   Reference image (nii/nii.gz/mgz)
@@ -201,10 +201,10 @@ do
           VERBOSE="--verbose 1"
           VERB=1
           ;;
-        no_collapse)
+        no-collapse)
           collapse_output=0
           ;;        
-        no_winsor)
+        no-winsor)
           winsorize=0
           ;;
         ofsl)
@@ -548,17 +548,17 @@ function syn_ {
 
 # add individual stages
 if [[ ${TYPE,,} == "rigid" ]]; then
-  cmd+=" `rigid_`"
+  cmd+=" $(rigid_)"
 elif [[ ${TYPE,,} == "affine" ]]; then
-  cmd+=" `affine_`"
+  cmd+=" $(affine_)"
 elif [[ ${TYPE,,} == "syn" ]]; then
   if [[ ${ras} -eq 1 ]]; then
-    cmd+=" `rigid_`"
-    cmd+=" `affine_`"
-    cmd+=" `syn_`"
+    cmd+=" $(rigid_)"
+    cmd+=" $(affine_)"
+    cmd+=" $(syn_)"
   elif [[ ${as} -eq 1 ]]; then
-    cmd+=" `affine_`"
-    cmd+=" `syn_`"
+    cmd+=" $(affine_)"
+    cmd+=" $(syn_)"
   fi
 else
   echo "Unknown registration type \"${TYPE}\" specified"
@@ -569,7 +569,7 @@ fi
 if [[ ${VERB} -eq 1 ]]; then
   echo "antsRegistration call:"
   print_line -
-  print_cmd ${cmd}
+  print_cmd "${cmd}"
   echo
 fi
 
@@ -578,15 +578,15 @@ cmd_f=${OUT}command.txt
 if [ -f ${cmd_f} ]; then
   rm ${cmd_f} 2>/dev/null
 fi
-echo ${cmd} >> ${OUT}command.txt
+echo "${cmd}" >> ${OUT}command.txt
 
 # Execute command
-eval ${cmd}
+eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "antsRegistration"
+  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
   exit 1
 fi
 
@@ -615,11 +615,11 @@ if [[ ${fsl_fmt} -eq 1 ]]; then
   if [[ ${VERB} -eq 1 ]]; then
     echo "ras2fsl call:"
     print_line -
-    print_cmd ${cmd}
+    print_cmd "${cmd}"
     echo
   fi
 
-  ${cmd}
+  eval "${cmd}"
 fi
 
 # remove temporary file

@@ -206,20 +206,21 @@ for subID in ${search}; do
       print_subject_header ${sub_name}
       
       print_create_img "${output}" "N_layers=${nr_layers}"
-      call_nighreslayering \
+      cmd="""call_nighreslayering \
         -i ${INPUTS[0]} \
         -o ${INPUTS[1]} \
         -l ${nr_layers} \
         -d $(dirname ${output_root}) \
-        -n $(basename ${output_root})
+        -n $(basename ${output_root})"""
+
+      print_cmd "${cmd}" && eval "${cmd}"
 
       if [[ $? != 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "call_nighreslayering"
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi
-
     else
       print_output_exists "${sub_name}" "${output}"
     fi
@@ -266,13 +267,12 @@ for subID in ${search}; do
       
       # run command
       echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
-      print_cmd ${run_cmd}
-      eval ${run_cmd}
+      print_cmd "${run_cmd}" && eval "${run_cmd}"
 
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "${CMD}"
+        print_error_msg "$(basename ${0})" "$(basename ${run_cmd})"
         exit 1
       fi
 

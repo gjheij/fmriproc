@@ -185,11 +185,13 @@ for subID in ${search}; do
         echo " -mask: ${inv2_mask}"
         echo " -out:  ${out_prob}"
 
-        call_nighresdura \
+        cmd="""call_nighresdura \
           -i "${inv2}" \
           -m "${inv2_mask}" \
           -o "${outdir_dura}" \
-          -b "${output_root}"
+          -b "${output_root}""""
+        
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ -f ${out_prob} ]]; then
           mv "${out_prob}" "${output_dura}"
@@ -197,7 +199,7 @@ for subID in ${search}; do
           if [[ $? -ne 0 ]]; then
               echo
               print_line -
-              print_error_msg "$(basename ${0})" "call_nighresdura"
+              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
               exit 1
           fi
         fi
@@ -257,19 +259,21 @@ for subID in ${search}; do
 
     output_skullnighres=${outdir_skull}/${output_root}_strip_mask.nii.gz
     if [[ ! -f ${output_skullnighres} ]]; then
-      call_nighresskullstrip \
+      cmd="""call_nighresskullstrip \
         -i ${inv2} \
         -t ${t1w} \
         -m ${t1map} \
         -o ${outdir_skull} \
-        -b ${output_root}
+        -b ${output_root}"""
+
+      print_cmd "${cmd}" && eval "${cmd}"
       
-        if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "call_nighresskullstrip"
-          exit 1
-        fi
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        exit 1
+      fi
     else
       echo "Found nighres output for skullstripping module"
     fi
@@ -281,7 +285,7 @@ for subID in ${search}; do
       if [[ ! -f ${outdir_skull}/${output_root}-strip_${f}.nii.gz ]]; then
         if [[ ! -z ${out} ]]; then
           mv ${out} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
-          fslcpgeom ${inv2} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
+          call_copyheader ${inv2} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
         else
           print_file_not_in_dir "${sub_name}" "${f}" "${outdir_skull}"
         fi

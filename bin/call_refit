@@ -34,7 +34,7 @@ Arguments:
     -d|--dm     <design matrix>     path to design matrix
     -o|--out    <prf dir>           output directory containing pRF-stuff, defaults to dirname out
                                     bold data
-    -j|--n_jobs <nr of jobs>        number of jobs to parallellize over (default = 5)
+    -j|--jobs <nr of jobs>          number of jobs to parallellize over (default = 5)
     -m|--model  <model type>        one of ['gauss','dog','css','norm'], default = 'gauss'. You can 
                                     also call models with '--gauss', '--dog', '--css', or '--norm'
                                     (see below).
@@ -46,7 +46,7 @@ Arguments:
                                     tion fitting by using L-BGFS ('bgfs'). To specify a list, use 
                                     the format '-c [tc,bgfs]'. Use --tc or --bgfs to sync the mini-
                                     mizers across stages
-    --cut_vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
+    --cut-vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
                                     Default is 0, but sometimes it's good to get rid of the initial
                                     transient
     --old <file>                    file containing parameters that needs refitting
@@ -56,7 +56,7 @@ Arguments:
 Options:                                  
     --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. Use 
                     the -x flag if you want different minimizers for both stages                      
-    --clip          clip the edges of design matrix in the space of 'n_pix' (by default = 100). You 
+    --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
                     will need to calculate how many pixels are to be set to zero given the visual 
                     field of the subject in the scanner (with a screensize of [1920,1080]px and 
                     height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
@@ -67,18 +67,18 @@ Options:
                     object of that fit is inserted as `previous_gaussian_fitter` into a new fitter 
                     object with HRF estimation turned on. Default = False.
                     This will ensure the baseline of periods without stimulus are set to zero.
-    --no_bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
+    --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
                     bounds, causing 'inf' values. This is especially troublesome when fitting a
                     single timecourse. If you trust your iterative fitter, you can turn off the 
                     bounds and let the iterative take care of the parameters
-    --no_fit        only initiate object and do not execute fit; useful for debugging reasons
+    --no-fit        only initiate object and do not execute fit; useful for debugging reasons
     --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
                     del. 
                     Use the -x flag if you want different minimizers for both stages
     -v|--verbose    print some stuff to a log-file
     --transpose     transpose data for fitter object. Format needs to be (voxels,time). You'll get
                     an error saying the shapes do not match up. In that case, try this flag
-    --skip_settings avoids overwriting of particular settings (e.g., screen_distance_cm), and takes
+    --skip-settings avoids overwriting of particular settings (e.g., screen_distance_cm), and takes
                     them from the reference analysis file instead
 Models:
     --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
@@ -107,7 +107,7 @@ Example:
     skip_settings = False
 
     try:
-        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "hrf", "n_pix=", "clip=", "verbose", "file_ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no_fit", "raw", "cut_vols=", "v1", "v2", "save_grid", "merge_ses", "n_jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "in=", "old=", "dm=", "transpose", "skip_settings"])[0]
+        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "in=", "old=", "dm=", "transpose", "skip-settings"])[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)
@@ -131,7 +131,7 @@ Example:
             kwargs_file = arg
         elif opt in ("-v", "--verbose"):
             verbose = True
-        elif opt in ("-j", "--n_jobs"):
+        elif opt in ("-j", "--jobs"):
             n_jobs = int(arg)
         elif opt in ("--gauss"):
             model = "gauss" 
@@ -151,15 +151,15 @@ Example:
             constraints = "bgfs"
         elif opt in ("--constr"):
             constraints = utils.string2list(arg)
-        elif opt in ("--no_bounds"):
+        elif opt in ("--no-bounds"):
             grid_bounds = False  
-        elif opt in ("--no_fit"):
+        elif opt in ("--no-fit"):
             do_fit = False                    
         elif opt in ("--tr"):
             tr = float(arg)        
         elif opt in ("--transpose"):
             transpose = True         
-        elif opt in ("--skip_settings"):
+        elif opt in ("--skip-settings"):
             skip_settings = True                                                             
 
     if len(argv) < 2:
@@ -215,7 +215,7 @@ Example:
     if do_fit:
         stage1.fit()
     else:
-        print("Skipping fit; '--no_fit' was passed")
+        print("Skipping fit; '--no-fit' was passed")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -170,7 +170,7 @@ cmd="""${job} \
 
 # echo command
 if [[ ${run_local} -eq 1 || ${debug} -eq 1 ]]; then
-  print_cmd ${cmd}
+  print_cmd "${cmd}"
 fi
 
 # execute
@@ -181,5 +181,5 @@ if [[ ${debug} -eq 0 ]]; then
   echo "$(echo ${cmd} | tr '\n' ' ')"
   echo ""
   ) >> ${log_file}
-  eval ${cmd}
+  eval "${cmd}"
 fi

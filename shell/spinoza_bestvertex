@@ -63,10 +63,10 @@ Args:
                     'transversetemporal'
                     'insula'
   --full          full overwrite mode
-  --no_freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
+  --no-freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
                   already know the position. Generally only used for debugging purposes.
-  --no_srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
-  --srf_file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
+  --no-srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
+  --srf-file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
                   pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/sub-001_desc-srfs_centered.csv')        
   --v1|--v2       use the pRF-estimates that you created with spinoza_fitprfs --v1/--v2
   --grid          use pRF-estimates from grid search; default is 'iter'
@@ -74,8 +74,8 @@ Args:
                   are included, this will yield in a 4x5 grid with brainmaps of various kinds that 
                   were used in the selection process of the target vertex.
   --manual        use manual selection for the vertex, rather than minimizing for curvature     
-  --no_epi        do not use EPI-intensities even though you could   
-  --skip_prf_info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
+  --no-epi        do not use EPI-intensities even though you could   
+  --skip-prf-info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
                   you want an indication of the pRF-properties, but want to refit yourself. This is 
                   the case where I use M. Aqil's fitting output, which has been fitted with an out-
                   dated screen distance.      
@@ -153,7 +153,7 @@ do
   case ${argument} in
     -)
       case "${OPTARG}" in
-        no_freeview)
+        no-freeview)
           fv_flag="--no-freeview"
           ;;     
         grid)
@@ -191,10 +191,10 @@ do
         full)
           FULL_OW=1
           ;;                           
-        no_srf)
+        no-srf)
           SRF=0
           ;;  
-        srf_file)
+        srf-file)
           srf_file=1
           ;; 
         gallery)
@@ -206,11 +206,11 @@ do
         ctx)
           open_with="--ctx"
           ;;     
-        no_epi)
+        no-epi)
           epi=0
           ;;     
-        skip_prf_info)
-          skip_prf_info="--skip_prf_info"
+        skip-prf-info)
+          skip_prf_info="--skip-prf-info"
           ;;                                                                      
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
@@ -351,9 +351,9 @@ for subID in ${search}; do
 
       if [[ ${srf_file} -eq 1 ]]; then
         srf_file=$(find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null)
-        srf_file_flag="--srf_file ${srf_file}"
+        srf_file_flag="--srf-file ${srf_file}"
         if [[ -z ${srf_file} ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"--srf_file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
+          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"--srf-file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
           exit 1
         fi
       else
@@ -388,13 +388,12 @@ for subID in ${search}; do
       ${aparc_flag} \
       ${skip_prf_info}"""
     
-    print_cmd ${cmd}
-    eval ${cmd}
+    print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "call_targetvertex"
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
       exit 1
     fi
 

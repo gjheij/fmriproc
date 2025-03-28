@@ -24,8 +24,8 @@ to keep it as simple as possible without making it similar to the fmriprep call 
 for customizable options.
 
 Arguments:
---anat_only       Only include anatomical images in the process (default is everything it can find)
---func_only       Only include functional images in the process (default is everything it can find)
+--anat-only       Only include anatomical images in the process (default is everything it can find)
+--func-only       Only include functional images in the process (default is everything it can find)
 -s <sub number>   number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
                   enter "001"); use 'group' if you want group statistics
 --fd              only get FD(VARS)-timecourse file(s) without initializing MRIqc
@@ -59,10 +59,10 @@ do
   case ${arg} in
     -)
       case "${OPTARG}" in     
-        anat_only)
+        anat-only)
           mod_flag="--modalities T1w T2w"
           ;;   
-        func_only)
+        func-only)
           mod_flag="--modalities bold"
           ;;     
         fd)
@@ -165,7 +165,7 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# check if fd_only flag is not set
+# check if fd flag is not set
 if [[ ${fd_only} -eq 0 ]]; then
 
   # Define command line
@@ -182,7 +182,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     if [[ ! -f ${mriqc_container} ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "" "Could not find singularity image \"${mriqc_container}\" for MRIqc.."
+      print_error_msg "$(basename ${0})" "find" "Could not find singularity image \"${mriqc_container}\" for MRIqc.."
       exit 1
     fi 
 
@@ -217,12 +217,12 @@ if [[ ${fd_only} -eq 0 ]]; then
 
   # execute
   print_cmd "${cmd}"
-  eval ${cmd} 
+  eval "${cmd}" 
 
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "MRIqc"
+    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
     exit 1
   fi
 
@@ -257,7 +257,7 @@ if [[ ! -z ${html_files} ]]; then
       base_path="sub-${subj_ID}"
       for ii in "sub" "ses" "task" "run" "acq" "rec" "desc"; do
 
-        el=`get_id $(basename ${ht}) ${ii}`
+        el=$(get_id $(basename ${ht}) ${ii})
         if [ ! -z ${el} ]; then
           if [[ ${ct} -eq 0 ]]; then
             search_for+="\"${ii}-${el}\""

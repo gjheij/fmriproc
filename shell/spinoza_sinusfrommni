@@ -141,8 +141,7 @@ for subID in ${search}; do
 
             # mask t2 with brain mask
             cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
-            print_cmd ${cmd}
-            eval ${cmd}
+            print_cmd "${cmd}" && eval "${cmd}"
             if [[ $? -ne 0 ]]; then
               echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
@@ -151,8 +150,7 @@ for subID in ${search}; do
             # threshold
             cmd="""fslmaths $(dirname ${t2})/tmp_$(basename ${t2}) -uthr 10000 -bin ${fn_nuisance}"""
             echo
-            print_cmd ${cmd}
-            eval ${cmd}
+            print_cmd "${cmd}" && eval "${cmd}"
             if [[ $? -ne 0 ]]; then
               echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
               exit 1
@@ -169,8 +167,7 @@ for subID in ${search}; do
                 --t2 ${t2} \
                 -o ${pn_anat}/${base}_acq-${DATA^^}"""
 
-              print_cmd ${cmd}
-              eval ${cmd}
+              priprint_cmd "${cmd}" && eval "${cmd}"
               if [[ $? -ne 0 ]]; then
                 echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_t12ratio exited with non-zero status"
                 exit 1
@@ -206,23 +203,21 @@ for subID in ${search}; do
             # got affine registration
             cmd="""call_antsapplytransforms --gen ${fn_nuisance} ${mni_mask} ${fn_mni} ${mat_file}"""
             echo
-            print_cmd ${cmd}
-            eval ${cmd}
+            print_cmd "${cmd}" && eval "${cmd}"
 
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi      
           else
-            echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing warp-files for call_antsapplytransforms"
+            print_file_not_exist "${sub_name}" "warp"
             continue
           fi
 
         else
-          echo -e "${BOLD_CYAN}${sub_name}${RESET}: missing ${BOLD_GREEN}${fn_nuisance}${RESET}"
+          print_file_not_exist "${sub_name}" "${BOLD_GREEN}${fn_nuisance}${RESET}"
           continue
         fi
-
       fi
 
       if [[ ! -f ${fn_out} ]]; then
@@ -230,13 +225,12 @@ for subID in ${search}; do
           echo
           echo "Multiplying template mask with nuisance-image"
           cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
-          print_cmd ${cmd}
-          eval ${cmd}
+          print_cmd "${cmd}" && eval "${cmd}"
 
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" "fslmaths"
+            print_error_msg "$(basename ${0})" "$(basename ${cmd})"
             exit 1
           fi
 

@@ -82,7 +82,7 @@ manage_fmriprep_workdir() {
   wf_folder=$(find "${workdir}" -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
 
   # Remove surface reconstruction workflow if specified
-  if [[ "${remove_surf_wf}" -eq 1 ]]; then
+  if [[ "${remove-surf-wf}" -eq 1 ]]; then
     echo "Removing \"${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf\""
     rm -r "${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf" 2>/dev/null
   elif [[ "${remove_wf}" -eq 1 ]]; then
@@ -244,24 +244,24 @@ Options:
                     input folder will be set to DIR_DATA_HOME by default. The T1w that is present in the
                     'anat'-folder will be used as input.
   --fd              only fetch framewise displacement files
-  --fetch_anat      retrieve the nifti-files in T1w-space
-  --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
-  --fetch_func      retrieve the nifti-files in func-space
+  --fetch-anat      retrieve the nifti-files in T1w-space
+  --fetch-fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
+  --fetch-func      retrieve the nifti-files in func-space
   --func            same as '-t func'
   --sge             submit to SGE, if present.
-  --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
+  --masks           used in combination with '--fetch-{fsl|func|anat}' to also fetch the brain masks
                     associated with the timeseries files
-  --no_bbr          maps to '--force-no-bbr' in call_fmriprep
-  --no_boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
+  --no-bbr          maps to '--force-no-bbr' in call_fmriprep
+  --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
   --ow              only removes folders within single_subj workflow with "run-". If specific runs are 
                     requested with '-r', only these folders will be removed
-  --remove_surf_wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
+  --remove-surf-wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
                     gistration and transformation
-  --remove_wf       remove full single_subject workflow folder. Use \"--remove_surf_wf\" to specifically 
+  --remove-wf       remove full single_subject workflow folder. Use \"--remove-surf-wf\" to specifically 
                     remove the surface reconstruction folder when you have new FreeSurfer output that 
                     fMRIPrep needs to use, or "--ow" to remove all folders within single_subj workflow
                     with "run-"
-  --warp_only       skips fMRIPrep, but creates new boldref images (if '--no_boldref' is not specified) 
+  --warp-only       skips fMRIPrep, but creates new boldref images (if '--no-boldref' is not specified) 
                     and copies the bold-to-T1w warps to the subject's output folder
 
 Example:
@@ -310,25 +310,25 @@ do
 case ${argument} in
     -)
       case "${OPTARG}" in
-        no_bbr)
-          bbr_flag="--no_bbr"
+        no-bbr)
+          bbr_flag="--no-bbr"
           ;;        
         docker)
           docker_flag="--docker"
           ;;            
-        warp_only)
-          warp_only="--warp_only"
+        warp-only)
+          warp_only="--warp-only"
           ;;   
         sge)
           run_local=0
           ;;   
-        no_boldref)
-          boldref_flag="--no_boldref"
+        no-boldref)
+          boldref_flag="--no-boldref"
           ;;   
-        remove_wf)
+        remove-wf)
           remove_wf=1
           ;;                
-        remove_surf_wf)
+        remove-surf-wf)
           remove_surf_wf=1
           ;;            
         func)
@@ -340,14 +340,14 @@ case ${argument} in
         clean)
           clean_wd="--clean"
           ;;          
-        fetch_fsl)
-          fsl_flag="--fetch_fsl"
+        fetch-fsl)
+          fsl_flag="--fetch-fsl"
           ;;          
-        fetch_func)
-          func_flag="--fetch_func"
+        fetch-func)
+          func_flag="--fetch-func"
           ;; 
-        fetch_anat)
-          anat_flag="--fetch_anat"
+        fetch-anat)
+          anat_flag="--fetch-anat"
           ;;          
         masks)
           mask_flag="--masks"
@@ -500,11 +500,11 @@ for subID in ${search}; do
 
     # echo cmd
     if [[ ${run_local} -eq 1 ]]; then
-      print_cmd ${cmd}
+      print_cmd "${cmd}"
     fi
 
     # run
-    eval ${cmd}
+    eval "${cmd}"
     
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "${cmd}"

@@ -35,7 +35,7 @@ Args:
 
 Optional args:
     --verbose                   print some stuff to the terminal
-    --skip_bg                   do not attempt to remove the noise structure around the brain (in
+    --skip-bg                   do not attempt to remove the noise structure around the brain (in
                                 case of MPRAGE image)
 
 Outputs:
@@ -45,7 +45,7 @@ Outputs:
 Example:
     call_createmask -i inv2.nii.gz -o spm_mask.nii.gz # no t1
     call_createmask --input inv2.nii.gz --output spm_mask.nii.gz --t1 t1w.nii.gz # add t1
-    call_createmask -i t1w.nii.gz -o spm_mask.nii.gz --skip_bg # skip background stuff
+    call_createmask -i t1w.nii.gz -o spm_mask.nii.gz --skip-bg # skip background stuff
 ---------------------------------------------------------------------------------------------------
     """
     
@@ -58,7 +58,7 @@ Example:
     upper = 0.99
 
     try:
-        opts = getopt.getopt(argv, "hi:o:t:u:l:", ["help", "input=", "output=", "t1=", "skip_bg", "verbose", "lower=", "upper="])[0]
+        opts = getopt.getopt(argv, "hi:o:t:u:l:", ["help", "input=", "output=", "t1=", "skip-bg", "verbose", "lower=", "upper="])[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
         print(main.__doc__)
@@ -78,7 +78,7 @@ Example:
             lower = float(arg)               
         elif opt in ("-t", "--t1"):
             t1_file = os.path.abspath(arg)
-        elif opt in ("--skip_bg"):
+        elif opt in ("--skip-bg"):
             apply_mask = False
         elif opt in ("--verbose"):
             verbose = True         

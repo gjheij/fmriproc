@@ -23,7 +23,7 @@ for B1 inhomogenieties using a B1 map (Marques et al., 2014)
 
 Args:
     -i (--inv2=)        2nd inversion image
-    -s (--inv2_mask=)   mask of inv2
+    -s (--inv2-mask=)   mask of inv2
     -o (--outputdir=)   output directory
     -b (--outputbase=)  base name for outputs
 
@@ -46,7 +46,7 @@ Example:
     outputbase  = ''
 
     try:
-        opts = getopt.getopt(argv,"hi:m:o:b:",["inv2=", "inv2_mask=", "outputdir=", "outputbase="])[0]
+        opts = getopt.getopt(argv,"hi:m:o:b:",["inv2=", "inv2-mask=", "outputdir=", "outputbase="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)

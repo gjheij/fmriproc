@@ -75,7 +75,7 @@ while getopts :-:s:n:o:f:c:v:r:t:p:x: arg; do
   case $arg in
     -)
       case "${OPTARG}" in
-        no_raw)
+        no-raw)
           raw=0
           ;;  
         fsaverage)
@@ -84,13 +84,13 @@ while getopts :-:s:n:o:f:c:v:r:t:p:x: arg; do
         fsnative)
           in_space="fsnative"
           ;;
-        post_only)
+        post-only)
           post_only=1
           ;;
-        pre_only)
+        pre-only)
           pre_only=1
           ;;
-        pyb_only)
+        pyb-only)
           pyb_only=1
           ;;                    
         *)
@@ -202,14 +202,16 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        call_unzscore \
+        cmd="""call_unzscore \
           -s ${sub} \
           ${ses_raw} \
           -o ${outputdir} \
           -f ${input_dir} \
           -t ${task_id} \
           -p ${in_space} \
-          --pre
+          --pre"""
+
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
           echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
@@ -237,13 +239,14 @@ for task_id in ${task_ids[@]}; do
           --n-comps ${n_comps} \
           ${kwargs}"""
 
-        print_cmd ${cmd}
-        eval ${cmd}
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): pybest existed with non-zero status"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
           exit 1
-        fi
+        fi  
 
       done
     fi
@@ -253,19 +256,21 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        call_unzscore \
+        cmd="""call_unzscore \
           -s ${sub} \
           ${ses_raw} \
           -o ${output_dir} \
           -f ${input_dir} \
           -t ${task_id} \
           -p ${in_space} \
-          --post
+          --post"""
+
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"pre\""
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
           exit 1
         fi
       fi
@@ -278,14 +283,16 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        call_unzscore \
+        cmd="""call_unzscore \
           -s ${sub} \
           ${ses_raw} \
           -o ${outputdir} \
           -f ${input_dir} \
           -t ${task_id} \
           -p ${in_space} \
-          --pre
+          --pre"""
+
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -310,13 +317,12 @@ for task_id in ${task_ids[@]}; do
         --n-comps ${n_comps} \
           ${kwargs}"""
 
-      print_cmd ${cmd}
-      eval ${cmd}
+      print_cmd "${cmd}" && eval "${cmd}"
 
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "pybest"
+        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
         exit 1
       fi
     fi
@@ -326,25 +332,25 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        call_unzscore \
+        cmd="""call_unzscore \
           -s ${sub} \
           ${ses_raw} \
           -o ${output_dir} \
           -f ${input_dir} \
           -t ${task_id} \
           -p ${in_space} \
-          --post
+          --post"""
+
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
+          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"post\""
           exit 1
         fi  
       fi
-
-      echo "Done"
-            
+      echo "Done"    
     fi       
 
     # apply mask; safe in 'masked'
@@ -390,7 +396,7 @@ for task_id in ${task_ids[@]}; do
             # define and run cmd
             echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
             cmd="""fslmaths ${bold} -mas ${mask} ${masked_bold}"""
-            eval ${cmd}
+            eval "${cmd}"
 
             # check if execution was ok
             if [[ $? -ne 0 ]]; then
@@ -408,7 +414,7 @@ for task_id in ${task_ids[@]}; do
         fi
       fi
     else
-      echo "Could not find file with \"*desc-preproc_mask.nii.gz\" in \"${out_dir}/preproc\""
+      print_file_not_in_dir "${sub_name}" "*desc-preproc_mask.nii.gz" "${out_dir}/preproc"
     fi
   fi
 done
