@@ -89,13 +89,13 @@ Below the help information for each module, which can also be called with:
       --ap|--pa|--lr|--rl Specifies the phase-encoding direction for the BOLD run. The phase-encoding 
                           for the FMAP will be automatically inverted. This flag can be specified to be
                           a bit more flexible than using the PE_DIR_BOLD-variable in the setup file
-      --no_lpi            do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
+      --no-lpi            do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
                           puts on more raw data, I'd advise you to reorient to LPI and to NOT use this 
                           flag. This flag is mainly here because it can take some time with big files
                           which slows down debugging.
       --sge               submit individual subjects to cluster as call_parrec2nii can take a while..
       --phys              run only physiology conversion
-      --skip_tr           do not overwrite the TR in the header during call_bids. Generally not recom-
+      --skip-tr           do not overwrite the TR in the header during call_bids. Generally not recom-
                           mended, but exists for debugging purposes.
 
     Example:
@@ -197,12 +197,12 @@ Below the help information for each module, which can also be called with:
 
     Eample:
       spinoza_lsprep -s 001 -n 3 --sge DIR_DATA_SOURCE DIR_DATA_DERIV
-      spinoza_lsprep -s 001 -n 3 -x --filter_pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
+      spinoza_lsprep -s 001 -n 3 -x --filter-pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
 
     run with master:  
       "master -m 03b -s 008 -n 3" # use all defaults from call_lsprep
-      "master -m 03b -s 008 -n 3 -x --filter_pca=0.18,--verbose,--no_button,--ow,--ica" # customize
-      "master -m 03b -s 008 -n 3 --sge -x --filter_pca=0.18,--verbose,--ica" # customize # submit
+      "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" # customize
+      "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" # customize # submit
 
     ---------------------------------------------------------------------------------------------------
 
@@ -440,7 +440,7 @@ Below the help information for each module, which can also be called with:
 
     Run NORDIC denoising on whole-brain functional data. Expects a BIDS-like folder structure with the
     magnitude data in 'func' and the phase data in 'phase'. If phase data is not present, we'll attempt
-    a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no_nordic' 
+    a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no-nordic' 
     folder to denote that not preprocessing has taken place, while keeping the data close. The NORDIC'ed 
     data will be placed in 'func', without any special tags to avoid that fMRIPrep gets confused. How-
     ever, it's likely you've produced the phase output with 'spinoza_scanner2bids', in which case the 
@@ -611,10 +611,10 @@ Below the help information for each module, which can also be called with:
       -o|--ow             overwrite existing files
       -x <file>           use expert file
       -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-      --force_exec        Force execution even though directory exists already
+      --force-exec        Force execution even though directory exists already
       --local             Force local processing even though cluster is available
-      --no_highres        Turn of highres mode by setting '-highres' flag empty
-      --no_t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
+      --no-highres        Turn of highres mode by setting '-highres' flag empty
+      --no-t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
                           '-r'. By default, we'll re-use the T2 if present. Same flag should be 
                           used for not re-using FLAIR images  
       --sge               Submit the script to a cluster using a template script
@@ -742,24 +742,24 @@ Below the help information for each module, which can also be called with:
                         at the price that it re-runs EVERYTHING if you restart the process.
       --docker          run fmriprep through docker image (requires 'fmriprep-docker' to be installed!)
       --fd              only fetch framewise displacement files
-      --fetch_anat      retrieve the nifti-files in T1w-space
-      --fetch_fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
-      --fetch_func      retrieve the nifti-files in func-space
+      --fetch-anat      retrieve the nifti-files in T1w-space
+      --fetch-fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
+      --fetch-func      retrieve the nifti-files in func-space
       --func            same as '-t func'
       --local           don't submit to SGE, run locally
       --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
                         associated with the timeseries files
-      --no_bbr          maps to '--force-no-bbr' in call_fmriprep
-      --no_boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
+      --no-bbr          maps to '--force-no-bbr' in call_fmriprep
+      --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
       --ow              only removes folders within single_subj workflow with "run-". If specific runs are 
                         requested with '-r', only these folders will be removed
-      --remove_surf_wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
+      --remove-surf-wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
                         gistration and transformation
-      --remove_wf       remove full single_subject workflow folder. Use \"--remove_surf_wf\" to specifically 
+      --remove-wf       remove full single_subject workflow folder. Use \"--remove-surf-wf\" to specifically 
                         remove the surface reconstruction folder when you have new FreeSurfer output that 
                         fMRIPrep needs to use, or "--ow" to remove all folders within single_subj workflow
                         with "run-"
-      --warp_only       skips fMRIPrep, but creates new boldref images (if '--no_boldref' is not specified) 
+      --warp-only       skips fMRIPrep, but creates new boldref images (if '--no-boldref' is not specified) 
                         and copies the bold-to-T1w warps to the subject's output folder
 
     Example:
@@ -801,7 +801,7 @@ Below the help information for each module, which can also be called with:
       -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
       -x <kwargs>         other arguments that should be passed to pybest
       --sge               submit job to cluster (called with 'master -m <module> --sge')
-      --no_raw            do NOT unzscore the output from pybest (default is to do so)
+      --no-raw            do NOT unzscore the output from pybest (default is to do so)
       --fsaverage         overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
                           native)
       --fsnative          overwrite PYBEST_SPACE-variable and use FSNative (defaults to fsnative)
@@ -882,23 +882,23 @@ Below the help information for each module, which can also be called with:
       --bold          re-calculate the BOLD timecourses; otherwise use existing '*hemi-LR_desc-avg_bold.npy'   
       --fsaverage     overwrite PYBEST_SPACE-variable and use FSAverage for fitting (see your setup file)
       --fsnative      overwrite PYBEST_SPACE-variable and use FSNative for fitting (see your setup file)
-      --fix_hrf       fit the HRF going from Gaussian iterative fit to further fitting
+      --fix-hrf       fit the HRF going from Gaussian iterative fit to further fitting
       --grid          only run grid fit, skip iterative fit
-      --no_hrf        do NOT fit the HRF during pRF-fitting. See 'call_prf' for more information
-      --separate_hrf  fit the HRF in two stages. See 'call_prf' for more information
+      --no-hrf        do NOT fit the HRF during pRF-fitting. See 'call_prf' for more information
+      --separate-hrf  fit the HRF in two stages. See 'call_prf' for more information
       --local         run locally even though we have SGE available.
-      --merge_ses     average pRF data from all sessions
-      --multi_design  specifies that for all runs in the dataset have run-/task-specific screenshot di-
+      --merge-ses     average pRF data from all sessions
+      --multi-design  specifies that for all runs in the dataset have run-/task-specific screenshot di-
                       rectories. This requires that the directory names you saved must match your naming 
                       scheme of functional files as we'll match on run-/task-ID
       --nelder        Use Nelder-Mead method for minimization.
                       Use the '-x' flag if you want different minimizers for both stages
-      --no_clip       ensures that the design matrix is NOT clipped, despite the possible presence of 
+      --no-clip       ensures that the design matrix is NOT clipped, despite the possible presence of 
                       screen delimiter files
-      --no_fit        Stop the process before fitting, right after saving out averaged data. This was use-
+      --no-fit        Stop the process before fitting, right after saving out averaged data. This was use-
                       ful for me to switch to percent-signal change without requiring a re-fit.
-      --save_grid     Save out gridsearch parameters
-      --no_bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter bounds, 
+      --save-grid     Save out gridsearch parameters
+      --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter bounds, 
                       causing 'inf' values. This is especially troublesome when fitting a single time-
                       course. If you trust your iterative fitter, you can turn off the bounds and let 
                       the iterative take care of the parameters
@@ -922,7 +922,7 @@ Below the help information for each module, which can also be called with:
                       we'll search for directories with 'Screenshots'. So, if you specify DIR_DATA_SOURCE 
                       for 'sub-005' and 'ses-1', we'll search in DIR_DATA_SOURCE/sub-005/ses-1/* for di-
                       rectories with "Screenshots". If multiple directories are found, it depends on the 
-                      options which directory is used: if --multi_design is specified, each directory will 
+                      options which directory is used: if --multi-design is specified, each directory will 
                       be matched with its corresponding functional run. If not, we'll take the 1st direc-
                       tory in the list.
 
@@ -935,7 +935,7 @@ Below the help information for each module, which can also be called with:
     Eample:
       spinoza_fitprfs DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
       spinoza_fitprfs -s 001 -n 1 DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-      spinoza_fitprfs --multi_design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
+      spinoza_fitprfs --multi-design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
       spinoza_fitprfs -g -l DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
       spinoza_fitprfs -o DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
 
@@ -1000,10 +1000,10 @@ Below the help information for each module, which can also be called with:
                         'transversetemporal'
                         'insula'
       --full          full overwrite mode
-      --no_freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
+      --no-freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
                       already know the position. Generally only used for debugging purposes.
-      --no_srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
-      --srf_file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
+      --no-srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
+      --srf-file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
                       pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/sub-001_desc-srfs_centered.csv')        
       --v1|--v2       use the pRF-estimates that you created with spinoza_fitprfs --v1/--v2
       --grid          use pRF-estimates from grid search; default is 'iter'
@@ -1011,8 +1011,8 @@ Below the help information for each module, which can also be called with:
                       are included, this will yield in a 4x5 grid with brainmaps of various kinds that 
                       were used in the selection process of the target vertex.
       --manual        use manual selection for the vertex, rather than minimizing for curvature     
-      --no_epi        do not use EPI-intensities even though you could   
-      --skip_prf_info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
+      --no-epi        do not use EPI-intensities even though you could   
+      --skip-prf-info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
                       you want an indication of the pRF-properties, but want to refit yourself. This is 
                       the case where I use M. Aqil's fitting output, which has been fitted with an out-
                       dated screen distance.      

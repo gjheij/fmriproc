@@ -377,11 +377,11 @@ You can either select the first interval or the average over the entire run.
 > 
 > The headers of the nifti-files will be corrected based on the derived (or specified) TR.
 
-Next, we can do some basic quality control using MRIqc. This internally generates a report for all your BOLD files (and anatomical files should you so desire). Because the pipeline does custom processing on the anatomicals, I generally run this with the `--func_only` flag, to only include the functional data. 
+Next, we can do some basic quality control using MRIqc. This internally generates a report for all your BOLD files (and anatomical files should you so desire). Because the pipeline does custom processing on the anatomicals, I generally run this with the `--func-only` flag, to only include the functional data. 
 
 ```bash
-master -m 02b --func_only               # run func pipeline only
-master -m 02b --anat_only               # run anat pipeline only
+master -m 02b --func-only               # run func pipeline only
+master -m 02b --anat-only               # run anat pipeline only
 master -m 02b -n 1                      # limit processing to a certain session
 ```
 
@@ -390,7 +390,7 @@ If you do not combine **INV1** and **INV2** yourself, - you already have a ``T1w
 You *can* use it for MPRAGE data, in which case the following steps are performed:
 - Bias correction (either SPM [--spm] or ANTs [default])
 - Brain masking using 'call_spmmask', which will create *desc-spm_mask
-- Denoising using 'call_spmsanlm' (turn off with '--no_sanlm')
+- Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
 
 In this case, `module 08` can be skipped!
 These steps are mainly performed to promote compatibility with the rest of the pipeline.
@@ -509,7 +509,7 @@ If you want additional bias correction after denoising, use ``--spm`` or ``--n4`
 master -m 08                    # spinoza_biassanlm
 master -m 08 --spm              # do bias correction after denoising with SPM
 master -m 08 --n4               # do bias correction after denoising with ANTs
-master -m 08 --no_sanlm -n4     # no SANLM but bias correction with ANTs
+master -m 08 --no-sanlm -n4     # no SANLM but bias correction with ANTs
 master -m 08 --n4 -x -s=1       # use '-x' flag to pass kwargs to N4BiasFieldCorrection. Multiple flags should be ':' separated
 ```
 
@@ -585,7 +585,7 @@ Creates a ``desc-outside.nii.gz`` mask in the ``derivatives/masked_(me)mp(2)rage
 
 ```bash
 master -m 13 # spinoza_masking
-master -m 13 --no_manual # directly apply mask to T1w, no manual intervention
+master -m 13 --no-manual # directly apply mask to T1w, no manual intervention
 ```
 
 That was basically the preprocessing of the anatomicals files.
@@ -633,14 +633,14 @@ By default I do this in ``fsnative``, so if you want a different space to be pro
 By default Pybest zscores the data, which in some cases is undesirable.
 We'll un-zscore the output from pybest and save the unzscored data in `unzscored`-folder, rather than `denoising`.
 You can then use this data to standardize however you see fit (for later pRF-fitting, this data is standardized following the method from Marco Aqil, where the timecourses are shifted such that the median of the timepoints without any stimulation are set to zero).
-If you do not want this additional unzscoring, use ``--no_raw``.
+If you do not want this additional unzscoring, use ``--no-raw``.
 Use ```--sge`` to submit the job to the cluster in case you have one available.
 
 ```bash
 master -m 16 # spinoza_denoising
 
 # optional
-master -m 16 --no_raw     # turn of unzscoring
+master -m 16 --no-raw     # turn of unzscoring
 master -m 16 --sge -j 10  # submit to cluster + change number of cores
 master -m 16 --func       # use volumetric space
 ```
@@ -650,10 +650,10 @@ If you did not use Pybest for denoising, we'll use fMRIprep-output as input for 
 All models specified within pRFpy are available, as well as several other options:
 
 - ``--grid``, run a grid fit only, no iterative fitting;
-- ``-c``, list of values to clip the design matrix with (if ``--no_clip`` is NOT specified);
+- ``-c``, list of values to clip the design matrix with (if ``--no-clip`` is NOT specified);
 - ``-v``, cut a number of volumes from the beginning (generally recommended, use ``-v 4`` to cut the first 4 volumes, the design will automatically adjusted);
 - ``--zscore``, use the zscore'd output from pybest;
-- ``--multi_design``, used if you have multiple pRF designs within a session so the correct screenshots are used for the design matrix;
+- ``--multi-design``, used if you have multiple pRF designs within a session so the correct screenshots are used for the design matrix;
 - ``--local``, do not submit the job to the cluster (can be useful for debugging);
 - ``-p``, specifies which model to use (can be one of ['gauss', 'css', 'dog', 'norm'], or use - ``--css``, ``--dog``, ``--norm`` flags);
 - ``-t``, fit a specific task (if you have mutliple in a session).
@@ -667,7 +667,7 @@ master -m 17 # spinoza_fitprfs
 
 # added options
 master -m 17 --norm # run divisive-normalization (DN-) model
-master -m 17 --multi_design # multiple designs in a session
+master -m 17 --multi-design # multiple designs in a session
 master -m 17 -s 006 --norm -v 4 -j 25 # cut 4 volumes, use DN model, use 25 cores
 ```
 
