@@ -244,7 +244,7 @@ for task_id in ${task_ids[@]}; do
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+          print_error_msg "$(basename ${0})" "pybest"
           exit 1
         fi  
 
@@ -322,7 +322,7 @@ for task_id in ${task_ids[@]}; do
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "pybest"
         exit 1
       fi
     fi
@@ -346,7 +346,7 @@ for task_id in ${task_ids[@]}; do
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"post\""
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
           exit 1
         fi  
       fi

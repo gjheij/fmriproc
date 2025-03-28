@@ -145,7 +145,7 @@ if [[ ! -z ${matrix_file} ]]; then
         if [[ $? -ne 0 ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"wm\"-file"
+            print_error_msg "$(basename ${0})" "call_antsapplytransforms" "Stage=\"wm\"-file"
             exit 1
         fi        
 
@@ -158,7 +158,7 @@ if [[ ! -z ${matrix_file} ]]; then
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"t1head\"-file"
+        print_error_msg "$(basename ${0})" "call_antsapplytransforms" "Stage=\"t1head\"-file"
         exit 1
     fi
 
@@ -167,7 +167,7 @@ if [[ ! -z ${matrix_file} ]]; then
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"t1brain\"-file"
+        print_error_msg "$(basename ${0})" "call_antsapplytransforms" "Stage=\"t1brain\"-file"
         exit 1
     fi
 
@@ -193,7 +193,7 @@ if [[ ! -z ${initial} ]]; then
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Stage=\"initial\"-file"
+        print_error_msg "$(basename ${0})" "call_antsapplytransforms" "Stage=\"initial\"-file"
         exit 1
     fi
 
@@ -209,7 +209,7 @@ if [[ -f ${t1head} && -f ${t1brain} ]]; then
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "epi_reg"
         exit 1
     fi
 

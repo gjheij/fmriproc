@@ -281,7 +281,7 @@ for subID in ${search}; do
             print_line -
           fi
 
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
+          print_error_msg "$(basename ${0})" "call_antsregistration" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
           exit 1
         fi
 
@@ -337,7 +337,7 @@ for subID in ${search}; do
             eval "${cmd}"
 
             if [[ $? -ne 0 ]]; then
-              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+              print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi
           else

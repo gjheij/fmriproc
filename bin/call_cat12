@@ -249,7 +249,7 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
   if [[ $? -ne 0 ]]; then
     echo 
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_copyheader"
     exit 1
   fi
 done
@@ -264,7 +264,7 @@ if [ ! -z ${img_for_mask} ]; then
   if [[ $? -ne 0 ]]; then
     echo 
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "fslmaths"
     exit 1
   fi
 fi

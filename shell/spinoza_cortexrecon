@@ -214,7 +214,7 @@ for subID in ${search}; do
         if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "gwb-image not created"
+          print_error_msg "$(basename ${0})" "call_nighresproblevel" "gwb-image not created"
           exit 1
         else
           mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
@@ -231,7 +231,7 @@ for subID in ${search}; do
         if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})" "cwb-image not created"
+          print_error_msg "$(basename ${0})" "call_nighresproblevel" "cwb-image not created"
           exit 1
         else
           mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null

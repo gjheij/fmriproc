@@ -179,7 +179,7 @@ echo " Bias correction with ${software}.."
 eval "${cmd}"
 
 if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
-  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+  print_error_msg "$(basename ${0})" "${cmd})"
   exit 1
 fi
 
@@ -191,7 +191,7 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
   eval "${cmd}"
 
   if [[ $? -ne 0 || ! -f ${final_file} ]]; then
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_spmsanlm"
     exit 1
   fi
 
@@ -211,7 +211,7 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_winsorize"
     exit 1
   fi
 
@@ -222,7 +222,7 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -  
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_rescale"
     exit 1
   fi
 else
@@ -238,7 +238,7 @@ eval "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -  
-  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+  print_error_msg "$(basename ${0})" "call_setdtype"
   exit 1
 fi
 
@@ -269,7 +269,7 @@ if [[ ! -z ${t1map} ]]; then
     eval "${cmd}"
     
     if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
-      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      print_error_msg "$(basename ${0})" "call_antsapplytransforms"
       exit 1
     fi
 
@@ -286,7 +286,7 @@ if [[ ! -z ${t1map} ]]; then
     eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      print_error_msg "$(basename ${0})" "call_winsorize"
       exit 1
     fi
 
@@ -297,7 +297,7 @@ if [[ ! -z ${t1map} ]]; then
     if [[ $? -ne 0 ]]; then
       echo
       print_line -  
-      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      print_error_msg "$(basename ${0})" "call_rescale"
       exit 1
     fi
   else

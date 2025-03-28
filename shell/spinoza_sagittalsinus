@@ -220,7 +220,7 @@ for subID in ${search}; do
             print_cmd "${cmd}" && eval "${cmd}"
 
             if [[ $? != 0 ]]; then
-              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+              print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi      
           else
@@ -244,7 +244,7 @@ for subID in ${search}; do
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+            print_error_msg "$(basename ${0})" "fslmaths"
             exit 1
           fi
 

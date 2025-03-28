@@ -222,7 +222,7 @@ if [[ ${fd_only} -eq 0 ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "${run_cmd}"
     exit 1
   fi
 

@@ -291,7 +291,7 @@ for subID in ${search}; do
     eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      print_error_msg "$(basename ${0})" "call_bids"
       exit 1
     fi
       

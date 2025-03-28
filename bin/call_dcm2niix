@@ -183,7 +183,7 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_parrec2nii"
     exit 1
   fi
 else
@@ -211,7 +211,7 @@ else
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "dcm2niix"
     exit 1
   fi
 

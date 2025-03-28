@@ -197,7 +197,7 @@ for subID in ${search}; do
             eval "${cmd}"
 
             if [[ ! -z "${TMP}" ]]; then
-              print_error_msg "$(basename ${0})" "$(basename ${cmd})" "File \"${TMP}\" not created"
+              print_error_msg "$(basename ${0})" "call_winsorize" "File \"${TMP}\" not created"
               exit 1
             fi
 

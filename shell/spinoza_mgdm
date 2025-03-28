@@ -186,7 +186,8 @@ for subID in ${search}; do
       fi
 
       # decide the job type
-      job="$(decide_job_type "call_gdhmgdm" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+      call_="call_gdhmgdm"
+      job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
       # define command
       cmd="""${job} \
@@ -222,7 +223,8 @@ for subID in ${search}; do
       fi
       
       # decide the job type
-      job="$(decide_job_type "call_nighresmgdm" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+      call_="call_nighresmgdm"
+      job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
       # define command
       cmd="""${job} \
@@ -256,7 +258,7 @@ for subID in ${search}; do
     if [[ $? != 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      print_error_msg "$(basename ${0})" "${call_}"
       exit 1
     fi
 

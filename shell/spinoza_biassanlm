@@ -259,15 +259,18 @@ for subID in ${search}; do
 
         if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
           echo "Running bias field correction with SPM"
-          call_spmbias ${input_for_bias} ${output}
+          call_="call_spmbias"
+          cmd="""${call_} ${input_for_bias} ${output}"""
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
-          call_antsbias ${input_for_bias} ${output} ${kwargs}
+          call_="call_antsbias"
+          cmd="""${call_} ${input_for_bias} ${output} ${kwargs}"""
         fi
 
+        eval "${cmd}"
         if [[ ! -f ${output} ]]; then
-          print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+          print_error_msg "$(basename ${0})" "${call_}"
           exit 1
         fi
 
@@ -285,7 +288,7 @@ for subID in ${search}; do
       eval "${cmd}"
 
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "call_winsorize"
         exit 1
       fi      
 
@@ -296,7 +299,7 @@ for subID in ${search}; do
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "call_rescale"
         exit 1
       fi      
 
@@ -308,7 +311,7 @@ for subID in ${search}; do
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "call_setdtype"
         exit 1
       fi
 

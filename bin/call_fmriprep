@@ -446,7 +446,7 @@ ${run_cmd} \
   if [[ $? != 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})" "Job submission/execution was unsuccessful."
+    print_error_msg "$(basename ${0})" "${run_cmd}" "Job submission/execution was unsuccessful."
     exit 1
   fi   
 

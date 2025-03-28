@@ -199,7 +199,7 @@ for subID in ${search}; do
           if [[ $? -ne 0 ]]; then
               echo
               print_line -
-              print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+              print_error_msg "$(basename ${0})" "call_nighresdura"
               exit 1
           fi
         fi
@@ -271,7 +271,7 @@ for subID in ${search}; do
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+        print_error_msg "$(basename ${0})" "call_nighresskullstrip"
         exit 1
       fi
     else

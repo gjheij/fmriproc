@@ -977,7 +977,7 @@ else
   print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+    print_error_msg "$(basename ${0})" "call_dcm2niix"
     exit 1
   fi
 fi

@@ -586,7 +586,7 @@ eval "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+  print_error_msg "$(basename ${0})" "antsRegistration"
   exit 1
 fi
 
