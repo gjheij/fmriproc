@@ -135,7 +135,7 @@ check_python_package "nighres"
 
 if [[ ! -d ${INPUT} ]]; then
   print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
-  continue
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
