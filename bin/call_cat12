@@ -238,7 +238,7 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
   out_file="${OUTPUT}/$(basename "$file").gz"
   if [[ ${ext} == "gz" ]]; then
     # compress
-    echo " Compressing $(basename "$file") to .nii.gz"
+    echo -e " Compressing ${BOLD_GREEN}$(basename "$file")${RESET} to ${BOLD_RED}.nii.gz${RESET}"
     gzip -f "${OUTPUT}/$(basename "$file")"
   fi
 
