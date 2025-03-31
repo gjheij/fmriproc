@@ -262,7 +262,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # Intro
-start_time "Select coordinate and normal vector using Pycortex"
+start_timer "Select coordinate and normal vector using Pycortex"
 
 #-----------------------------------------------------------------------------
 # Run it
