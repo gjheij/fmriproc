@@ -9,12 +9,36 @@ from lazyfmri import utils
 import warnings
 import subprocess
 warnings.filterwarnings("ignore")
+import platform
+
 opj = os.path.join
 gr = utils.color.GREEN
 rd = utils.color.RED
 bld = utils.color.BOLD
 end = utils.color.END
 bl = utils.color.BLUE
+
+def launch_itksnap(t1w_fn, outside_fn):
+    """
+    Launch ITK-SNAP to manually edit the outside mask and wait for the GUI to close.
+    """
+
+    utils.verbose("Manually edit the outside mask in ITKSnap", True)
+    cmd = ["itksnap", "-g", t1w_fn, "-s", outside_fn]
+    if platform.system() == "Darwin":
+        # macOS - use `open -W` to wait for the app to close
+        mac_cmd = ["open", "-W", "-a", "ITK-SNAP", "--args"] + cmd[1:]
+        utils.verbose(" ".join(mac_cmd), True, highlight=True)
+        subprocess.run(mac_cmd)
+    elif platform.system() == "Windows":
+        # Windows - subprocess.run will wait by default for CLI-based apps
+        utils.verbose(cmd, True, highlight=True)
+        subprocess.run(cmd, shell=True)
+    else:
+        # Linux and others - use Popen + wait to ensure it blocks
+        utils.verbose(cmd, True, highlight=True)
+        proc = subprocess.Popen(cmd)
+        proc.wait()
 
 def main(argv):
 
@@ -336,10 +360,7 @@ if left to empty, it will look by default for the following files:
 
         # allow manual edits
         if manual:
-            utils.verbose("Manually edit the outside mask in ITKSnap", True)
-            cmd = ["itksnap", "-g", t1w_fn, "-s", outside_fn]
-            utils.verbose(" ".join(cmd), True, highlight=True)
-            subprocess.run(cmd)
+            launch_itksnap(t1w_fn, outside_fn)
 
     # Stuff like dura should be put to 0, not just multiplied with INV2
     utils.verbose("Set sagittal sinus and dura stuff to zero", True)
