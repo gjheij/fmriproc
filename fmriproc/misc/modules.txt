@@ -1,6 +1,5 @@
 Available modules:                                     Script                           hh:mm:ss
-  -00:  Register anat ses-1 to ms ses-1 for planning   (spinoza_lineplanning)           00:06:00
-  -01:  Make new session for subject                   (spinoza_bidssession)            00:00:01
+  -01:  Register anat ses-1 to ms ses-1 for planning   (spinoza_lineplanning)           00:06:00
   -02a: Convert raw files to nifti                     (spinoza_scanner2bids)           00:02:00
   -02b: Quality control with MRIQC                     (spinoza_mriqc)                  00:30:00
   -03a: Reconstruction of line data                    (spinoza_linerecon)              00:10:00
