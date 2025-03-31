@@ -123,7 +123,7 @@ if left to empty, it will look by default for the following files:
         elif opt in ("-o", "--output"):
             output = arg
         elif opt in ("--no-manual"):
-            manual = arg            
+            manual = False
 
     if len(argv) < 1:
         print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
