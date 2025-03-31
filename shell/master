@@ -14,7 +14,6 @@ else
     exit 1
   fi
 fi
-job="bash"
 
 # source helper functions
 source ${SETUP_FILE}
@@ -678,7 +677,7 @@ fi
 #---------------------------------------------------------------------------------------------------
 # Check for which-module switch 
 if [[ ! -z ${WHICH_MOD} ]] && [[ "${@}" != *"-m"* ]]; then
-  mod_nr=`get_module_nr ${WHICH_MOD}`
+  mod_nr=$(get_module_nr ${WHICH_MOD})
   if [[ ! -z ${mod_nr} ]]; then
     echo "module ${mod_nr} contain(s) \"${WHICH_MOD}\""
   else
@@ -704,20 +703,20 @@ else
 fi
 
 #---------------------------------------------------------------------------------------------------
-# STEP 00: Optimal line planning procedure with registration of anat ses-1 to ms ses-2
-module=00
+# STEP 01: Optimal line planning procedure with registration of anat ses-1 to ms ses-2
+module=01
 
 # Check whether the module should be executed
 echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_lineplanning
+    spinoza_lineplanning
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Optimal line planning procedure with registration of anat ses-1 to ms ses-X"
+  # print module intro
+  print_module_start "${module}" "Optimal line planning procedure with registration of anat ses-1 to ms ses-X"
 
   if [[ -z ${SUB} ]]; then
     echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
@@ -760,52 +759,23 @@ if [[ $? -eq 0 ]]; then
     reg_img=${DIR_DATA_SOURCE}/${subject}/ses-${ses_nr}/planning
   fi
 
-  ${job} spinoza_lineplanning \
+  cmd="""spinoza_lineplanning \
     ${OW} \
     ${HEMI_FLAG} \
     ${IDENT_FLAG} \
     -s ${subject} \
     -n ${ses_nr} \
     -i ${reg_img} \
-    -p ${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv
+    -p ${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv"""
 
+    print_cmd "${cmd}" && eval "${cmd}"
 
-  echo "[${module}] DONE" && echo
-
-fi
-
-#---------------------------------------------------------------------------------------------------
-# STEP 01: Make new session for subject
-module=01
-
-# Check whether the module should be executed
-echo ${FLAG_executeModule} | grep -q ${module}
-
-if [[ $? -eq 0 ]]; then
-
-  if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_bidssession
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "spinoza_lineplanning"
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Create folder structure for new session"
-
-  if [[ -z ${SUB} ]]; then
-    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
-    echo "  e.g., ./master -m 01 -s 001"
-    exit 1
-  fi
-
-  if [[ -z ${SES} ]]; then
-    echo "ERROR: Need a session number for this module. Specify the subject number with the -n flag in the master script"
-    echo "  e.g., ./master -m 01 -n 1"
-    exit 1
-  fi
-
-  ${job} spinoza_bidssession ${SUB} ${SES}\
-
-  echo "[${module}] DONE"
+  print_module_end "${module}"
 
 fi
 
@@ -814,7 +784,7 @@ fi
 module=02
 
 if [[ ${FLAG_executeModule} == ${module} ]]; then
-  echo "DEPRECATION WARNING: module 02 has been split in 02a (spinoza_scanner2bids) & 02b (spinoza_mriqc)"
+  echo -e "${BOLD_RED}DEPRECATION WARNING${RESET}: module 02 has been split in 02a (spinoza_scanner2bids) & 02b (spinoza_mriqc)"
   exit 1
 fi
 
@@ -829,7 +799,7 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_scanner2bids
+    spinoza_scanner2bids
     exit 1
   fi
 
@@ -837,10 +807,10 @@ if [[ $? -eq 0 ]]; then
     CUT_VOLS="-v ${VERTICES}"
   fi  
 
-  print_line -
-  echo "[${module}] Convert raw files to nifti"
+  # print module intro
+  print_module_start "${module}" "Convert raw files (PAR/REC or DCM) to nifti"
 
-  ${job} spinoza_scanner2bids \
+  cmd="""spinoza_scanner2bids \
     ${SES_TYPE} \
     ${SUBJECT} \
     ${SESSION} \
@@ -861,9 +831,16 @@ if [[ $? -eq 0 ]]; then
     ${SKIP_TR} \
     ${TRIM_FMAP} \
     ${CUT_VOLS} \
-    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
+    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}"""
 
-  echo "[${module}] DONE" && echo
+  print_cmd "${cmd}" && eval "${cmd}"    
+
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "spinoza_scanner2bids"
+    exit 1
+  fi
+
+  print_module_end "${module}"
 
 fi
 
@@ -877,14 +854,14 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_mriqc
+    spinoza_mriqc
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] quality control with MRIQC"
+  # print module intro
+  print_module_start "${module}" "quality control with MRIQC"
 
-  ${job} spinoza_mriqc \
+  cmd="""spinoza_mriqc \
     ${SUBJECT} \
     ${SESSION} \
     ${REMOVE_WF} \
@@ -893,9 +870,16 @@ if [[ $? -eq 0 ]]; then
     ${run_local} \
     ${SGE_QUEUE} \
     ${jobs_flag} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/mriqc
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/mriqc"""
 
-  echo "[${module}] DONE" && echo
+  print_cmd "${cmd}" && eval "${cmd}"    
+
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "spinoza_mriqc"
+    exit 1
+  fi
+
+  print_module_end "${module}"
 
 fi
 
@@ -909,12 +893,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_linerecon
+    spinoza_linerecon
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Reconstruct line data with MRecon"
+  # print module intro
+  print_module_start "${module}" "Reconstruct line data with MRecon"
 
   if [[ -z ${n_echoes} ]]; then
     N_ECHOES=""
@@ -928,7 +912,7 @@ if [[ $? -eq 0 ]]; then
     NORDIC_COMPS=${C_FLAG}
   fi
 
-  ${job} spinoza_linerecon \
+  cmd="""spinoza_linerecon \
     ${SUBJECT} \
     ${SESSION} \
     ${N_ECHOES} \
@@ -941,14 +925,16 @@ if [[ $? -eq 0 ]]; then
     ${N_COMPS} \
     ${FOLDS_FLAG} \
     -c ${NORDIC_COMPS} \
-    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}
+    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_linerecon${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_linerecon"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -962,12 +948,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_lsprep
+    spinoza_lsprep
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] LSprep | basic quality control"
+  # print module intro
+  print_module_start "${module}" "LSprep | basic quality control"
 
   if [[ -z ${SES} ]]; then
     # Going to assume ses-1 here
@@ -980,20 +966,22 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  ${job} spinoza_lsprep \
+  cmd="""spinoza_lsprep \
     ${SUBJECT} \
     ${SESSION} \
     ${SGE} \
     ${SGE_QUEUE} \
     ${KWARGS_FLAG} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_lsprep${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_lsprep"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1007,12 +995,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_qmrimaps
+    spinoza_qmrimaps
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Multiparametric mapping"
+  # print module intro
+  print_module_start "${module}" "Multiparametric mapping using pymp2rage"
 
   # check for lsprep kwargs
   KWARGS_FLAG=""
@@ -1020,7 +1008,7 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
   
-  ${job} spinoza_qmrimaps \
+  cmd="""spinoza_qmrimaps \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
@@ -1038,14 +1026,16 @@ if [[ $? -eq 0 ]]; then
     ${INTENSITY_FLAG} \
     ${INT_LOWER} \
     ${INT_UPPER} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_qmrimaps${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_qmrimaps"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1054,7 +1044,7 @@ fi
 module=05
 
 if [[ ${FLAG_executeModule} == ${module} ]]; then
-  echo "DEPRECATION WARNING: module 05 has been split in 05a (anat > anat) & 05b (anat > FSL MNI)"
+  echo -e "${BOLD_RED}DEPRECATION WARNING${RESET}: module 05 has been split in 05a (anat > anat) & 05b (anat > FSL MNI)"
   exit 1
 fi
 
@@ -1068,12 +1058,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_registration
+    spinoza_registration
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Register ${ACQ[1]} to ${ACQ[0]}"
+  # print module intro
+  print_module_start "${module}" "Register multiple anatomical files to same space"
 
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1082,7 +1072,7 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})
 
-  ${job} spinoza_registration \
+  cmd="""spinoza_registration \
     ${REG_TYPE} \
     ${SUBJECT} \
     ${OW} \
@@ -1093,14 +1083,16 @@ if [[ $? -eq 0 ]]; then
     ${FSL_FLAG} \
     ${jobs_flag} \
     ${cmd_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_registration${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_registration"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1114,12 +1106,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_registration
+    spinoza_registration
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Register T1 from mp2rage to MNI152 for sagittal sinus mask"
+  # print module intro
+  print_module_start "${module}" "Register T1 from mp2rage to MNI152NLin6Asym (1mm) for sagittal sinus mask"
   
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1128,7 +1120,7 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
-  ${job} spinoza_registration \
+  cmd="""spinoza_registration \
     ${REG_TYPE} \
     ${SUBJECT} \
     ${OW} \
@@ -1139,14 +1131,16 @@ if [[ $? -eq 0 ]]; then
     ${FSL_FLAG} \
     ${jobs_flag} \
     ${cmd_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants mni
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants mni"""
+
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_registration${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_registration"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1164,8 +1158,8 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Calculate averages of the T1-weighted image and T1map"
+  # print module intro
+  print_module_start "${module}" "Calculate averages of the T1-weighted image and T1map"
 
   if [[ ${DATA^^} == "AVERAGE" ]]; then
 
@@ -1175,10 +1169,15 @@ if [[ $? -eq 0 ]]; then
       INPUT_DIR=${DIR_DATA_HOME}
     fi  
 
-    spinoza_averageanatomies ${SUBJECT} ${SESSION} ${INPUT_DIR} ${DIR_DATA_DERIV}/pymp2rage
+    cmd="""spinoza_averageanatomies \
+      ${SUBJECT} \
+      ${SESSION} \
+      ${INPUT_DIR} ${DIR_DATA_DERIV}/pymp2rage"""
+
+    print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
-      echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_averageanatomies${RESET} exited with non-zero status"
+      print_error_msg "$(basename ${0})" "spinoza_averageanatomies"
       exit 1
     fi
 
@@ -1186,7 +1185,7 @@ if [[ $? -eq 0 ]]; then
     echo "The variable \"DATA\" is \"${DATA}\"; must be \"AVERAGE\" for this module."
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1200,12 +1199,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_sinusfrommni
+    spinoza_sinusfrommni
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Create sagittal sinus mask using the MNI-mask & T1w/T2w-ratio"
+  # print module intro
+  print_module_start "${module}" "Create sagittal sinus mask using the MNI-mask & T1w/T2w-ratio or T2w directly"
 
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1218,19 +1217,21 @@ if [[ $? -eq 0 ]]; then
     DRAW_SAG="--${DRAW_SAG}"
   fi
   
-  ${job} spinoza_sinusfrommni \
+  cmd="""spinoza_sinusfrommni \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${DRAW_SAG} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${BOLD_BLUE}spinoza_sinusfrommni${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_sinusfrommni"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1244,12 +1245,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_biassanlm
+    spinoza_biassanlm
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Perform bias field correction and SANLM-filtering"
+  # print module intro
+  print_module_start "${module}" "Perform bias field correction and SANLM-filtering"
   
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1264,7 +1265,7 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  ${job} spinoza_biassanlm \
+  cmd="""spinoza_biassanlm \
     ${SUBJECT} \
     ${SESSION} \
     ${BIAS_FLAG} \
@@ -1273,14 +1274,16 @@ if [[ $? -eq 0 ]]; then
     ${SANLM_FLAG} \
     ${SANLM_METHOD} \
     ${USE_MASK} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${BOLD_BLUE}spinoza_biassanlm${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_biassanlm"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1294,20 +1297,22 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_brainextraction
+    spinoza_brainextraction
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Brain extract MP2RAGE-INV2 with ANTs|FSL|CAT12"
+  # print module intro
+  print_module_start "${module}" "Brain extract T1w with ANTs|FSL|CAT12"
 
   DO_STUFF="cat12"
   if [[ ${DO_STUFF} ==  "inv2" ]]; then
   
-    ${job} spinoza_brainextraction \
+    cmd="""spinoza_brainextraction \
       ${SUBJECT} \
       ${SESSION} \
-      ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/manual_masks FSL
+      ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/manual_masks FSL"""
+
+    print_cmd "${cmd}" && eval "${cmd}"
 
   elif [[ ${DO_STUFF} == "cat12" ]]; then
 
@@ -1322,7 +1327,7 @@ if [[ $? -eq 0 ]]; then
       fprep_flag="--fprep"
     fi
 
-    ${job} spinoza_brainextraction \
+    cmd="""spinoza_brainextraction \
       ${SUBJECT} \
       ${SESSION} \
       ${fprep_flag} \
@@ -1331,15 +1336,18 @@ if [[ $? -eq 0 ]]; then
       ${FS_FLAG} \
       ${INT_LOWER} \
       ${INT_UPPER} \
-      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12
+      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12"""
+
+    print_cmd "${cmd}" && eval "${cmd}"
+
   fi
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_brainextraction${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_brainextraction"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1354,14 +1362,14 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} ${module_name}
+    ${module_name}
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] NORDIC denoising"
+  # print module intro
+  print_module_start "${module}" "Thermal noise reduction using NORDIC [Vizioli, et al. 2021]"
 
-  ${job} ${module_name} \
+  cmd="""${module_name} \
     ${OW} \
     ${SGE} \
     ${SUBJECT} \
@@ -1370,14 +1378,16 @@ if [[ $? -eq 0 ]]; then
     ${TSNR_FLAG} \
     ${mag_flag} \
     ${SGE_QUEUE} \
-    ${DIR_DATA_HOME}
+    ${DIR_DATA_HOME}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
     
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}${module_name}${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_nordic"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1391,12 +1401,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_dura
+    spinoza_dura
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Use nighres to get skull and dura mask"
+  # print module intro
+  print_module_start "${module}" "Use nighres to get skull and dura mask"
   
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1405,18 +1415,20 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
-  ${job} spinoza_dura \
+  cmd="""spinoza_dura \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
-    ${INPUT_DIR} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
+    ${INPUT_DIR} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_dura${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_dura"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1430,12 +1442,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_sagittalsinus
+    spinoza_sagittalsinus
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Create sagittal sinus mask from R2*-image"
+  # print module intro
+  print_module_start "${module}" "Create sagittal sinus mask from R2*-image"
 
   # DATA = MP2RAGE    > arg1 = DIR_DATA_DERIV/pymp2rage
   # DATA = MEMP2RAGE  > arg1 = DIR_DATA_DERIV/pymp2rage
@@ -1448,14 +1460,20 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
   
-  ${job} spinoza_sagittalsinus ${SUBJECT} ${SESSION} ${OW} ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}
+  cmd="""spinoza_sagittalsinus \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} 
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_sagittalsinus${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_sagittalsinus"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1469,12 +1487,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_masking
+    spinoza_masking
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Combine all masks and apply to image"
+  # print module intro
+  print_module_start "${module}" "Combine all masks and apply to image"
 
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1483,21 +1501,23 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
-  ${job} spinoza_masking \
+  cmd="""spinoza_masking \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${MAN_FLAG} \
     ${INT_UPPER} \
     ${INT_LOWER} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped"""
+
+    print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_masking${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_masking"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1511,12 +1531,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_freesurfer
+    spinoza_freesurfer
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Run FreeSurfer outside of fMRIprep"
+  # print module intro
+  print_module_start "${module}" "Run FreeSurfer outside of fMRIprep"
 
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1535,7 +1555,7 @@ if [[ $? -eq 0 ]]; then
     START_STAGE="-e ${START_STAGE}"
   fi   
   
-  ${job} spinoza_freesurfer \
+  cmd="""spinoza_freesurfer \
     ${SUBJECT} \
     ${SESSION} \
     ${highres_flag} \
@@ -1549,14 +1569,16 @@ if [[ $? -eq 0 ]]; then
     ${use_t2_flag} \
     ${SGE_QUEUE} \
     ${jobs_flag} \
-    ${INPUT_DIR} ${FS_stage} ${DIR_DATA_HOME}
+    ${INPUT_DIR} ${FS_stage} ${DIR_DATA_HOME}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_freesurfer${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_freesurfer"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1570,12 +1592,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_fmriprep
+    spinoza_fmriprep
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Preprocess session 1 data with fMRIprep"
+  # print module intro
+  print_module_start "${module}" "Preprocess data with fMRIprep"
 
   if [[ -z ${TYPE} ]]; then
     TYPE="anat"
@@ -1606,7 +1628,7 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
-  ${job} spinoza_fmriprep \
+  cmd="""spinoza_fmriprep \
     ${WARP_ONLY} \
     ${use_bbr} \
     ${run_local} \
@@ -1633,14 +1655,16 @@ if [[ $? -eq 0 ]]; then
     ${CRASH_FLAG} \
     -f ${DIR_DATA_HOME} \
     -m ${TYPE} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV} ${DIR_DATA_HOME}
+    ${INPUT_DIR} ${DIR_DATA_DERIV} ${DIR_DATA_HOME}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_fmriprep${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_fmriprep"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1654,12 +1678,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_denoising
+    spinoza_denoising
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Data denoising with pybest"
+  # print module intro
+  print_module_start "${module}" "Data denoising with pybest"
   
   # --func = alias for -t func, but refers to space, not task. Force actual usage of -t to set task ID, otherwise it'll use "func" for task..
   if [[ ${t_specified} -eq 1 ]]; then
@@ -1684,7 +1708,7 @@ if [[ $? -eq 0 ]]; then
     expert_flag="-x ${KWARGS}"
   fi
 
-  ${job} spinoza_denoising \
+  cmd="""spinoza_denoising \
     ${raw_flag} \
     ${SUBJECT} \
     ${SESSION} \
@@ -1701,14 +1725,16 @@ if [[ $? -eq 0 ]]; then
     ${pyb_flag} \
     ${FORCE_FLAG} \
     ${expert_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/pybest
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/pybest"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_denoising${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_denoising"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1722,12 +1748,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_fitprfs
+    spinoza_fitprfs
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] pRF-fitting with pRFpy"
+  # print module intro
+  print_module_start "${module}" "pRF-fitting with pRFpy"
 
   # set PNG directory
   if [[ -z ${images} ]]; then
@@ -1761,7 +1787,7 @@ if [[ $? -eq 0 ]]; then
     CUT_VOLS="-v ${VERTICES}"
   fi  
 
-  ${job} spinoza_fitprfs \
+  cmd="""spinoza_fitprfs \
     ${use_constr} \
     ${CLIP} \
     ${CLIP_FLAG} \
@@ -1796,14 +1822,16 @@ if [[ $? -eq 0 ]]; then
     ${TRANS_FLAG} \
     ${FIX_FLAG} \
     ${SGE} \
-    ${PRF_INPUT} ${DIR_DATA_DERIV}/prf ${PNG_DIR}
+    ${PRF_INPUT} ${DIR_DATA_DERIV}/prf ${PNG_DIR}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_fitprfs${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_fitprfs"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1817,12 +1845,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_bestvertex
+    spinoza_bestvertex
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Determine best vertex with pycortex"
+  # print module intro
+  print_module_start "${module}" "Determine best vertex with pycortex"
 
   if [[ ! -z ${VERTICES} ]]; then
     VERT="-v ${VERTICES}"
@@ -1838,7 +1866,7 @@ if [[ $? -eq 0 ]]; then
     TASK_ID="-t ${TYPE}"
   fi
 
-  ${job} spinoza_bestvertex \
+  cmd="""spinoza_bestvertex \
     ${MODEL} \
     ${TASK_ID} \
     ${GRID} \
@@ -1860,14 +1888,16 @@ if [[ $? -eq 0 ]]; then
     ${EPI_FILE} \
     ${LS_SES} \
     ${skip_prf_info} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV} ${LABEL_FILE}
+    ${DIR_DATA_HOME} ${DIR_DATA_DERIV} ${LABEL_FILE}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_bestvertex${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_bestvertex"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1881,21 +1911,27 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_segmentfast
+    spinoza_segmentfast
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] FAST segmentation with FSL"
+  # print module intro
+  print_module_start "${module}" "FAST segmentation with FSL"
 
-  ${job} spinoza_segmentfast ${SUBJECT} ${SESSION} ${OW} ${SKULLSTRIP} ${DIR_DATA_DERIV}/fsl
+  cmd="""spinoza_segmentfast \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${SKULLSTRIP} ${DIR_DATA_DERIV}/fast"""
+
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_segmentfast${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_segmentfast"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1909,28 +1945,30 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_mgdm
+    spinoza_mgdm
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] MGDM segmentation with nighres"
+  # print module intro
+  print_module_start "${module}" "MGDM segmentation with nighres"
 
-  spinoza_mgdm \
+  cmd="""spinoza_mgdm \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${GDH_FLAG} \
     ${SGE} \
     ${SGE_QUEUE} \
-    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks
+    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks"""
+
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_mgdm${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_mgdm"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1944,12 +1982,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_extractregions
+    spinoza_extractregions
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Region extraction with nighres"
+  # print module intro
+  print_module_start "${module}" "Region extraction with nighres"
 
   if [[ ! -z ${ROI} ]]; then
     ROI=${ROI}
@@ -1957,20 +1995,22 @@ if [[ $? -eq 0 ]]; then
     ROI="cerebrum"
   fi
 
-  ${job} spinoza_extractregions \
+  cmd="""spinoza_extractregions \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${COMB_ONLY} \
     -f ${DIR_DATA_DERIV}/fmriprep \
-    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}
+    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_extractregions${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_extractregions"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -1984,7 +2024,7 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_cortexrecon
+    spinoza_cortexrecon
     exit 1
   fi
 
@@ -1994,9 +2034,8 @@ if [[ $? -eq 0 ]]; then
     ROI="cerebrum"
   fi
 
-  print_line -
-  echo "[${module}] Cortex reconstruction with nighres"
-
+  # print module intro
+  print_module_start "${module}" "Cortex reconstruction with nighres"
   
   if [[ ${LAYER_FLAG} == "nighres" ]]; then
     PROBSEG=${DIR_DATA_DERIV}/nighres
@@ -2004,15 +2043,21 @@ if [[ $? -eq 0 ]]; then
     PROBSEG=${DIR_DATA_DERIV}/manual_masks
   fi
 
-  ${job} spinoza_cortexrecon ${SUBJECT} ${SESSION} ${OW} ${PROBSEG} ${DIR_DATA_DERIV}/nighres ${ROI}
+  cmd="""spinoza_cortexrecon \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${PROBSEG} \
+    ${DIR_DATA_DERIV}/nighres ${ROI}"""
 
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_cortexrecon${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_cortexrecon"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -2026,12 +2071,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_layering
+    spinoza_layering
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Equivolumetric layering"
+  # print module intro
+  print_module_start "${module}" "Equivolumetric layering"
 
   if [[ -z ${LAYER_FLAG} || ${LAYER_FLAG} == "nighres" ]]; then
     INPUT_DIR=${DIR_DATA_DERIV}/nighres
@@ -2044,19 +2089,21 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  ${job} spinoza_layering \
-     ${SUBJECT} \
-     ${SESSION} \
-     ${OW} \
-     ${NR_LAYERS} \
-     ${INPUT_DIR} ${SOFTWARE}
+  cmd="""spinoza_layering \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${NR_LAYERS} \
+    ${INPUT_DIR} ${SOFTWARE}"""
   
+  print_cmd "${cmd}" && eval "${cmd}"
+
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_layering${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_layering"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -2070,21 +2117,27 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_segmentsubcortex
+    spinoza_subcortex
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Subcortex parcellation with MASSP"
+  # print module intro
+  print_module_start "${module}" "Subcortex parcellation with MASSP"
 
-  ${job} spinoza_segmentsubcortex ${SUBJECT} ${SESSION} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres
+  cmd="""spinoza_subcortex \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${DIR_DATA_HOME} \
+    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres"""
+
+  print_cmd "${cmd}" && eval "${cmd}"  
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_segmentsubcortex${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_subcortex"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -2098,12 +2151,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_line2surface
+    spinoza_line2surface
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Registration cascade to project line to surface"
+  # print module intro
+  print_module_start "${module}" "Registration cascade to project line to surface"
 
   if [[ -z ${SUB} ]]; then
     echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
@@ -2118,19 +2171,23 @@ if [[ $? -eq 0 ]]; then
     LS_SES=$(echo ${LS_SES} | awk '{print $2}')
   fi
 
+  subject=${SUBJECT_PREFIX}${SUB}
+
   # input anat as defined in module 00
-  ${job} spinoza_line2surface \
+  cmd="""spinoza_line2surface \
     -s ${subject} \
     -y ${DIR_DATA_HOME}/${subject}/ses-${LS_SES}/anat/${subject}_ses-${LS_SES}_acq-MP2RAGE_T1w.nii.gz \
     -o ${CTX} \
-    -i ${NIGHRES}/${subject}/ses-${SES}
+    -i ${NIGHRES}/${subject}/ses-${LS_SES}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"  
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_line2surface${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" spinoza_line2surface
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -2144,12 +2201,12 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_profiling
+    spinoza_profiling
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Profile sampling using Nighres"
+  # print module intro
+  print_module_start "${module}" "Profile sampling using Nighres"
 
   if [[ -z ${KWARGS} ]]; then
     KWARGS="T2starmap"
@@ -2158,14 +2215,20 @@ if [[ $? -eq 0 ]]; then
   fi    
 
   # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
-  ${job} spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} ${KWARGS}
+  cmd="""spinoza_profiling \
+    ${SUBJECT} \
+    ${SESSION} \
+    ${OW} \
+    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} ${KWARGS}"""
+
+  print_cmd "${cmd}" && eval "${cmd}"    
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_profiling${RESET} exited with non-zero status"
+    print_error_msg "$(basename ${0})" "spinoza_profiling"
     exit 1
   fi
 
-  echo "[${module}] DONE" && echo
+  print_module_end "${module}"
 
 fi
 
@@ -2179,28 +2242,34 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${job} spinoza_suit
+    spinoza_suit
     exit 1
   fi
 
-  print_line -
-  echo "[${module}] Cerebellum segmentation with SUIT"
+  print_error_msg "$(basename ${0})" "master" "This is not implemented in 'master' yet. Use ${BOLD_BLUE}call_spmsuit${RESET}."
+  call_spmsuit
+  
+  # # print module intro
+  # print_module_start "${module}" "Cerebellum segmentation with SUIT"
 
-  # check where inputs live
-  INPUT_DIR=$(find_hierarchical_anatomy 6)
+  # # check where inputs live
+  # INPUT_DIR=$(find_hierarchical_anatomy 6)
 
-  # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
-  ${job} spinoza_suit \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/suit
+  # # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
+  # cmd="""spinoza_suit \
+  #   ${SUBJECT} \
+  #   ${SESSION} \
+  #   ${OW} \
+  #   ${INPUT_DIR} ${DIR_DATA_DERIV}/suit"""
 
-  if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in master: ${BOLD_BLUE}spinoza_suit${RESET} exited with non-zero status"
-    exit 1
-  fi
+  # echo
+  #   print_cmd "${cmd}" && eval "${cmd}"    
 
-  echo "[${module}] DONE" && echo
+  # if [[ $? -ne 0 ]]; then
+  #   print_error_msg "$(basename ${0})" "spinoza_suit"
+  #   exit 1
+  # fi
+
+  # print_module_end "${module}"
 
 fi
