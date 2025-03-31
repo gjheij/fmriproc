@@ -59,16 +59,16 @@ fi
 
 while getopts hs:y:o:i: arg
 do
-    case ${arg} in
-      s)  SUB=${OPTARG}
-            ;;
-      y)  ANAT2=${OPTARG}
-            ;;
-      o)  OUTPUTDIR=${OPTARG}
-            ;;
-      i)  INPUTDIR=${OPTARG}
-            ;;
-    esac
+  case ${arg} in
+    s)  SUB=${OPTARG}
+          ;;
+    y)  ANAT2=${OPTARG}
+          ;;
+    o)  OUTPUTDIR=${OPTARG}
+          ;;
+    i)  INPUTDIR=${OPTARG}
+          ;;
+  esac
 done
 
 #-----------------------------------------------------------------------------
@@ -76,16 +76,22 @@ done
 #-----------------------------------------------------------------------------
 start_timer "Register nominal line back to surface"
 
-# print header
-print_subject_header ${SUB}
+# nighres required this module
+check_python_package "cxutils"
 
-if [[ -z ${INPUTDIR} ]]; then
+#-----------------------------------------------------------------------------
+# check if FreeSurfer folder exists
+if [[ ! -d ${FS}/${SUB} ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input directory that needs to be warped was not specified!"
+  print_error_msg "$(basename ${0})" "find" "Directory ${BOLD_GREEN}${FS}/${SUB}${RESET} does not exist"
   exit 1
 fi
 
+# print header
+print_subject_header ${SUB}
+
+# set output directory
 if [[ ! -z ${OUTPUTDIR} ]]; then
   outputdir=${OUTPUTDIR}
 else
@@ -94,7 +100,7 @@ else
 fi
 
 # make sure filestore is set to outputdir
-fstore=`call_ctxfilestore show_fs`
+fstore=$(call_ctxfilestore show_fs)
 if [[ "${outputdir}" != "${fstore}" ]]; then
   echo "Updating Pycortex's filestore with outputdir"
   call_ctxfilestore update ${outputdir}
@@ -107,13 +113,14 @@ fi
 
 #-----------------------------------------------------------------------------
 # Step 1; converting from-ses1_to-ses-2 to FSL-format
+
 echo
 echo "[STEP 1]: warping session 2 to FreeSurfer"
 
 if [[ -z ${ANAT2} ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): second session anatomy was not specified!"
+  print_error_msg "$(basename ${0})" "find" "Specify session relevant reference for line-scanning session"
   exit 1
 fi
 
@@ -123,12 +130,14 @@ if [[ ! -d ${outputdir}/${SUB}/warped ]]; then
 fi
 
 # Fetch matrix
-tmp_genaff=$(find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -and -name "*to-ses2*" -and -name "*genaff*" -and -name "*.mat" \) 2>/dev/null)
+ses=$(get_id ${moving} "ses")
+tmp_genaff=$(find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -and -name "*to-ses${ses}*" -and -name "*genaff*" -and -name "*.mat" \) 2>/dev/null)
 if [[ ! -z ${tmp_genaff} ]]; then
   from_fs_to_ses2=${tmp_genaff}
 else
+  echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Could not find fs_to_ses2 matrix in the output directory or in the planning-folder.."
+  print_error_msg "$(basename ${0})" "find" "Could not find FreeSurfer to ses-${ses} matrix in ${BOLD_GREEN}${outputdir}/${SUB}/transforms${RESET}. Use ${BOLD_BLUE}call_fs_to_ses2${RESET}"
   exit 1
 fi
 
@@ -142,18 +151,18 @@ fi
 # Create FreeSurfer reference
 fs_ref=${FS}/${SUB}/mri/orig.nii.gz
 if [[ ! -f ${fs_ref} ]]; then
-  echo "Converting orig.mgz to orig.nii.gz to use as FS-reference"
+  echo -e "Converting ${BOLD_RED}orig.mgz${RESET} to ${BOLD_RED}orig.nii.gz${RESET} to use as FS-reference"
   call_mriconvert $(dirname ${fs_ref})/$(basename ${fs_ref} .nii.gz).mgz ${fs_ref} 2>/dev/null
 
   if [[ $? != 0 ]]; then
     echo
     print_line -
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_mriconvert exited with non-zero status"
+    print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
   fi
 
 else
-  echo "FreeSurfer reference: $(basename ${fs_ref})"
+  echo -e "FreeSurfer reference: ${BOLD_GREEN}$(basename ${fs_ref})${RESET}"
 fi
 
 for f in ${ff[@]}; do
