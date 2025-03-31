@@ -7,8 +7,14 @@ from scipy import ndimage
 import pathlib
 from lazyfmri import utils
 import warnings
+import subprocess
 warnings.filterwarnings("ignore")
 opj = os.path.join
+gr = utils.color.GREEN
+rd = utils.color.RED
+bld = utils.color.BOLD
+end = utils.color.END
+bl = utils.color.BLUE
 
 def main(argv):
 
@@ -61,12 +67,14 @@ if left to empty, it will look by default for the following files:
     """
 
     subject = None
-    ses     = None
-    inv2    = None
-    t1w_fn  = None
-    masks   = None
-    output  = None
-    manual  = True
+    ses = None
+    inv2 = None
+    t1w_fn = None
+    masks = None
+    output = None
+    manual = True
+    inv2_mask = None
+    inside = None
 
     try:
         opts = getopt.getopt(argv,"hs:n:i:t:m:d:o:",["subj=", "ses=", "inv=", "t1w=", "masks=", "output=", "no-manual"])[0]
@@ -98,32 +106,45 @@ if left to empty, it will look by default for the following files:
         print(main.__doc__)
         sys.exit()
 
-    if subject == None:
+    # set subject        
+    if subject is None:
         raise ValueError("Need at the bare minimum at subject ID")
 
-    if ses == None:
+    # set base name/paths based on the presence of session
+    if ses is None:
         sub_dir = subject
-        base    = f"{subject}"
+        base = f"{subject}"
     else:
         sub_dir = opj(subject, f'ses-{ses}')
-        base    = f"{subject}_ses-{ses}"
+        base = f"{subject}_ses-{ses}"
+
+    # bids_anat folder
+    proj_dir = os.environ.get("DIR_DATA_HOME")
+    bids_anat = opj(
+        proj_dir,
+        sub_dir,
+        "anat"
+    )
 
     # This stuff will create some default options if they are left empty. It assumes that you have the variables
     # from spinoza_setup available in your environment. If not, it will throw a key-error
-    if inv2 == None:
-        data_home = opj(
-            os.environ.get("DIR_DATA_HOME"),
-            sub_dir,
-            "anat")
-
+    if inv2 is None:
         inv2 = utils.get_file_from_substring(
           ["inv-2", "part-mag", ".nii.gz"], 
-          data_home,
-          exclude="space-")
+          bids_anat,
+          exclude="space-"
+        )
 
-    acq_tag = os.environ.get("DATA")
-    if t1w_fn == None:
-        data_proj = opj(os.environ.get("DIR_DATA_HOME"))
+    acq = os.environ.get("DATA")
+    acq_tag = ""
+    if acq is not None:
+        acq_tag = f"acq-{acq}_"
+        out_base = f"masked_{acq.lower()}"
+    else:
+        out_base = "masked_anat"
+
+    if t1w_fn is None:
+        data_proj = opj(proj_dir)
         
         # try to iteratively search for T1w; first 'denoising', then 'pymp2rage', finally 'DIR_DATA_HOME'
         if isinstance(data_proj, str):
@@ -134,144 +155,148 @@ if left to empty, it will look by default for the following files:
                         data_proj,
                         "derivatives",
                         ii,
-                        sub_dir)
+                        sub_dir
+                    )
                 else:
                     search_dir = opj(data_proj, sub_dir, "anat")
 
                 if os.path.exists(search_dir):
                     t1w_fn = utils.get_file_from_substring(
-                        [f"acq-{os.environ.get('DATA')}_", "T1w.nii.gz"],
+                        [acq_tag, "T1w.nii.gz"],
                         search_dir,
-                        exclude="space-")
+                        exclude="space-"
+                    )
                     
                     # keep looking until we find a string
                     if isinstance(t1w_fn, str):
                         if os.path.exists(t1w_fn):
                             break
 
-    if masks == None:
-        masks   = opj(os.environ['MASKS'], sub_dir)
+    if masks is None:
+        masks = opj(os.environ['MASKS'], sub_dir)
 
-    if output == None:
+    if output is None:
         masked_out = opj(
-          os.environ.get('DIR_DATA_DERIV'), 
-          f"masked_{acq_tag.lower()}",
-          sub_dir, 
-          "anat", 
-          f"{base}_acq-{acq_tag}_desc-masked_T1w.nii.gz")
+            os.environ.get('DIR_DATA_DERIV'), 
+            out_base,
+            sub_dir, 
+            "anat", 
+            f"{base}_{acq_tag}desc-masked_T1w.nii.gz"
+        )
 
         mask_out = opj(
-          os.environ.get('MASKS'), 
-          f"masked_{acq_tag.lower()}",
-          sub_dir, 
-          f"{base}_acq-{acq_tag}_desc-brainmask.nii.gz")          
+            os.environ.get('MASKS'), 
+            f"masked_{acq_tag.lower()}",
+            sub_dir, 
+            f"{base}_{acq_tag}desc-brainmask.nii.gz"
+        ) 
 
-        mask_out = opj(os.environ['MASKS'], sub_dir, "{s}_acq-{a}_desc-brainmask.nii.gz".format(s=base, a=os.environ.get("DATA")))
+        mask_out = opj(
+            masks,
+            f"{base}_{acq_tag}desc-brainmask.nii.gz")
     else:
         masked_out = output + "masked_T1w.nii.gz"
         mask_out = output + "brainmask.nii.gz"
 
     # Start procedure
-    print("Starting procedure ..")
+    utils.verbose("Starting procedure ..", True)
 
     all_masks = {}
     for j in os.listdir(masks):
-
         for i in ['cat_dura', 'dura_orig', 'dura_dil', 'cat_mask', 'spm_mask', '-outside', 'sinus', 'inside']:
-
             if i in j:
-                if os.environ.get("DATA").upper() in j:
+                # account for scenarios with/without acq-MP(2)RAGE(ME) tags
+                if len(acq_tag)>0:
+                    if os.environ.get("DATA").upper() in j:
+                        all_masks[i] = opj(masks, j)
+                else:
                     all_masks[i] = opj(masks, j)
 
-    # Check which masks we actually have
-    try:
-        dura_mask   = all_masks['dura_dil']         # use the dilated dura by default
-    except:
-        try:
-            dura_mask   = all_masks['cat_dura']     # if dilated doesn't exist, use the dura from CAT
-        except:
-            try:
-                all_masks['dura_orig']              # if THAT also doesn't exist, run spinoza_createskullduramasks
-            except:
-                print("Could not find any dura image. It's most likely you don't have a T2w-image, so run spinoza_createskullduramasks (module 11)")
-                print(" - If you do have a T2-image, run spinoza_registration (module 6) and spinoza_sinusfrommni (module 7), to create a dura mask")
-                print(" - If you do not have INV2-images, but you do have a T2w and ran module 07, then copy the 'sinus_mni'-file as 'cat_dura'")
-                sys.exit(1)
+    # Try to find a valid dura mask in priority order
+    dura_mask = utils.get_first_existing(
+        all_masks,
+        ['dura_dil', 'cat_dura', 'dura_orig'],
+    )
+    
+    if not isinstance(dura_mask, str):
+        raise FileNotFoundError(
+            "Could not find any dura image. It's most likely you don't have a T2w-image, so run spinoza_dura (module 11)\n"
+            " - If you do have a T2-image, run spinoza_registration (module 05b) and spinoza_sinusfrommni (module 7), to create a dura mask\n"
+            " - If you do not have INV2-images, but you do have a T2w and ran module 07, then copy the 'sinus_mni'-file as 'cat_dura'"
+        )
 
-    try:
-        t1w_mask = all_masks['cat_mask']
-    except:
-        try:
-            t1w_mask = all_masks['gdh_mask']
-        except:
-            t1w_mask = None
+    # Try to find a valid T1w mask in priority order
+    t1w_mask = utils.get_first_existing(
+        all_masks,
+        ['cat_mask', 'gdh_mask'],
+    )
 
-    try:
-        inv2_mask = all_masks['spm_mask']
-    except:
-        inv2_mask = None
+    # get spm mask
+    inv2_mask = utils.get_first_existing(
+        all_masks,
+        ['spm_mask'],
+    )
 
-    try:
-        outside = all_masks['-outside']
-    except:
-        try:
-            outside = all_masks['sinus']
-        except:
-            print(f"Could not find mask with 'sinus' in '{masks}'. Setting 'dura'-mask as 'sinus'-mask")
-            outside = dura_mask
+    # get outside mask
+    outside = utils.get_first_existing(
+        all_masks,
+        ['-outside', 'sinus'],
+        fallback=dura_mask,
+        msg=f"Could not find mask with '{utils.verbose}sinus' in '{masks}'. Setting 'dura'-mask as 'sinus'-mask"
+    )
 
-    try:
-        inside = all_masks['inside']
-    except:
-        inside = None
+    # get inside mask
+    inside = utils.get_first_existing(
+        all_masks,
+        ['inside'],
+    )
 
-    print("Loading in masks")
+    utils.verbose("Loading in masks", True)
     for i,t in zip(
         [dura_mask, t1w_mask, outside, inside, inv2_mask], 
         ["dura", "t1w", "outside", "inside", "inv2"]):
         if isinstance(i, str):
-            print(f" {t}: {i}")#.format(file=os.path.basename(i)))
+            utils.verbose(f" {t}: {gr}{bld}{i}{end}", True)
 
-    print("Fetching structural files")
+    utils.verbose("Fetching structural files", True)
     for i,t in zip([inv2, t1w_fn], ["inv2", "T1w"]):
         if isinstance(i, str):
-            print(f" found: {i}")#.format(file=os.path.basename(i)))
+            utils.verbose(f" found: {gr}{bld}{i}{end}", True)
         else:
-            print(f"Missing '{t}'-file..")
+            utils.verbose(f" missing '{rd}{bld}{t}{end}'-file..", True)
 
+    # create output directory
     if not os.path.exists(os.path.dirname(masked_out)):
         pathlib.Path(os.path.dirname(masked_out)).mkdir(parents=True, exist_ok=True)
 
-    # print("   Remove ugly background noise")
-    if inside:
+    # refine brain mask with inside and inv2-masks
+    utils.verbose(f"Refine brain mask with {rd}{bld}inside{end} and {rd}{bld}inv2{end}-masks", True)
+    if inside is not None:
         t1w_mask = image.math_img(
             '(t1w_mask + inside) > 0',
             t1w_mask=t1w_mask,
-            inside=inside)
+            inside=inside
+        )
 
-    if inv2_mask:
+    if inv2_mask is not None:
         t1w_mask = image.math_img(
             '(t1w_mask + inv2) > 0',
             t1w_mask=t1w_mask,
-            inv2=inv2_mask)                                    
-    
-    # cat12 mask can be more robust against intensity issues
-    # if cat12:
-    #     t1w_mask = image.math_img('(t1w_mask + cat12) > 0',
-    #                                 t1w_mask=t1w_mask,
-    #                                 cat12=cat12)                        
-                                    
-    outside_fn = opj(masks, "{s}_acq-{a}_desc-outside.nii.gz".format(s=base, a=os.environ.get("DATA")))
-
+            inv2=inv2_mask
+        )                                    
+                       
+    # create outside-mask             
+    outside_fn = opj(masks, f"{base}_{acq_tag}desc-outside.nii.gz")
     if not "-outside" in outside:
 
-        print("Creating outside mask")
+        utils.verbose(f"Creating {rd}{bld}outside{end} mask: {gr}{bld}{outside_fn}{end}", True)
 
         if not "dura_dil" in dura_mask:
             # Dilate dura mask
             dilated_dura_mask = ndimage.binary_dilation(
                 image.load_img(dura_mask).get_fdata(),
-                iterations=2)
+                iterations=2
+            )
 
             dilated_dura_mask = image.new_img_like(dura_mask, dilated_dura_mask)
 
@@ -280,15 +305,16 @@ if left to empty, it will look by default for the following files:
                 '(dilated_dura_mask - (t1w_mask - dura_mask)) > 0',
                 t1w_mask=t1w_mask,
                 dura_mask=dura_mask,
-                dilated_dura_mask=dilated_dura_mask)
+                dilated_dura_mask=dilated_dura_mask
+            )
 
             if inside:
                 dilated_dura_mask = image.math_img(
                     'dilated_dura_mask - inside > 0',
                     dilated_dura_mask=dilated_dura_mask,
                     inside=inside)
-
-            dura_fn = opj(os.path.dirname(mask_out), "{s}_acq-{a}_desc-dura_dilated.nii.gz".format(s=base, a=os.environ.get('DATA')))
+                
+            dura_fn = opj(os.path.dirname(mask_out), f"{base}_{acq_tag}desc-dura_dilated.nii.gz")
             dilated_dura_mask.to_filename(dura_fn)
             dura_mask = dura_fn
 
@@ -299,45 +325,51 @@ if left to empty, it will look by default for the following files:
             sinus=outside)
 
         outside.to_filename(outside_fn)
-        try:
-            print("Copying geometry from input T1w-image")
-            os.system(f"fslcpgeom {t1w_fn} {outside_fn}")
-        except:
-            print("WARNING: could not copy geometry from {} to {}".format(t1w_fn, outside_fn))
 
+        # copy header
+        cmd = f"call_copyheader {t1w_fn} {outside_fn}"
+        utils.run_shell_wrapper(
+            cmd,
+            f"Copying geometry from input {rd}{bld}T1w{end}-image",
+            verb=True
+        )
+
+        # allow manual edits
         if manual:
-          try:
-              print("Manually edit the outside mask in ITKSnap")
-              cmd_txt = "itksnap -g {anat} -s {dura}".format(anat=t1w_fn, dura=outside_fn)
-              os.system(cmd_txt)
-          except:
-              print("Could not initiate ITKsnap to manually edit outside mask")
+            utils.verbose("Manually edit the outside mask in ITKSnap", True)
+            cmd = ["itksnap", "-g", t1w_fn, "-s", outside_fn]
+            utils.verbose(" ".join(cmd), True, highlight=True)
+            subprocess.run(cmd)
 
     # Stuff like dura should be put to 0, not just multiplied with INV2
-    print("Set sagittal sinus and dura stuff to zero")
+    utils.verbose("Set sagittal sinus and dura stuff to zero", True)
     t1w = image.math_img(
         't1w * (np.ones_like(t1w) - outside)',
         t1w=t1w_fn,
-        outside=outside_fn)
+        outside=outside_fn
+    )
 
     t1w_mask = image.math_img(
         't1w_mask - outside > 0',
         t1w_mask=t1w_mask,
-        outside=outside_fn)
+        outside=outside_fn
+    )
 
     t1w_mask.to_filename(mask_out)
 
-    if inv2 != None:
-        new_t1w = image.math_img(
+    # final masking
+    if inv2 is not None:
+        utils.verbose(f"Masking T1w with INV2 and T1w-mask (same as {bl}{bld}call_rmbackground{end})", True)
+        image.math_img(
             't1w * t1w_mask * np.mean(inv2[t1w_mask == 1]/np.max(inv2)) + t1w * inv2/np.max(inv2) * (1-t1w_mask)',
             t1w=t1w,
             t1w_mask=t1w_mask,
-            inv2=inv2)
-        new_t1w.to_filename(masked_out)
+            inv2=inv2
+        ).to_filename(masked_out)
     else:
         t1w.to_filename(masked_out)
 
-    print("Masking procedure completed")
+    utils.verbose(f"{bl}{bld}call_gdhmasking{end} completed; wrote {gr}{bld}{masked_out}{end}", True)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
