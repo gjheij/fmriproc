@@ -5,11 +5,13 @@ import sys, getopt
 from lazyfmri import utils
 import subprocess
 from nilearn import image
-from fmriproc.image import get_minmax
+import subprocess
 
 opj = os.path.join
 opd = os.path.dirname
 rb = utils.color.BOLD+utils.color.RED
+gb = utils.color.BOLD+utils.color.GREEN
+bb = utils.color.BOLD+utils.color.BLUE
 end = utils.color.END
 
 def main(argv):
@@ -91,31 +93,28 @@ Example:
     # check if T1-file was specified
     if apply_mask:
         if not isinstance(t1_file, str) or not os.path.exists(t1_file):
-            print(f" WARNING: apply_mask was set to True, but no valid T1-file was specified..")
+            print(f" {rb}WARNING{end}: apply_mask was set to True, but no valid T1-file was specified..")
             apply_mask = False
     
     # generate FSL mask
     fsl_mask = opj(opd(input_file), 'tmp_mask.nii.gz')
     if not os.path.exists(fsl_mask):
-        utils.verbose("Make mask with FSL from INV2-image", verbose)
         cmd = f"bet2 {input_file} {opj(opd(input_file), 'tmp')} -m -f 0.2"
-        utils.verbose(cmd, verbose, highlight=True)
-        
-        try:
-            os.system(cmd)
-        except Exception:
-            pass
+        utils.run_shell_wrapper(
+            cmd,
+            "Make mask with FSL from INV2-image",
+            verb=verbose
+        )
 
     # generate SPM mask
     if not os.path.exists(output_file):
-        utils.verbose("Make mask with SPM from INV2-image", verbose)
         cmd = f'call_spmmask --clean {input_file} {output_file}'
-        utils.verbose(cmd, verbose, highlight=True)
-        try:
-            os.system(cmd)
-        except:
-            pass
-        
+        utils.run_shell_wrapper(
+            cmd,
+            "Make mask with SPM from INV2-image",
+            verb=verbose
+        )
+
         # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
         # but also leaves in more dura. This will be removed, however, during the CAT12 stage
         if os.path.exists(output_file) and os.path.exists(fsl_mask):
@@ -140,81 +139,21 @@ Example:
 
     # remove pepper noise pattern around brain
     if apply_mask:
-        utils.verbose("Removing noise pattern around the brain", verbose)
-        try:
-            cmd = f"call_rmbackground -t {t1_file} -m {output_file} -i {input_file} -o {t1_file}"
-            utils.verbose(cmd, verbose, highlight=True)
-            _ = subprocess.run(
-                cmd,
-                shell=True,
-                check=True,
-                capture_output=True,
-                text=True
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Error: Command '{cmd}' failed with exit code {e.returncode}")
-            print(f"Standard Output:\n{e.stdout}")
-            print(f"Standard Error:\n{e.stderr}")
+        cmd = f"call_rmbackground -t {t1_file} -m {output_file} -i {input_file} -o {t1_file}"
+        utils.run_shell_wrapper(
+            cmd,
+            "Removing noise pattern around the brain",
+            verb=verbose
+        )
+        print(f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
 
-        except Exception as e:
-            print(f"Unexpected error: {str(e)}")
-
-        print("TIP: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
-
-        # truncate image intensities
-        try:
-            # Truncate image intensities
-            tmp_file = opj(os.path.dirname(t1_file), "tmp_T1w.nii.gz")
-            cmd = f"call_winsorize -l {lower} -u {upper} {t1_file} {tmp_file}"
-
-            print("Truncating image intensities ["+rb+str(lower)+end+","+rb+str(upper)+end+"] with "+rb+"256"+end+" bins")
-            utils.verbose(cmd, verbose, highlight=True)
-
-            # Run ImageMath
-            _ = subprocess.run(
-                cmd,
-                shell=True,
-                check=True,
-                capture_output=True,
-                text=True
-            )
-
-            # Get min and max values from the processed image
-            out_ = get_minmax(tmp_file)
-            clip_value = out_[1]
-
-            # Clip positive values if the minimum is not zero
-            if out_[0] != 0:
-                print("Clipping original output at "+rb+str(clip_value)+end)
-                cmd = f"call_clipimage {tmp_file} {clip_value} {t1_file}"
-                utils.verbose(cmd, verbose, highlight=True)
-
-                # Run call_clipimage
-                _ = subprocess.run(
-                    cmd,
-                    shell=True,
-                    check=True,
-                    capture_output=True,
-                    text=True
-                )
-
-                # Remove temporary file
-                os.remove(tmp_file)
-                try:
-                    os.remove(opj(os.getcwd(), "stat_result.json"))
-                except Exception:
-                    pass
-            else:
-                # Rename tmp file to the original file
-                os.rename(tmp_file, t1_file)
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error: Command '{e.cmd}' failed with exit code {e.returncode}")
-            print(f"Standard Output:\n{e.stdout}")
-            print(f"Standard Error:\n{e.stderr}")
-
-        except Exception as e:
-            print(f"Unexpected error: {str(e)}")
+        # do some final intensity things
+        cmd = f"call_wcrd -l {lower} -u {upper} {t1_file}"
+        utils.run_shell_wrapper(
+            cmd,
+            "Running post-processing to fix intensities and datatype",
+            verb=verbose
+        )
 
 if __name__ == "__main__":
     main(sys.argv[1:])

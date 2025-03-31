@@ -306,7 +306,7 @@ if [[ ! -z ${t1map} ]]; then
 
   #-----------------------------------------------------------------------------
   # set dtype to uint16
-  echo "Set dtype to UINT16"
+  echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
   cmd="call_setdtype ${t1_reg}"
   eval "${cmd}"
 fi

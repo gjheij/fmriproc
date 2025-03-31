@@ -23,7 +23,12 @@ import shutil
 from lazyfmri import utils
 from fmriproc import image
 opj = os.path.join
-            
+
+rb = utils.color.BOLD+utils.color.RED
+gb = utils.color.BOLD+utils.color.GREEN
+bb = utils.color.BOLD+utils.color.BLUE
+end = utils.color.END
+
 def main(argv):
 
     """
@@ -194,11 +199,7 @@ Notes:
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
         cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
-
-        utils.verbose(cmd, True, highlight=True)
-        os.system(cmd)
-        if not os.path.exists(spm_mask):
-            raise ValueError(f"call_createmask failed: Mask '{spm_mask}' was not created..")
+        utils.run_shell_wrapper(cmd)
 
     print("Done")
 
