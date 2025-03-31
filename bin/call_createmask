@@ -83,7 +83,7 @@ Example:
         elif opt in ("--skip-bg"):
             apply_mask = False
         elif opt in ("--verbose"):
-            verbose = True         
+            verbose = True
 
     if len(argv) < 2:
         print("NOT ENOUGH ARGUMENTS SPECIFIED")
