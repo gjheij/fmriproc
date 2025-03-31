@@ -41,7 +41,7 @@ VERB=0
 lower=0.01
 upper=0.99
 n_bins=256
-while getopts :-:vl:u:t: argument
+while getopts :-:vl:u:t:b: argument
 do
   case ${argument} in
     -)
@@ -78,10 +78,11 @@ fi
 in=${@:$OPTIND:1}
 out=${@:$OPTIND+1:1}
 
-in_file=$(fetch_filepath ${in})
-
+in_file=$(readlink -f ${in})
 if [[ ! -f ${in_file} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input file \"${in_file}\" does not exist"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "File \"${in_file}\" does not exist"
   exit 1
 fi
 
@@ -122,4 +123,3 @@ if [[ ${VERB} -eq 1 ]]; then
   intensities_post=$(fslstats ${out_file} -R)
   echo "post: ${intensities_post}"
 fi
-
