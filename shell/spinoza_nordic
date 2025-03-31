@@ -41,8 +41,8 @@ Usage:
 Arguments:
   -s <subject>  subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>  session ID (e.g., 1, 2, or none
-  -r <run>        run ID (e.g., 1). Can also be comma-separated list: 1,3,4
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -r <run>      run ID (e.g., 1). Can also be comma-separated list: 1,3,4
+  -q <queue>    submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   --sge         submit individual NORDIC processes to the cluster for parallellization. If you do 
                 this, it's advised to have identifiable 'run-' flags in your filenames so that the 
                 template file is not overwritten; this can cause problems. If you do not have run 
