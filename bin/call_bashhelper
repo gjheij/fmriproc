@@ -72,7 +72,9 @@ check_python_package() {
   
   python -c "import ${package}" 2>/dev/null
   if [[ $? -ne 0 ]]; then
-    echo "Python package '${package}' is not installed. Exiting."
+    echo 
+    print_line -
+    print_error_msg "$(basename ${BASH_SOURCE[0]})" "check_python_package" "Python package '${package}' is not installed. Exiting."
     exit 1
   fi
 }
@@ -82,6 +84,18 @@ print_line() {
   local width="${TERMINAL_WIDTH:-99}"
 
   printf "%*s\n" "$width" "" | tr ' ' "$char"
+}
+
+print_module_start() {
+  module="${1}"
+  msg="${2}"
+  print_line -
+  echo -e "[${BOLD_MAGENTA}${module}${RESET}] ${msg}" && echo
+}
+
+print_module_end() {
+  module="${1}"
+  echo -e "[${BOLD_MAGENTA}${module}${RESET}] DONE" && echo
 }
 
 load_colors() {
@@ -236,10 +250,10 @@ print_file_not_exist() {
 }
 
 print_error_msg() {
-  script="${1}"
-  func="${2}"
-  extra="${3}"
-  echo -e "${BOLD_RED}ERROR${RESET} in ${script}: ${BOLD_BLUE}${func}${RESET} exited with non-zero status. ${extra}"
+  local script="${1}"
+  local func="${2}"
+  local extra="${3}"
+  echo -e "${BOLD_RED}ERROR${RESET} in ${script} (line ${BOLD_GREEN}${BASH_LINENO[0]}${RESET}): ${BOLD_BLUE}${func}${RESET} exited with non-zero status. ${extra}"
 }
 
 # ---------------------------------------------------------------------------------------------------
