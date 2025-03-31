@@ -234,7 +234,7 @@ Notes:
     if do_stuff:
         spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
         cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
-        utils.run_shell_wrapper(cmd)
+        utils.run_shell_wrapper(cmd, verb=True)
 
     print("Done")
 
