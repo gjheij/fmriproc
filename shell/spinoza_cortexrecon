@@ -83,6 +83,9 @@ fi
 # intro
 start_timer "Cortex reconstruction using CRUISE from Nighres"
 
+# nighres required this module
+check_python_package "nighres"
+
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do

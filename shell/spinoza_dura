@@ -77,6 +77,9 @@ fi
 # intro
 start_timer "Skull and dura estimation with Nighres"
 
+# nighres required this module
+check_python_package "nighres"
+
 #-----------------------------------------------------------------------------
 # Run it
 for subID in ${search}; do
@@ -160,7 +163,7 @@ for subID in ${search}; do
     fi
 
     if [[ -z ${inv2_mask} ]]; then
-      print_file_not_in_dir "${sub_name}" "*spm-mask.nii.gz" "${inv2_dir}"
+      print_file_not_in_dir "${sub_name}" "*spm_mask.nii.gz" "${mask_dir}"
       continue
     fi
 
