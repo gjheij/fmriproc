@@ -26,7 +26,8 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.99) for call_winsorize    
+  -u <upper>          upper percentile (default = 0.95) for call_winsorize. NOTE this is more ex-
+                      treme than the default for call_winsorize.
   -o|--ow             overwrite existing files
   --no-manual         do not do any further manual editing; just combine all masks and apply
   <anat dir>          parent directory containing the sub-xxx folders for anatomies
@@ -53,7 +54,7 @@ USAGE
 OW=0
 man_flag=""
 lower=0.01
-upper=0.99
+upper=0.95
 while getopts :-:os:n:l:u: argument
 do
   case ${argument} in
@@ -145,21 +146,14 @@ for subID in ${search}; do
 
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      if [[ -d ${output_dir} ]]; then
-        rm -r ${output_dir}/*acq-${DATA^^}* 2>/dev/null
-      fi
-      
-      if [[ -f ${MASKED} ]]; then
-      	rm -r ${MASKED}
-      fi
+      rm -r ${output_dir}/*acq-${DATA^^}* 2>/dev/null
+      rm -r ${MASKED} 2>/dev/null
     fi
 
     if [[ -f ${MASKED} ]]; then
       print_output_exists "${sub_name}" "${MASKED}"
     else
-
       if [[ ! -f ${MASKED} ]]; then
-
         if [[ ! -f ${t1w_fn} ]]; then
           print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
           continue
@@ -170,7 +164,6 @@ for subID in ${search}; do
 
         # if we cannot do masking, then just copy the input image as "masked" image
         if [[ ! -z ${MASK} ]]; then
-          echo "Remove background noise with call_gdhmasking"
           cmd="""call_gdhmasking \
             ${man_flag} \
             -s ${sub_name} \
@@ -183,61 +176,37 @@ for subID in ${search}; do
           if [[ $? != 0 ]]; then
             echo
             print_line -
-            echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_gdhmasking exited with non-zero status"
+            print_error_msg "$(basename ${0})" "call_gdhmasking"
             exit 1
           fi
 
           MASKED=$(find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
           if [[ ! -z ${MASKED} ]]; then
 
-            # truncate image intensities
-            echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
-            TMP=$(dirname ${MASKED})/tmp_T1w.nii.gz
-            cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
-            eval "${cmd}"
+            echo
+            print_line -
 
-            if [[ ! -z "${TMP}" ]]; then
-              print_error_msg "$(basename ${0})" "call_winsorize" "File \"${TMP}\" not created"
+            # truncate image intensities
+            echo "Running post-processing to fix intensities and datatype"
+            cmd="call_wcrd -l ${lower} -u ${upper} ${MASKED}"
+            print_cmd "${cmd}" && eval "${cmd}"
+
+            if [[ $? -ne 0 ]]; then
+              print_error_msg "$(basename ${0})" "call_wcrd"
               exit 1
             fi
-
-            # fetch max value
-            MM=$(fslstats "${TMP}" -R)
-            min=$(echo "${MM}" | cut -d" " -f1 | xargs)
-            max=$(echo "${MM}" | cut -d" " -f2 | xargs)
-
-            # clip max intensity; this leaves the minimal values untouched (they should be zero already!) 
-            if [[ ${min} == "0.000000" ]]; then
-              mv ${TMP} ${MASKED}
-            else
-              call_clipimage ${MASKED} ${max}
-              rm ${TMP} 2>/dev/null
-            fi
-
-            # rescale clipped image
-            echo "Rescaling masked image to [0,4095]"
-            call_rescale ${MASKED} 0 4095 ${MASKED}
-
-            # copy qform to sform
-            # fslorient -copyqform2sform ${MASKED}
           fi
-        
         else
-
           echo "Could not find \"${search_for_mask}\" mask; copying input image to ${output_dir}"
           if [[ ! -d ${output_dir} ]]; then
-            mkdir -p $output_dir
+            mkdir -p ${output_dir}
           fi
-
           cp -r ${t1w_fn} ${output_dir}
           continue 3
-
         fi
-
       else
         print_output_exists "${sub_name}" "${MASKED}"
       fi
-
     fi
 
     # define skullstrip output (input for Nighres)
@@ -260,6 +229,8 @@ for subID in ${search}; do
       t1map=$(find "${input_dir}" -type f \( -name "*T1map*" -and -name "*acq-${DATA^^}_*" -and -name "*.nii.gz" \) 2>/dev/null)
 
       if [[ ! -z ${mask_img} ]]; then
+        echo
+        print_line -
         echo "Skullstripping files for mgdm-input"
         if [[ ! -z ${MASKED} ]]; then
           # echo " apply mask to masked T1-weighted image"
