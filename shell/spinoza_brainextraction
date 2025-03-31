@@ -480,8 +480,8 @@ for subID in ${search}; do
             cp ${spm_mask} ${spm}
           fi
         else
-          echo "Could not find m*-image; copying ${BOLD_GREEN}${input}${RESET} to CAT12-directory"
-          cp ${input} ${BET}
+          echo -e "Could not find m*-image; copying ${BOLD_GREEN}${input}${RESET} to CAT12-directory"
+          cp "${input}" "${BET}"
         fi
       else
         if [[ -z ${input} ]]; then
