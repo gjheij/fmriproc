@@ -768,7 +768,7 @@ if [[ $? -eq 0 ]]; then
     -i ${reg_img} \
     -p ${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv"""
 
-    print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd}" && eval "${cmd}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_lineplanning"
