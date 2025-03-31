@@ -493,7 +493,7 @@ for subID in ${search}; do
                 use_pngdir=${task_dirs[0]}
 
                 # check if directory contains png-files
-                if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null$( ]]; then
+                if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null) ]]; then
                   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no *.png-files in \"${use_pngdir}\""
                   continue
                 fi
