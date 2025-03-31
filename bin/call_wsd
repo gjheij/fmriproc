@@ -6,11 +6,11 @@ function Usage {
     cat <<USAGE
 
 ---------------------------------------------------------------------------------------------------
-call_wcrd
+call_wsd
 
-WCRS stands for [W]insorizing [C]lipping [R]escaling [D]atatype. This script takes an input, winso-
-rizes the image intensities, rescales them to a certain range (e.g., [0,4095]), and sets the data-
-type to uint16.
+WSD stands for [W]insorizing Re[s]caling [D]atatype. This script takes an input, winsorizes the
+image intensities, rescales them to a certain range (e.g., [0,4095]), and sets the datatype to
+uint16.
 
 Options:
     -l <lower>      lower percentile (default = 0.01) for call_winsorize
@@ -22,8 +22,8 @@ Positional arguments
     <input image>   input image
 
 Usage:
- call_wcrd sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE                   # standard
- call_wcrd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # aggressive
+ call_wsd sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE                   # standard
+ call_wsd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # aggressive
 
 ---------------------------------------------------------------------------------------------------
 

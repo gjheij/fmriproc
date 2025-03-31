@@ -148,7 +148,7 @@ Example:
         print(f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
 
         # do some final intensity things
-        cmd = f"call_wcrd -l {lower} -u {upper} {t1_file}"
+        cmd = f"call_wsd -l {lower} -u {upper} {t1_file}"
         utils.run_shell_wrapper(
             cmd,
             "Running post-processing to fix intensities and datatype",
