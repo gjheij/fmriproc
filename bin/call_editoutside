@@ -84,7 +84,7 @@ if [[ ! -f ${MAN} ]]; then
 fi
 
 echo "Opening ITK-Snap"
-itksnap -g ${REF} -s ${MAN} 2>/dev/null
+launch_itksnap -g ${REF} -s ${MAN} 2>/dev/null
 
 if [[ ! -f ${MAN} ]]; then
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): manual edit file was not saved.."

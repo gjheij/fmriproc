@@ -93,9 +93,9 @@ fi
 
 echo "Opening ITK-Snap"
 if [[ -f ${SEG} ]]; then
-  itksnap -g ${REF} -o ${SEG} -s ${MAN} 2>/dev/null
+  launch_itksnap -g ${REF} -o ${SEG} -s ${MAN} 2>/dev/null
 else
-  itksnap -g ${REF} -s ${MAN} 2>/dev/null
+  launch_itksnap -g ${REF} -s ${MAN} 2>/dev/null
 fi
 
 if [[ ! -f ${MAN} ]]; then
