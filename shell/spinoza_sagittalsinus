@@ -76,7 +76,7 @@ Arguments:
                       this first with e.g., ITK-Snap ('launch_itksnap'), then call this function
   -o|--ow             overwrite existing files
   --itk               use ITK-Snap for manual editing [default]
-  --ofsl              use FSLeyes for editing
+  --fsl               use FSLeyes for editing
   --freeview          use FreeView for editing
   <input directory>   folder where anatomical files live
   <skullstrip>        output folder for masks
