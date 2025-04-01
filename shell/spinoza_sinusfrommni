@@ -56,7 +56,7 @@ do
           ;;
     *)
       if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
+        echo "Unknown option --${OPTARG}. Did you mean \"--itk\" or \"--ow\"?"
         exit 1
       fi
       ;;
@@ -87,6 +87,21 @@ else
   IFS=', ' read -r -a search <<< "${sub}"
   search=${search[@]}
   unset IFS
+fi
+
+# first-pass check for directories
+if [[ ! -d ${ANAT} ]]; then
+  echo 
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Folder with T1w-file ${BOLD_GREEN}${ANAT}${RESET} does not exist"
+  exit 1
+fi
+
+if [[ ! -d ${MATRIX} ]]; then
+  echo 
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Folder with warp-files ${BOLD_GREEN}${MATRIX}${RESET} does not exist"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
@@ -143,7 +158,9 @@ for subID in ${search}; do
             cmd="""fslmaths ${t2} -mas ${mask} $(dirname ${t2})/tmp_$(basename ${t2})"""
             print_cmd "${cmd}" && eval "${cmd}"
             if [[ $? -ne 0 ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "fslmaths"
               exit 1
             fi
 
@@ -152,7 +169,9 @@ for subID in ${search}; do
             echo
             print_cmd "${cmd}" && eval "${cmd}"
             if [[ $? -ne 0 ]]; then
-              echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero code"
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "fslmaths"
               exit 1
             fi
 
@@ -167,11 +186,14 @@ for subID in ${search}; do
                 --t2 ${t2} \
                 -o ${pn_anat}/${base}_acq-${DATA^^}"""
 
-              priprint_cmd "${cmd}" && eval "${cmd}"
-              if [[ $? -ne 0 ]]; then
-                echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_t12ratio exited with non-zero status"
+              print_cmd "${cmd}" && eval "${cmd}"
+              if [[ $? -ne 0 || ! -f "${fn_ratio}" ]]; then
+                echo
+                print_line -
+                print_error_msg "$(basename ${0})" "call_t12ratio"
                 exit 1
               fi
+
             else
               echo -e "${BOLD_CYAN}${sub_name}${RESET}: Missing ${BOLD_RED}T1w${RESET}/${BOLD_RED}T2w${RESET}-file(s) in ${BOLD_GREEN}${pn_anat}${RESET}"
               continue
@@ -194,8 +216,10 @@ for subID in ${search}; do
           
           if [[ ! -z ${mat_file} && ! -z ${warp_file} ]]; then
             # got SyN registration
-            call_antsapplytransforms -i "1 0" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} "${mat_file} ${warp_file}"
-            if [[ $? -ne 0 ]]; then
+            cmd="call_antsapplytransforms -i \"1 0\" --gen ${fn_nuisance} ${mni_mask} ${fn_mni} \"${mat_file} ${warp_file}\""
+            print_cmd "${cmd}" && eval "${cmd}"
+
+            if [[ $? -ne 0 || ! -f "${fn_mni}" ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi
@@ -205,7 +229,7 @@ for subID in ${search}; do
             echo
             print_cmd "${cmd}" && eval "${cmd}"
 
-            if [[ $? -ne 0 ]]; then
+            if [[ $? -ne 0 || -f "${fn_mni}" ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
             fi      
@@ -235,22 +259,21 @@ for subID in ${search}; do
           fi
 
           rm ${fn_mni} 2>/dev/null
-          echo; echo "Created ${fn_out}"
+          echo; echo -e "Created ${BOLD_GREEN}${fn_out}${RESET}"
           if [[ ! -z ${t1} ]]; then
-            cmd="""itksnap -g ${t1} -s ${fn_out}"""
+            cmd="launch_itksnap -g ${t1} -s ${fn_out}"
             if [[ ${open_itk} -eq 0 ]]; then
               echo "check with following command:"
               echo "\"${cmd}\""
             else
-              echo "Openening ITK-Snap for verification"
-              ${cmd}
+              echo "Opening ITK-Snap for verification"
+              print_cmd "${cmd}" && eval "${cmd}"
             fi
           fi
         else
           print_file_not_exist "${sub_name}" "${fn_mni}"
         fi
       fi
-
     else
       print_output_exists "${sub_name}" "${fn_out}"
     fi
