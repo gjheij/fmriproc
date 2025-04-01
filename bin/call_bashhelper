@@ -2148,13 +2148,11 @@ launch_freeview() {
 
 launch_fsleyes() {
   case "$(uname)" in
-    Darwin)
-      open -W -a "FSLeyes" --args "$@"
-      ;;
-    Linux)
+    Darwin|Linux)
       fsleyes "$@"
       ;;
     MINGW*|MSYS*|CYGWIN*)
+      # Windows: start a blocking instance
       cmd.exe /C "start /WAIT fsleyes $*"
       ;;
     *)
@@ -2163,3 +2161,4 @@ launch_fsleyes() {
       ;;
   esac
 }
+
