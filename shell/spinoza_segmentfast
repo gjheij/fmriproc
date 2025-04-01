@@ -19,21 +19,18 @@ rename_fast_outputs() {
     elif [[ ${o} == "pve_2" ]]; then
       t="label-WM_probseg"
     elif [[ ${o} == "seg" ]]; then
-      t="seg"
+      t="desc-seg"
     elif [[ ${o} == "mixeltype" ]]; then
-      t="mixtype"
+      t="desc-mixtype"
     elif [[ ${o} == "pveseg" ]]; then
-      t="pve"
+      t="desc-pve"
     fi
     
-    out_t="${outputroot}-${t}.nii.gz"
-    out_o="${outputroot}-${o}.nii.gz"
-    if [[ ! -f "${out_t}" ]]; then
-      if [[ -f "${out_o}" ]]; then
-
-        echo -e " ${BOLD_RED}${o}${RESET} >> ${BOLD_RED}${t}${RESET}"
-        mv "${out_o}" "${out_t}" 2>/dev/null
-      fi
+    out_t="${output_root}_${t}.nii.gz"
+    out_o="${output_root}_${o}.nii.gz"
+    if [[ -f "${out_o}" ]]; then
+      echo -e " ${BOLD_RED}${o}${RESET} >> ${BOLD_RED}${t}${RESET} | wrote ${BOLD_GREEN}$(basename ${out_t})${RESET}"
+      mv "${out_o}" "${out_t}" 2>/dev/null
     fi
 
   done
@@ -122,6 +119,11 @@ if [[ ! -z ${kwargs} ]]; then
   kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ',' ' ')
 fi
 
+# Add -N if not already present
+if ! echo "${kwargs}" | grep -q '\-N'; then
+  kwargs="${kwargs} -N"
+fi
+
 #-----------------------------------------------------------------------------
 # intro
 start_timer "Tissue segmentation with FAST"
@@ -153,19 +155,20 @@ for subID in ${search}; do
   fi
 
   input_t1w=$(find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-  outputroot=${output_dir}/${base}_acq-${DATA^^}_desc
+  outputroot=${output_dir}/${base}_acq-${DATA^^}
 
   # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
   if [[ ${OW} -eq 1 ]]; then
     if [[ -d ${output_dir} ]]; then
-      echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\""
-      rm -r ${output_dir}/${base}_acq-${DATA^^}_desc* 2>/dev/null
+      echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}\""
+      rm -r ${output_dir}/${base}_acq-${DATA^^}* 2>/dev/null
     fi
   fi
 
   if [[ -f ${input_t1w} ]]; then
 
-    if [[ ! -f ${outputroot}-seg.nii.gz ]]; then
+    seg_file="${outputroot}_desc-seg.nii.gz"
+    if [[ ! -f "${seg_file}" ]]; then
 
       # print header
       print_subject_header ${sub_name}
@@ -183,15 +186,17 @@ for subID in ${search}; do
           print_error_msg "$(basename ${0})" "call_fslfast"
           exit 1
         fi
+      else
+        echo "Found existing output; skipping FAST"
       fi
 
       # rename outputs
-      rename_fast_outputs "${output_root}"
+      rename_fast_outputs "${outputroot}"
 
       # done
       echo "Done"
     else
-      print_output_exists "${sub_name}" "${outputroot}-seg.nii.gz"
+      print_output_exists "${sub_name}" "${seg_file}"
     fi
   else
     print_file_not_in_dir "${sub_name}" "T1w" "${input_dir}"
