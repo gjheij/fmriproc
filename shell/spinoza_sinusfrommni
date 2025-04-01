@@ -5,6 +5,46 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+launch_viewer() {
+  local ref="${1}"
+  local mask="${2}"
+  local software="${3}"
+  local msg="${4}"
+
+  # decide cmd
+  if [[ ${software} == "itk" ]]; then
+    func="itksnap"
+    cmd="launch_${func} -g ${ref} -s ${mask}"
+  elif [[ ${software} == "fv" ]]; then
+    func="freeview"
+    cmd="launch_${func} -v "${ref}" -v ${mask}:colormap=lut:opacity=1"
+  elif [[ ${software} == "fsl" ]]; then
+    func="fsleyes"
+    cmd="launch_${func} --scene ortho "${ref}" "${mask}" --overlayType mask"
+  fi
+
+  # check if function exists
+  call_checkfunction "${func}"
+  if [[ $? -eq 0 ]]; then
+    echo
+    print_line -
+    echo -e "Starting '${BOLD_RED}${func}${RESET}'. ${msg} ${BOLD_RED}ALWAYS SAVE YOUR CHANGES!${RESET}"
+    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      exit 1
+    fi    
+  else
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_checkfunction" "Make sure you have ${func} installed!"
+    exit 1
+  fi
+}
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -24,7 +64,9 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -o|--ow             Overwrite existing output
-  --itk               open itksnap to verify mask procedure
+  --itk               use ITK-Snap for manual editing [default]
+  --fsl               use FSLeyes for editing
+  --freeview          use FreeView for editing
   <anat directory>    directory containing the T1w and T2w files; should generally be pymp2rage-
                       folder
   <registration>      path to directory where registration file is (output from spinoza_registration)
@@ -42,18 +84,27 @@ USAGE
 
 # Check for subject & session flags
 OW=0
-open_itk=0
+open_viewer=0
 while getopts :-:os:n:m: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in
         itk)
-          open_itk=1
+          use_software="itk"
+          open_viewer=1
+          ;;
+        fsl)
+          use_software="fsl"
+          open_viewer=1
+          ;;
+        freeview)
+          use_software="fv"
+          open_viewer=1
           ;;
         ow)
           OW=1
-          ;;
+          ;; 
     *)
       if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
         echo "Unknown option --${OPTARG}. Did you mean \"--itk\" or \"--ow\"?"
@@ -102,6 +153,22 @@ if [[ ! -d ${MATRIX} ]]; then
   print_line -
   print_error_msg "$(basename ${0})" "find" "Folder with warp-files ${BOLD_GREEN}${MATRIX}${RESET} does not exist"
   exit 1
+fi
+
+# decide message depending on software
+if [[ ${open_viewer} -eq 1 ]]; then
+  if [[ "${use_software}" == "itk" ]]; then
+    viewer="ITK-Snap"
+  elif [[ "${use_software}" == "fv" ]]; then
+    viewer="FreeView"
+  elif [[ "${use_software}" == "fsl" ]]; then
+    viewer="FSLeyes"
+  else
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "launch_viewer" "Unknown option specified: ${software}. I can deal with: \"itk\" [${BOLD_GREEN}ITK-Snap${RESET}], \"fv\" [${BOLD_GREEN}FreeView${RESET}], or \"fsl\" [${BOLD_GREEN}FSLeyes${RESET}]"
+    exit 1
+  fi
 fi
 
 #-----------------------------------------------------------------------------
@@ -261,11 +328,12 @@ for subID in ${search}; do
           rm ${fn_mni} 2>/dev/null
           echo; echo -e "Created ${BOLD_GREEN}${fn_out}${RESET}"
           if [[ ! -z ${t1} ]]; then
-            cmd="launch_itksnap -g ${t1} -s ${fn_out}"
-            if [[ ${open_itk} -eq 0 ]]; then
+            cmd="launch_viewer ${t1} ${fn_out} ${use_software}"
+            if [[ ${open_viewer} -eq 0 ]]; then
               echo "check with following command:"
               echo "\"${cmd}\""
             else
+              echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
               echo "Opening ITK-Snap for verification"
               print_cmd "${cmd}" && eval "${cmd}"
             fi
