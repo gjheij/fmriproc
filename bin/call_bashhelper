@@ -2108,3 +2108,58 @@ function make_cat_script {
     cat ${4} | grep -A0 "matlabbatch{" >> $(dirname ${4})/$(basename ${4} .m)_batch.m
   fi
 }
+
+launch_itksnap() {
+  case "$(uname)" in
+    Darwin)
+      open -W -a "ITK-SNAP" --args "$@"
+      ;;
+    Linux)
+      itksnap "$@"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      cmd.exe /C "start /WAIT itksnap $*"
+      ;;
+    *)
+      echo "Unsupported platform: $(uname)"
+      return 1
+      ;;
+  esac
+}
+
+
+launch_freeview() {
+  case "$(uname)" in
+    Darwin)
+      open -W -a "Freeview" --args "$@"
+      ;;
+    Linux)
+      freeview "$@"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      cmd.exe /C "start /WAIT freeview $*"
+      ;;
+    *)
+      echo "Unsupported platform: $(uname)"
+      return 1
+      ;;
+  esac
+}
+
+launch_fsleyes() {
+  case "$(uname)" in
+    Darwin)
+      open -W -a "FSLeyes" --args "$@"
+      ;;
+    Linux)
+      fsleyes "$@"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      cmd.exe /C "start /WAIT fsleyes $*"
+      ;;
+    *)
+      echo "Unsupported platform: $(uname)"
+      return 1
+      ;;
+  esac
+}
