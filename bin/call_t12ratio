@@ -6,6 +6,7 @@ from nilearn import image
 import nibabel as nb
 import numpy as np
 import warnings
+from lazyfmri import utils
 warnings.filterwarnings("ignore")
 opj = os.path.join
 
@@ -86,8 +87,8 @@ Example:
 
     # threshold image
     if thresh == None:
-        print("Opening ITK-Snap; go to 'tools' > 'Color Map Editor'")
-        os.system(f"itksnap -g {out+'_desc-ratio.nii.gz'} 2>/dev/null")
+        print("Opening ITK-Snap; go to 'tools' > 'Color Map Editor' and adjust threshold. Remember this threshold!")
+        utils.launch_itksnap("-g", out+'_desc-ratio.nii.gz')
         thresh = input('Threshold: ')
 
     sinus_img = image.threshold_img(ratio_img, float(thresh))
