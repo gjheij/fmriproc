@@ -1909,6 +1909,12 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
+  # check for lsprep kwargs
+  KWARGS_FLAG=""
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   # print module intro
   print_module_start "${module}" "FAST segmentation with FSL"
 
@@ -1916,6 +1922,7 @@ if [[ $? -eq 0 ]]; then
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
+    ${KWARGS_FLAG} \
     ${SKULLSTRIP} ${DIR_DATA_DERIV}/fast"""
 
   print_cmd "${cmd}" && eval "${cmd}"

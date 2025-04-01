@@ -5,6 +5,39 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+rename_fast_outputs() {
+
+  local output_root="${1}"
+
+  OUTPUTS=(mixeltype pve_0 pve_1 pve_2 pveseg seg)
+  echo "Renaming output"
+  for o in ${OUTPUTS[@]}; do
+    if [[ ${o} == "pve_0" ]]; then
+      t="label-CSF_probseg"
+    elif [[ ${o} == "pve_1" ]]; then
+      t="label-GM_probseg"
+    elif [[ ${o} == "pve_2" ]]; then
+      t="label-WM_probseg"
+    elif [[ ${o} == "seg" ]]; then
+      t="seg"
+    elif [[ ${o} == "mixeltype" ]]; then
+      t="mixtype"
+    elif [[ ${o} == "pveseg" ]]; then
+      t="pve"
+    fi
+    
+    out_t="${outputroot}-${t}.nii.gz"
+    out_o="${outputroot}-${o}.nii.gz"
+    if [[ ! -f "${out_t}" ]]; then
+      if [[ -f "${out_o}" ]]; then
+
+        echo -e " ${BOLD_RED}${o}${RESET} >> ${BOLD_RED}${t}${RESET}"
+        mv "${out_o}" "${out_t}" 2>/dev/null
+      fi
+    fi
+
+  done
+}
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -26,6 +59,17 @@ Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -o                  overwrite existing files
+  -x <kwargs>         Additional commands to be passed to 'FAST'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      e.g.,
+                      "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+
   <anat folder>       folder containing the files required for FAST. Input must be skullstripped
   <output>            output folder (<subject>/[<ses->] will be appended!)
 
@@ -41,7 +85,7 @@ USAGE
 
 # Check for subject & session flags
 OW=0
-while getopts os:n: argument
+while getopts os:n:x: argument
 do
   case ${argument} in
     s)  sub=${OPTARG}
@@ -49,7 +93,9 @@ do
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
-          ;;          
+          ;;
+    x)  kwargs=${OPTARG}
+          ;;            
   esac
 done
 
@@ -58,7 +104,6 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
-
 SKULL=${@:$OPTIND:1}
 FSL=${@:$OPTIND+1:1}
 
@@ -66,8 +111,15 @@ if [[ -z ${sub} ]]; then
   # loop through subjects
   search="${SKULL}/${SUBJECT_PREFIX}*"
 else
-  # do for 1 subject
-  search="${SKULL}/${SUBJECT_PREFIX}${sub}"
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
+
+# parse into string
+if [[ ! -z ${kwargs} ]]; then
+  kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ',' ' ')
 fi
 
 #-----------------------------------------------------------------------------
@@ -101,8 +153,6 @@ for subID in ${search}; do
   fi
 
   input_t1w=$(find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-
-  declare -a OUTPUTS=(mixeltype pve_0 pve_1 pve_2 pveseg seg)
   outputroot=${output_dir}/${base}_acq-${DATA^^}_desc
 
   # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
@@ -125,42 +175,20 @@ for subID in ${search}; do
       fi
 
       if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
-        echo "Running FAST on $(basename ${input_t1w})"
-        cmd="call_fslfast ${input_t1w} ${outputroot}"
+        echo -e "Running FAST on ${BOLD_GREEN}${input_t1w}${RESET}"
+        cmd="call_fslfast ${input_t1w} ${outputroot} ${kwargs}"
         print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
           print_error_msg "$(basename ${0})" "call_fslfast"
           exit 1
         fi
       fi
 
-      for o in ${OUTPUTS[@]}; do
-        if [[ ${o} == "pve_0" ]]; then
-          t="label-CSF_probseg"
-        elif [[ ${o} == "pve_1" ]]; then
-          t="label-GM_probseg"
-        elif [[ ${o} == "pve_2" ]]; then
-          t="label-WM_probseg"
-        elif [[ ${o} == "seg" ]]; then
-          t="seg"
-        elif [[ ${o} == "mixeltype" ]]; then
-          t="mixtype"
-        elif [[ ${o} == "pveseg" ]]; then
-          t="pve"
-        fi
-        
-        out_t="${outputroot}-${t}.nii.gz"
-        out_o="${outputroot}-${o}.nii.gz"
-        if [[ ! -f "${out_t}" ]]; then
-          if [[ -f "${out_o}" ]]; then
-            mv "${out_o}" "${out_t}"
-          fi
-        fi
+      # rename outputs
+      rename_fast_outputs "${output_root}"
 
-      done
+      # done
       echo "Done"
     else
       print_output_exists "${sub_name}" "${outputroot}-seg.nii.gz"
