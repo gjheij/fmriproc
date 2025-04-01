@@ -240,6 +240,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         fs)
           FS_FLAG="--fs"
           ;;
+        fsl)
+          DRAW_SAG="--fsl"
+          FSL_FLAG="--fsl"
+          ;;                
         fsaverage)
           space_flag="--fsaverage"
           ;;
@@ -387,14 +391,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;          
         norm)
           MODEL_FLAG="--norm"
-          ;;
-        ofsl)
-          FSL_FLAG="--ofsl"
-          ;;
-        fsl)
-          DRAW_SAG="--fsl"
-          FSL_FLAG="--fsl"
-          ;;          
+          ;;    
         ow)
           OW="-o"
           ;;
