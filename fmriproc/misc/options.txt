@@ -77,7 +77,7 @@
 --no-tsnr
 --no-winsor
 --norm
---ofsl
+--fsl
 --ow
 --pa
 --phys

@@ -33,7 +33,7 @@ Arguments:
                       != 'mni' and no registration method is specified
   --syn               use SyN-diffeomorphic registration. Default if <registration type> == 'mni'
                       and no registration method is specified
-  --ofsl              also output the matrix in FSL-compatible format (not available for SyN)
+  --fsl               also output the matrix in FSL-compatible format (not available for SyN)
   -c|--sge            submit job to cluster (SGE); given that we have to rename files after regi-
                       stration, we'll wait for the job to finish if submitted. This can still help
                       with memory issues (e.g., if your local machine does not have enough RAM).
@@ -109,9 +109,9 @@ do
           verb_flag="--verbose"
           verb=1
           ;;    
-        ofsl)
+        fsl)
           FSL_FMT=1
-          fsl_flag="--ofsl"
+          fsl_flag="--fsl"
           ;;                            
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then

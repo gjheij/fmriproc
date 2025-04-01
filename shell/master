@@ -307,11 +307,11 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         merge-ses)
           merge_flag="--merge-ses"
           ;;
-        mni_2009)
-          space_flag="--mni_2009"
+        mni-2009)
+          space_flag="--mni-2009"
           ;;
-        mni_fsl)
-          space_flag="--mni_fsl"
+        mni-fsl)
+          space_flag="--mni-fsl"
           ;;
         multi-design)
           MULTIPLE_DESIGNS="--multi-design"
@@ -390,8 +390,11 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         ofsl)
           FSL_FLAG="--ofsl"
-          DRAW_SAG="--ofsl"
           ;;
+        fsl)
+          DRAW_SAG="--fsl"
+          FSL_FLAG="--fsl"
+          ;;          
         ow)
           OW="-o"
           ;;

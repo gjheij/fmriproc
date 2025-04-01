@@ -31,7 +31,7 @@ Flagged arguments:
                 affine>SyN). The same metric is used for all stages. By default, 'Cross-correlation'
                 is used for SyN-diffeomorphic registration (the final stage). The rigid-body and af-
                 fine stages before the SyN-registration can be altered.
-  --ofsl        also output the matrix in FSL-compatible format (not available for SyN)
+  --fsl         also output the matrix in FSL-compatible format (not available for SyN)
   --itk         open ITK-Snap to verify how registration went
   -x <mask>     Image masks to limit voxels considered by the metric
   -i <initial>  the initial moving transform(s) which get immediately incorporated into the compo-
@@ -207,7 +207,7 @@ do
         no-winsor)
           winsorize=0
           ;;
-        ofsl)
+        fsl)
           fsl_fmt=1
           ;;   
         itk)
@@ -634,7 +634,8 @@ fi
 # open ITK-Snap for verification
 if [[ ${open_itk} -eq 1 ]]; then
   echo "Opening ITK-Snap. Load \"${OUT}genaff.mat\""
-  launch_itksnap -g ${FIXED} -o ${MOVING}
+  cmd="launch_itksnap -g ${FIXED} -o ${MOVING}"
+  print "${cmd}" && eval "${cmd}"
 fi
 
 # reset threads

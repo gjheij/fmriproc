@@ -201,7 +201,9 @@ Options:
 
 --no-winsor       do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so, though..
 
---ofsl            output FSL-compatible matrix.
+--fsl             used in:
+                    - spinoza_registration: output FSL-compatible matrix.
+                    - spinoza_sagittalsinus: edit sinus mask with FSLeyes (default is ITK-Snap)
 
 --phys            run physiology-only conversion.
 
