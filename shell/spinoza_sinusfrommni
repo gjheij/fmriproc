@@ -334,7 +334,6 @@ for subID in ${search}; do
               echo "\"${cmd}\""
             else
               echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
-              echo "Opening ITK-Snap for verification"
               print_cmd "${cmd}" && eval "${cmd}"
             fi
           fi
