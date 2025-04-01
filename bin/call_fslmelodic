@@ -1,23 +1,40 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
 ---------------------------------------------------------------------------------------------------
 call_fslmelodic
 
-This script short wrapper for a call to FSL's MELODIC. It has a few default settings, so if you
-want to change things, add/remove them in the actual call to melodic in this script.
+This script is a short wrapper for FSL's MELODIC. It runs ICA decomposition with some default 
+settings, but allows you to override or extend them by passing extra options after the main args.
 
 Args:
-  <input file>         path to 4D-nifti file
-  <output directory>   path to output directory (should end on .ica; otherwise appended)
+  <input file>         path to 4D-NIfTI file
+  <output directory>   path to output directory ('.ica' will be added if missing)
 
 Usage:
-  call_fslmelodic my_bold.nii.gz /path/to/my_bold.ica
+  call_fslmelodic my_bold.nii.gz /path/to/my_bold.ica [additional options]
 
-Example:
-  call_fslmelodic sub-001/ses-1/func/bold.nii.gz derivatives/fsl/sub-001/ses-1/melodic.ica
+Examples:
+  call_fslmelodic sub-001_bold.nii.gz derivatives/fsl/sub-001/melodic.ica
+  call_fslmelodic bold.nii.gz out.ica --tr=1.2 --dim=20
+
+Defaults (unless overridden):
+  --nobet       # turn off BET
+  --report      # generate Melodic web report
+  --Oall        # output everything
+  -d 30         # number of components
+  --update_mask # Recalculates the brain mask after registration to standard space
+
+Notes:
+  - All arguments after the first two are passed to MELODIC.
+  - If any default flag is already present, it won't be duplicated.
+  - Run 'melodic' for full option list.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -25,26 +42,65 @@ USAGE
     exit 1
 }
 
+# Check for minimum arguments
 if [[ $# -lt 2 ]] ; then
   Usage >&2
   exit 1
 fi
 
-if [[ ${2} == *".ica"* ]]; then
-  out=${2}
+# check if input exists
+input="${1}"
+if [[ ! -f ${input} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  exit 1
 else
-  out=${2}.ica
+  input=$(readlink -f ${input})
 fi
 
-if [[ ! -d ${out} ]]; then
-  mkdir -p ${out}
+# set output
+output="${2}"
+
+# Shift away input & output arguments if present
+shift 2 || true
+
+# Ensure output ends in .ica
+[[ "${output}" != *.ica ]] && output="${output}.ica"
+mkdir -p "${output}"
+
+# Store remaining args
+extra_args=("$@")
+
+# Helper to check if a flag is present
+has_flag() {
+  local flag="$1"
+  for arg in "${extra_args[@]}"; do
+    [[ "${arg}" == "${flag}" ]] && return 0
+    [[ "${arg}" == "${flag}"=* ]] && return 0
+  done
+  return 1
+}
+
+# Add defaults if not already specified
+! has_flag "--nobet"         && extra_args+=("--nobet")
+! has_flag "--report"        && extra_args+=("--report")
+! has_flag "--Oall"          && extra_args+=("--Oall")
+! has_flag "-d" && ! has_flag "--dim" && extra_args+=("--dim" "30")
+! has_flag "--update_mask"   && extra_args+=("--update_mask")
+
+# Build command
+cmd=(melodic -i "${input}" -o "${output}" "${extra_args[@]}")
+
+# Echo and run
+echo "Running MELODIC with command:"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "melodic"
+  exit 1
 fi
 
-melodic \
-  -i ${1} \
-  -o ${out} \
-  --nobet \
-  --report \
-  --Oall \
-  -d 30 \
-  --update_mask
+echo "Done"

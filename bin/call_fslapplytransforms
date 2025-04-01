@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -8,55 +10,92 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fslapplytransforms
 
-wrapper for FLIRT's applyxfm function, requiring a fixed image, a moving image, the output name and
-the FSL-formatted warp file. If this warp file is not formatted accordingly, either run call_fsl2ras
-or 'lta_convert' first, depending on what your warp file initially is.
+Wrapper for FSL FLIRT's linear transformation application via the \`-applyxfm\` option.
 
 Usage:
-  call_fslapplytransforms <fixed> <moving> <output> <matrix>
+  call_fslapplytransforms <ref> <moving> <output> <matrix> [--inverse] [extra FLIRT options]
 
 Arguments:
-  <fixed>          string-like path to reference object
-  <moving>         string-like path to moving object
-  <output>         string-like path to output image
-  <matrix>         string-like path to matrix
+  <ref>           Reference image (fixed)
+  <moving>        Moving image to be transformed
+  <output>        Output image filename
+  <matrix>        Transformation matrix (.mat) in FLIRT format
 
-Example:
-  call_fslapplytransforms fixed.nii.gz moving.nii.gz output.nii.gz affine.mat
-  
+Options:
+  --inverse       Invert the transformation matrix before applying it
+  Additional FLIRT arguments can be provided after required arguments.
+
+Examples:
+  call_fslapplytransforms ref.nii.gz mov.nii.gz out.nii.gz affine.mat
+  call_fslapplytransforms ref.nii.gz mov.nii.gz out.nii.gz affine.mat --inverse -interp spline
+
+Notes:
+  - Matrix must be in FSL (.mat) format
+  - For FreeSurfer .lta or ITK/HDF5 formats, convert before use
+  - Inversion is handled with FLIRT's \`-applyxfm -init <mat> -inverse\` logic
 ---------------------------------------------------------------------------------------------------
 
 USAGE
     exit 1
 }
-
-if [[ $# -lt 2 ]] ; then
+#---------------------------------------------------------------------------------------------------------
+# Validate args
+if [[ $# -lt 4 ]]; then
   Usage >&2
   exit 1
 fi
 
-#-----------------------------------------------------------------------------
-# Start loop
+ref="$1"
+moving="$2"
+output="$3"
+matrix="$4"
 
-if [[ ! -f $1 ]]; then
-  echo " ERROR: could not find reference image"
+shift 4
+
+invert_flag=0
+extra_args=()
+
+# Parse remaining args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --inverse)
+      invert_flag=1
+      ;;
+    *)
+      extra_args+=("$1")
+      ;;
+  esac
+  shift
+done
+
+#---------------------------------------------------------------------------------------------------------
+# Check inputs
+missing=0
+[[ ! -f "$ref" ]] && echo "Reference image not found: $ref" && missing=1
+[[ ! -f "$moving" ]] && echo "Moving image not found: $moving" && missing=1
+[[ ! -f "$matrix" ]] && echo "Matrix file not found: $matrix" && missing=1
+[[ $missing -eq 1 ]] && exit 1
+
+#---------------------------------------------------------------------------------------------------------
+# Build command
+cmd=(
+  flirt -in "$moving" -ref "$ref" -out "$output" -init "$matrix" -applyxfm)
+
+if [[ $invert_flag -eq 1 ]]; then
+  cmd+=("-inverse")
+fi
+
+cmd+=("${extra_args[@]}")
+
+#---------------------------------------------------------------------------------------------------------
+# Execute
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "$0")" "flirt"
   exit 1
 fi
 
-if [[ ! -f $2 ]]; then
-  echo " ERROR: could not find moving image"
-  exit 1
-fi
-
-if [[ ! -f $4 ]]; then
-  echo " ERROR: could not find matrix to apply"
-  exit 1
-fi
-
-if [[ -f $1 && -f $2 && -f $4 ]]; then
-
-  if [[ ! -f $3 ]]; then
-    flirt -in ${2} -ref ${1} -out ${3} -init ${4} -applyxfm
-  fi
-
-fi
+echo -e "Transform applied: ${BOLD_GREEN}${output}${RESET}"

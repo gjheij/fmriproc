@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -8,17 +10,36 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fslfast
 
-Wrapper for tissue segmentation with FSL FAST.
+Wrapper for tissue segmentation with FSL FAST. This script provides a convenient interface to run 
+FAST with custom arguments and outputs. You must provide an input image and an output root name;
+any additional arguments will be passed directly to FAST.
 
 Usage:
-call_fslbet <input file> <output root>
+  call_fslfast <input file> <output root> [options]
 
-Example:
-  call_fslfast /path/to/inputfile.nii.gz /path/to/outputroot
+Examples:
+  call_fslfast input.nii.gz output_root
+  call_fslfast input.nii.gz output_root --nopve -B -t 1
+  call_fslfast input.nii.gz output_root -a transform.mat -P
 
 Notes:
-  - suffixes will be added by FAST itself
-  
+  - The input file must be a NIfTI file (.nii or .nii.gz)
+  - The output root is used as the prefix for FAST output files
+  - All other optional arguments are forwarded to FAST
+  - No validation is done on the extra options — make sure they’re valid FAST flags
+
+Relevant FAST options:
+  - -n <int>       Number of tissue classes (default=3)
+  - -t <1|2|3>     Image type: 1=T1, 2=T2, 3=PD
+  - -B             Output bias-corrected image
+  - -b             Output estimated bias field
+  - -g             Output binary segment masks
+  - -p             Output individual probability maps
+  - -N             Do not remove bias field
+  - --nopve        Disable partial volume estimation
+  - -a <mat>       Initialise with FLIRT transform (use with -P)
+  - ...            See \`fast --help\` for full list of supported flags
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -30,8 +51,44 @@ if [[ $# -lt 2 ]] ; then
   exit 1
 fi
 
+# check if input exists
+input="${1}"
+if [[ ! -f ${input} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  exit 1
+else
+  input=$(readlink -f ${input})
+fi
+
+# set output
+output="${2}"
+
+# Shift away input & output arguments if present
+shift 2 || true
+
+# Capture any additional arguments passed after "--"
+extra_args=()
+while [[ $# -gt 0 ]]; do
+  extra_args+=("$1")
+  shift
+done
+
 #-----------------------------------------------------------------------------
 # Run it
-if [[ -f $1 ]]; then
-  fast -t 1 -o $2 $1
+if [[ -f ${input} ]]; then
+  cmd=("fast" "${extra_args[@]}" "-o" "${output}" "${input}")
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "fast"
+    exit 1
+  fi  
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  exit 1
 fi

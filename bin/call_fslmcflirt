@@ -1,42 +1,103 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
 ---------------------------------------------------------------------------------------------------
 call_fslmcflirt
 
-MCFLIRT is an intra-modal motion correction tool designed for use on fMRI time series and based on 
-optimization and registration techniques used in FLIRT, a fully automated robust and accurate tool 
-for linear (affine) inter- and inter-modal brain image registration. MCFLIRT loads the time-series 
-in its entirity and will default to the middle volume as an initial template image. A coarse 8mm 
-search for the motion parameters is then carried out using the cost function specified followed by 
-two subsequent searches at 4mm using increasingly tighter tolerances. All optimizations use tri-
-linear interpolation.
+Wrapper for MCFLIRT using fMRIPrep-style default options. These will be overwritten if specified.
 
-Args:
-  <input file>         path to 4D-nifti file
+This script runs motion correction using FSL's MCFLIRT tool with the following defaults:
+  - cost function: normcorr
+  - smoothing:     1 mm
+  - stages:        3
+  - refvol:        first volume (automatically extracted)
+  - outputs:       motion matrices, motion plots, and summary report
 
 Usage:
-  call_fslmcflirt my_bold.nii.gz
+  call_fslmcflirt <4D-nifti> [additional mcflirt options]
+
+Arguments:
+  <4D-nifti>     Path to the input 4D NIfTI file
+
+Optional:
+  You can pass any other MCFLIRT options after the input file.
 
 Example:
-  call_fslmcflirt sub-001/ses-1/func/bold.nii.gz 
+  call_fslmcflirt bold.nii.gz
+  call_fslmcflirt bold.nii.gz -rmsrel -stats
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
     exit 1
 }
 
-if [[ $# -lt 1 ]] ; then
+if [[ $# -lt 1 ]]; then
   Usage >&2
   exit 1
 fi
 
-INPUT=${@:$OPTIND:1}
+# check if input exists
+input="${1}"
+if [[ ! -f ${input} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  exit 1
+else
+  input=$(readlink -f ${input})
+fi
 
-# take first volume as reference
-ref=$(dirname ${INPUT})/$(basename ${INPUT} .nii.gz)_refvol.nii.gz
-fslroi ${INPUT} ${ref} 0 1
+shift
 
-mcflirt -in ${INPUT} -refvol ${ref} -mats -plots -report
+# Parse additional args
+extra_args=("$@")
+arg_str="${extra_args[*]}"
+
+# Extract first volume as reference if -refvol not specified
+ref="$(dirname "${input}")/$(basename "${input}" .nii.gz)_refvol.nii.gz"
+if [[ ! "${arg_str}" =~ "-refvol" ]]; then
+  echo "Taking first volume as reference"
+  cmd=(fslroi "${input}" "${ref}" 0 1)
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "fslroi"
+    exit 1
+  fi  
+
+  # add to kwargs
+  extra_args+=("-refvol" "${ref}")
+fi
+
+# Add fMRIPrep-style defaults if not set
+[[ ! "${arg_str}" =~ "-cost" ]]    && extra_args+=("-cost" "normcorr")
+[[ ! "${arg_str}" =~ "-smooth" ]]  && extra_args+=("-smooth" "1")
+[[ ! "${arg_str}" =~ "-stages" ]]  && extra_args+=("-stages" "3")
+[[ ! "${arg_str}" =~ "-mats" ]]    && extra_args+=("-mats")
+[[ ! "${arg_str}" =~ "-plots" ]]   && extra_args+=("-plots")
+[[ ! "${arg_str}" =~ "-report" ]]  && extra_args+=("-report")
+
+# Build command
+cmd=(mcflirt -in "${input}" "${extra_args[@]}")
+
+# Print and run
+echo "Running McFlirt with command:"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "mcflirt"
+  exit 1
+fi
+
+echo "Done"

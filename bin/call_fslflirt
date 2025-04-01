@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -8,32 +10,91 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fslflirt
 
-Wrapper for rigid registration with flirt instead of ants
+Wrapper for rigid-body registration using FSL FLIRT. By default, performs 6 DOF registration unless
+overridden by user-specified options. Additional arguments can be passed after the required inputs.
 
 Usage:
-  call_fslflirt <fixed> <moving> <output> <matrix>
+  call_fslflirt <fixed> <moving> <output> <matrix> [additional FLIRT options]
+
+Arguments:
+  <fixed>       Reference image (fixed)
+  <moving>      Image to be registered (moving)
+  <output>      Output registered image
+  <matrix>      Output transformation matrix
+
+Optional FLIRT arguments:
+  Any additional flags (e.g. -cost mutualinfo, -interp sinc) can be added after the required 4 args
+  These flags are added if not specified:
+    -dof 6
+    -cost normmi
+    -searchrx -90 90
+    -searchry -90 90
+    -searchrz -90 90
+    -interp sinc
 
 Example:
-  call_fslflirt fixed.nii.gz moving.nii.gz mov2fix.nii.gz matrix.mat
+  call_fslflirt fixed.nii.gz moving.nii.gz mov2fix.nii.gz matrix.mat -cost corratio
 
+Notes:
+  - Default uses 6 DOF (rigid-body), normalized mutual information, and wide search angles
+  - Will skip registration if matrix file already exists
 ---------------------------------------------------------------------------------------------------
 
 USAGE
     exit 1
 }
 
+# Require at least 4 arguments
 if [[ $# -lt 4 ]] ; then
   Usage >&2
   exit 1
 fi
 
-#-----------------------------------------------------------------------------
+# Required inputs
+ref="$1"
+in="$2"
+out="$3"
+omat="$4"
+
+shift 4  # Remove the first 4 arguments
+
+# Optional arguments to pass to flirt
+extra_args=("$@")
+
+#--------------------------------------------------
+# Inject defaults if not specified
+arg_str="${extra_args[*]}"
+
+[[ ! "${arg_str}" =~ "-cost" ]]     && extra_args+=("-cost" "normmi")
+[[ ! "${arg_str}" =~ "-searchrx" ]] && extra_args+=("-searchrx" "-90" "90")
+[[ ! "${arg_str}" =~ "-searchry" ]] && extra_args+=("-searchry" "-90" "90")
+[[ ! "${arg_str}" =~ "-searchrz" ]] && extra_args+=("-searchrz" "-90" "90")
+[[ ! "${arg_str}" =~ "-interp" ]]   && extra_args+=("-interp" "sinc")
+[[ ! "${arg_str}" =~ "-dof" ]]      && extra_args+=("-dof" "6")
+
+#--------------------------------------------------
 # Run it
-if [[ -f $1 && -f $2 ]]; then
-  if [[ ! -f $4 ]]; then
-    flirt -in $2 -ref $1 -out $3 -omat $4 -dof 6
+if [[ -f "$ref" && -f "$in" ]]; then
+  if [[ ! -f "$omat" ]]; then
+    cmd=(flirt -in "$in" -ref "$ref" -out "$out" -omat "$omat" "${extra_args[@]}")
+    echo "Running FLIRT with command:"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "flirt"
+      exit 1
+    fi
+  else
+    echo "Skipping registration: matrix '$omat' already exists."
   fi
 else
-  echo " ERROR: could not find required files"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find"
+  [[ ! -f "$ref" ]] && echo -e " - ${BOLD_RED}Fixed${RESET} image not found: ${BOLD_GREEN}${ref}${RESET}"
+  [[ ! -f "$in"  ]] && echo -e " - ${BOLD_RED}Moving${RESET} image not found: ${BOLD_GREEN}${in}${RESET}"
   exit 1
 fi
+
+echo "Done"

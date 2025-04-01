@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -8,40 +10,79 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fslbet
 
-wrapper for brain extraction with FSL's BET algorithm. Automatically creates a mask as well. Used
-in spinoza_brainextraction
+Wrapper for brain extraction using FSL's BET algorithm. By default, generates both brain-extracted
+image and mask. You can optionally disable full outputs if you only want the mask (e.g. for SPM).
 
 Usage:
-call_fslbet <input file> <output file> <generate output (y|n)>
+  call_fslbet <input> <output> <full_output: y|n> [extra BET options]
 
-Example:
-  call_fslbet.sh /path/to/inputfile.nii.gz /path/to/outputfile.nii.gz y
+Arguments:
+  <input>           Input NIfTI file
+  <output>          Output base name (without suffix; _mask.nii.gz will be added automatically)
+  <full_output>     Set to 'y' to generate full outputs (bias corrected, skull image, etc), or 'n' to only generate mask
 
+Examples:
+  call_fslbet input.nii.gz output y
+  call_fslbet input.nii.gz output n -f 0.3 -g 0
+
+Notes:
+  - Uses BET for full output ('-m -s -A')
+  - Uses BET2 for minimal output ('-m -s -n') if full output = n
+  - Extra flags are passed directly to bet/bet2
+  - BET options: https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET/UserGuide
 ---------------------------------------------------------------------------------------------------
 
 USAGE
     exit 1
 }
 
-if [[ $# -lt 3 ]] ; then
+#---------------------------------------------------------------------------------------------------------
+# Check args
+if [[ $# -lt 3 ]]; then
   Usage >&2
   exit 1
 fi
 
-#-----------------------------------------------------------------------------
-# Run it
-if [[ -f $1 && ! -f $2 ]]; then
+input="$1"
+output="$2"
+full="$3"
 
-  if [[ $3 == y ]] || [[ $3 == Y ]]; then
-    # generating segmented output
-    bet $1 $2 -m -s -A
-  elif [[ $3 == n ]] || [[ $3 == N ]]; then
-    # not generating output, only need mask
-    bet2 $1 $2 -m -s -n
+# Shift to get extra flags for BET
+shift 3 || true
+extra_args=("$@")
+
+#---------------------------------------------------------------------------------------------------------
+# Validate input
+if [[ ! -f "${input}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename $0)" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  exit 1
+fi
+
+#---------------------------------------------------------------------------------------------------------
+# Run it
+if [[ -f "${input}" && ! -f "${output}.nii.gz" ]]; then
+  if [[ "${full}" =~ ^[Yy]$ ]]; then
+    cmd=(bet "${input}" "${output}" -m -s -A "${extra_args[@]}")
+  elif [[ "${full}" =~ ^[Nn]$ ]]; then
+    cmd=(bet2 "${input}" "${output}" -m -s -n "${extra_args[@]}")
   else
-    # no valid option specified as 3rd argument
-    echo "Please specify either \"y\" or \"n\" as 3rd argument.."
+    echo
+    print_line -
+    print_error_msg "$(basename $0)" "args" "Invalid third argument: use 'y' or 'n'"
     exit 1
   fi
 
+  print_cmd "${cmd[@]}"
+  eval "${cmd[@]}"
+  
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename $0)" "BET"
+    exit 1
+  fi
+else
+  echo "${BOLD_YELLOW}Skipping: output already exists or input missing${RESET}"
 fi

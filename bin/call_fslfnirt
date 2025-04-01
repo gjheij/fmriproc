@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_fslfnirt
+
+Wrapper for nonlinear registration using FSL FNIRT. This script performs nonlinear warping of a
+moving image to a reference using a supplied affine transform (from FLIRT) or other initialization.
+
+Usage:
+  call_fslfnirt <fixed> <moving> <warp_output> <affine_matrix> [options]
+
+Arguments:
+  <fixed>         Reference image (e.g. template)
+  <moving>        Moving image to be warped
+  <warp_output>   Output filename for the warp coefficients (e.g. warp.nii.gz)
+  <affine_matrix> Affine transform (from FLIRT), used as initial alignment
+
+Default FNIRT settings:
+  --config=T1_2_MNI152_2mm        Use standard T1-to-MNI registration config
+  --iout=<warp>_warped.nii.gz     Output warped image (same base as warp_output)
+  --cout=<warp_output>            Output warpfield (overwritten if user provides --cout)
+
+Optional FNIRT arguments:
+  Any other FNIRT flags can be appended after the required inputs:
+    --intout <file>               Save intensity modulated image
+    --refmask <file>              Use a mask on the reference image
+    --inmask <file>               Use a mask on the input image
+    --fout, --jout, --logout, etc.
+    (see \`fnirt --help\` for full list)
+
+Example:
+  call_fslfnirt anat.nii.gz MNI152_T1_2mm.nii.gz warp.nii.gz flirt.mat \
+    --intout modulated.nii.gz --refmask ref_mask.nii.gz
+
+Notes:
+  - Requires that FLIRT has been run beforehand to estimate the affine matrix
+  - All other optional arguments are forwarded directly to FNIRT
+---------------------------------------------------------------------------------------------------
+
+USAGE
+    exit 1
+}
+
+# Check minimum required arguments
+if [[ $# -lt 4 ]]; then
+  Usage >&2
+  exit 1
+fi
+
+# Required inputs
+ref="$1"
+in="$2"
+warp="$3"
+affine="$4"
+
+# Shift to parse extra args
+shift 4
+extra_args=("$@")
+arg_str="${extra_args[*]}"
+
+# Optional outputs
+iout="${warp%.nii.gz}_warped.nii.gz"
+
+# Inject defaults if not already set
+[[ ! "${arg_str}" =~ "--config" ]] && extra_args+=("--config=T1_2_MNI152_2mm")
+[[ ! "${arg_str}" =~ "--iout" ]]   && extra_args+=("--iout=${iout}")
+[[ ! "${arg_str}" =~ "--cout" ]]   && extra_args+=("--cout=${warp}")
+
+#-----------------------------------------------------------------------------
+# Run it
+if [[ -f "$ref" && -f "$in" && -f "$affine" ]]; then
+  cmd=(fnirt --in="$in" --ref="$ref" --aff="$affine" "${extra_args[@]}")
+  echo "Running FNIRT with command:"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "fnirt"
+    exit 1
+  fi
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find"
+  [[ ! -f "$ref" ]] && echo -e " - ${BOLD_RED}Fixed${RESET} image not found: ${BOLD_GREEN}${ref}${RESET}"
+  [[ ! -f "$in"  ]] && echo -e " - ${BOLD_RED}Moving${RESET} image not found: ${BOLD_GREEN}${in}${RESET}"
+  [[ ! -f "$affine" ]] && echo -e " - ${BOLD_RED}Affine matrix${RESET} not found: ${BOLD_GREEN}${affine}${RESET}"
+  exit 1
+fi
+
+echo "Done"
