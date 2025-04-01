@@ -68,6 +68,7 @@
 
 -t <type|task>    used for:
                     - spinoza_scanner2bids: set RepetitionTime manually (discouraged..)
+                    - spinoza_sagittalsinus: set threshold for R2* manually (default = 0.07)
                     - spinoza_fmriprep: type of workflow (anat/func/task).
                     - spinoza_fitprfs/spinoza_denoising: limit process to a given task.
                     - spinoza_bestvertex: select pRF-parameters from specific task.
@@ -132,7 +133,7 @@ Options:
 
 --full            run full processing for various modules.
 
---fv              use FreeView to draw sinus mask.
+--freeview        use FreeView to draw sinus mask.
 
 --func            used for:
                     - spinoza_fmriprep: alias for '-t func'

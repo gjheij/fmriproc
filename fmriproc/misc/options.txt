@@ -25,6 +25,7 @@
 --fmriprep
 --force-exec
 --fprep
+--freeview
 --fs
 --fsaverage
 --fsnative

@@ -231,14 +231,11 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           fprep_input=1
           ;;
         freeview)
-          DRAW_SAG="fv"
+          DRAW_SAG="--freeview"
           ;;
         full)
           FULL_OW="--full"
           PROC="--full"
-          ;;
-        fsl)
-          DRAW_SAG="fsl"
           ;;
         fs)
           FS_FLAG="--fs"
@@ -281,7 +278,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ADD_INV="--inv"
           ;;
         itk)
-          DRAW_SAG="itk"
+          DRAW_SAG="--itk"
           ;;
         lh)
           HEMI_FLAG="--lh"
@@ -393,6 +390,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         ofsl)
           FSL_FLAG="--ofsl"
+          DRAW_SAG="--ofsl"
           ;;
         ow)
           OW="-o"
@@ -1211,12 +1209,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})
-
-  if [[ ! -z ${DRAW_SAG} ]]; then
-    DRAW_SAG="--${DRAW_SAG}"
-  fi
-  
+  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
   cmd="""spinoza_sinusfrommni \
     ${SUBJECT} \
     ${SESSION} \
@@ -1459,12 +1452,13 @@ if [[ $? -eq 0 ]]; then
   fi
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
-  
   cmd="""spinoza_sagittalsinus \
     ${SUBJECT} \
     ${SESSION} \
-    ${OW} 
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks ${DRAW_SAG}"""
+    ${OW} \
+    ${DRAW_SAG} \
+    ${TR_FLAG} \
+    ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks"""
 
   print_cmd "${cmd}" && eval "${cmd}"    
 
