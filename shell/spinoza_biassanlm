@@ -282,45 +282,13 @@ for subID in ${search}; do
         mv ${output_from_sanlm} ${output}
       fi
 
-      # truncate and 
-      echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
-      cmd="call_winsorize -l ${lower} -u ${upper} ${output}"
-      eval "${cmd}"
-
-      if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_winsorize"
-        exit 1
-      fi      
-
-      echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
-      cmd="call_rescale ${output} 0 4095"
-      eval "${cmd}"
-
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "call_rescale"
-        exit 1
-      fi      
-
-      # set dtype to uint16
-      echo "Set dtype to UINT16"
-      cmd="call_setdtype ${output}"
-      eval "${cmd}"
-
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "call_setdtype"
-        exit 1
-      fi
-
+      echo "Running post-processing to fix intensities and datatype"
+      cmd="call_wsd -l ${lower} -u ${upper} ${output}"
+      print_cmd "${cmd}" && eval "${cmd}"
       echo "Done"
-
     else
       print_output_exists "${sub_name}" "${output}"
     fi
-
   else
     print_file_not_in_dir "${sub_name}" "*acq-${DATA}*, *T1w.nii.gz" "${INPUTDIR}"
     continue
