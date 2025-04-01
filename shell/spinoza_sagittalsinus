@@ -5,6 +5,46 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+launch_viewer() {
+  local ref="${1}"
+  local mask="${2}"
+  local software="${3}"
+  local msg="${4}"
+
+  # decide cmd
+  if [[ ${software} == "itk" ]]; then
+    func="itksnap"
+    cmd="launch_${func} -g ${ref} -s ${mask}"
+  elif [[ ${software} == "fv" ]]; then
+    func="freeview"
+    cmd="launch_${func} -v "${ref}" -v ${mask}:colormap=lut:opacity=1"
+  elif [[ ${software} == "fsl" ]]; then
+    func="fsleyes"
+    cmd="launch_${func} --scene ortho "${ref}" "${mask}" --overlayType mask"
+  fi
+
+  # check if function exists
+  call_checkfunction "${func}"
+  if [[ $? -eq 0 ]]; then
+    echo
+    print_line -
+    echo -e "Starting '${BOLD_RED}${func}${RESET}'. ${msg} ${BOLD_RED}ALWAYS SAVE YOUR CHANGES!${RESET}"
+    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "$(basename ${cmd})"
+      exit 1
+    fi    
+  else
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_checkfunction" "Make sure you have ${func} installed!"
+    exit 1
+  fi
+}
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -54,7 +94,7 @@ USAGE
 use_software="itk"
 thresh=0.07
 # Check for subject & session flags
-while getopts os:n:t: argument
+while getopts os:n:t:-: argument
 do
   case ${argument} in
     -)
@@ -114,6 +154,23 @@ if [[ ! -d ${ANAT} ]]; then
   exit 1
 fi
 
+# decide message depending on software
+if [[ "${use_software}" == "itk" ]]; then
+  viewer="ITK-Snap"
+  msg="Fill in the sagittal sinus where needed."
+elif [[ "${use_software}" == "fv" ]]; then
+  viewer="FreeView"
+  msg="Select sinus-file and enable voxel editing (Head+pencil icon)."
+elif [[ "${use_software}" == "fsl" ]]; then
+  viewer="FSLeyes"
+  msg="Settings → Ortho → tick 'overlay list'. Then: Tools → Edit mode → Set value to 1. Save by pressing floppy disk (bottom left)"
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "launch_viewer" "Unknown option specified: ${software}. I can deal with: \"itk\" [${BOLD_GREEN}ITK-Snap${RESET}], \"fv\" [${BOLD_GREEN}FreeView${RESET}], or \"fsl\" [${BOLD_GREEN}FSLeyes${RESET}]"
+  exit 1
+fi
+
 #-----------------------------------------------------------------------------
 # intro
 start_timer "Generate sagittal sinus mask R2*-mask or manual"
@@ -157,7 +214,6 @@ for subID in ${search}; do
         # threshold R2star mask and binarize mask
         echo -e "Thresholding [${BOLD_RED}${thresh}${RESET} and binarizing ${BOLD_GREEN}$(basename ${r2star})${RESET}"
         cmd="fslmaths ${r2star} -thr ${thresh} -bin -fillh ${sinus_mask}"
-
         print_cmd "${cmd}" && eval "${cmd}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -169,19 +225,14 @@ for subID in ${search}; do
         # now manually edit the file
         t1w=$(find "${input_dir}" -type f \( -name "*T1w*" -and -name "*${DATA^^}*" -and -name "*.nii.gz" \) 2>/dev/null)
         if [[ ! -z "${t1w}"  ]]; then
-
-          # install itksnap from here: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation
-          call_checkfunction itksnap
-          if [[ $? -eq 0 ]]; then
-            echo "Starting ITKsnap. Fill in the sagittal sinus where needed and save the image"
-            launch_itksnap -g "${t1w}" -s "${sinus_mask}" 2>/dev/null
-          else
-            echo
-            print_line -
-            print_error_msg "$(basename ${0})" "call_checkfunction" "Make sure you have ITKsnap installed!"
-            echo "  see: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation"
+          # launch the viewer
+          echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
+          cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
+          print_cmd "${cmd}" && eval "${cmd}"
+          if [[ $? -ne 0 ]]; then
+            print_error_msg "$(basename ${0})" "launch_viewer"
             exit 1
-          fi
+          fi            
         else
           print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
           continue
@@ -204,41 +255,22 @@ for subID in ${search}; do
         print_subject_header ${sub_name}
         print_create_img "${sinus_mask}"
 
-        # install itksnap from here: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation
-        if [[ "${use_software}" == "itk" ]]; then
-          call_checkfunction itksnap
-          if [[ $? -eq 0 ]]; then
-            echo "Starting ITKsnap. Edit, then close and save it"
-
-            # create empty image so we can load it as segmentation
-            cmd="call_createimg ${t1w} ${sinus_mask}"
-            if [[ $? -ne 0 ]]; then
-              echo
-              print_line -
-              print_error_msg "$(basename ${0})" "call_createimg"
-              exit 1
-            fi
-
-            launch_itksnap -g "${t1w}" -s "${sinus_mask}" 2>/dev/null
-          else
-            echo
-            print_line -
-            print_error_msg "$(basename ${0})" "call_checkfunction" "Make sure you have ITKsnap installed!"
-            echo "  see: http://www.itksnap.org/pmwiki/pmwiki.php?n=Documentation.TutorialSectionInstallation"
-            exit 1
-          fi
-        elif [[ "${use_software}" == "fv" ]]; then
-          echo "Starting FreeView. Press add new segmentation and draw the sagittal sinus, save it as:"
-          echo -e "${BOLD_GREEN}\"${sinus_mask}\"${RESET}"
-          launch_freeview -v "${t1w}":colormap=grayscale 2>/dev/null
-        elif [[ "${use_software}" == "fsl" ]]; then
-          echo "Starting FSLeyes. Press add new segmentation and draw the sagittal sinus, save it as:"
-          echo -e "${BOLD_GREEN}\"${sinus_mask}\"${RESET}"
-          launch_fsleyes --scene ortho ${t1w} 2>/dev/null
-        else
+        # create empty image so we can load it as segmentation
+        cmd="call_createimg ${t1w} ${sinus_mask}"
+        print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+        if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "open" "Unknown option specified: ${SOFTWARE}. I can deal with: \"itk\" [${BOLD_GREEN}ITK-Snap${RESET}], \"fv\" [${BOLD_GREEN}FreeView${RESET}], or \"fsl\" [${BOLD_GREEN}FSLeyes${RESET}]"
+          print_error_msg "$(basename ${0})" "call_createimg"
+          exit 1
+        fi
+
+        # launch the viewer
+        echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
+        cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
+        print_cmd "${cmd}" && eval "${cmd}"
+        if [[ $? -ne 0 ]]; then
+          print_error_msg "$(basename ${0})" "launch_viewer"
           exit 1
         fi
       else
