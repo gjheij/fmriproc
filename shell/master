@@ -130,6 +130,7 @@ t_specified=0             # keep track when t-flag is specified or --func is use
 ANAT_DEPTH=""             # all anatomical steps
 INT_LOWER=""              # lower bound for call_winsorize
 INT_UPPER=""              # upper bound for call_winsorize
+FAST_LBLS="${DIR_DATA_DERIV}/fmriprep" # spinoza_extractregions
 
 # use long options in bash:
 # https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
@@ -237,6 +238,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           FULL_OW="--full"
           PROC="--full"
           ;;
+        fast)
+          FAST_LBLS=${DIR_DATA_DERIV}/fast
+          ;;          
         fs)
           FS_FLAG="--fs"
           ;;
@@ -2001,7 +2005,7 @@ if [[ $? -eq 0 ]]; then
     ${SESSION} \
     ${OW} \
     ${COMB_ONLY} \
-    -f ${DIR_DATA_DERIV}/fmriprep \
+    -f ${FAST_LBLS} \
     ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}"""
 
   print_cmd "${cmd}" && eval "${cmd}"

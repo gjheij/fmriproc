@@ -17,6 +17,7 @@
 --denoise
 --docker
 --dog
+--fast
 --fd
 --fetch-anat
 --fetch-fsl

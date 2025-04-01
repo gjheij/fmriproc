@@ -71,6 +71,7 @@ fi
 # Check for subject & session flags
 OW=0
 COMB_ONLY=0
+fprep=${DIR_DATA_DERIV}/fmriprep
 while getopts cos:n:f: argument
 do
   case ${argument} in
@@ -159,14 +160,19 @@ for subID in ${search}; do
 
   # set paths
   mgdm_dir=${INPUT}/${base_path}/mgdm
-  fprep_dir=${fprep}/${base_path}/anat
   mask_dir=${LEVELSET}/${base_path}
   cat12_dir=${DIR_DATA_DERIV}/cat12/${base_path}
   region_dir=$(dirname ${mgdm_dir})/region
 
-  # #----------------------------------------------------------------------------------------------------------------------------------------------------------
-  # Running region extraction with nighres
+  # this can also be FAST-output
+  if [[ $(basename ${fprep}) == "fmriprep" ]]; then
+    fprep_dir=${fprep}/${base_path}/anat
+  else
+    fprep_dir=${fprep}/${base_path}
+  fi
 
+  #-----------------------------------------------------------------------------
+  # Running region extraction with nighres
   if [[ ! -d ${mgdm_dir} ]]; then
     print_directory_not_exist "${sub_name}" "${mgdm_dir}"
     continue
@@ -217,7 +223,6 @@ for subID in ${search}; do
     else
       # remove existing nighres stuff
       if [[ -d ${output_dir}/cruise ]]; then
-        INTRO="Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\" and \"${suff}\""
         rm -r ${output_root}*${suff}* 2>/dev/null
       fi
 
@@ -226,8 +231,6 @@ for subID in ${search}; do
         rm -r ${gm_prob} 2>/dev/null
       fi
     fi
-  else
-    INTRO="Overwrite mode disabled"
   fi
 
   executed_nighres=0
@@ -236,21 +239,21 @@ for subID in ${search}; do
 
       # print header
       print_subject_header ${sub_name}
-      echo ${INTRO}
-
       if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
 
         print_create_img "${output}" "Suffix=\"${suff}\""
-        cmd="""call_nighresextractregions \
-          -s "${INPUTS[0]}" \
-          -b "${INPUTS[1]}" \
-          -p "${INPUTS[2]}" \
-          -l "${INPUTS[3]}" \
-          -r "${REGION}" \
-          -o "${region_dir}" \
-          -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)""""
+        cmd=(
+          call_nighresextractregions
+          -s "${INPUTS[0]}"
+          -b "${INPUTS[1]}"
+          -p "${INPUTS[2]}"
+          -l "${INPUTS[3]}"
+          -r "${REGION}"
+          -o "${region_dir}"
+          -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -279,7 +282,6 @@ for subID in ${search}; do
       fi
       
       fs=${SUBJECTS_DIR}/${sub_name}
-
       for i in ${fprep_dir} ${fs} ${mask_dir} ${region_dir}; do
         if [[ ! -d ${i} ]]; then
           echo "You want a custom levelset, but you're missing directories:"
@@ -299,28 +301,32 @@ for subID in ${search}; do
 
       # combine segmentations
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
-        cmd="call_gdhcombine"
+        run_cmd="call_gdhcombine"
       elif [[ ${COMBINE_SEGMENTATIONS} == "hard" ]]; then
-        cmd="call_combine"
+        run_cmd="call_combine"
       else
         echo -e "ERROR in $(basename ${0}): Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in \"${BOLD_GREEN}${CONFIG_FILE}${RESET}\""
         exit 1
       fi
 
-      ${cmd} \
-        -s ${sub_name} \
-        -q ${cat12} \
-        -a ${fprep_dir} \
-        -f ${fs} \
-        -c ${region_dir} \
-        -d ${mask_dir} \
-        -o ${mask_dir} \
+      cmd=(
+        ${run_cmd}
+        -s ${sub_name}
+        -q ${cat12}
+        -a ${fprep_dir}
+        -f ${fs}
+        -c ${region_dir}
+        -d ${mask_dir}
+        -o ${mask_dir}
         -b ${base}_acq-${DATA^^}
+      )
+
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "${cmd}"
+        print_error_msg "$(basename ${0})" "${run_cmd}"
         exit 1
       fi
     fi

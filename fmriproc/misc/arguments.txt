@@ -113,6 +113,12 @@ Options:
 
 --docker          use docker images for fmriprep/mriqc.
 
+--fast            Use DIR_DATA_DERIV/fast-output instead of fMRIPrep for spinoza_extractregions. This allows you to run the
+                  full combination strategy without fMRIprep. You will still need output from:
+                    - CAT12 (spinoza_brainextraction) [master -m 09]
+                    - FreeSurfer (spinoza_freesurfer) [master -m 14]
+                    - MGDM (spinoza_mgdm) [master -m 20]
+
 --fd              only get FD-timecourse file.
 
 --fetch-anat      retrieve the nifti-files in T1w-space.
