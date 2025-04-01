@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -41,13 +42,16 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts s:n: argument
+anat_depth=4
+while getopts s:n:a: argument
 do
   case ${argument} in
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
+    a)  anat_depth=${OPTARG}
+          ;;          
   esac
 done
 
@@ -56,41 +60,68 @@ done
 
 if [[ ! -z ${sub} ]]; then
 
-  if [[ -z ${ses} ]]; then
-    base_dir=${sub}
-    base="${sub}"
-  else
-    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
-    base="${sub}_ses-${nr}"
-    base_dir=${sub}/ses-${nr}
+  # collect subject name
+  read base_path base <<< "$(collect_session_info "$ses" "$sub")"
+  mask_dir="${DIR_DATA_DERIV}/manual_masks/${base_path}"
+
+  # anatomical reference
+  ANAT_DIR=$(find_hierarchical_anatomy ${anat_depth})
+  if [[ ! -d ${ANAT_DIR} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "find_hierarchical_anatomy" "Directory ${BOLD_GREEN}${ANAT_DIR}${RESET} does not exist. Reduce depth (=${anat_depth})"
+    exit 1
   fi
 
-  REF=$(find ${DIR_DATA_DERIV}/cat12/${base_dir} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
-  MAN=${DIR_DATA_DERIV}/manual_masks/${base_dir}/${base}_acq-${space^^}_desc-sagittalsinus.nii.gz
-  
+  REF=$(find ${ANAT_DIR}/${base_path} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+  if [[ ! -f ${REF} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "find" "No file with ${BOLD_RED}${sub}*${RESET} and ${BOLD_RED}*T1w.nii.gz${RESET} in ${BOLD_GREEN}${ANAT_DIR}${RESET}"
+    exit 1
+  fi
+
+  MAN=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
 else
-
   REF=${@:$OPTIND:1}
-  MAN=${@:$OPTIND+1:1}
 
+  if [[ ! -f ${REF} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "find" "Anatomical file ${BOLD_GREEN}${REF}${RESET} does not exist"
+    exit 1
+  fi
+
+  MAN=${@:$OPTIND+1:1}
 fi
-  
+
+
 if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
   echo "Creating $(basename ${man}) with call_createimg"    
-  call_createimg ${REF} ${MAN}
+  cmd="call_createimg ${REF} ${MAN}"
+  print_cmd "${cmd}" && eval "${cmd}"
 fi
 
-echo "Opening ITK-Snap"
-launch_itksnap -g ${REF} -s ${MAN} 2>/dev/null
+echo -e "T1w:  ${BOLD_GREEN}${REF}${RESET}"
+echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
-if [[ ! -f ${MAN} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): manual edit file was not saved.."
+cmd="launch_itksnap -g ${REF} -s ${MAN}"
+print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "launch_itksnap"
   exit 1
-else
-  fslorient -copyqform2sform ${MAN}
 fi
-  
 
+cmd="call_copyheader ${REF} ${MAN}"
+print_cmd "${cmd}" && eval "${cmd}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_copyheader"
+  exit 1
+fi

@@ -8,18 +8,17 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_checkfunction
 
-This function uses "type" to check whether the given function exists within the system. This can be
-useful if you're not sure everything is setup appropriately, and is used for instance to check if
-the linescanning repo is setup accordingly, and whether we have dcm2niix.
-
-You can specify multiple function and check their existence. The function will loop through the given
-arguments.
+This script checks whether each provided command or function exists in the current environment. It 
+works on most UNIX-like systems (Linux, macOS, WSL) using 'command -v'.
 
 Usage:
-  call_checkfunction <function1> <function2>
+  call_checkfunction <function1> <function2> ...
 
-Example
+Examples:
   call_checkfunction dcm2niix call_freesurfer
+
+Returns:
+  0 if all functions exist, 1 if any function is missing.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -27,17 +26,16 @@ USAGE
     exit 1
 }
 
-if [[ $# -lt 1 ]] ; then
+# Show help if no args
+if [[ $# -lt 1 ]]; then
   Usage >&2
   exit 1
 fi
 
-for i in "$@"; do
-
-  FN=`type -t ${i}`
-
-  if [[ -z ${FN} ]]; then
+# Loop through each argument and test if it's callable
+for fn in "$@"; do
+  if ! command -v "$fn" >/dev/null 2>&1; then
     exit 1
   fi
-
 done
+

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -56,31 +57,41 @@ done
 
 if [[ ! -z ${sub} ]]; then
 
-  if [[ -z ${ses} ]]; then
-    base_dir=${sub}
-    base="${sub}"
-  else
-    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
-    base="${sub}_ses-${nr}"
-    base_dir=${sub}/ses-${nr}
-  fi
+  # collect subject name
+  read base_path base <<< "$(collect_session_info "$ses" "$sub")"
+  mask_dir="${DIR_DATA_DERIV}/manual_masks/${base_path}"
 
   FS_DIR=${SUBJECTS_DIR}/${sub}
-  MAN=${DIR_DATA_DERIV}/manual_masks/${base_dir}/${base}_acq-${DATA}_desc-manualsegwm.nii.gz
-
+  MAN=${mask_dir}/${base}_acq-${DATA^^}_desc-manualsegwm.nii.gz
 else
-
   FS_DIR=${@:$OPTIND:1}
   MAN=${@:$OPTIND+1:1}
-
 fi
 
 # create ref from rawavg.mgz
 if [[ -d ${FS_DIR} ]]; then
-  call_mriconvert ${FS_DIR}/mri/rawavg.mgz
-  call_mriconvert ${FS_DIR}/mri/wm.mgz
+  cmd="call_mriconvert ${FS_DIR}/mri/rawavg.mgz"
+  print_cmd "${cmd}" && eval "${cmd}"
+  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_mriconvert" "File ${BOLD_GREEN}${FS_DIR}/mri/rawavg.nii.gz${RESET} was not created"
+    exit 1
+  fi  
+
+  cmd="call_mriconvert ${FS_DIR}/mri/wm.mgz"
+  print_cmd "${cmd}" && eval "${cmd}"
+  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_mriconvert" "File ${BOLD_GREEN}${FS_DIR}/mri/wm.nii.gz${RESET} was not created"
+    exit 1
+  fi  
+
 else
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find subject in FreeSurfer directory"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "FreeSurfer directory ${BOLD_GREEN}${FS_DIR}${RESET} does not exit"
   exit 1
 fi
 
@@ -88,17 +99,37 @@ if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
-  echo "Creating $(basename ${MAN}) with call_createimg"    
-  call_createimg ${FS_DIR}/mri/rawavg.nii.gz ${MAN}
+  print_create_img "${MAN}"
+  cmd="call_createimg ${FS_DIR}/mri/rawavg.nii.gz ${MAN}"
+  print_cmd "${cmd}" && eval "${cmd}"
+
+  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"
+    exit 1
+  fi    
 fi
 
-echo "Opening ITK-Snap"
-launch_itksnap -g ${FS_DIR}/mri/rawavg.nii.gz -o ${FS_DIR}/mri/wm.nii.gz -s ${MAN} 2>/dev/null
+echo -e "T1w: ${BOLD_GREEN}${FS_DIR}/mri/rawavg.nii.gz${RESET}"
+echo -e "WM: ${BOLD_GREEN}${FS_DIR}/mri/wm.nii.gz${RESET}"
+echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
-if [[ ! -f ${MAN} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): manual edit file was not saved.."
+cmd="launch_itksnap -g ${FS_DIR}/mri/rawavg.nii.gz -o ${FS_DIR}/mri/wm.nii.gz -s ${MAN}"
+print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "launch_itksnap"
   exit 1
-else
-  fslorient -copyqform2sform ${MAN}
 fi
 
+# copy header
+cmd="call_copyheader ${BOLD_GREEN}${FS_DIR}/mri/rawavg.nii.gz ${MAN}"
+print_cmd "${cmd}" && eval "${cmd}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_copyheader"
+  exit 1
+fi
