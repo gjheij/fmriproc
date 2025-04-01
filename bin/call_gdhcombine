@@ -4,8 +4,11 @@ import os
 from nilearn import image
 from scipy import ndimage
 import sys, getopt
-from lazyfmri.utils import get_file_from_substring
+from lazyfmri import utils
 opj = os.path.join
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+end = f"{utils.color.END}"
 
 def main(argv):
 
@@ -74,19 +77,10 @@ Notes:
             outputbase = arg
 
     if len(argv) < 1:
-            print("\nNEED AT LEAST A SUBJECT ID")
-            print(main.__doc__)
-            sys.exit()
-
-    # print(f"subject:     {subject}")
-    # print(f"CAT12:       {cat}")
-    # print(f"FAST:        {fast}")
-    # print(f"FS:          {fs}")
-    # print(f"MGDM:        {mgdm}")
-    # print(f"Manual:      {manual}")
-    # print(f"Output dir:  {outputdir}")
-    # print(f"Output base: {outputbase}")
-
+        utils.verbose("\nNEED AT LEAST A SUBJECT ID", True)
+        utils.verbose(main.__doc__, True)
+        sys.exit()
+    
     # At least fMRIprep/Nighres/FreeSurfer need to be specified. Manual & CAT12 are optional
     if not fprep_prob:
         raise ValueError("Need an fmriprep-directory")
@@ -97,76 +91,109 @@ Notes:
     if not fs:
         raise ValueError("Need a FreeSurfer-directory")
 
+    # split ribbon.mgz into wm/gm components
+    utils.verbose("Split FreeSurfer's ribbon files", True)
+    base_name= opj(man_edit, f"{subject}_ses-1_acq-{os.environ.get('DATA')}")
+    cmd = f"call_splitribbon {subject} {base_name}"
+    utils.run_shell_wrapper(cmd)
+
     ## Load and resample
-    print("Load and resample segmentations to nighres-output")
+    utils.verbose("Load and resample segmentations to nighres-output", True)
     try:
-        ## Manual edits (optional)
-        print(" manual edits..")
-        manual = {}
-        manual['wm']        = get_file_from_substring('manualsegwm', man_edit, return_msg=None)
-        manual['gm']        = get_file_from_substring('manualseggm', man_edit, return_msg=None)
-        manual['outside']   = get_file_from_substring('desc-outside.nii.gz', man_edit, return_msg=None)
+        search_terms = {
+            "wm": "manualsegwm",
+            "gm": "manualseggm",
+            "outside": "desc-outside.nii.gz"
+        }
+
+        manual = {
+            key: utils.get_file_from_substring(val, man_edit, return_msg=None)
+            for key, val in search_terms.items()
+        }
     except:
         manual = None
     
     ## Nighres: compulsory
-    print(" nighres..")
-    nighres = {}
-    nighres['wm']      = get_file_from_substring('proba_cr-wm.nii.gz', nigh_prob)
-    nighres['gm']      = get_file_from_substring('proba_cr-gm.nii.gz', nigh_prob)
-    nighres['csf']     = get_file_from_substring('proba_cr-csf.nii.gz', nigh_prob)
+    utils.verbose(f" {gb}nighres{end}..", True)
+    search_terms = {
+        "wm": "proba_cr-wm.nii.gz",
+        "gm": "proba_cr-gm.nii.gz",
+        "csf": "proba_cr-csf.nii.gz"
+    }
+
+    nighres = {
+        key: utils.utils.get_file_from_substring(val, nigh_prob)
+        for key, val in search_terms.items()
+    }
 
     for i in nighres:
         if isinstance(nighres[i], list):
             raise ValueError(f"Found more than 1 file for '{i}'-segmentation from Nighres containing string 'proba_cr-{i}.nii.gz'..\n{nighres[i]}")    
 
     ## fMRIprep: compulsory
-    print(" fmriprep..")
-    fmriprep = {}
-    fmriprep['wm']  = get_file_from_substring(f"{os.environ.get('DATA')}_label-WM", fprep_prob)
-    fmriprep['gm']  = get_file_from_substring(f"{os.environ.get('DATA')}_label-GM", fprep_prob)
-    fmriprep['csf'] = get_file_from_substring(f"{os.environ.get('DATA')}_label-CSF", fprep_prob)
+    utils.verbose(f" {gb}fmriprep{end}..", True)
+
+    labels = {
+        "wm": [f"{os.environ.get('DATA')}", "label-WM"],
+        "gm": [f"{os.environ.get('DATA')}", "label-GM"],
+        "csf": [f"{os.environ.get('DATA')}", "label-CSF"]
+    }
+
+    fmriprep = {
+        key: utils.get_file_from_substring(val, fprep_prob)
+        for key, val in labels.items()
+    }
 
     for i in fmriprep:
         if isinstance(fmriprep[i], list):
-            raise ValueError(f"Found more than 1 file for '{i}'-segmentation from fMRIprep with string '{os.environ.get('DATA')}_label-{i.upper()}'..\n{fmriprep[i]}")
+            raise ValueError(f"Found more than 1 file for '{i}'-segmentation from fMRIprep/FAST with '{labels[i]}'..\n{fmriprep[i]}")
         else:
-            fmriprep[i] = image.resample_to_img(fmriprep[i], nighres['gm'], interpolation='nearest')
+            fmriprep[i] = image.resample_to_img(
+                fmriprep[i],
+                nighres['gm'],
+                interpolation='nearest'
+            )
             
     ## CAT12
-    print(" CAT12..")
-    cat = {}
-    cat['wm']   = image.resample_to_img(get_file_from_substring('p2', cat_prob), nighres['gm'], interpolation='nearest')
-    cat['gm']   = image.resample_to_img(get_file_from_substring('p1', cat_prob), nighres['gm'], interpolation='nearest')
-    cat['csf']  = image.resample_to_img(get_file_from_substring('p3', cat_prob), nighres['gm'], interpolation='nearest') 
+    utils.verbose(f" {gb}CAT12{end}..", True)
+    cat_labels = {
+        "gm": "p1",
+        "wm": "p2",
+        "csf": "p3"
+    }
 
-    print(" FreeSurfer..")
-    # split ribbon.mgz into wm/gm components
-    base_name= opj(man_edit, f"{subject}_ses-1_acq-{os.environ.get('DATA')}")
-    try:
-        cmd = f"call_splitribbon {subject} {base_name}"
-        os.system(cmd)
-    except:
-        print("Could not convert ribbon file.. Does it exist?")
-        sys.exit(1)
+    cat = {
+        key: image.resample_to_img(
+            utils.get_file_from_substring(val, cat_prob),
+            nighres["gm"],
+            interpolation="nearest"
+        )
+        for key, val in cat_labels.items()
+    }
+
+    # FreeSurfer
+    utils.verbose(f" {gb}FreeSurfer{end}..", True)
+    freesurfer_labels = {
+        "wm": "ribbon_wm.nii.gz",
+        "gm": "ribbon_gm.nii.gz",
+        "cx": "ribbon_mask.nii.gz"
+    }
 
     freesurfer = {}
-    wm_img = get_file_from_substring("ribbon_wm.nii.gz", man_edit)
-    gm_img = get_file_from_substring("ribbon_gm.nii.gz", man_edit)
-    cx_img = get_file_from_substring("ribbon_mask.nii.gz", man_edit)
+    for key, fname in freesurfer_labels.items():
+        img = utils.get_file_from_substring(fname, man_edit)
+        resampled = image.resample_to_img(
+            img, 
+            nighres["gm"],
+            interpolation="nearest"
+        )
+        resampled.to_filename(img)
+        freesurfer[key] = img
 
-    # resample and save so that they are in native-space
-    image.resample_to_img(wm_img, nighres['gm'], interpolation='nearest').to_filename(wm_img)
-    image.resample_to_img(gm_img, nighres['gm'], interpolation='nearest').to_filename(gm_img)
-    image.resample_to_img(cx_img, nighres['gm'], interpolation='nearest').to_filename(cx_img)
-    
-    freesurfer['wm'] = wm_img
-    freesurfer['gm'] = gm_img
-    freesurfer['cx'] = cx_img
 
-    print("Combining segmentations")
-    print(" wm..")
-    if manual['wm'] != None:
+    utils.verbose("Combining segmentations", True)
+    utils.verbose(f" {gb}wm{end}..", True)
+    if manual['wm'] is not None:
         wm = image.math_img(
             'fmriprep + cat + freesurfer + manual*5',
             cat=cat['wm'],
@@ -182,8 +209,8 @@ Notes:
             freesurfer=freesurfer['wm']
         )
 
-    print(" gm..")
-    if manual['gm'] != None:
+    utils.verbose(f" {gb}gm{end}..", True)
+    if manual['gm'] is not None:
         gm = image.math_img(
             'fmriprep + cat*3 + freesurfer + manual*5',
             fmriprep=fmriprep['gm'],
@@ -199,10 +226,10 @@ Notes:
             freesurfer=freesurfer['gm']
         )
 
-    print(" csf..")
+    utils.verbose(f" {gb}csf{end}..", True)
     csf = image.math_img('3 * cat', cat=cat['csf'])
 
-    print(" total..")
+    utils.verbose(f" {gb}total{end}..", True)
     total_prob = image.math_img(
         'wm + gm + csf',
         wm=wm,
@@ -210,39 +237,43 @@ Notes:
         csf=csf
     )
 
-    print("Calculate new probabilities and save files")
-    wm  = image.math_img('wm / total_prob', wm=wm, total_prob=total_prob)
-    gm  = image.math_img('gm / total_prob', gm=gm, total_prob=total_prob)
-    csf = image.math_img('csf / total_prob', csf=csf, total_prob=total_prob)
+    utils.verbose("Calculating normalized tissue probability maps and writing output files...", True)
 
-    # specify output names
-    wm_file     = opj(outputdir, outputbase + '_label-WM_probseg.nii.gz')
-    gm_file     = opj(outputdir, outputbase + '_label-GM_probseg.nii.gz')
-    csf_file    = opj(outputdir, outputbase + '_label-CSF_probseg.nii.gz')
+    # Normalize tissue probability maps
+    tissue_maps = {
+        'WM': image.math_img('wm / total_prob', wm=wm, total_prob=total_prob),
+        'GM': image.math_img('gm / total_prob', gm=gm, total_prob=total_prob),
+        'CSF': image.math_img('csf / total_prob', csf=csf, total_prob=total_prob),
+    }
 
-    # write files
-    wm.to_filename(wm_file); print(" wrote new WM-probability map")
-    gm.to_filename(gm_file); print(" wrote new GM-probability map")
-    csf.to_filename(csf_file); print(" wrote new CSF-probability map")
+    # Write each map to file
+    out_files = {}
+    for label, img in tissue_maps.items():
+        out_file = opj(outputdir, f"{outputbase}_label-{label}_probseg.nii.gz")
+        img.to_filename(out_file)
+        out_files[label] = out_file
+        utils.verbose(f" wrote normalized {label}-probability map → {gb}{out_file}{end}", True)
+
 
     # set midbrain to one in WM and to zero in GM/CSF
-    print("Removing midbrain")
-    os.system(f"call_setmasktoone -i {wm_file} -m {freesurfer['wm']}")
-    os.system(f"call_setmasktozero -i {wm_file} -m {csf_file}")
-    os.system(f"call_setmasktozero -i {gm_file} -m {freesurfer['wm']}")
+    utils.verbose("Removing midbrain", True)
+    utils.run_shell_wrapper(f"call_setmasktoone -i {out_files['WM']} -m {freesurfer['wm']}")
+    utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['WM']} -m {out_files['CSF']}")
+    utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['GM']} -m {freesurfer['wm']}")
     
     # get rid of outside stuff
     if isinstance(manual['outside'], str):
-        print("Set 'outside' mask to zero")
-        os.system(f"call_setmasktozero -i {gm_file} -m {manual['outside']}")
+        utils.verbose("Set 'outside' mask to zero", True)
+        utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['GM']} -m {manual['outside']}")
 
     # make inside mask
-    print("Create 'inside' mask")
+    utils.verbose("Create 'inside' mask", True)
     inside_mask = image.math_img('wm > 0.45', wm=wm)
     inside_mask = image.largest_connected_component_img(inside_mask)
     inside_mask = image.new_img_like(inside_mask,ndimage.binary_closing(inside_mask.get_fdata(),iterations=3))
     inside_mask.to_filename(opj(outputdir, outputbase + '_desc-inside.nii.gz'))
 
-    print("Done")
+    utils.verbose("Done", True)
+
 if __name__ == "__main__":
     main(sys.argv[1:])
