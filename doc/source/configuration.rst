@@ -387,3 +387,80 @@ Now, in your configuration file (e.g., ``~/.spinoza_config``), edit the ``$MATLA
     - There are probably more that haven't been verified yet.
 
     To run these functions, a full MATLAB installation is required.
+
+
+Setting up Nighres_
+--------------------
+
+Nighres is a Python package for processing of high-resolution neuroimaging data.
+It developed out of CBS High-Res Brain Processing Tools and aims to make those tools easier to install, use and extend.
+Nighres now includes new functions from the IMCN imaging toolkit.
+Because of its dependency on Java, it requires a slightly more exotic installation.
+
+Start with cloning the repository:
+
+.. code-block:: bash
+
+    git clone https://github.com/nighres/nighres
+
+Then make sure you install some Java stuff:
+
+.. code-block:: bash
+
+    # on ubuntu/WSL
+    sudo apt-get install openjdk-8-jdk
+
+The Nighres-installer will look for `$JAVA_HOME/bin/javac`, where ``JAVA_HOME`` is automatically set as:
+
+.. code-block:: bash
+
+    detected_java=$(java -XshowSettings:properties -version 2>&1 | tr -d ' '| grep java.home | cut -f 2 -d '=')
+
+In newer versions of openjdk-8-jdk, the jre/ subfolder is no longer included, because it's now merged with the main JDK. So:
+
+.. code-block:: none
+    
+    # Expected path:
+    /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/javac ❌
+
+    # Actual path:
+    /usr/lib/jvm/java-8-openjdk-amd64/bin/javac ✅
+
+Thus, add the following to your ``~/.bash_profile```-file:
+
+.. code-block:: bash
+
+    # nighres
+    export JCC_JDK="/usr/lib/jvm/java-8-openjdk-amd64"
+    export JAVA_HOME="${JCC_JDK}"
+
+And run `source ~/.bash_profile`. Then you can proceed with the next steps.
+Navigate to the Nighres directory you downloaded and unpacked, and run the build script:
+
+.. code-block:: bash
+
+    ./build.sh
+
+Which should end with this message:
+
+.. code-block:: none
+
+    =======
+    You should now be able to install nighres with pip
+    python3 -m pip install .
+    =======
+
+In which case, you can run:
+
+.. code-block:: bash
+
+    pip install .
+
+Test the configuration with:
+
+.. code-block:: bash
+    
+    # couple important modules
+    python -c "from nighres.brain import mgdm_segmentation"
+    python -c "from nighres.cortex import cruise_cortex_extraction"
+    python -c "from nighres.laminar import volumetric_layering"
