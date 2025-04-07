@@ -529,8 +529,8 @@ def reorient_img(img, code="RAS", out=None, qform="orig"):
             pairs[code[1].upper()], 
             pairs[code[2].upper()])
         cmd_txt = "fslswapdim {} {} {}".format(img, orient, new)
-        print(cmd_txt)
-        os.system(cmd_txt)
+        utils.verbose(cmd_txt, highlight=True)
+        utils.run_shell_wrapper(cmd_txt)
 
     elif code.upper() == "NB":
         # use nibabel's RAS
