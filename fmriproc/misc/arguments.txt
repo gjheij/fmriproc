@@ -238,6 +238,11 @@ Options:
 
 --sge             submit jobs to cluster.
 
+--skip-bg         leave the background alone after combining INV1/INV2 images of the MP2RAGE sequence
+
+--skip-combine    do not combine all tissue segmentations into optimized probability maps, just exist after
+                  nighres is done
+
 --skip-fmap       do not trim the time series from FMAPs when '-v <cut volumes' is specified with spinoza_scanner2bids.
                   By default, it is assumed that all your functional files have dummy-saving turned on, so if '-v 5' is
                   specified, the first 5 volumes will be removed from both the FUNC and FMAPs.

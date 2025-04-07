@@ -96,6 +96,7 @@
 --sge
 --separate-hrf
 --skip-bg
+--skip-combine
 --skip-fmap
 --skip-tr
 --skip-prf-info
