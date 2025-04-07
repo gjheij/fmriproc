@@ -23,21 +23,32 @@ preprocessing pipeline for optimizing the segmentations. To disable, run this pa
 the overwrite switch set to 'n': master -m <module> -o n
 
 Usage:
-  spinoza_mgdm [options] <skullstripped> <mgdm> <masks>
+  spinoza_mgdm [arguments/options] <skullstripped> <mgdm> <masks>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o|--ow             overwrite existing files
-  --gdh               run GdH-pipeline version (call_gdhmgdm). 
   -j <n_cpus>         number of CPUs to use (default = 1)
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  --sge               submit job to cluster (SGE)
+  -x <kwargs>         Additional commands to be passed to 'mgdm_segmentation'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
 
-  Default = regular MGDM
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      This allows bash commands to be translated to python commands
+Positional:
   <skullstripped>     path to skullstripped data
   <mgdm>              path to output directory
   <masks>             path to masks
+
+Options:
+  -o|--ow             overwrite existing files
+  --gdh               run GdH-pipeline version (call_gdhmgdm, default is call_nighresmgdm). This
+                      versions uses input from fMRIPrep and FreeSurfer as inputs for MGDM.
+  --sge               submit job to cluster (SGE)
 
 Example:
   spinoza_mgdm SKULLSTRIP NIGHRES/mgdm MASKS
@@ -61,7 +72,8 @@ type=""
 run_local=1
 n_cpus=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
-while getopts :-:os:n:t:q:j: argument
+kwargs_flag=""
+while getopts :-:os:n:t:q:j:x: argument
 do
   case ${argument} in
     -)
@@ -93,7 +105,9 @@ do
     j)  n_cpus=${OPTARG}
           ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;                 
+          ;;   
+    x)  kwargs_flag="--kwargs ${OPTARG}"
+          ;;               
   esac
 done
 
@@ -175,7 +189,7 @@ for subID in ${search}; do
       fs_mask=${SUBJECTS_DIR}/${sub_name}/mri/brainmask.mgz
       brainmask=$(find -L "${input_dir}" -type f \( -name "mask*" -and -name "*acq-${DATA^^}*" \) 2>/dev/null)
       if [[ -f ${fs_mask} ]]; then
-        use_mask="fs"
+        use_mask=${fs_mask}
       else
         if [[ ! -z ${brainmask} ]]; then
           use_mask=${brainmask}
@@ -190,13 +204,14 @@ for subID in ${search}; do
       job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
       # define command
-      cmd="""${job} \
-        -s ${sub_name} \
-        -n ${nr} \
-        -a ${input_dir} \
-        -b ${use_mask} \
-        -d ${mask_outside} \
-        -o ${masked_seg}"""
+      cmd=(
+        ${job}
+        --inputdir ${input_dir}
+        --brainmask ${use_mask}
+        --duramask ${mask_outside}
+        --outputdir ${masked_seg}
+        --name ${output_root}
+      )
 
     else
       reason="segmentation already present [GdH]"
@@ -228,10 +243,11 @@ for subID in ${search}; do
 
       # define command
       cmd="""${job} \
-        -t ${bet_uni} \
-        -m ${bet_t1m} \
-        -o ${masked_seg} \
-        -b ${output_root}"""
+        --t1w ${bet_uni} \
+        --t1map ${bet_t1m} \
+        --outputdir ${masked_seg} \
+        --name ${output_root}
+        ${kwargs_flag}"""
 
     else
       execute_cmd=0

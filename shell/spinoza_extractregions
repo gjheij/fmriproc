@@ -33,7 +33,8 @@ Usage:
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+  -o|--ow             overwrite existing files
+  --skip-combine      do not combine all segmentations, just exit after Nighres
   <nighres folder>    folder with nighres output
   <prob folder>       folder containing masks
   <region>            region to extract with Nighres
@@ -71,10 +72,27 @@ fi
 # Check for subject & session flags
 OW=0
 COMB_ONLY=0
+SKIP_COMB=0
 fprep=${DIR_DATA_DERIV}/fmriprep
-while getopts cos:n:f: argument
+kwargs_flag=""
+while getopts cos:n:f:x:-: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        skip-combine)
+          SKIP_COMB=1
+          ;;
+        ow)
+          OW=1
+          ;;         
+    *)
+      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
+        exit 1
+      fi
+      ;;
+      esac;;   
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -84,7 +102,9 @@ do
     o)  OW=1
           ;;         
     c)  COMB_ONLY=1
-          ;;                      
+          ;;  
+    x)  kwargs_flag="--kwargs ${OPTARG}"
+          ;;                     
   esac
 done
 
@@ -236,21 +256,21 @@ for subID in ${search}; do
   executed_nighres=0
   if [[ ${COMB_ONLY} -eq 0 ]]; then
     if [[ ! -f ${output} ]]; then
-
-      # print header
-      print_subject_header ${sub_name}
       if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
 
+        # print header
+        print_subject_header ${sub_name}
         print_create_img "${output}" "Suffix=\"${suff}\""
         cmd=(
           call_nighresextractregions
-          -s "${INPUTS[0]}"
-          -b "${INPUTS[1]}"
-          -p "${INPUTS[2]}"
-          -l "${INPUTS[3]}"
-          -r "${REGION}"
-          -o "${region_dir}"
-          -n "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
+          --seg "${INPUTS[0]}"
+          --boundary "${INPUTS[1]}"
+          --proba "${INPUTS[2]}"
+          --labels "${INPUTS[3]}"
+          --roi "${REGION}"
+          --outputdir "${region_dir}"
+          --name "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
+          ${kwargs_flag}
         )
 
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -260,22 +280,16 @@ for subID in ${search}; do
           print_error_msg "$(basename ${0})" "call_nighresextractregions"
           exit 1
         fi
-
         executed_nighres=1
-
-      else
-        echo "Skipping nighres. Found something that looks like output"
       fi
     else
       print_output_exists "${sub_name}" "${output}"
     fi
   fi
 
-  if [[ ! -f ${gm_prob} || ${COMB_ONLY} -eq 1 ]]; then
+  if { [[ ! -f "${gm_prob}" ]] || [[ "${COMB_ONLY}" -eq 1 ]]; } && [[ "${SKIP_COMB}" -eq 0 ]]; then
 
-    if [[ ${mask_dir} == *"nighres"* ]]; then
-      :
-    else
+    if [[ ${mask_dir} != *"nighres"* ]]; then
 
       if [[ ${executed_nighres} -eq 0 ]]; then
         print_subject_header ${sub_name}
@@ -311,14 +325,14 @@ for subID in ${search}; do
 
       cmd=(
         ${run_cmd}
-        -s ${sub_name}
-        -q ${cat12}
-        -a ${fprep_dir}
-        -f ${fs}
-        -c ${region_dir}
-        -d ${mask_dir}
-        -o ${mask_dir}
-        -b ${base}_acq-${DATA^^}
+        --sub ${sub_name}
+        --cat ${cat12}
+        --fast ${fprep_dir}
+        --fs ${fs}
+        --nighres ${region_dir}
+        --manual ${mask_dir}
+        --outputdir ${mask_dir}
+        --outputbase ${base}_acq-${DATA^^}
       )
 
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"

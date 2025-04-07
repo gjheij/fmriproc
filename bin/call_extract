@@ -277,36 +277,9 @@ Example
             if "," in dec:
                 include_pars = utils.string2list(include_pars)
             else:
-                include_pars = [include_pars]              
+                include_pars = [include_pars]
         elif opt in ("--dec"):
-            dec = arg
-
-            # parse into list
-            if "," in dec:
-                dec = utils.string2list(dec)
-            else:
-                dec = [dec]
-
-            # and into dictionary
-            dec_kws = {}
-            for i in dec:
-                spl = i.split("=")
-                val = spl[1]
-                if ">" in val:
-                    val = [float(i) for i in val.split(">")]
-                elif val == "True":
-                    val = True
-                elif val == "False":
-                    val = False
-                else:
-                    if val.isnumeric():
-                        if "." in val:
-                            val = float(val)
-                        else:
-                            val = int(val)
-                
-                dec_kws[spl[0]] = val
-
+            dec_kws = utils.parse_kwargs_to_dict(dec)
         elif opt in ("--lut"):
 
             lut = arg
@@ -315,45 +288,10 @@ Example
             if lut == "none":
                 color_lut = {}
             else:
-                # parse into list
-                if "," in lut:
-                    lut = utils.string2list(lut)
-                else:
-                    lut = [lut]
-
-                # and into dictionary
-                for i in lut:
-                    spl = i.split("=")
-                    color_lut[spl[0]] = spl[1]
+                color_lut = utils.parse_kwargs_to_dict(lut)
                 
         elif opt in ("--plot"):
-            plot = arg
-
-            # parse into list
-            if "," in plot:
-                plot = utils.string2list(plot)
-            else:
-                plot = [plot]
-
-            # and into dictionary
-            plot_kws = {}
-            for i in plot:
-                spl = i.split("=")
-                
-                val = spl[-1]
-                if val == "True":
-                    val = True
-                elif val == "False":
-                    val = False
-                else:
-                    if val.isnumeric():
-                        if "." in val:
-                            val = float(val)
-                        else:
-                            val = int(val)
-                
-                plot_kws[spl[0]] = val
-
+            plot_kws = utils.parse_kwargs_to_dict(plot_kws)
         elif opt in ("-r", "--rois"):
             rois = arg
             

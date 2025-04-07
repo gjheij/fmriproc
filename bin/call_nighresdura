@@ -1,14 +1,16 @@
 #!/usr/bin/env python
-#$ -cwd
-#$ -j Y
-#$ -V
 
 try:
     from nighres.brain import mp2rage_dura_estimation
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
+import os
+from lazyfmri import utils
+rb = utils.color.RED+utils.color.BOLD
+end = rb = utils.color.END
 
 def main(argv):
 
@@ -22,10 +24,10 @@ volumes of a MP2RAGE-sequence (Marques et al., 2010). It can also further correc
 for B1 inhomogenieties using a B1 map (Marques et al., 2014)
 
 Args:
-    -i (--inv2=)        2nd inversion image
-    -s (--inv2-mask=)   mask of inv2
-    -o (--outputdir=)   output directory
-    -b (--outputbase=)  base name for outputs
+    -i|--inv2       2nd inversion image
+    -s|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Outputs
     taken from https://nighres.readthedocs.io/en/latest/brain/mp2rage_dura_estimation.html
@@ -37,48 +39,58 @@ Example:
     call_nighresdura -i inv2.nii.gz -m inv2_mask.nii.gz -o derivatives/nighres -f sub-001_desc
 
 ---------------------------------------------------------------------------------------------------
-
     """
 
-    inv2_skull  = ''
-    inv2_mask   = ''
-    outputdir   = ''
-    outputbase  = ''
+    inv2_skull = None
+    inv2_mask = None
+    output_dir = opj(os.getcwd(), 'dura')
+    output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hi:m:o:b:",["inv2=", "inv2-mask=", "outputdir=", "outputbase="])[0]
+        opts = getopt.getopt(argv,"hi:m:o:b:",["help", "inv2=", "mask=", "outputdir=", "outputbase="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help")
             print(main.__doc__)
             sys.exit()
         elif opt in ("-i", "--inv2"):
             inv2_skull = arg
-        elif opt in ("-m", "--inv2_mask"):
+        elif opt in ("-m", "--mask"):
             inv2_mask = arg
         elif opt in ("-o", "--outputdir"):
-            outputdir = arg
-        elif opt in ("-b", "--outputbase"):
-            outputbase = arg
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
 
-    if len(argv) < 4:
-            print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-            print(main.__doc__)
-            sys.exit()
+    if len(argv) < 2:
+        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit()
 
-    if outputbase != "":
-        base = outputbase
-    else:
-        base = ""
+    #---------------------------------------------------------------------------------------------------
+    # Check that input files exist
+    required_files = {
+        "INV2-image with skull": inv2_skull,
+        "Brain mask": inv2_mask,
+    }
 
+    missing_files = [desc for desc, path in required_files.items() if not path or not os.path.isfile(path)]
+    if missing_files:
+        print("ERROR: The following required input files are missing or invalid:")
+        for f in missing_files:
+            print(f"  - {rb}{f}{end}")
+        sys.exit(1)
+    
+    #---------------------------------------------------------------------------------------------------
+    # run
     mp2rage_dura_estimation(
         inv2_skull,
         inv2_mask,
-        file_name=base,
-        output_dir=outputdir,
+        file_name=output_base,
+        output_dir=output_dir,
         save_data=True
     )
 

@@ -130,13 +130,15 @@ for subID in ${search}; do
       continue
     fi
 
-    cmd="""call_nighresprofsamp \
-      -l ${boundaries} \
-      -s ${tobesampled} \
-      -d ${nighres_dir}/profiling \
-      -n ${base}_acq-${DATA^^}_desc-profile_${TAG}"""
+    cmd=(
+      call_nighresprofsamp
+      --layering ${boundaries}
+      --samplefrom ${tobesampled}
+      --outputdir ${nighres_dir}/profiling
+      --name ${base}_acq-${DATA^^}_desc-profile_${TAG}
+    )
 
-    print_cmd "${cmd}" && eval "${cmd}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? != 0 ]]; then
       echo
       print_line -

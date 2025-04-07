@@ -1,27 +1,69 @@
 #!/usr/bin/env python
-#$ -cwd
-#$ -j Y
-#$ -V
-
 try:
-    from nighres.parcellation import massp
+    from nighres import (
+        parcellation,
+        data,
+        registration
+    )
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-from nighres.registration import embedded_antsreg_multi
-from nighres.data import download_AHEAD_template
 import sys, getopt
 import os
 import pathlib
 import lazyfmri import utils
-from fmriproc.image import massp_to_table
+from fmriproc import image
 import warnings
 warnings.filterwarnings("ignore")
 opj = os.path.join
+rb = utils.color.RED+utils.color.BOLD
+gb = utils.color.GREEN+utils.color.BOLD
+end = rb = utils.color.END
+
+def _single_step_reg(
+    src=None,
+    trg=None,
+    step=1,
+    **kwargs
+    ):
+    
+    # set default kwargs
+    defaults = {
+        "run_rigid": True,
+        "run_affine": True,
+        "run_syn": True,
+        "rigid_iterations": 1000,
+        "affine_iterations": 500,
+        "coarse_iterations": 180,
+        "medium_iterations": 60,
+        "fine_iterations": 30,
+        "cost_function": "MutualInformation",
+        "interpolation": "NearestNeighbor",
+        "regularization": "High",
+        ignore_affine=True,
+        save_data=True
+    }
+
+    # update given kwargs
+    for key, val in defaults.items():
+        kwargs = utils.update_kwargs(
+            kwargs,
+            key,
+            val
+        )
+
+    single_ants = registration.embedded_antspy_multi(
+        source_images=src,
+        target_images=trg,
+        file_name=f"mni2subject-step{step}",
+        **kwargs
+    )
+
+    return single_ants
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_nighresmassp
 
@@ -38,18 +80,80 @@ If you have these files, make sure you name them accordingly. The script will lo
 number)
 
 Args:
-    -s (--sub)         subject number (full name, not just 'sub' to allow for other prefixes)
-    -n (--ses)         session number (integer)
-    -i (--inputdir)    root directory of input (<sub>/<ses-> will be appended!). If you specify
-                       a directory, all required files are expected to be in there; if not, spe-
-                       cify the path to individual files
-    -o (--output)      output directory (<sub>/<ses-> will be appended!)
-    -b (--base)        basename for output files (defaults to <sub>_[<ses-x>])
+    -i|--inputdir   automatically search for files in the anatomy folder. Files should have the 
+                    following suffixes:
 
+                    ```
+                    pattern_map = {
+                        "qr1": "R1.nii.gz",
+                        "qr2s": "R2s.nii.gz",
+                        "qsm": "QSM.nii.gz",
+                    }
+                    ```
+
+                    Alternatively, individual files can be specified with --r1, --r2s, and --qsm
+
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'massp'))
+    -b|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+    -x|--kwargs     Extra arguments that will be directly passed to 'embedded_antspy_multi'. The
+                    format should be as follows: different parameters comma-separated, and
+                    parameter-value pair separated by '='):
+                    
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                    E.g.,:
+                    "-x rigid_iterations=10000,ignore_affine=False"
+
+                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                    The kwargs specified in this flag take precedent over the default kwargs:
+
+                    ```
+                    defaults = {
+                        "run_rigid": True,
+                        "run_affine": True,
+                        "run_syn": True,
+                        "rigid_iterations": 1000,
+                        "affine_iterations": 500,
+                        "coarse_iterations": 180,
+                        "medium_iterations": 60,
+                        "fine_iterations": 30,
+                        "cost_function": "MutualInformation",
+                        "interpolation": "NearestNeighbor",
+                        "regularization": "High",
+                        ignore_affine=True,
+                        save_data=True
+                    }
+                    ```
+
+    -p|--mkwargs    Extra arguments that will be directly passed to 'massp'. The format should be
+                    as follows: different parameters comma-separated, and parameter-value pair
+                    separated by '='):
+                    
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                    E.g.,:
+                    "-x rigid_iterations=10000,ignore_affine=False"
+
+                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                    The kwargs specified in this flag take precedent over the default kwargs:
+
+                    ```
+                    defaults = {
+                        "max_iterations": 120,
+                        "max_difference": 0.1,
+                        "save_data": True,
+                        "overwrite": False,
+                        "output_dir": "directory specified with -o|--outputdir",
+                        "file_name": "basename specified with -n|--name"
+                        "map_to_target": ants_file,
+                        "target_images": [input_files[k] for k in list(pattern_map)]
+                    }
+                    ```
+        
     Optional:
-    --r1               R1-map (= 1/T1-map)
-    --r2s              R2s-map (= 1/T2*-map)
-    --qsm              QSM map
+    --r1               File representing the R1-map (= 1/T1-map)
+    --r2s              File representing the R2s-map (= 1/T2*-map)
+    --qsm              File representing the QSM map
 
 Outputs
     Dictionary collecting outputs under the following keys (suffix of output files in brackets)
@@ -59,41 +163,46 @@ Outputs
 
 Example:
     call_nighresmassp -s sub-001 -n 1 -i DIR_DATA_DERIV/pymp2rage -o $DIR_DATA_DERIV/nighres
-    call_nighresmassp -s sub-001 --r1 r1map.nii.gz --r2s r2smap.nii.gz --qsm qsm.nii.gz -o
-                      /path/to/nighres -b other_prefix
+    call_nighresmassp \
+        --sub sub-001 \
+        --r1 r1map.nii.gz \
+        --r2s r2smap.nii.gz \
+        --qsm qsm.nii.gz \
+        --outputdir /path/to/nighres/sub-01/ses-1 \
+        --name other_prefix
 
 ---------------------------------------------------------------------------------------------------
-
     """
 
-    subject     = None
-    ses         = None
-    inputdir    = None
-    base        = None
-    R1          = None
-    R2s         = None
-    QSM         = None
+    input_dir = None
+    R1 = None
+    R2s = None
+    QSM = None
+    output_dir = opj(os.getcwd("massp"))
+    output_base = "subject_acq-MP2RAGE_desc"
+    kwargs = {}
+    massp_kws = {}
 
     try:
-        opts = getopt.getopt(argv,"hs:n:i:o:b:",["sub=", "ses=", "inputdir=", "r1=", "r2s=", "qsm=", "outputdir=", "base="])[0]
+        opts = getopt.getopt(argv,"hs:n:i:o:b:x:p:",["help", "inputdir=", "r1=", "r2s=", "qsm=", "outputdir=", "name=", "kwargs", "mkwargs"])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt == ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
-        elif opt in ("-s", "--sub"):
-            subject = arg
-        elif opt in ("-n", "--ses"):
-            ses = arg
         elif opt in ("-i", "--inputdir"):
-            inputdir = arg
+            input_dir = arg
         elif opt in ("-o", "--outputdir"):
-            outputdir = arg
-        elif opt in ("-b", "--base"):
-            base = arg
+            output_dir = arg
+        elif opt in ("-b", "--name"):
+            output_base = arg
+        elif opt in ("-x", "--kwargs"):
+            kwargs = arg 
+        elif opt in ("-p", "--mkwargs"):
+            massp_kws = arg                        
         elif opt in ("--r1"):
             R1 = arg
         elif opt in ("--r2s"):
@@ -101,120 +210,144 @@ Example:
         elif opt in ("--qsm"):
             QSM = arg
 
-    if len(argv) < 3:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+    required_args = 1
+    if (
+        len(argv) < required_args
+        or not isinstance(input_dir, str)
+        or not os.path.isdir(input_dir)
+        ):
+
+        print("\nERROR: Missing or invalid arguments.")
+        if len(argv) < required_args:
+            print(" - Not enough command-line arguments specified.")
+        if not isinstance(input_dir, str):
+            print(" - Input directory is not a string.")
+        elif not os.path.isdir(input_dir):
+            print(f" - Input directory '{input_dir}' does not exist.")
+
         print(main.__doc__)
-        sys.exit()
+        sys.exit(1)
 
     #---------------------------------------------------------------------------------------------------
-    # Set input/output/basename
-    if ses == None:
-        if base == None:
-            base = f"{subject}"
-    else:
-        if base == None:
-            base = f"{subject}_ses-{ses}"
-
-    pathlib.Path(opj(outputdir,'reg')).mkdir(parents=True, exist_ok=True)
-
-    print(f"Subject = {subject}")
-    print(f"Session = {ses}")
-    print(f"Base    = {base}")
+    # tmp directory with registration files
+    reg_dir = opj(output_dir, "reg")
+    pathlib.Path(reg_dir).mkdir(parents=True, exist_ok=True)
 
     #---------------------------------------------------------------------------------------------------
     # look for all files in specified input directory
-    if inputdir != None:
-        from bids import BIDSLayout
+    pattern_map = {
+        "qr1": "R1.nii.gz",
+        "qr2s": "R2s.nii.gz",
+        "qsm": "QSM.nii.gz",
+    }
 
-        layout = BIDSLayout(inputdir, validate=False).get(session=ses, return_type='file')
-        # Fetch files
-        files = {}
-        for q in layout:
-            for i in ["R1", "R2s", "QSM"]:
-                if q.endswith(f"_{i}.nii.gz"):
-                    files[i] = q
+    input_files = {}
+    if input_dir is not None:
+        # we got passed an input_dir, fetch files from directory
 
-    # check if we got separate files
+        print(f"Loading files from {gb}{input_dir}{end}..")
+        for key, pattern in pattern_map.items():
+            in_file = utils.get_file_from_substring(pattern, input_dir, return_msg=None)
+            input_files[key] = in_file
     else:
-        try:
-            files = {"R1": R1,
-                     "R2s": R2s,
-                     "QSM": QSM}
-        except:
-            print(main.__doc__)
-            raise NameError("Could not find R1,R2s,QSM files; either specify a directory containing all three or set the flags correctly")
+        print("Loading manually specified files..")
+        for key, val in zip(
+            list(pattern_map),
+            [R1, R2s, QSM]
+        ):
+            input_files[key] = val
 
     #---------------------------------------------------------------------------------------------------
-    # Load files
-    print("Loading files..")
-    [print(f" got {f}") for f in files.values()]
-    print("Done")
+    # Check that input files exist
+    missing_files = [desc for desc, path in input_files.items() if not path or not os.path.isfile(path)]
+    if missing_files:
+        print("ERROR: The following required input files are missing or invalid:")
+        for f in missing_files:
+            print(f"  - {rb}{f}{end}")
+        sys.exit(1)
+
+    [print(f" {key}: {gb}{val}{end}") for key, val in input_files.items()]    
 
     #---------------------------------------------------------------------------------------------------
     # Download template file
     print("Download AHEAD template..")
-    template = download_AHEAD_template()
+    template = data.download_AHEAD_template()
 
     #---------------------------------------------------------------------------------------------------
     # Register template to files
-    ants_file = utils.get_file_from_substring("invmap.nii.gz", opj(outputdir, 'reg'))
-    if ants_file == None:
-        ants = embedded_antsreg_multi(
-            source_images=[
-                files['R1'],
-                files['R2s'],
-                files['QSM']
-            ],
-            target_images=[
-                template['qr1'],
-                template['qr2s'],
-                template['qsm']
-            ],
-            run_rigid=True,
-            run_affine=True,
-            run_syn=True,
-            rigid_iterations=10000,
-            affine_iterations=2000,
-            coarse_iterations=180,
-            medium_iterations=60,
-            fine_iterations=30,
-            cost_function='MutualInformation',
-            interpolation='NearestNeighbor',
-            regularization='High',
-            ignore_affine=True,
-            save_data=True,
-            file_name=base,
-            output_dir=opj(outputdir, 'reg')
+    ants_file = utils.get_file_from_substring(
+        "_ants_map.nii.gz",
+        reg_dir,
+        return_msg=None
+    )
+
+    if ants_file is not None:
+        
+        # Co-registration to an atlas works better in two steps
+        ants1 = _single_step_reg(
+            src=[template[k] for k in list(pattern_map)],
+            trg=[input_files[k] for k in list(pattern_map)],
+            step=1,
+            **kwargs
         )
 
-        ants_file = ants['inverse']
+        # step 2
+        ants2 = _sing_single_step_reg(
+            src=[amts1["transformed_sources"][i] for i in range(3)],
+            trg=[input_files[k] for k in list(pattern_map)],
+            step=2,
+            **kwargs
+        )
+
+        # combine transformations
+        mapping = registration.apply_coordinate_mappings(
+            image=ants1['mapping'],
+            mapping1=ants2['mapping'],
+            interpolation='linear',
+            save_data=True,
+            file_name="mapping2subject",
+            output_dir=output_dir
+        )
+
+        ants_file = mapping["mapping"]
 
     else:
-        print("\nFound ANTs-inverse mapping file. Skipping registration")
+        print("\nFound ANTs mapping file. Skipping registration")
 
     #---------------------------------------------------------------------------------------------------
     # Do the actual parcellation
+
+    defaults = {
+        "max_iterations": 120,
+        "max_difference": 0.1,
+        "save_data": True,
+        "overwrite": False,
+        "output_dir": output_dir,
+        "file_name": output_base,
+        "map_to_target": ants_file,
+        "target_images": [input_files[k] for k in list(pattern_map)]
+    }
+
+    for key, val in defaults.items():
+        massp_kws = utils.update_kwargs(
+            massp_kws,
+            key,
+            val
+        )
+
+    # combine input & kwargs
+    combined_kwargs = {**massp_kws, **kwargs}
+
+    #---------------------------------------------------------------------------------------------------
+    # run MASSP    
     print("Running subcortex parcellation")
-    massp_results = massp(
-        target_images=[
-            files['R1'],
-            files['R2s'],
-            files['QSM']
-        ],
-        map_to_target=ants_file,
-        max_iterations=120,
-        max_difference=0.1,
-        save_data=True,
-        file_name=base,
-        output_dir=outputdir,
-        overwrite=False
-    )
+    massp_results = parcellation.massp(**combined_kwargs)
 
     #---------------------------------------------------------------------------------------------------
     # Convert label to volume table
-    vol_file = massp_to_table(
+    vol_file = image.massp_to_table(
         massp_results['max_label'],
-        out=opj(outputdir, f'{base}_desc-volume_table.json'),
+        out=opj(output_dir, f'{base}_desc-volume_table.json'),
         unit="mm"
     )
 
@@ -224,10 +357,11 @@ Example:
     # Nicer formatting
     for i in ["proba", "label"]:
 
-        fn_old = opj(outputdir,base + "_massp-" + i + ".nii.gz")
-        fn_new = opj(outputdir,base + "-massp_" + i + ".nii.gz")
+        fn_old = opj(output_dir,base + "_massp-" + i + ".nii.gz")
+        fn_new = opj(output_dir,base + "-massp_" + i + ".nii.gz")
 
         if os.path.exists(fn_old):
+            print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
             os.rename(fn_old, fn_new)
 
     print("Done")

@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#$ -cwd
-#$ -j Y
-#$ -V
 
 try:
     from nighres.laminar import profile_sampling
@@ -14,7 +11,7 @@ opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_nighresprofsamp
 
@@ -22,12 +19,12 @@ The Profile Sampling module of CBS Tools was used to transform the 2-dimensional
 representations of any input data
 
 Args:
-  -l (--layerimg=)    4D image containing levelset representations of different intracortical 
-                      surfaces on which data should be sampled (the 4D output from call_nighres-
-                      layering; "-layering_boundaries")
-  -s (--samplefrom=)  Image from which data should be sampled
-  -d (--outputdir=)   output directory
-  -n (--name=)        basename for output
+    -l|--layerimg   4D image containing levelset representations of different intracortical 
+                    surfaces on which data should be sampled (the 4D output from call_nighres-
+                    layering; "-layering_boundaries")
+    -s|--samplefrom Image from which data should be sampled
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'profiling'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Outputs:
   (taken from https://nighres.readthedocs.io/en/latest/laminar/profile_sampling.html)
@@ -37,40 +34,41 @@ Outputs:
                   voxel (-lps_data)
 
 Example:
-  call_nighresprofsamp -l sub-001_ses-1_acq-MP2RAGE_desc-layering_boundaries.nii.gz
-                       -s sub-001_ses-1_acq-MP2RAGE_T1map.nii.gz
-                       -d derivatives/nighres/sub-001/profiling
-                       -n sub-001_ses-1_acq-MP2RAGE_desc-profile_T1map
+  call_nighresprofsamp \
+    -l sub-001_ses-1_acq-MP2RAGE_desc-layering_boundaries.nii.gz \
+    -s sub-001_ses-1_acq-MP2RAGE_T1map.nii.gz \
+    -d derivatives/nighres/sub-001/profiling \
+    -n sub-001_ses-1_acq-MP2RAGE_desc-profile_T1map
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    layers_lvls     = None
-    sample_from     = None
-    output_dir      = os.path.join(os.environ['NIGHRES'], 'sub-xxx', 'profiling')
-    output_base     = "sub-xxx-acq-MP2RAGE_desc"
+    layers_lvls = None
+    sample_from = None
+    output_dir = opj(os.getcwd(), 'profiling')
+    output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hl:s:d:n:",["layerimg=", "samplefrom=", "outputdir=", "name="])[0]
+        opts = getopt.getopt(argv,"hl:s:o:n:",["help", "layerimg=", "samplefrom=", "outputdir=", "name="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         print("ERROR IN ARGUMENTS")
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
-        elif opt in ("-l", "--layerimg"):
+        elif opt in ("-l", "--layering"):
             layers_lvls = arg
         elif opt in ("-s", "--samplefrom"):
             sample_from = arg
-        elif opt in ("-d", "--outputdir"):
+        elif opt in ("-o", "--outputdir"):
             output_dir = arg
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 4:
+    if len(argv) < 2:
         print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()

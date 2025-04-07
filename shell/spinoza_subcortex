@@ -25,6 +25,25 @@ Arguments:
   -j <cpus>           number of cores to use (default is 1)
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   -o|--ow             overwrite existing files
+  -x <kwargs>         Additional commands to be passed to 'antsRegistration'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      This allows bash commands to be translated to python commands
+
+  -p <kwargs>         Additional commands to be passed to 'MASSP'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      This allows bash commands to be translated to python commands                      
   --sge               submit job to cluster
 
   <anat folder>       folder containing the files required for MASSP. Files should end with:
@@ -52,15 +71,20 @@ fi
 n_cpus=1
 run_local=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
+kws_ants=""
+kws_massp=""
 # Check for subject & session flags
-while getopts s:n:j:q argument
+while getopts s:n:j:q:x:p: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in
         sge)
           run_local=0
-          ;;                                                                  
+          ;;
+        ow)
+          OW=1
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}" >&2
@@ -74,7 +98,11 @@ do
     q)  SGE_QUEUE=${OPTARG}
           ;;    
     j)  n_cpus=${OPTARG}
-          ;;                     
+          ;;    
+    x)  kws_ants="--kwargs ${OPTARG}"
+          ;;     
+    p)  kws_massp="--mkwargs ${OPTARG}"
+          ;;                                          
   esac
 done
 
@@ -173,20 +201,22 @@ for subID in ${search}; do
     job="$(decide_job_type "call_nighresmassp" "${base}_acq-${DATA^^}_desc-massp" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
     # define command
-    cmd="""${job} \
-      -s ${sub_id} \
-      -n ${nr} \
-      -i ${use_dir} \
-      -o ${output_dir} \
-      -b ${base}_acq-${DATA^^}_desc"""
+    cmd=(
+      ${job}
+      --inputdir ${use_dir}
+      --outputdir ${output_dir}
+      --name ${base}_acq-${DATA^^}_desc
+      ${kws_ants}
+      ${kws_massp}
+    )
 
     # print command
     if [[ ${run_local} -eq 1 ]]; then
-      print_cmd "${cmd}"
+      print_cmd "${cmd[@]}"
     fi
 
     # run command
-    eval "${cmd}"
+    eval "${cmd[@]}"
 
     if [[ $? != 0 ]]; then
       echo

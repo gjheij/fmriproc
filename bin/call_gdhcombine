@@ -12,7 +12,7 @@ end = f"{utils.color.END}"
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_gdhcombine
 
@@ -22,17 +22,25 @@ Also takes in manual edits that are weighted 5-times more than the segmentations
 softwares. 
 
 Args:
-    -s <subject nr>  subject ID
-    -q <CAT12>       directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
-    -a <FAST>        directory containing segmentations from FAST
-    -b <FreeSurfer>  directory containing segmentations from FreeSurfer
-    -c <Nighres>     directory containing segmentations from Nighres
-    -d <Manual>      directory containing manual edits
-    -o <Output>      output directory + basename output
+    -s|--sub        subject ID
+    -q|--cat        directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
+    -a|--fast       directory containing segmentations from FAST
+    -b|--fs         directory containing segmentations from FreeSurfer
+    -c|--nighres    directory containing segmentations from Nighres
+    -d|--manual     directory containing manual edits
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'masks'))
+    -n|--outputbase basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Example:
-    call_gdhcombine -s sub-001 -a /path/to/fast -b /path/to/fs -c /path/to/mgdm -d /path/to
-                    /man_masks
+    call_gdhcombine \
+        --sub sub-01
+        --cat cat12/sub-01/ses-1
+        --fast fmriprep/sub-01/ses-1/anat
+        --fs freesurfer/sub-01
+        --nighres nighres/sub-01/ses-1/cruise
+        --manual manual_masks/sub-01/ses-1
+        --outputdir manual_masks/sub-01/ses-1
+        --outputbase sub-01_ses-1_acq-MP2RAGE
 
 Notes:
     if you only specify the subject ID, it will look for the files in the environmental variables
@@ -41,16 +49,16 @@ Notes:
     """
 
     subject     = None
+    session     = None
     fprep_prob  = None
     fs          = None
     nigh_prob   = None
-    nigh_prob   = None
     cat_prob    = None
-    outputdir   = None
-    outputbase  = None
+    output_dir = opj(os.getcwd(), 'masks')
+    output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hs:q:a:f:c:d:o:b:",["subject=", "session=","cat=", "fast=", "fs=", "nighres=", "manual=", "outputdir=", "outputbase="])[0]
+        opts = getopt.getopt(argv,"hs:q:a:f:c:d:o:b:n:",["sub=", "ses=", "cat=", "fast=", "fs=", "nighres=", "manual=", "outputdir=", "outputbase="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -59,8 +67,10 @@ Notes:
         if opt == '-h':
             print(main.__doc__)
             sys.exit()
-        elif opt in ("-s", "--subject"):
+        elif opt in ("--sub"):
             subject = arg
+        elif opt in ("--ses"):
+            session = arg            
         elif opt in ("-q", "--cat"):
             cat_prob = arg            
         elif opt in ("-a", "--fast"):
@@ -71,10 +81,10 @@ Notes:
             nigh_prob = arg
         elif opt in ("-d", "--manual"):
             man_edit = arg
-        elif opt in ("-o", "--output"):
-            outputdir = arg
-        elif opt in ("-b", "--outputbase"):
-            outputbase = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--outputbase"):
+            output_base = arg
 
     if len(argv) < 1:
         utils.verbose("\nNEED AT LEAST A SUBJECT ID", True)
@@ -97,7 +107,7 @@ Notes:
     cmd = f"call_splitribbon {subject} {base_name}"
     utils.run_shell_wrapper(cmd)
 
-    ## Load and resample
+    # Load and resample
     utils.verbose("Load and resample segmentations to nighres-output", True)
     try:
         search_terms = {
@@ -122,7 +132,7 @@ Notes:
     }
 
     nighres = {
-        key: utils.utils.get_file_from_substring(val, nigh_prob)
+        key: utils.get_file_from_substring(val, nigh_prob)
         for key, val in search_terms.items()
     }
 
@@ -190,7 +200,7 @@ Notes:
         resampled.to_filename(img)
         freesurfer[key] = img
 
-
+    # combine segmentations
     utils.verbose("Combining segmentations", True)
     utils.verbose(f" {gb}wm{end}..", True)
     if manual['wm'] is not None:
@@ -249,7 +259,7 @@ Notes:
     # Write each map to file
     out_files = {}
     for label, img in tissue_maps.items():
-        out_file = opj(outputdir, f"{outputbase}_label-{label}_probseg.nii.gz")
+        out_file = opj(output_dir, f"{output_base}_label-{label}_probseg.nii.gz")
         img.to_filename(out_file)
         out_files[label] = out_file
         utils.verbose(f" wrote normalized {label}-probability map → {gb}{out_file}{end}", True)
@@ -271,7 +281,7 @@ Notes:
     inside_mask = image.math_img('wm > 0.45', wm=wm)
     inside_mask = image.largest_connected_component_img(inside_mask)
     inside_mask = image.new_img_like(inside_mask,ndimage.binary_closing(inside_mask.get_fdata(),iterations=3))
-    inside_mask.to_filename(opj(outputdir, outputbase + '_desc-inside.nii.gz'))
+    inside_mask.to_filename(opj(output_dir, output_base + '_desc-inside.nii.gz'))
 
     utils.verbose("Done", True)
 

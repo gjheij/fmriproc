@@ -27,6 +27,15 @@ Arguments:
   <prob seg>          directory containing probabilities of tissue segmentation. By default it will 
                       use the MDGM output, but you can specify your own. E.g., in the case of GdH-
                       pipeline
+  -x <kwargs>         Additional commands to be passed to 'cruise_cortex_extraction'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      This allows bash commands to be translated to python commands
   <project>           output folder for nighres
   <region>            region you wish to reconstruct. Should be same as spinoza_extractregions
 
@@ -48,7 +57,8 @@ fi
 
 # Check for subject & session flags
 OW=0
-while getopts os:n: argument
+kwargs_flag=""
+while getopts os:n:x: argument
 do
   case ${argument} in
     s)  sub=${OPTARG}
@@ -56,7 +66,9 @@ do
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
-          ;;          
+          ;;    
+    x)  kwargs_flag="--kwargs ${OPTARG}"
+          ;;        
   esac
 done
 
@@ -156,28 +168,26 @@ for subID in ${search}; do
     print_subject_header ${sub_name}
     echo "${INTRO}"
 
-    if [[ ! -f ${output_root}_cruise_cortex.nii.gz ]]; then
-
-      echo "Inputs are:"
-      echo " -WM : ${BOLD_GREEN}$(basename ${INPUTS[1]})${RESET}"
-      echo " -GM : ${BOLD_GREEN}$(basename ${INPUTS[2]})${RESET}"
-      echo " -CSF: ${BOLD_GREEN}$(basename ${INPUTS[3]})${RESET}"
-
+    if [[ ! -f "${output_root}_cruise_cortex.nii.gz" ]]; then
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
         # run regular cruise
         print_create_img "${output}"
-        call_nighrescruise \
-          -m "${INPUTS[0]}" \
-          -w "${INPUTS[1]}" \
-          -g "${INPUTS[2]}" \
-          -c "${INPUTS[3]}" \
-          -o "$(dirname ${output_root})" \
-          -n "$(basename ${output_root})"
-
+        cmd=(
+          call_nighrescruise
+          --mask "${INPUTS[0]}"
+          --wm "${INPUTS[1]}"
+          --gm "${INPUTS[2]}"
+          --csf "${INPUTS[3]}"
+          --outputdir "$(dirname ${output_root})"
+          --name "$(basename ${output_root})"
+          ${kwargs_flag}
+        )
+        
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? != 0 ]]; then
           echo
           print_line -
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_nighrescruise exited with non-zero status"
+          print_error_msg "$(basename ${0})" "call_nighrescruise"
           exit 1
         fi
 
@@ -195,56 +205,64 @@ for subID in ${search}; do
           else
             print_output_exists "${sub_name}" "${output_root}-cruise_${f}.nii.gz"
           fi
-
         done
-        fslmaths ${output_root}-cruise_cortex.nii.gz -bin ${input_dir}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz 2>/dev/null
 
+        # create binary mask from CRUISE segmentation
+        cmd=(
+          fslmaths
+          ${output_root}-cruise_cortex.nii.gz
+          -bin
+          ${input_dir}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz
+        )
+        
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? != 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "fslmaths"
+          exit 1
+        fi
+        
       elif [[ ${COMBINE_SEGMENTATIONS} == "hard" ]]; then
-        # directly creat levelsets from 'probabilities'
+        # directly create levelsets from 'probabilities'
 
         # define output names
         cgb=${output_root}-cruise_cgb.nii.gz
         gwb=${output_root}-cruise_gwb.nii.gz
 
+        ct=1
         # create WM/GM levelset from probability
-        print_create_img "${gwb}"
-        cmd="""call_nighresproblevel \
-          -p ${INPUTS[1]} \
-          -d $(dirname ${output_root}) \
-          -n $(basename ${output_root})"""
+        for f in "${cgb}" "${gwb}"; do
 
-        print_cmd "${cmd}" && eval "${cmd}"
-        if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "call_nighresproblevel" "gwb-image not created"
-          exit 1
-        else
-          mv ${output_root}-p2l_surf.nii.gz ${gwb} 2>/dev/null
-        fi
+          print_create_img "${f}"
+          cmd=(
+            call_nighresproblevel
+            --probability "${INPUTS[ct]}"
+            --outputdir "$(dirname ${output_root})"
+            --name "$(basename ${output_root})"
+          )
 
-        # create GM/CSF levelset from probability
-        print_create_img "${cgb}"
-        cmd="""call_nighresproblevel \
-          -p ${INPUTS[2]} \
-          -d $(dirname ${output_root}) \
-          -n $(basename ${output_root})"""
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+          if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "call_nighresproblevel" "${BOLD_GREEN}${f}${RESET} not created"
+            exit 1
+          else
+            mv ${output_root}-p2l_surf.nii.gz ${f} 2>/dev/null
+          fi
 
-        print_cmd "${cmd}" && eval "${cmd}"
-        if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "call_nighresproblevel" "cwb-image not created"
-          exit 1
-        else
-          mv ${output_root}-p2l_surf.nii.gz ${cgb} 2>/dev/null
-        fi
+          # update counter
+          ((ct++))
+        done
 
         # copy cruise image from manual_masks to cruise directory
         file=$(find -L "${p}" -type f \( -name "*acq-${DATA^^}*" -and -name "*cruise_cortex.nii.gz" \) 2>/dev/null)
         cp ${file} ${output} 2>/dev/null
       else
-        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in \"${BOLD_GREEN}${CONFIG_FILE}${RESET}\""
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "call_nighresproblevel" "Unknown method \"${COMBINE_SEGMENTATIONS}\". Specify \"weighted\" or \"hard\" as COMBINE_SEGMENTATIONS in \"${BOLD_GREEN}${CONFIG_FILE}${RESET}\""
         exit 1
       fi 
     else

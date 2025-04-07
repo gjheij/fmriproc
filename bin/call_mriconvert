@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {

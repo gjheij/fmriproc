@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#$ -cwd
-#$ -j Y
-#$ -V
 
 import nighres
 import sys
@@ -43,9 +40,9 @@ Example:
     output  = None
 
     if len(argv) < 3:
-            print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-            print(main.__doc__)
-            sys.exit()
+        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit()
 
     subject = argv[0]
     mesh_fn = argv[1]

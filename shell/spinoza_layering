@@ -27,6 +27,16 @@ Arguments:
   -n <session>        session ID (e.g., 1, 2, or none)
   -l <nr_layers>      number of layers to estimate (defaults: nighres=10; FreeSurfer=5)
   -o                  overwrite existing files
+  -x <kwargs>         Additional commands to be passed to 'volumetric_layering'. Format should
+                      be comma-separated flags as follows: 
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+
+                      combine as:
+                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                      This allows bash commands to be translated to python commands
+
   <input folder>      if software == 'nighres', then we need the nighres output folder (generally 
                       DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the SUB-
                       JECTS_DIR
@@ -72,7 +82,8 @@ fi
 
 # Check for subject & session flags
 OW=0
-while getopts os:n:l: argument
+kwargs_flag=""
+while getopts os:n:l:x: argument
 do
   case ${argument} in
     s)  sub=${OPTARG}
@@ -83,6 +94,8 @@ do
           ;;         
     l)  nr_layers=${OPTARG}
           ;; 
+    x)  kwargs_flag="--kwargs ${OPTARG}"
+          ;;          
   esac
 done
 
@@ -206,14 +219,17 @@ for subID in ${search}; do
       print_subject_header ${sub_name}
       
       print_create_img "${output}" "N_layers=${nr_layers}"
-      cmd="""call_nighreslayering \
-        -i ${INPUTS[0]} \
-        -o ${INPUTS[1]} \
-        -l ${nr_layers} \
-        -d $(dirname ${output_root}) \
-        -n $(basename ${output_root})"""
+      cmd=(
+        call_nighreslayering
+        --inner "${INPUTS[0]}"
+        --outer "${INPUTS[1]}"
+        --layers "${nr_layers}"
+        --outputdir "$(dirname ${output_root})"
+        --name "$(basename ${output_root})"
+        ${kwargs_flag}
+      )
 
-      print_cmd "${cmd}" && eval "${cmd}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
       if [[ $? != 0 ]]; then
         echo
@@ -250,14 +266,16 @@ for subID in ${search}; do
 
       # run cmd
       echo -e "Running ${BOLD_BLUE}generate_equivolumetric_surfaces${RESET} on ${i} with ${nr_layers} layers"
-      run_cmd="""${CMD} \
-        --smoothing  0 \
-        ${input_dir}/surf/${i}.pial \
-        ${input_dir}/surf/${i}.white \
-        ${nr_layers} \
-        ${i}.equi \
-        --software freesurfer \
-        --subject_id ${sub_name}"""
+      run_cmd=(
+        ${CMD}
+        --smoothing  0
+        ${input_dir}/surf/${i}.pial
+        ${input_dir}/surf/${i}.white
+        ${nr_layers}
+        ${i}.equi
+        --software freesurfer
+        --subject_id ${sub_name}
+      )
       
       # store command
       out_f=${input_dir}/scripts/${i}.equi.txt
@@ -267,7 +285,7 @@ for subID in ${search}; do
       
       # run command
       echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
-      print_cmd "${run_cmd}" && eval "${run_cmd}"
+      print_cmd "${run_cmd[@]}" && eval "${run_cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo

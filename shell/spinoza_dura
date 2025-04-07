@@ -189,10 +189,10 @@ for subID in ${search}; do
         echo " -out:  ${out_prob}"
 
         cmd="""call_nighresdura \
-          -i "${inv2}" \
-          -m "${inv2_mask}" \
-          -o "${outdir_dura}" \
-          -b "${output_root}""""
+          --inv2 "${inv2}" \
+          --mask "${inv2_mask}" \
+          --outputdir "${outdir_dura}" \
+          --name "${output_root}""""
         
         print_cmd "${cmd}" && eval "${cmd}"
 
@@ -262,14 +262,16 @@ for subID in ${search}; do
 
     output_skullnighres=${outdir_skull}/${output_root}_strip_mask.nii.gz
     if [[ ! -f ${output_skullnighres} ]]; then
-      cmd="""call_nighresskullstrip \
-        -i ${inv2} \
-        -t ${t1w} \
-        -m ${t1map} \
-        -o ${outdir_skull} \
-        -b ${output_root}"""
+      cmd=(
+        call_nighresskullstrip
+        --inv2 ${inv2}
+        --t1w ${t1w}
+        --t1map ${t1map}
+        --outputdir ${outdir_skull}
+        --name ${output_root}
+      )
 
-      print_cmd "${cmd}" && eval "${cmd}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       
       if [[ $? -ne 0 ]]; then
         echo

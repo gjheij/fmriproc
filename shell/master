@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-#$ -cwd
-#$ -j Y
-#$ -V
-#$ -pe smp 1
 #
 # https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
 if [ -z $(echo ${BASH}) ]; then
@@ -21,6 +17,7 @@ source call_bashhelper
 
 # Allocate input arguments to variables
 #
+KWARGS_FLAG=""
 HELP=0
 HEMI_FLAG=""              # spinoza_lineplanning
 IDENT_FLAG=""             # spinoza_lineplanning
@@ -49,6 +46,7 @@ raw_flag=""               # spinoza_denoising/spinoza_fitprfs
 SGE=""                    # spinoza_denoising/spinoza_nordic/spinoza_linerecon/spinoza_registration
 cmd_flag=""               # spinoza_registration
 COMB_ONLY=""              # spinoza_extractregions
+SKIP_COMB=""              # spinoza_extractregions
 CLIP=""                   # spinoza_fitprfs
 CLIP_FLAG=""              # spinoza_fitprfs
 TASK_ID=""                # spinoza_fitprfs
@@ -450,6 +448,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         skip-bg)
           BG_FLAG="--skip-bg"
           ;;
+        skip-combine)
+          SKIP_COMB="--skip-combine"
+          ;;          
         skip-fmap)
           TRIM_FMAP="--skip-fmap"
           ;;          
@@ -962,8 +963,7 @@ if [[ $? -eq 0 ]]; then
     SESSION="-n 2"
   fi
 
-  # check for lsprep kwargs
-  KWARGS_FLAG=""
+  # check for kwargs
   if [[ ! -z ${KWARGS} ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
@@ -1004,8 +1004,7 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "Multiparametric mapping using pymp2rage"
 
-  # check for lsprep kwargs
-  KWARGS_FLAG=""
+  # check for kwargs
   if [[ ! -z ${KWARGS} ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
@@ -1256,8 +1255,7 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
 
-  # check for lsprep kwargs
-  KWARGS_FLAG=""
+  # check for kwargs
   if [[ ! -z ${KWARGS} ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
@@ -1913,8 +1911,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  # check for lsprep kwargs
-  KWARGS_FLAG=""
+  # check for kwargs
   if [[ ! -z ${KWARGS} ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
@@ -1957,6 +1954,11 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "MGDM segmentation with nighres"
 
+  # check for kwargs
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   cmd="""spinoza_mgdm \
     ${SUBJECT} \
     ${SESSION} \
@@ -1964,6 +1966,7 @@ if [[ $? -eq 0 ]]; then
     ${GDH_FLAG} \
     ${SGE} \
     ${SGE_QUEUE} \
+    ${KWARGS_FLAG} \
     ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks"""
 
   print_cmd "${cmd}" && eval "${cmd}"
@@ -2000,11 +2003,18 @@ if [[ $? -eq 0 ]]; then
     ROI="cerebrum"
   fi
 
+  # check for kwargs
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   cmd="""spinoza_extractregions \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${COMB_ONLY} \
+    ${SKIP_COMB} \
+    ${KWARGS_FLAG} \
     -f ${FAST_LBLS} \
     ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}"""
 
@@ -2039,6 +2049,11 @@ if [[ $? -eq 0 ]]; then
     ROI="cerebrum"
   fi
 
+  # check for kwargs
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   # print module intro
   print_module_start "${module}" "Cortex reconstruction with nighres"
   
@@ -2053,6 +2068,7 @@ if [[ $? -eq 0 ]]; then
     ${SESSION} \
     ${OW} \
     ${PROBSEG} \
+    ${KWARGS_FLAG} \
     ${DIR_DATA_DERIV}/nighres ${ROI}"""
 
   print_cmd "${cmd}" && eval "${cmd}"
@@ -2094,11 +2110,17 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
+  # check for kwargs
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
   cmd="""spinoza_layering \
     ${SUBJECT} \
     ${SESSION} \
     ${OW} \
     ${NR_LAYERS} \
+    ${KWARGS_FLAG} \
     ${INPUT_DIR} ${SOFTWARE}"""
   
   print_cmd "${cmd}" && eval "${cmd}"
@@ -2129,10 +2151,22 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "Subcortex parcellation with MASSP"
 
+  # check for kwargs
+  if [[ ! -z ${KWARGS} ]]; then
+    KWARGS_FLAG="-x ${KWARGS}"
+  fi
+
+  # check for kwargs
+  if [[ ! -z ${PRF_MODEL} ]]; then
+    KWARGS_MASSP="-p ${PRF_MODEL}"
+  fi
+
   cmd="""spinoza_subcortex \
     ${SUBJECT} \
     ${SESSION} \
     ${DIR_DATA_HOME} \
+    ${KWARGS_FLAG} \
+    ${KWARGS_MASSP} \
     ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres"""
 
   print_cmd "${cmd}" && eval "${cmd}"  
@@ -2197,7 +2231,7 @@ if [[ $? -eq 0 ]]; then
 fi
 
 #---------------------------------------------------------------------------------------------------
-# STEP 26: Project line to surface with a registration cascade
+# STEP 26: Profile sampling based on Nighres' equivolumetric layering approach
 module=26
 
 # Check whether the module should be executed

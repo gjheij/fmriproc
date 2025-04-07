@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#$ -cwd
-#$ -j Y
-#$ -V
 
 try:
     from nighres.surface import levelset_to_mesh
@@ -10,11 +7,13 @@ except Exception:
 
 import sys, getopt
 import os
+from lazyfmri import utils
+
 opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_nighreslevelmesh
 
@@ -22,12 +21,32 @@ Creates a triangulated mesh from the distance to a levelset surface representati
 tivity-consistent marching cube algorithm.
 
 Args:
-    -l (--levelset=)    levelset image. E.g., the gray-white matter surface is stored in file en-
-                        ding on -cruise_gwb.nii.gz, the pial surface is stored in a file ending on 
-                        -cruise_cgb.nii.gz and the mid-cortical surface in a file ending on 
-                        -cruise-avg.nii.gz
-    -d (--outputdir=)   output directory
-    -n (--name=)        basename for output
+    -l|--levelset   levelset image. E.g., 
+                        - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
+                        - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
+                        - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'prob'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+    -x|--kwargs     Extra arguments that will be directly passed to 'profile_meshing' (see
+                    docs-link below for details). The format should be as follows: different para-
+                    meters comma-separated, and parameter-value pair separated by '='):
+                    
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                    E.g.,:
+                    "-x connectivity="6/26",level=0.5"
+
+                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                    The kwargs specified in this flag take precedent over the default kwargs:
+
+                    ```
+                    defaults = {
+                        "overwrite": True,
+                        "save_data": True,
+                        "output_dir": "directory specified with -o|--outputdir",
+                        "file_name": "basename specified with -n|--name"
+                    }
+                    ```
 
 Outputs:
     (taken from https://nighres.readthedocs.io/en/latest/surface/levelset_to_mesh.html)
@@ -36,25 +55,28 @@ Outputs:
     result (niimg): result (mesh): Surface mesh dictionary of “points” and “faces” (_l2m-mesh)
 
 Example:
-    call_nighreslevelmesh -l sub-001_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz -d $PWD -n sub-001_
-                          desc
+    call_nighreslevelmesh \
+        -l sub-001_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
+        -d $PWD \
+        -n sub-001_desc
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    levelset     = None
-    output_dir   = None
-    output_base  = "sample_desc"
+    levelset = None
+    output_dir = opj(os.getcwd(), 'mgdm')
+    output_base = "subject_acq-MP2RAGE_desc"
+    kwargs = {}
 
     try:
-        opts = getopt.getopt(argv,"hl:d:n:",["levelset=", "outputdir=", "name="])[0]
+        opts = getopt.getopt(argv,"hl:o:n:x:",["help", "levelset=", "outputdir=", "name=", "kwargs="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         print("ERROR IN ARGUMENTS")
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-l", "--levelset"):
@@ -64,24 +86,40 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 3:
-            print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-            print(main.__doc__)
-            sys.exit()
+    if len(argv) < 1:
+        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+        print(main.__doc__)
+        sys.exit()
 
-    # Just plop everything in dir of segmentation
+    #---------------------------------------------------------------------------------------------------
+    # Default kwargs
+    defaults = {
+        "save_data": True,
+        "overwrite": True,
+        "output_dir": output_dir,
+        "file_name": output_base
+    }
+
+    for key, val in defaults.items():
+        kwargs = utils.update_kwargs(
+            kwargs,
+            key,
+            val
+        )
+
+    # Just plop everything in levelset_to_mesh
     levelset_to_mesh(
         levelset,
-        save_data=True,
-        output_dir=output_dir,
-        file_name=output_base
+        **kwargs
     )
 
-    fn_old = opj(output_dir, output_base + "_l2m-mesh.vtk")
-    fn_new = opj(output_dir, output_base + "-l2m_mesh.vtk")
+    #---------------------------------------------------------------------------------------------------
+    # Nicer formatting of output filenames
+    fn_old = opj(output_dir, f"{output_base}_l2m-mesh.vtk")
+    fn_new = opj(output_dir, f"{output_base}-l2m_mesh.vtk")
 
     if os.path.exists(fn_old):
-        # print("moving {fo} to {fn}".format(fo=os.path.basename(fn_old), fn=os.path.basename(fn_new)))
+        print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
         os.rename(fn_old, fn_new)
 
 if __name__ == "__main__":
