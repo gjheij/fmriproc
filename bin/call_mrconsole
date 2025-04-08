@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 from fmriproc import scanner
 import os
 import sys
