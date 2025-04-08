@@ -22,13 +22,14 @@ and used to derive tissue probability maps. This one is more rigid, in that it c
 can be particularly useful in hard-to-segment areas, such as the ACC, and prefrontal regions. 
 
 Args:
-    -s <subject nr>  subject ID
-    -q <CAT12>       directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
-    -a <FAST>        directory containing segmentations from FAST
-    -b <FreeSurfer>  directory containing segmentations from FreeSurfer
-    -c <Nighres>     directory containing segmentations from Nighres
-    -d <Manual>      directory containing manual edits
-    -o <Output>      output directory + basename output
+    -s|--sub        subject ID
+    -q|--cat        directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
+    -a|--fast       directory containing segmentations from FAST
+    -b|--fs         directory containing segmentations from FreeSurfer
+    -c|--nighres    directory containing segmentations from Nighres
+    -d|--manual     directory containing manual edits
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'masks'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Example:
     call_combine \
@@ -39,7 +40,7 @@ Example:
         --nighres nighres/sub-01/ses-1/cruise
         --manual manual_masks/sub-01/ses-1
         --outputdir manual_masks/sub-01/ses-1
-        --outputbase sub-01_ses-1_acq-MP2RAGE
+        --name sub-01_ses-1_acq-MP2RAGE
 
 Notes:
     if you only specify the subject ID, it will look for the files in the environmental variables
@@ -57,7 +58,7 @@ Notes:
     output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hs:q:a:f:c:d:o:b:n:",["sub=", "cat=", "fast=", "fs=", "nighres=", "manual=", "outputdir=", "outputbase="])[0]
+        opts = getopt.getopt(argv,"hs:q:a:f:c:d:o:b:n:",["sub=", "cat=", "fast=", "fs=", "nighres=", "manual=", "outputdir=", "name="])[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -80,7 +81,7 @@ Notes:
             man_edit = arg
         elif opt in ("-o", "--outputdir"):
             output_dir = arg
-        elif opt in ("-n", "--outputbase"):
+        elif opt in ("-n", "--name"):
             output_base = arg
 
     if len(argv) < 1:
