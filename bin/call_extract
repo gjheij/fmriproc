@@ -11,7 +11,9 @@ opd = os.path.dirname
 
 def main(argv):
 
-    """call_extract
+    r"""
+---------------------------------------------------------------------------------------------------
+call_extract
 
 Given a list of ROIs, extract the timecourses from all subjects' preprocessed data in a level1 feat folder. If these ROIs are
 binary, the timecourses will be averaged across this entire area. If the ROIs are values (e.g., z-stat values), the n (default
@@ -161,17 +163,40 @@ Links:
 
 Example
 ----------
->>> call_extract --rois file1.nii.gz,file2.nii.gz --dec interval=-3>15
->>> call_extract \
->>>     --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
->>>     --base test7 \
->>>     --verbose \
->>>     --jobs 1 \
->>>     --colors "#1B9E77","#D95F02" \
->>>     --par time_to_peak
->>> qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no-fit
->>> call_extract --ft /path/derivatives/feat/level1_motion --out /path/derivatives/roi_extract --base test --verbose --no-fit --rois /path/ROIs --filters conv-,integral-left
->>> call_extract --fprep --out /path/derivatives/roi_extract --base test --verbose --no-fit
+# change deconvolution parameters
+call_extract --rois file1.nii.gz,file2.nii.gz --dec interval=-3>15
+
+# specify colors for plot
+call_extract \
+    --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
+    --base test7 \
+    --verbose \
+    --jobs 1 \
+    --colors "#1B9E77","#D95F02" \
+    --par time_to_peak
+
+# submit to SoGE
+qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no-fit
+
+# add filters for ROI-files
+call_extract \
+    --ft /path/derivatives/feat/level1_motion \
+    --out /path/derivatives/roi_extract \
+    --base test \
+    --verbose \
+    --no-fit \
+    --rois /path/ROIs \
+    --filters conv-,integral-left
+
+# extract time courses from fMRIPrep without fitting HRF
+call_extract \
+    --fprep \
+    --out /path/derivatives/roi_extract \
+    --base test \
+    --verbose \
+    --no-fit
+
+---------------------------------------------------------------------------------------------------
     """
 
     proj_dir = os.environ.get("DIR_DATA_HOME")
