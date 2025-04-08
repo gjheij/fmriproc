@@ -54,6 +54,10 @@
 -o|--ow           turn on overwrite mode.
 
 -p <input>        used for:
+                    - spinoza_scanner2bids: pattern for file-name reconstruction (default = %n_%p, represen-
+                      ting Patient-Name & Protocol Name). You can change this, but then I don't bear any 
+                      responsibilities over the consequences in later scripts.. This option is only avai-
+                      lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
                     - spinoza_fitprfs/spinoza_bestvertex: switch to specify model type
                     - spinoza_qmrimaps: specify custom json-file with MP2RAGE(ME) parameters
 

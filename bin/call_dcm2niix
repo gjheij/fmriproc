@@ -28,6 +28,10 @@ Parameters
   -c <compress>       create nii's ("n") or nii.gz's ("o"; default)
   -v <version>        2019|2020 (2020 fails sometimes when dealing with fMRI phase data)
   -d <depth>          search depth for dcm2niix
+  -p <pattern>        pattern for file-name reconstruction (default = %n_%p, representing Patient-
+                      Name & Protocol Name). You can change this, but then I don't bear any respon-
+                      sibilities over the consequences in later scripts.. This option is only avai-
+                      lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
 
 Example
 ----------
@@ -46,6 +50,7 @@ USAGE
 #
 prot_flag=""
 searchDepth=0
+pattern="%n_%p"
 while getopts :-:i:o:c:v:d: argument
 do
   case ${argument} in
@@ -72,6 +77,8 @@ do
           ;;
     v)  version=${OPTARG}
           ;;
+    p)  pattern=${OPTARG}
+          ;;          
   esac
 done
 
@@ -137,21 +144,21 @@ if [[ -z ${pathOutput} ]]; then
   pathOutput=${pathInput}/nifti
 fi
 
-# -z : gz compress images (y/o/i/n/3, default n) [y=pigz, o=optimal pigz, i=internal:zlib, n=no, 3=no,3D]
+# Determine NIfTI compression type
 if [[ -z ${compress} ]]; then
-  NIIGZ="o"
+  NIIGZ="o"  # default: optimized compression
+elif [[ ${compress} =~ ^(n|y|i|3|o)$ ]]; then
+  NIIGZ="${compress}"
 else
-  if [[ ${compress} == "n" ]] || [[ ${compress} == "y" ]] || [[ ${compress} == "i" ]] || [[ ${compress} == "3" ]] || [[ ${compress} == "o" ]]; then
-    NIIGZ=${compress}
-  else
-    dcm2niix -h
-    echo
-    print_line -
-    echo "You specified option \"${compress}\", acceptable values are: \"n\", \"y\", \"i\", \"3\", \"o\""
-    echo "Or leave empty for the default \"o\" (= optimized compression)"
-    exit 1
-  fi
+  dcm2niix -h
+  echo
+  print_line -
+  echo "Invalid compression option: \"${compress}\""
+  echo "Accepted values: \"n\" (none), \"y\" (yes), \"i\" (input), \"3\" (3D), \"o\" (optimized)"
+  echo "Or leave empty to use default: \"o\""
+  exit 1
 fi
+
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -170,27 +177,32 @@ n_par_files=($(find ${pathInput} -type f -iname "*par"))
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
   echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
-  cmd="call_parrec2nii ${prot_flag} -i ${pathInput} -o ${pathOutput}"
+  cmd=(
+    call_parrec2nii
+    ${prot_flag}
+    -i "${pathInput}"
+    -o "${pathOutput}"
+  )
+
   {
     echo "### New invocation of call_parrec2nii @$(date)"
-    echo "${cmd}"
+    echo "${cmd[@]}"
     echo
   } >> "$log"
   
   # Convert using parrec2nii (adjust output handling if needed)
-  eval "${cmd}" >> "${log}" 2>&1
+  print_cmd "${cmd[@]}" && "${cmd[@]}" >> "${log}" 2>&1
 
   if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
     print_error_msg "$(basename ${0})" "call_parrec2nii"
     exit 1
   fi
 else
   echo "Assuming DICOM format, using 'dcm2niix'"
   cmd_args=(
+    dcm2niix
     -b y
-    -f %n_%p
+    -f ${pattern}
     -z ${NIIGZ}
     -d ${searchDepth}
     -o ${pathOutput}
@@ -198,16 +210,13 @@ else
     "${pathInput}"
   )
 
-  cmd="dcm2niix ${cmd_args[*]}"
   {
     echo "### New invocation of call_dcm2niix @$(date)"
-    echo "${cmd}"
+    echo "${cmd[@]}"
     echo
   } >> "${log}"
 
-  # Assume DICOM and use dcm2niix
-  eval "${cmd}" >> "${log}" 2>&1
-
+  print_cmd "${cmd[@]}" && "${cmd[@]}" >> "${log}" 2>&1
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
@@ -218,8 +227,8 @@ else
 fi
 
 # scan output for internal compression errors (large files)
-fix_compression ${log}
+fix_compression "${log}"
 
 #-----------------------------------------------------------------------------
 # try to add the path to the par/dcm file to the bold/epi files for later reference
-add_par_file ${pathInput} ${pathOutput}
+add_par_file "${pathInput}" "${pathOutput}"

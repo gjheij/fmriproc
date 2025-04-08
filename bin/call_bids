@@ -803,6 +803,10 @@ Arguments:
   -v <n_vols>         number of volumes to cut from the beginning of the timeseries (default = None)
                       For instance, you have acquired the actual data from dummy scans rather than
                       discard them.                      
+  -p <pattern>        pattern for file-name reconstruction (default = %n_%p, representing Patient-
+                      Name & Protocol Name). You can change this, but then I don't bear any respon-
+                      sibilities over the consequences in later scripts.. This option is only avai-
+                      lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
 
 Options:
   --ow                overwrite existing files
@@ -869,7 +873,8 @@ set_tr=""
 skip_tr=0
 cut_vols=0
 trim_fmap=1
-while getopts :-:i:o:b:n:r:d:t:v: argument
+pattern_flag=""
+while getopts :-:i:o:b:n:r:d:t:v:p: argument
 do
   case ${argument} in
     -)
@@ -934,7 +939,9 @@ do
     t)  set_tr=${OPTARG}
           ;;     
     v)  cut_vols=${OPTARG}
-          ;;                               
+          ;; 
+    p)  pattern_flag="-p ${OPTARG}"
+          ;;                                         
   esac
 done
 
@@ -968,13 +975,16 @@ if [[ -d ${tmp_dir} ]]; then
   fi
 else
   echo "Converting files to nifti-format"
-  cmd="""call_dcm2niix \
-    ${prot_flag} \
-    -i ${input_dir} \
-    -o ${tmp_dir} \
-    -d ${searchDepth}"""
+  cmd=(
+    call_dcm2niix
+    "${pattern_flag}"    
+    "${prot_flag}"
+    -i "${input_dir}"
+    -o "${tmp_dir}"
+    -d "${searchDepth}"
+  )
   
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_dcm2niix"

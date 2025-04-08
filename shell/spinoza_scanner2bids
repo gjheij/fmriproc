@@ -18,13 +18,25 @@ use either call_dcm2niix.py (session 1 - which is FromScannerToBIDS.py from M. A
 nicely with the anatomical and functional stuff or call_dcm2niix.sh, which is more specific for the
 line scanning stuff.
 
-Input options:
+Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -d <depth>          search depth for dcm2niix
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -v <n_vols>         number of volumes to cut from the beginning of the timeseries (default = None)
+                      For instance, you have acquired the actual data from dummy scans rather than
+                      discard them. Will discard the first X volumes from both the FUNC and FMAP, un-
+                      less '--skip-fmap' is specified, in which case the FMAPs are left alone.
+  -p <pattern>        pattern for file-name reconstruction (default = %n_%p, representing Patient-
+                      Name & Protocol Name). You can change this, but then I don't bear any respon-
+                      sibilities over the consequences in later scripts.. This option is only avai-
+                      lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
+
+Positional:
   <project root>      directory to output BIDSified data to
   <sourcedata>        directory containing to be converted data
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+
+Options:
   -o|--ow             Overwrite existing output
   --full              Overwrite existing output + created nifti folder
   --lines             flag to tell we're dealing with a line-scanning session. By default 'regular',
@@ -44,10 +56,6 @@ Input options:
   --phys              run only physiology conversion
   --skip-tr           do not overwrite the TR in the header during call_bids. Generally not recom-
                       mended, but exists for debugging purposes.
-  -v <n_vols>         number of volumes to cut from the beginning of the timeseries (default = None)
-                      For instance, you have acquired the actual data from dummy scans rather than
-                      discard them. Will discard the first X volumes from both the FUNC and FMAP, un-
-                      less '--skip-fmap' is specified, in which case the FMAPs are left alone.
   --skip-fmap         do not trim the time series from FMAPs. By default, it is assumed that all your
                       functional files have dummy-saving turned on.
 
@@ -103,7 +111,8 @@ SKIP_TR_FLAG=""
 CUT_VOLS=""
 TRIM_FMAP=""
 SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:os:n:r:q:d:t:v: argument
+pattern_flag=""
+while getopts :-:os:n:r:q:d:t:v:p: argument
 do
   case ${argument} in
     -)
@@ -180,7 +189,9 @@ do
     t)  TR_FLAG="-t ${OPTARG}"
           ;;        
     v)  CUT_VOLS="-v ${OPTARG}"
-          ;;                                    
+          ;;
+    p)  pattern_flag="-p ${OPTARG}"
+          ;;                                      
   esac
 done
 
@@ -265,30 +276,39 @@ for subID in ${search}; do
       echo " TR FLAG     = ${TR_FLAG}"
       echo " VOLS FLAG   = ${CUT_VOLS}"
       echo " TRIM FMAP   = ${TRIM_FMAP}"
+      echo " PATTERN     = ${pattern_flag}"
     fi
 
-    cmd="""${job} \
-      ${SES_FLAG} \
-      ${ADD_INV} \
-      ${ORIENT_FLAG} \
-      ${PROT_FLAG} \
-      ${PE_FLAG} \
-      ${OW} \
-      ${PHYS_FLAG} \
-      ${TR_FLAG} \
-      ${SKIP_TR} \
-      ${CUT_VOLS} \
-      ${TRIM_FMAP} \
-      -i ${input_dir} -o ${output_dir} -b ${bids_dir} -n ${base} -d ${SEARCH_DEPTH} ${RUNS}"""
+    cmd=(
+      "${job}"
+      "${SES_FLAG}"
+      "${ADD_INV}"
+      "${ORIENT_FLAG}"
+      "${PROT_FLAG}"
+      "${PE_FLAG}"
+      "${OW}"
+      "${PHYS_FLAG}"
+      "${TR_FLAG}"
+      "${SKIP_TR}"
+      "${CUT_VOLS}"
+      "${TRIM_FMAP}"
+      -i "${input_dir}"
+      -o "${output_dir}"
+      -b "${bids_dir}"
+      -n "${base}"
+      -d "${SEARCH_DEPTH}"
+      "${RUNS}"
+      ${pattern_flag}
+    )
 
     # echo command if running locally
     if [[ ${SGE_FLAG} -eq 0 ]]; then
       echo
-      print_cmd "${cmd}"
+      print_cmd "${cmd[@]}"
       echo
     fi
 
-    eval "${cmd}"
+    "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_bids"

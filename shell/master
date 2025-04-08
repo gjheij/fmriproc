@@ -603,16 +603,13 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       FOLDS_FLAG="-f ${OPTARG}"
       ;;
     k)
-      kwargs_file="-k $(readlink -f \"${OPTARG})\""
+      kwargs_file="-k $(readlink -f \"${OPTARG}\")"
       ;;
   esac
 done
 
 # set the execute flag
 FLAG_executeModule="${MOD}"
-
-start=`date +%s`
-start_date=`date`
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -727,7 +724,7 @@ if [[ $? -eq 0 ]]; then
     exit 1
   fi
 
-  if [[ -z ${HEMI} ]] && [[ -z ${HEMI_FLAG} ]]; then
+  if [[ -z ${HEMI} ]] && [[ -z "${HEMI_FLAG}" ]]; then
     echo "ERROR: Need a hemisphere for this module. Specify the subject number with the -h flag in the master script"
     echo "  e.g., ./master -m 00 -s 001 {--lh|--rh}"
     exit 1
@@ -762,16 +759,18 @@ if [[ $? -eq 0 ]]; then
     reg_img=${DIR_DATA_SOURCE}/${subject}/ses-${ses_nr}/planning
   fi
 
-  cmd="""spinoza_lineplanning \
-    ${OW} \
-    ${HEMI_FLAG} \
-    ${IDENT_FLAG} \
-    -s ${subject} \
-    -n ${ses_nr} \
-    -i ${reg_img} \
-    -p ${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv"""
+  cmd=(
+    spinoza_lineplanning
+    "${OW}"
+    "${HEMI_FLAG}"
+    "${IDENT_FLAG}"
+    -s "${subject}"
+    -n "${ses_nr}"
+    -i "${reg_img}"
+    -p "${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_lineplanning"
@@ -810,33 +809,42 @@ if [[ $? -eq 0 ]]; then
     CUT_VOLS="-v ${VERTICES}"
   fi  
 
+  # check for priors list
+  PATTERN_FLAG=""
+  if [[ ! -z ${PRF_MODEL} ]]; then
+    PATTERN_FLAG="-p ${PRF_MODEL}"
+  fi  
+
   # print module intro
   print_module_start "${module}" "Convert raw files (PAR/REC or DCM) to nifti"
 
-  cmd="""spinoza_scanner2bids \
-    ${SES_TYPE} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${RUNS} \
-    ${OW} \
-    ${FULL_OW} \
-    ${ADD_INV} \
-    ${PROT_FLAG} \
-    ${pe_dir_flag} \
-    ${reorient_flag} \
-    ${SDE_FLAG} \
-    ${DEBUG} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${phys_flag} \
-    ${SEARCH_DEPTH} \
-    ${TR_FLAG} \
-    ${SKIP_TR} \
-    ${TRIM_FMAP} \
-    ${CUT_VOLS} \
-    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}"""
+  cmd=(
+    spinoza_scanner2bids
+    "${SES_TYPE}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${RUNS}"
+    "${OW}"
+    "${FULL_OW}"
+    "${ADD_INV}"
+    "${PROT_FLAG}"
+    "${pe_dir_flag}"
+    "${reorient_flag}"
+    "${SDE_FLAG}"
+    "${DEBUG}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${phys_flag}"
+    "${SEARCH_DEPTH}"
+    "${TR_FLAG}"
+    "${SKIP_TR}"
+    "${TRIM_FMAP}"
+    "${CUT_VOLS}"
+    "${PATTERN_FLAG}" \
+    "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_scanner2bids"
@@ -864,18 +872,20 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "quality control with MRIQC"
 
-  cmd="""spinoza_mriqc \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${REMOVE_WF} \
-    ${mod_flag} \
-    ${fd_flag} \
-    ${run_local} \
-    ${SGE_QUEUE} \
-    ${jobs_flag} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/mriqc"""
+  cmd=(
+    spinoza_mriqc
+    "${SUBJECT}"
+    "${SESSION}"
+    "${REMOVE_WF}"
+    "${mod_flag}"
+    "${fd_flag}"
+    "${run_local}"
+    "${SGE_QUEUE}"
+    "${jobs_flag}"
+    "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/mriqc"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_mriqc"
@@ -915,22 +925,24 @@ if [[ $? -eq 0 ]]; then
     NORDIC_COMPS=${C_FLAG}
   fi
 
-  cmd="""spinoza_linerecon \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${N_ECHOES} \
-    ${DEBUG} \
-    ${OW} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${NORDIC} \
-    ${RUNS} \
-    ${N_COMPS} \
-    ${FOLDS_FLAG} \
-    -c ${NORDIC_COMPS} \
-    ${DIR_DATA_HOME} ${DIR_DATA_SOURCE}"""
+  cmd=(
+    spinoza_linerecon
+    "${SUBJECT}"
+    "${SESSION}"
+    "${N_ECHOES}"
+    "${DEBUG}"
+    "${OW}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${NORDIC}"
+    "${RUNS}"
+    "${N_COMPS}"
+    "${FOLDS_FLAG}"
+    -c "${NORDIC_COMPS}"
+    "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_linerecon"
@@ -968,15 +980,17 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_lsprep \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${KWARGS_FLAG} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}"""
+  cmd=(
+    spinoza_lsprep
+    "${SUBJECT}"
+    "${SESSION}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${KWARGS_FLAG}"
+    "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_lsprep"
@@ -1009,27 +1023,29 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
   
-  cmd="""spinoza_qmrimaps \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${UPs} \
-    ${FULL_OW} \
-    ${BG_FLAG} \
-    ${PARS_FILE} \
-    ${FORCE_FLAG} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${jobs_flag} \
-    ${KWARGS_FLAG} \
-    ${BIAS_FLAG} \
-    ${REG_T1} \
-    ${INTENSITY_FLAG} \
-    ${INT_LOWER} \
-    ${INT_UPPER} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/pymp2rage"""
+  cmd=(
+    spinoza_qmrimaps
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${UPs}"
+    "${FULL_OW}"
+    "${BG_FLAG}"
+    "${PARS_FILE}"
+    "${FORCE_FLAG}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${jobs_flag}"
+    "${KWARGS_FLAG}"
+    "${BIAS_FLAG}"
+    "${REG_T1}"
+    "${INTENSITY_FLAG}"
+    "${INT_LOWER}"
+    "${INT_UPPER}"
+    "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/pymp2rage"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_qmrimaps"
@@ -1071,22 +1087,24 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")
 
-  cmd="""spinoza_registration \
-    ${REG_TYPE} \
-    ${SUBJECT} \
-    ${OW} \
-    ${SESSION} \
-    ${SGE} \
-    ${verb_flag} \
-    ${SGE_QUEUE} \
-    ${FSL_FLAG} \
-    ${jobs_flag} \
-    ${cmd_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants"""
+  cmd=(
+    spinoza_registration
+    "${REG_TYPE}"
+    "${SUBJECT}"
+    "${OW}"
+    "${SESSION}"
+    "${SGE}"
+    "${verb_flag}"
+    "${SGE_QUEUE}"
+    "${FSL_FLAG}"
+    "${jobs_flag}"
+    "${cmd_flag}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_registration"
@@ -1119,22 +1137,24 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
-  cmd="""spinoza_registration \
-    ${REG_TYPE} \
-    ${SUBJECT} \
-    ${OW} \
-    ${SESSION} \
-    ${SGE} \
-    ${verb_flag} \
-    ${SGE_QUEUE} \
-    ${FSL_FLAG} \
-    ${jobs_flag} \
-    ${cmd_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants mni"""
+  cmd=(
+    spinoza_registration
+    "${REG_TYPE}"
+    "${SUBJECT}"
+    "${OW}"
+    "${SESSION}"
+    "${SGE}"
+    "${verb_flag}"
+    "${SGE_QUEUE}"
+    "${FSL_FLAG}"
+    "${jobs_flag}"
+    "${cmd_flag}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants" "mni"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_registration"
@@ -1164,18 +1184,20 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${DATA^^} == "AVERAGE" ]]; then
 
-    if [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
-      INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+    if [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
+      INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
     else
-      INPUT_DIR=${DIR_DATA_HOME}
+      INPUT_DIR="${DIR_DATA_HOME}"
     fi  
 
-    cmd="""spinoza_averageanatomies \
-      ${SUBJECT} \
-      ${SESSION} \
-      ${INPUT_DIR} ${DIR_DATA_DERIV}/pymp2rage"""
+    cmd=(
+      spinoza_averageanatomies
+      "${SUBJECT}"
+      "${SESSION}"
+      "${INPUT_DIR}" "${DIR_DATA_DERIV}/pymp2rage"
+    )
 
-    print_cmd "${cmd}" && eval "${cmd}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "spinoza_averageanatomies"
@@ -1212,15 +1234,17 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
-  cmd="""spinoza_sinusfrommni \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${DRAW_SAG} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/manual_masks"""
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
+  cmd=(
+    spinoza_sinusfrommni
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${DRAW_SAG}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/manual_masks"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_sinusfrommni"
@@ -1253,25 +1277,27 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=2
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
   # check for kwargs
   if [[ ! -z ${KWARGS} ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_biassanlm \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${BIAS_FLAG} \
-    ${OW} \
-    ${KWARGS_FLAG} \
-    ${SANLM_FLAG} \
-    ${SANLM_METHOD} \
-    ${USE_MASK} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/denoised"""
+  cmd=(
+    spinoza_biassanlm
+    "${SUBJECT}"
+    "${SESSION}"
+    "${BIAS_FLAG}"
+    "${OW}"
+    "${KWARGS_FLAG}"
+    "${SANLM_FLAG}"
+    "${SANLM_METHOD}"
+    "${USE_MASK}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/denoised"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_biassanlm"
@@ -1302,12 +1328,14 @@ if [[ $? -eq 0 ]]; then
   DO_STUFF="cat12"
   if [[ ${DO_STUFF} ==  "inv2" ]]; then
   
-    cmd="""spinoza_brainextraction \
-      ${SUBJECT} \
-      ${SESSION} \
-      ${DIR_DATA_DERIV}/ants ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/manual_masks FSL"""
+    cmd=(
+      spinoza_brainextraction
+      "${SUBJECT}"
+      "${SESSION}"
+      "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/manual_masks" "FSL"
+    )
 
-    print_cmd "${cmd}" && eval "${cmd}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   elif [[ ${DO_STUFF} == "cat12" ]]; then
 
@@ -1316,24 +1344,25 @@ if [[ $? -eq 0 ]]; then
       ANAT_DEPTH=3
     fi
 
-    INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+    INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
     fprep_flag=""
     if [[ ${fprep_input} -eq 1 ]]; then
       fprep_flag="--fprep"
     fi
 
-    cmd="""spinoza_brainextraction \
-      ${SUBJECT} \
-      ${SESSION} \
-      ${fprep_flag} \
-      ${OW} \
-      ${PROC} \
-      ${FS_FLAG} \
-      ${INT_LOWER} \
-      ${INT_UPPER} \
-      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12"""
+    cmd=(
+      spinoza_brainextraction
+      "${SUBJECT}"
+      "${SESSION}"
+      "${fprep_flag}"
+      "${OW}"
+      "${PROC}"
+      "${FS_FLAG}"
+      "${INT_LOWER}"
+      "${INT_UPPER}"
+      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12)
 
-    print_cmd "${cmd}" && eval "${cmd}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   fi
 
@@ -1349,7 +1378,6 @@ fi
 #---------------------------------------------------------------------------------------------------
 # STEP 10: Do noise level estimation with AFNI's automask function
 module=10
-module_name="spinoza_nordic"
 
 # Check whether the module should be executed
 echo ${FLAG_executeModule} | grep -q ${module}
@@ -1357,25 +1385,27 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    ${module_name}
+    spinoza_nordic
     exit 1
   fi
 
   # print module intro
   print_module_start "${module}" "Thermal noise reduction using NORDIC [Vizioli, et al. 2021]"
 
-  cmd="""${module_name} \
-    ${OW} \
-    ${SGE} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${RUNS} \
-    ${TSNR_FLAG} \
-    ${mag_flag} \
-    ${SGE_QUEUE} \
-    ${DIR_DATA_HOME}"""
+  cmd=(
+    spinoza_nordic
+    "${OW}"
+    "${SGE}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${RUNS}"
+    "${TSNR_FLAG}"
+    "${mag_flag}"
+    "${SGE_QUEUE}"
+    "${DIR_DATA_HOME}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
     
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_nordic"
@@ -1408,15 +1438,15 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
-  cmd="""spinoza_dura \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${INPUT_DIR} ${DIR_DATA_HOME} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks"""
+  cmd=(spinoza_dura
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${INPUT_DIR}" "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks")
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_dura"
@@ -1453,16 +1483,18 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
-  cmd="""spinoza_sagittalsinus \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${DRAW_SAG} \
-    ${TR_FLAG} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/manual_masks"""
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
+  cmd=(
+    spinoza_sagittalsinus
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${DRAW_SAG}"
+    "${TR_FLAG}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/manual_masks"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_sagittalsinus"
@@ -1495,18 +1527,20 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=4
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
-  cmd="""spinoza_masking \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${MAN_FLAG} \
-    ${INT_UPPER} \
-    ${INT_LOWER} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/masked_${DATA,,} ${DIR_DATA_DERIV}/manual_masks ${DIR_DATA_DERIV}/skullstripped"""
+  cmd=(
+    spinoza_masking
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${MAN_FLAG}"
+    "${INT_UPPER}"
+    "${INT_LOWER}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/masked_${DATA,,}" "${DIR_DATA_DERIV}/manual_masks" "${DIR_DATA_DERIV}/skullstripped"
+  )
 
-    print_cmd "${cmd}" && eval "${cmd}"    
+    print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_masking"
@@ -1539,7 +1573,7 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=5
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
   # check for expert file
   if [ ! -z ${KWARGS} ]; then
@@ -1551,23 +1585,25 @@ if [[ $? -eq 0 ]]; then
     START_STAGE="-e ${START_STAGE}"
   fi   
   
-  cmd="""spinoza_freesurfer \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${highres_flag} \
-    ${expert_flag} \
-    ${XOPTS_} \
-    ${run_local} \
-    ${SGE} \
-    ${OW} \
-    ${START_STAGE} \
-    ${FORCE_FLAG} \
-    ${use_t2_flag} \
-    ${SGE_QUEUE} \
-    ${jobs_flag} \
-    ${INPUT_DIR} ${FS_stage} ${DIR_DATA_HOME}"""
+  cmd=(
+    spinoza_freesurfer
+    "${SUBJECT}"
+    "${SESSION}"
+    "${highres_flag}"
+    "${expert_flag}"
+    "${XOPTS_}"
+    "${run_local}"
+    "${SGE}"
+    "${OW}"
+    "${START_STAGE}"
+    "${FORCE_FLAG}"
+    "${use_t2_flag}"
+    "${SGE_QUEUE}"
+    "${jobs_flag}"
+    "${INPUT_DIR}" "${FS_stage}" "${DIR_DATA_HOME}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_freesurfer"
@@ -1622,38 +1658,40 @@ if [[ $? -eq 0 ]]; then
     ANAT_DEPTH=6
   fi
 
-  INPUT_DIR=$(find_hierarchical_anatomy ${ANAT_DEPTH})  
+  INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
-  cmd="""spinoza_fmriprep \
-    ${WARP_ONLY} \
-    ${use_bbr} \
-    ${run_local} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${confFile} \
-    ${REMOVE_WF} \
-    ${kwargs_file} \
-    ${boldref_flag} \
-    ${RUNS} \
-    ${OW} \
-    ${jobs_flag} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${KEEP_RUNS} \
-    ${clean_flag} \
-    ${fd_flag} \
-    ${DOCKER_FLAG} \
-    ${fetch_fsl_flag} \
-    ${fetch_func_flag} \
-    ${fetch_anat_flag} \
-    ${mask_flag} \
-    ${WORK_FLAG} \
-    ${CRASH_FLAG} \
-    -f ${DIR_DATA_HOME} \
-    -m ${TYPE} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV} ${DIR_DATA_HOME}"""
+  cmd=(
+    spinoza_fmriprep
+    "${WARP_ONLY}"
+    "${use_bbr}"
+    "${run_local}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${confFile}"
+    "${REMOVE_WF}"
+    "${kwargs_file}"
+    "${boldref_flag}"
+    "${RUNS}"
+    "${OW}"
+    "${jobs_flag}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${KEEP_RUNS}"
+    "${clean_flag}"
+    "${fd_flag}"
+    "${DOCKER_FLAG}"
+    "${fetch_fsl_flag}"
+    "${fetch_func_flag}"
+    "${fetch_anat_flag}"
+    "${mask_flag}"
+    "${WORK_FLAG}"
+    "${CRASH_FLAG}"
+    -f "${DIR_DATA_HOME}"
+    -m "${TYPE}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}" "${DIR_DATA_HOME}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_fmriprep"
@@ -1665,7 +1703,7 @@ if [[ $? -eq 0 ]]; then
 fi
 
 #---------------------------------------------------------------------------------------------------
-# STEP 16: fMRI-data denoising with pybest using fmriprep's output
+# STEP 16: fMRI-data denoising with pybest using fmriprep'f output
 module=16
 
 # Check whether the module should be executed
@@ -1689,9 +1727,9 @@ if [[ $? -eq 0 ]]; then
   fi
 
   if [[ -z ${images} ]]; then
-    INPUT_DIR=${DIR_DATA_DERIV}/fmriprep
+    INPUT_DIR="${DIR_DATA_DERIV}/fmriprep"
   else
-    INPUT_DIR=${images}
+    INPUT_DIR="${images}"
   fi
 
   # set PCA components
@@ -1704,26 +1742,28 @@ if [[ $? -eq 0 ]]; then
     expert_flag="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_denoising \
-    ${raw_flag} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${SGE} \
-    ${OW} \
-    ${FULL_OW} \
-    ${PCA_COMPS} \
-    ${TASK_ID} \
-    ${space_flag} \
-    ${SGE_QUEUE} \
-    ${jobs_flag} \
-    ${pre_flag} \
-    ${post_flag} \
-    ${pyb_flag} \
-    ${FORCE_FLAG} \
-    ${expert_flag} \
-    ${INPUT_DIR} ${DIR_DATA_DERIV}/pybest"""
+  cmd=(
+    spinoza_denoising
+    "${raw_flag}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${SGE}"
+    "${OW}"
+    "${FULL_OW}"
+    "${PCA_COMPS}"
+    "${TASK_ID}"
+    "${space_flag}"
+    "${SGE_QUEUE}"
+    "${jobs_flag}"
+    "${pre_flag}"
+    "${post_flag}"
+    "${pyb_flag}"
+    "${FORCE_FLAG}"
+    "${expert_flag}"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/pybest"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_denoising"
@@ -1753,15 +1793,15 @@ if [[ $? -eq 0 ]]; then
 
   # set PNG directory
   if [[ -z ${images} ]]; then
-    PNG_DIR=${DIR_DATA_SOURCE}
+    PNG_DIR="${DIR_DATA_SOURCE}"
   else
-    PNG_DIR=${images}
+    PNG_DIR="${images}"
   fi
 
   # set input directory depending on the presence of pybest output
-  PRF_INPUT=${DIR_DATA_DERIV}/pybest
+  PRF_INPUT="${DIR_DATA_DERIV}/pybest"
   if [[ ${fprep_input} -eq 1 ]]; then
-    PRF_INPUT=${DIR_DATA_DERIV}/fmriprep
+    PRF_INPUT="${DIR_DATA_DERIV}/fmriprep"
   fi
 
   # specify a specific task-ID to be fitted
@@ -1783,44 +1823,46 @@ if [[ $? -eq 0 ]]; then
     CUT_VOLS="-v ${VERTICES}"
   fi  
 
-  cmd="""spinoza_fitprfs \
-    ${use_constr} \
-    ${CLIP} \
-    ${CLIP_FLAG} \
-    ${verb_flag} \
-    ${zscore_flag} \
-    ${raw_flag} \
-    ${fit_flag} \
-    ${TASK_ID} \
-    ${FIT_HRF} \
-    ${run_local} \
-    ${GRID} \
-    ${MULTIPLE_DESIGNS} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${MODEL_FLAG} \
-    ${CUT_VOLS} \
-    ${lbl_flag} \
-    ${save_grid} \
-    ${bouds_flag} \
-    ${merge_flag} \
-    ${jobs_flag} \
-    ${kwargs_file} \
-    ${space_flag} \
-    ${SGE_QUEUE} \
-    ${SET_TR} \
-    ${PIXEL_FLAG} \
-    ${REFIT_FLAG} \
-    ${FOLDS_FLAG} \
-    ${BOLD_FLAG} \
-    ${SKIP_FLAG} \
-    ${TRANS_FLAG} \
-    ${FIX_FLAG} \
-    ${SGE} \
-    ${PRF_INPUT} ${DIR_DATA_DERIV}/prf ${PNG_DIR}"""
+  cmd=(
+    spinoza_fitprfs
+    "${use_constr}"
+    "${CLIP}"
+    "${CLIP_FLAG}"
+    "${verb_flag}"
+    "${zscore_flag}"
+    "${raw_flag}"
+    "${fit_flag}"
+    "${TASK_ID}"
+    "${FIT_HRF}"
+    "${run_local}"
+    "${GRID}"
+    "${MULTIPLE_DESIGNS}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${MODEL_FLAG}"
+    "${CUT_VOLS}"
+    "${lbl_flag}"
+    "${save_grid}"
+    "${bouds_flag}"
+    "${merge_flag}"
+    "${jobs_flag}"
+    "${kwargs_file}"
+    "${space_flag}"
+    "${SGE_QUEUE}"
+    "${SET_TR}"
+    "${PIXEL_FLAG}"
+    "${REFIT_FLAG}"
+    "${FOLDS_FLAG}"
+    "${BOLD_FLAG}"
+    "${SKIP_FLAG}"
+    "${TRANS_FLAG}"
+    "${FIX_FLAG}"
+    "${SGE}"
+    "${PRF_INPUT}" "${DIR_DATA_DERIV}/prf" "${PNG_DIR}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_fitprfs"
@@ -1862,31 +1904,33 @@ if [[ $? -eq 0 ]]; then
     TASK_ID="-t ${TYPE}"
   fi
 
-  cmd="""spinoza_bestvertex \
-    ${MODEL} \
-    ${TASK_ID} \
-    ${GRID} \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${VERT} \
-    ${FREEVIEW} \
-    ${OW} \
-    ${FULL_OW} \
-    ${lbl_flag} \
-    ${MODEL_FLAG} \
-    ${SRF_FLAG} \
-    ${SRF_FILE} \
-    ${EPI_FILE} \
-    ${GALLERY_FLAG} \
-    ${aparc_flag} \
-    ${SELECTION_FLAG} \
-    ${MAN_EPI} \
-    ${EPI_FILE} \
-    ${LS_SES} \
-    ${skip_prf_info} \
-    ${DIR_DATA_HOME} ${DIR_DATA_DERIV} ${LABEL_FILE}"""
+  cmd=(
+    spinoza_bestvertex
+    "${MODEL}"
+    "${TASK_ID}"
+    "${GRID}"
+    "${SUBJECT}"
+    "${SESSION}"
+    "${VERT}"
+    "${FREEVIEW}"
+    "${OW}"
+    "${FULL_OW}"
+    "${lbl_flag}"
+    "${MODEL_FLAG}"
+    "${SRF_FLAG}"
+    "${SRF_FILE}"
+    "${EPI_FILE}"
+    "${GALLERY_FLAG}"
+    "${aparc_flag}"
+    "${SELECTION_FLAG}"
+    "${MAN_EPI}"
+    "${EPI_FILE}"
+    "${LS_SES}"
+    "${skip_prf_info}"
+    "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}" "${LABEL_FILE}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_bestvertex"
@@ -1919,14 +1963,16 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "FAST segmentation with FSL"
 
-  cmd="""spinoza_segmentfast \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${KWARGS_FLAG} \
-    ${SKULLSTRIP} ${DIR_DATA_DERIV}/fast"""
+  cmd=(
+    spinoza_segmentfast
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${KWARGS_FLAG}"
+    "${SKULLSTRIP}" "${DIR_DATA_DERIV}/fast"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_segmentfast"
@@ -1959,17 +2005,26 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_mgdm \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${GDH_FLAG} \
-    ${SGE} \
-    ${SGE_QUEUE} \
-    ${KWARGS_FLAG} \
-    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks"""
+  # check for priors list
+  PRIOR_LIST=""
+  if [[ ! -z ${PRF_MODEL} ]]; then
+    PRIOR_LIST="-p ${PRF_MODEL}"
+  fi  
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  cmd=(
+    spinoza_mgdm
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${GDH_FLAG}"
+    "${SGE}"
+    "${SGE_QUEUE}"
+    "${KWARGS_FLAG}"
+    "${PRIOR_LIST}"
+    "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks"
+  )
+
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_mgdm"
@@ -2008,17 +2063,19 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_extractregions \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${COMB_ONLY} \
-    ${SKIP_COMB} \
-    ${KWARGS_FLAG} \
-    -f ${FAST_LBLS} \
-    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_DERIV}/manual_masks ${ROI}"""
+  cmd=(
+    spinoza_extractregions
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${COMB_ONLY}"
+    "${SKIP_COMB}"
+    "${KWARGS_FLAG}"
+    -f "${FAST_LBLS}"
+    "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks" "${ROI}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_extractregions"
@@ -2058,20 +2115,21 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Cortex reconstruction with nighres"
   
   if [[ ${LAYER_FLAG} == "nighres" ]]; then
-    PROBSEG=${DIR_DATA_DERIV}/nighres
+    PROBSEG="${DIR_DATA_DERIV}/nighres"
   else
     PROBSEG=${DIR_DATA_DERIV}/manual_masks
   fi
 
-  cmd="""spinoza_cortexrecon \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${PROBSEG} \
-    ${KWARGS_FLAG} \
-    ${DIR_DATA_DERIV}/nighres ${ROI}"""
+  cmd=(
+    spinoza_cortexrecon
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${KWARGS_FLAG}"
+    "${PROBSEG}" "${DIR_DATA_DERIV}/nighres" "${ROI}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_cortexrecon"
@@ -2100,7 +2158,7 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Equivolumetric layering"
 
   if [[ -z ${LAYER_FLAG} || ${LAYER_FLAG} == "nighres" ]]; then
-    INPUT_DIR=${DIR_DATA_DERIV}/nighres
+    INPUT_DIR="${DIR_DATA_DERIV}/nighres"
     SOFTWARE="nighres"
   elif [[ ${LAYER_FLAG} == "surface" ]]; then
     SOFTWARE="surface"
@@ -2115,15 +2173,17 @@ if [[ $? -eq 0 ]]; then
     KWARGS_FLAG="-x ${KWARGS}"
   fi
 
-  cmd="""spinoza_layering \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${NR_LAYERS} \
-    ${KWARGS_FLAG} \
-    ${INPUT_DIR} ${SOFTWARE}"""
+  cmd=(
+    spinoza_layering
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${NR_LAYERS}"
+    "${KWARGS_FLAG}"
+    "${INPUT_DIR}" "${SOFTWARE}"
+  )
   
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_layering"
@@ -2161,15 +2221,17 @@ if [[ $? -eq 0 ]]; then
     KWARGS_MASSP="-p ${PRF_MODEL}"
   fi
 
-  cmd="""spinoza_subcortex \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${DIR_DATA_HOME} \
-    ${KWARGS_FLAG} \
-    ${KWARGS_MASSP} \
-    ${DIR_DATA_DERIV}/skullstripped ${DIR_DATA_DERIV}/nighres"""
+  cmd=(
+    spinoza_subcortex
+    "${SUBJECT}"
+    "${SESSION}"
+    "${DIR_DATA_HOME}"
+    "${KWARGS_FLAG}"
+    "${KWARGS_MASSP}"
+    "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/nighres"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"  
+  print_cmd "${cmd[@]}" && "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_subcortex"
@@ -2213,13 +2275,15 @@ if [[ $? -eq 0 ]]; then
   subject=${SUBJECT_PREFIX}${SUB}
 
   # input anat as defined in module 00
-  cmd="""spinoza_line2surface \
-    -s ${subject} \
-    -y ${DIR_DATA_HOME}/${subject}/ses-${LS_SES}/anat/${subject}_ses-${LS_SES}_acq-MP2RAGE_T1w.nii.gz \
-    -o ${CTX} \
-    -i ${NIGHRES}/${subject}/ses-${LS_SES}"""
+  cmd=(
+    spinoza_line2surface
+    -s "${SUBJECT}"
+    -y "${DIR_DATA_HOME}/${subject}/ses-${LS_SES}/anat/${subject}_ses-${LS_SES}_acq-MP2RAGE_T1w.nii.gz"
+    -o "${CTX}"
+    -i "${NIGHRES}/${subject}/ses-${LS_SES}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"  
+  print_cmd "${cmd[@]}" && "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" spinoza_line2surface
@@ -2253,14 +2317,16 @@ if [[ $? -eq 0 ]]; then
     KWARGS=${KWARGS}
   fi    
 
-  # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
-  cmd="""spinoza_profiling \
-    ${SUBJECT} \
-    ${SESSION} \
-    ${OW} \
-    ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} ${KWARGS}"""
+  # spinoza_profiling "${SUBJECT}" "${SESSION}" "${OW}" "${DIR_DATA_DERIV}/nighres" ${DIR_DATA_HOME} T1map
+  cmd=(
+    spinoza_profiling
+    "${SUBJECT}"
+    "${SESSION}"
+    "${OW}"
+    "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_HOME}" "${KWARGS}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"    
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "spinoza_profiling"
@@ -2294,15 +2360,15 @@ if [[ $? -eq 0 ]]; then
   # # check where inputs live
   # INPUT_DIR=$(find_hierarchical_anatomy 6)
 
-  # # spinoza_profiling ${SUBJECT} ${SESSION} ${OW} ${DIR_DATA_DERIV}/nighres ${DIR_DATA_HOME} T1map
-  # cmd="""spinoza_suit \
-  #   ${SUBJECT} \
-  #   ${SESSION} \
-  #   ${OW} \
-  #   ${INPUT_DIR} ${DIR_DATA_DERIV}/suit"""
+  # # spinoza_profiling "${SUBJECT}" "${SESSION}" "${OW}" "${DIR_DATA_DERIV}/nighres" ${DIR_DATA_HOME} T1map
+  # cmd=(spinoza_suit
+  #   "${SUBJECT}"
+  #   "${SESSION}"
+  #   "${OW}"
+  #   ${INPUT_DIR} ${DIR_DATA_DERIV}/suit)
 
   # echo
-  #   print_cmd "${cmd}" && eval "${cmd}"    
+  #   print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   # if [[ $? -ne 0 ]]; then
   #   print_error_msg "$(basename ${0})" "spinoza_suit"
