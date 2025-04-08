@@ -1,18 +1,4 @@
 #!/usr/bin/env python
-#$ -j Y
-#$ -cwd
-#$ -V
-
-# # ME-MP2RAGE
-#
-# `MEMP2RAGE` is a subclass of `MP2RAGE` to can deal with multi-echo MP2RAGE data.
-# In such a dataset, you collect multiple echoes for the second inversion time. These echoes are all T2\*-weighted
-# and by fitting an exponentially decaying curve to their signal intensities, you can estimate the quantitative
-# T2\* map of the image.
-#
-# Note that segmentation of gray vs white matter, as well as subcortical nuclei can be considerably improved by not using only T1, but also T2(\*) information.
-#
-# We start by importing the MEMP2RAGE-class (rather than the MP2RAGE-class).
 
 from pymp2rage import MP2RAGE
 import os
