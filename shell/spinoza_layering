@@ -218,7 +218,7 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
       
-      print_create_img "${output}" "N_layers=${nr_layers}"
+      print_create_img "${output}" "N_layers=${nr_layers} (unless specified otherwise in kwargs)"
       cmd=(
         call_nighreslayering
         --inner "${INPUTS[0]}"
@@ -229,7 +229,7 @@ for subID in ${search}; do
         ${kwargs_flag}
       )
 
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
 
       if [[ $? != 0 ]]; then
         echo

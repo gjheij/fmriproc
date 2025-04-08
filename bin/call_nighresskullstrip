@@ -6,8 +6,15 @@ except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
 import sys, getopt
+import os
+from lazyfmri import utils
+opj = os.path.join
+rb = utils.color.RED + utils.color.BOLD
+gb = utils.color.GREEN + utils.color.BOLD
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["inv2", "t1w", "t1map"])
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -30,10 +37,9 @@ Outputs
     Dictionary collecting outputs under the following keys (suffix of output files in brackets)
 
     - brain_mask (niimg):   Binary brain mask (_strip-mask)
-    - inv2_masked (niimg):  Masked second inversion imamge (_strip-inv2)
+    - inv2_masked (niimg):  Masked second inversion image (_strip-inv2)
     - t1w_masked (niimg):   Masked T1-weighted image (_strip-t1w)
     - t1map_masked (niimg): Masked T1 map (_strip-t1map)
-
 
 Example:
     call_nighresskullstrip \
@@ -43,9 +49,48 @@ Example:
         -o derivatives/nighres
 
 ---------------------------------------------------------------------------------------------------
-
     """
 
+    inv2 = context["inv2"]
+    t1w = context["t1w"]
+    t1map = context["t1map"]
+    output_dir = context.get("output_dir", opj(os.getcwd(), "skullstripping"))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+
+    #---------------------------------------------------------------------------------------------------
+    # Run skull stripping
+    result = mp2rage_skullstripping(
+        inv2,
+        t1w,
+        t1map,
+        save_data=True,
+        output_dir=output_dir,
+        file_name=output_base
+    )
+
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
+    print()
+
+    #---------------------------------------------------------------------------------------------------
+    # Rename file to BIDS style
+    print("Rename to more BIDS'ey style")
+    suffixes = {
+        "brain_mask":     "mask",
+        "inv2_masked":    "inv2",
+        "t1w_masked":     "t1w",
+        "t1map_masked":   "t1map"
+    }
+
+    for key, label in suffixes.items():
+        old = opj(output_dir, f"{output_base}_strip-{label}.nii.gz")
+        new = opj(output_dir, f"{output_base}-strip_{label}.nii.gz")
+        if os.path.exists(old):
+            print(f" {os.path.basename(old)} → {gb}{os.path.basename(new)}{end}")
+            os.rename(old, new)
+
+    print("Done")
+
+if __name__ == "__main__":
     inv2 = None
     t1w = None
     t1map = None
@@ -53,7 +98,11 @@ Example:
     output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts, args = getopt.getopt(argv,"hi:t:m:o:n:",["help", "inv2=", "t1w=", "t1map=", "outputdir=", "name="])
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hi:t:m:o:n:",
+            ["help", "inv2=", "t1w=", "t1map=", "outputdir=", "name="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
@@ -73,19 +122,10 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 3:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    _ = mp2rage_skullstripping(
-        inv2,
-        t1w,
-        t1map,
-        save_data=True
-        output_dir=output_dir,
-        file_name=output_base,
-    )
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv[1:], context={
+        "inv2": inv2,
+        "t1w": t1w,
+        "t1map": t1map,
+        "output_dir": output_dir,
+        "output_base": output_base
+    })

@@ -216,7 +216,7 @@ for subID in ${search}; do
     fi
 
     # run command
-    eval "${cmd[@]}"
+    "${cmd[@]}"
 
     if [[ $? != 0 ]]; then
       echo

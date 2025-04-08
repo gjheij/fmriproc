@@ -12,9 +12,10 @@ from pathlib import Path
 opj = os.path.join
 rb = utils.color.RED+utils.color.BOLD
 gb = utils.color.GREEN+utils.color.BOLD
-end = rb = utils.color.END
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["inner", "outer"], allow_input_dir=True)
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -93,22 +94,94 @@ Example:
 
     """
 
+    inner = context["inner"]
+    outer = context["outer"]
+    nr_layers = context.get("n_layers", 10)
+    input_dir = context.get("input_dir")
+    output_dir = context.get("output_dir", opj(os.getcwd(), 'layering'))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+    kwargs = context.get("kwargs", {})
+
+    #---------------------------------------------------------------------------------------------------
+    # Read inputs to dictionary
+    pattern_map = {
+        "inner_levelset": "gwb.nii.gz",
+        "outer_levelset": "cgb.nii.gz",
+    }
+
+    input_kws = {}
+    if input_dir is not None:
+        print(f"Loading files from {gb}{input_dir}{end}..")
+        for key, pattern in pattern_map.items():
+            in_file = utils.get_file_from_substring(pattern, input_dir, return_msg=None)
+            input_kws[key] = in_file
+    else:
+        print("Loading manually specified files..")
+        for key, val in zip(list(pattern_map), [inner, outer]):
+            input_kws[key] = val
+
+    [print(f" {key}: {gb}{val}{end}") for key, val in input_kws.items()]
+
+    #---------------------------------------------------------------------------------------------------
+    # Default kwargs
+    defaults = {
+        "save_data": True,
+        "overwrite": True,
+        "n_layers": nr_layers,
+        "output_dir": output_dir,
+        "file_name": output_base        
+    }
+
+    for key, val in defaults.items():
+        kwargs = utils.update_kwargs(kwargs, key, val)
+
+    # combine input & kwargs
+    combined_kwargs = {**input_kws, **kwargs}
+
+    #---------------------------------------------------------------------------------------------------
+    # run layering
+    volumetric_layering(**combined_kwargs)
+
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
+    print()
+
+    #---------------------------------------------------------------------------------------------------
+    # Rename file to BIDS style
+    print("Rename to more BIDS'ey style")
+    output_path = Path(output_dir)
+    suffixes = ["depth", "layers", "boundaries"]
+
+    for suffix in suffixes:
+        fn_old = os.path.join(output_dir, f"{output_base}_{suffix}.nii.gz")
+        fn_new = os.path.join(output_dir, f"{output_base}-{suffix}.nii.gz")
+        if os.path.exists(fn_old):
+            print(f" {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
+            os.rename(fn_old, fn_new)
+
+    print("Done")
+
+if __name__ == "__main__":
     inner = None
     outer = None
     nr_layers = 10
+    input_dir = None
     output_dir = opj(os.getcwd(), 'layering')
     output_base = "subject_acq-MP2RAGE_desc"
     kwargs = {}
 
     try:
-        opts = getopt.getopt(argv,"hi:o:l:d:n:x:p:",["help", "inner=", "outer=", "layers=", "outputdir=", "name=", "kwargs=", "inputdir="])[0]
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hi:o:l:d:n:x:p:",
+            ["help", "inner=", "outer=", "layers=", "outputdir=", "name=", "kwargs=", "inputdir="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         print("ERROR IN ARGUMENTS")
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == ("-h", "--help"):
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-i", "--inner"):
@@ -124,102 +197,14 @@ Example:
         elif opt in ("-x", "--kwargs"):
             kwargs = utils.parse_kwargs_to_dict(arg)
         elif opt in ("-p", "--inputdir"):
-            input_dir = arg  
-            
-    required_args = 2
-    if (
-        len(argv) < required_args
-        or not isinstance(input_dir, str)
-        or not os.path.isdir(input_dir)
-        ):
+            input_dir = arg
 
-        print("\nERROR: Missing or invalid arguments.")
-        if len(argv) < required_args:
-            print(" - Not enough command-line arguments specified.")
-        if not isinstance(input_dir, str):
-            print(" - Input directory is not a string.")
-        elif not os.path.isdir(input_dir):
-            print(f" - Input directory '{input_dir}' does not exist.")
-
-        print(main.__doc__)
-        sys.exit(1)
-
-    #---------------------------------------------------------------------------------------------------
-    # Collect files depending on whether we got an input directory or not
-    print("Loading files..")
-    pattern_map = {
-        "inner_levelset": "gwb.nii.gz",
-        "outer_levelset": "cgb.nii.gz",
-    }
-
-    input_kws = {}
-    if input_dir is not None:
-        # we got passed an input_dir, fetch files from directory
-
-        print(f"Loading files from {gb}{input_dir}{end}..")
-        for key, pattern in pattern_map.items():
-            in_file = utils.get_file_from_substring(pattern, input_dir, return_msg=None)
-            input_kws[key] = in_file
-    else:
-        print("Loading manually specified files..")
-        for key, val in zip(
-            list(pattern_map),
-            [inner, outer]
-        ):
-            input_kws[key] = val
-
-    #---------------------------------------------------------------------------------------------------
-    # Check that input files exist
-    for key in list(pattern_map):
-        if not files.get(key) or not os.path.isfile(files[key]):
-            print(f"ERROR: Required file '{rb}{key}{end}' is missing or does not exist: {gb}{files.get(key)}{end}")
-            sys.exit(1)
-
-    [print(f" {key}: {gb}{val}{end}") for key, val in input_kws.items()]
-
-    #---------------------------------------------------------------------------------------------------
-    # Default kwargs
-    defaults = {
-        "save_data": True,
-        "overwrite": True,
+    main(sys.argv[1:], context={
+        "inner": inner,
+        "outer": outer,
         "n_layers": nr_layers,
+        "input_dir": input_dir,
         "output_dir": output_dir,
-        "file_name": output_base        
-    }
-
-    for key, val in defaults.items():
-        kwargs = utils.update_kwargs(
-            kwargs,
-            key,
-            val
-        )
-
-    # combine input & kwargs
-    combined_kwargs = {**input_kws, **kwargs}
-
-    #---------------------------------------------------------------------------------------------------
-    # run layering
-    volumetric_layering(**combined_kwargs)
-
-    #---------------------------------------------------------------------------------------------------
-    # Nicer formatting of output filenames
-    output_path = Path(output_dir)
-    suffixes = ["depth", "layers", "boundaries"]
-
-    for suffix in suffixes:
-        old_name = output_path / f"{output_base}_layering-{suffix}.nii.gz"
-        new_name = output_path / f"{output_base}-layering_{suffix}.nii.gz"
-
-        if old_name.exists():
-            try:
-                print(f"Renaming: {old_name.name} → {gb}{new_name.name}{end}")
-                old_name.rename(new_name)
-            except Exception as e:
-                print(f"Warning: Could not rename {old_name.name}: {e}")
-        else:
-            print(f"File not found: {rb}{old_name.name}{end}")
-
-    print("Done")
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+        "output_base": output_base,
+        "kwargs": kwargs
+    })

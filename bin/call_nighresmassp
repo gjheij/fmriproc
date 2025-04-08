@@ -11,7 +11,7 @@ except Exception:
 import sys, getopt
 import os
 import pathlib
-import lazyfmri import utils
+from lazyfmri import utils
 from fmriproc import image
 import warnings
 warnings.filterwarnings("ignore")
@@ -40,8 +40,8 @@ def _single_step_reg(
         "cost_function": "MutualInformation",
         "interpolation": "NearestNeighbor",
         "regularization": "High",
-        ignore_affine=True,
-        save_data=True
+        "ignore_affine": True,
+        "save_data": True
     }
 
     # update given kwargs
@@ -61,7 +61,8 @@ def _single_step_reg(
 
     return single_ants
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["R1", "R2","QSM"], allow_input_dir=True)
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -120,8 +121,8 @@ Args:
                         "cost_function": "MutualInformation",
                         "interpolation": "NearestNeighbor",
                         "regularization": "High",
-                        ignore_affine=True,
-                        save_data=True
+                        "ignore_affine": True,
+                        "save_data": True
                     }
                     ```
 
@@ -174,59 +175,14 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    input_dir = None
-    R1 = None
-    R2s = None
-    QSM = None
-    output_dir = opj(os.getcwd("massp"))
-    output_base = "subject_acq-MP2RAGE_desc"
-    kwargs = {}
-    massp_kws = {}
-
-    try:
-        opts = getopt.getopt(argv,"hs:n:i:o:b:x:p:",["help", "inputdir=", "r1=", "r2s=", "qsm=", "outputdir=", "name=", "kwargs", "mkwargs"])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-i", "--inputdir"):
-            input_dir = arg
-        elif opt in ("-o", "--outputdir"):
-            output_dir = arg
-        elif opt in ("-b", "--name"):
-            output_base = arg
-        elif opt in ("-x", "--kwargs"):
-            kwargs = arg 
-        elif opt in ("-p", "--mkwargs"):
-            massp_kws = arg                        
-        elif opt in ("--r1"):
-            R1 = arg
-        elif opt in ("--r2s"):
-            R2s = arg
-        elif opt in ("--qsm"):
-            QSM = arg
-
-    required_args = 1
-    if (
-        len(argv) < required_args
-        or not isinstance(input_dir, str)
-        or not os.path.isdir(input_dir)
-        ):
-
-        print("\nERROR: Missing or invalid arguments.")
-        if len(argv) < required_args:
-            print(" - Not enough command-line arguments specified.")
-        if not isinstance(input_dir, str):
-            print(" - Input directory is not a string.")
-        elif not os.path.isdir(input_dir):
-            print(f" - Input directory '{input_dir}' does not exist.")
-
-        print(main.__doc__)
-        sys.exit(1)
+    R1 = context["R1"]
+    R2s = context["R2"]
+    QSM = context["QSM"]
+    input_dir = context["input_dir"]
+    output_dir = context["output_dir"]
+    output_base = context["output_base"]
+    kwargs = context["kwargs"]
+    massp_kws = context["massp_kws"]
 
     #---------------------------------------------------------------------------------------------------
     # tmp directory with registration files
@@ -252,7 +208,7 @@ Example:
     else:
         print("Loading manually specified files..")
         for key, val in zip(
-            list(pattern_map),
+            pattern_map,
             [R1, R2s, QSM]
         ):
             input_files[key] = val
@@ -292,8 +248,8 @@ Example:
         )
 
         # step 2
-        ants2 = _sing_single_step_reg(
-            src=[amts1["transformed_sources"][i] for i in range(3)],
+        ants2 = _single_step_reg(
+            src=[ants1["transformed_sources"][i] for i in range(3)],
             trg=[input_files[k] for k in list(pattern_map)],
             step=2,
             **kwargs
@@ -343,28 +299,82 @@ Example:
     print("Running subcortex parcellation")
     massp_results = parcellation.massp(**combined_kwargs)
 
-    #---------------------------------------------------------------------------------------------------
-    # Convert label to volume table
-    vol_file = image.massp_to_table(
-        massp_results['max_label'],
-        out=opj(output_dir, f'{base}_desc-volume_table.json'),
-        unit="mm"
-    )
-
-    print(f"\nWrote {vol_file}")
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
+    print()
 
     #---------------------------------------------------------------------------------------------------
-    # Nicer formatting
+    # Rename file to BIDS style
+    print("Rename to more BIDS'ey style")
     for i in ["proba", "label"]:
 
-        fn_old = opj(output_dir,base + "_massp-" + i + ".nii.gz")
-        fn_new = opj(output_dir,base + "-massp_" + i + ".nii.gz")
-
+        fn_old = opj(output_dir, f"{output_base}_massp-{i}.nii.gz")
+        fn_new = opj(output_dir, f"{output_base}-massp_{i}.nii.gz")
         if os.path.exists(fn_old):
-            print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
+            print(f" {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
             os.rename(fn_old, fn_new)
 
+    #---------------------------------------------------------------------------------------------------
+    # Convert label to volume table
+    json_file = opj(output_dir, f'{output_base}_desc-volume_table.json')
+    print(f"Parsing output to {gb}{json_file}{end} (unit='mm')")
+    vol_file = image.massp_to_table(
+        massp_results['max_label'],
+        out=,
+        unit="mm"
+    )
+    
     print("Done")
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    # Default values
+    input_dir = None
+    R1 = None
+    R2s = None
+    QSM = None
+    output_dir = opj(os.getcwd(), "massp")
+    output_base = "subject_acq-MP2RAGE_desc"
+    kwargs = {}
+    massp_kws = {}
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hi:o:b:x:p:",
+            ["help", "inputdir=", "outputdir=", "name=", "kwargs=", "mkwargs=", "r1=", "r2s=", "qsm="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-i", "--inputdir"):
+            input_dir = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-b", "--name"):
+            output_base = arg
+        elif opt in ("-x", "--kwargs"):
+            kwargs = utils.parse_kwargs_to_dict(arg)
+        elif opt in ("-p", "--mkwargs"):
+            massp_kws = utils.parse_kwargs_to_dict(arg)
+        elif opt == "--r1":
+            R1 = arg
+        elif opt == "--r2s":
+            R2s = arg
+        elif opt == "--qsm":
+            QSM = arg
+
+    # Pass all parsed CLI values into `main` via `context`
+    main(sys.argv[1:], context={
+        "input_dir": input_dir,
+        "R1": R1,
+        "R2": R2s,
+        "QSM": QSM,
+        "output_dir": output_dir,
+        "output_base": output_base,
+        "kwargs": kwargs,
+        "massp_kws": massp_kws
+    })

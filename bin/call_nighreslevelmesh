@@ -8,10 +8,13 @@ except Exception:
 import sys, getopt
 import os
 from lazyfmri import utils
-
 opj = os.path.join
+rb = utils.color.RED+utils.color.BOLD
+gb = utils.color.GREEN+utils.color.BOLD
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["levelset"], allow_input_dir=False)
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -25,28 +28,10 @@ Args:
                         - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
                         - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
                         - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'prob'))
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'mesh'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
-    -x|--kwargs     Extra arguments that will be directly passed to 'profile_meshing' (see
-                    docs-link below for details). The format should be as follows: different para-
-                    meters comma-separated, and parameter-value pair separated by '='):
-                    
-                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
-
-                    E.g.,:
-                    "-x connectivity="6/26",level=0.5"
-
-                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                    The kwargs specified in this flag take precedent over the default kwargs:
-
-                    ```
-                    defaults = {
-                        "overwrite": True,
-                        "save_data": True,
-                        "output_dir": "directory specified with -o|--outputdir",
-                        "file_name": "basename specified with -n|--name"
-                    }
-                    ```
+    -x|--kwargs     Extra arguments that will be directly passed to 'levelset_to_mesh'. The format 
+                    should be: <parameter1>=<value1>,<parameter2>=<value2>,...
 
 Outputs:
     (taken from https://nighres.readthedocs.io/en/latest/surface/levelset_to_mesh.html)
@@ -57,39 +42,15 @@ Outputs:
 Example:
     call_nighreslevelmesh \
         -l sub-001_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
-        -d $PWD \
+        -o /path/to/output \
         -n sub-001_desc
-
 ---------------------------------------------------------------------------------------------------
     """
 
-    levelset = None
-    output_dir = opj(os.getcwd(), 'mgdm')
-    output_base = "subject_acq-MP2RAGE_desc"
-    kwargs = {}
-
-    try:
-        opts = getopt.getopt(argv,"hl:o:n:x:",["help", "levelset=", "outputdir=", "name=", "kwargs="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        print("ERROR IN ARGUMENTS")
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-l", "--levelset"):
-            levelset = arg
-        elif opt in ("-d", "--outputdir"):
-            output_dir = arg
-        elif opt in ("-n", "--name"):
-            output_base = arg
-
-    if len(argv) < 1:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
+    levelset = context["levelset"]
+    output_dir = context.get("output_dir", opj(os.getcwd(), "mesh"))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+    kwargs = context.get("kwargs", {})
 
     #---------------------------------------------------------------------------------------------------
     # Default kwargs
@@ -101,17 +62,11 @@ Example:
     }
 
     for key, val in defaults.items():
-        kwargs = utils.update_kwargs(
-            kwargs,
-            key,
-            val
-        )
+        kwargs = utils.update_kwargs(kwargs, key, val)
 
+    #---------------------------------------------------------------------------------------------------
     # Just plop everything in levelset_to_mesh
-    levelset_to_mesh(
-        levelset,
-        **kwargs
-    )
+    levelset_to_mesh(levelset, **kwargs)
 
     #---------------------------------------------------------------------------------------------------
     # Nicer formatting of output filenames
@@ -122,5 +77,41 @@ Example:
         print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
         os.rename(fn_old, fn_new)
 
+    print("Done")
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    levelset = None
+    output_dir = opj(os.getcwd(), 'mesh')
+    output_base = "subject_acq-MP2RAGE_desc"
+    kwargs = {}
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hl:o:n:x:",
+            [
+            "help", "levelset=", "outputdir=", "name=", "kwargs="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-l", "--levelset"):
+            levelset = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
+        elif opt in ("-x", "--kwargs"):
+            kwargs = utils.parse_kwargs_to_dict(arg)
+
+    main(sys.argv[1:], context={
+        "levelset": levelset,
+        "output_dir": output_dir,
+        "output_base": output_base,
+        "kwargs": kwargs
+    })

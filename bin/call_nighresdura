@@ -9,12 +9,13 @@ import sys
 import getopt
 import os
 from lazyfmri import utils
-rb = utils.color.RED+utils.color.BOLD
-end = rb = utils.color.END
+opj = os.path.join
+rb = utils.color.RED + utils.color.BOLD
+end = utils.color.END
 
-def main(argv):
-
-    """
+@utils.validate_cli_inputs(required_keys=["inv2", "mask"], allow_input_dir=False)
+def main(argv, context):
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_nighresdura
 
@@ -25,7 +26,7 @@ for B1 inhomogenieties using a B1 map (Marques et al., 2014)
 
 Args:
     -i|--inv2       2nd inversion image
-    -s|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
+    -m|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
@@ -36,24 +37,59 @@ Outputs
     - result (niimg): Dura probability image (_dura-proba)
 
 Example:
-    call_nighresdura -i inv2.nii.gz -m inv2_mask.nii.gz -o derivatives/nighres -f sub-001_desc
+    call_nighresdura -i inv2.nii.gz -m inv2_mask.nii.gz -o derivatives/nighres -n sub-001_desc
 
 ---------------------------------------------------------------------------------------------------
     """
 
+    inv2_skull = context["inv2"]
+    inv2_mask = context["mask"]
+    output_dir = context.get("output_dir", opj(os.getcwd(), 'dura'))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+
+    #---------------------------------------------------------------------------------------------------
+    # Run dura estimation
+    mp2rage_dura_estimation(
+        inv2_skull,
+        inv2_mask,
+        file_name=output_base,
+        output_dir=output_dir,
+        save_data=True
+    )
+
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
+    print()
+
+    #---------------------------------------------------------------------------------------------------
+    # Rename file to BIDS style
+    print("Rename to more BIDS'ey style")
+    fn_old = opj(output_dir, output_base + "_dura-proba.nii.gz")
+    fn_new = opj(output_dir, output_base + "-dura_proba.nii.gz")
+
+    if os.path.exists(fn_old):
+        print(f" {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
+        os.rename(fn_old, fn_new)
+
+    print("Done")
+
+if __name__ == "__main__":
     inv2_skull = None
     inv2_mask = None
     output_dir = opj(os.getcwd(), 'dura')
     output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hi:m:o:b:",["help", "inv2=", "mask=", "outputdir=", "outputbase="])[0]
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hi:m:o:n:",
+            ["help", "inv2=", "mask=", "outputdir=", "name="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt in ("-h", "--help")
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-i", "--inv2"):
@@ -65,34 +101,9 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 2:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    #---------------------------------------------------------------------------------------------------
-    # Check that input files exist
-    required_files = {
-        "INV2-image with skull": inv2_skull,
-        "Brain mask": inv2_mask,
-    }
-
-    missing_files = [desc for desc, path in required_files.items() if not path or not os.path.isfile(path)]
-    if missing_files:
-        print("ERROR: The following required input files are missing or invalid:")
-        for f in missing_files:
-            print(f"  - {rb}{f}{end}")
-        sys.exit(1)
-    
-    #---------------------------------------------------------------------------------------------------
-    # run
-    mp2rage_dura_estimation(
-        inv2_skull,
-        inv2_mask,
-        file_name=output_base,
-        output_dir=output_dir,
-        save_data=True
-    )
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv[1:], context={
+        "inv2": inv2_skull,
+        "mask": inv2_mask,
+        "output_dir": output_dir,
+        "output_base": output_base
+    })

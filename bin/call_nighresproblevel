@@ -7,9 +7,14 @@ except Exception:
 
 import sys, getopt
 import os
+from lazyfmri import utils
 opj = os.path.join
+rb = utils.color.RED + utils.color.BOLD
+gb = utils.color.GREEN + utils.color.BOLD
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["probability"])
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -39,15 +44,43 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    probability  = None
-    output_dir = opj(os.getcwd(), 'prob')
+    probability = context["probability"]
+    output_dir = context.get("output_dir", opj(os.getcwd(), 'region'))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+
+    #---------------------------------------------------------------------------------------------------
+    # Run function
+    probability_to_levelset(
+        probability,
+        save_data=True,
+        output_dir=output_dir,
+        file_name=output_base
+    )
+
+    #---------------------------------------------------------------------------------------------------
+    # Rename to BIDS-friendly filename
+    fn_old = opj(output_dir, output_base + "_p2l-surf.nii.gz")
+    fn_new = opj(output_dir, output_base + "-p2l_surf.nii.gz")
+
+    if os.path.exists(fn_old):
+        print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
+        os.rename(fn_old, fn_new)
+
+    print("Done")
+
+if __name__ == "__main__":
+    probability = None
+    output_dir = opj(os.getcwd(), 'region')
     output_base = "subject_acq-MP2RAGE_desc"
 
     try:
-        opts = getopt.getopt(argv,"hp:o:n:",["help", "probability=", "outputdir=", "name="])[0]
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hp:o:n:",
+            ["help", "probability=", "outputdir=", "name="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
-        print("ERROR IN ARGUMENTS")
         sys.exit(2)
 
     for opt, arg in opts:
@@ -61,25 +94,8 @@ Example:
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    if len(argv) < 1:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    # Just plop everything in dir of segmentation
-    probability_to_levelset(
-        probability,
-        save_data=True,
-        output_dir=output_dir,
-        file_name=output_base
-    )
-
-    fn_old = opj(output_dir, output_base + "_p2l-surf.nii.gz")
-    fn_new = opj(output_dir, output_base + "-p2l_surf.nii.gz")
-
-    if os.path.exists(fn_old):
-        # print("moving {fo} to {fn}".format(fo=os.path.basename(fn_old), fn=os.path.basename(fn_new)))
-        os.rename(fn_old, fn_new)
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(sys.argv[1:], context={
+        "probability": probability,
+        "output_dir": output_dir,
+        "output_base": output_base
+    })

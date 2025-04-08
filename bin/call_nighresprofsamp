@@ -7,9 +7,14 @@ except Exception:
 
 import sys, getopt
 import os
+from lazyfmri import utils
 opj = os.path.join
+rb = utils.color.RED + utils.color.BOLD
+gb = utils.color.GREEN + utils.color.BOLD
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["layerimg", "samplefrom"])
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -43,37 +48,13 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    layers_lvls = None
-    sample_from = None
-    output_dir = opj(os.getcwd(), 'profiling')
-    output_base = "subject_acq-MP2RAGE_desc"
+    layers_lvls = context["layerimg"]
+    sample_from = context["samplefrom"]
+    output_dir = context.get("output_dir", opj(os.getcwd(), 'profiling'))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
-    try:
-        opts = getopt.getopt(argv,"hl:s:o:n:",["help", "layerimg=", "samplefrom=", "outputdir=", "name="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        print("ERROR IN ARGUMENTS")
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-l", "--layering"):
-            layers_lvls = arg
-        elif opt in ("-s", "--samplefrom"):
-            sample_from = arg
-        elif opt in ("-o", "--outputdir"):
-            output_dir = arg
-        elif opt in ("-n", "--name"):
-            output_base = arg
-
-    if len(argv) < 2:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    # Just plop everything in dir of segmentation
+    #---------------------------------------------------------------------------------------------------
+    # Run profile sampling
     profile_sampling(
         layers_lvls,
         sample_from,
@@ -82,12 +63,49 @@ Example:
         file_name=output_base
     )
 
+    #---------------------------------------------------------------------------------------------------
+    # Rename output to a BIDS-friendly name
     fn_old = opj(output_dir, output_base + "_lps-data.nii.gz")
     fn_new = opj(output_dir, output_base + ".nii.gz")
 
     if os.path.exists(fn_old):
-        # print("moving {fo} to {fn}".format(fo=os.path.basename(fn_old), fn=os.path.basename(fn_new)))
+        print(f"Renaming: {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
         os.rename(fn_old, fn_new)
 
+    print("Done")
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    layers_lvls = None
+    sample_from = None
+    output_dir = opj(os.getcwd(), 'profiling')
+    output_base = "subject_acq-MP2RAGE_desc"
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hl:s:o:n:",
+            ["help", "layerimg=", "samplefrom=", "outputdir=", "name="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-l", "--layerimg"):
+            layers_lvls = arg
+        elif opt in ("-s", "--samplefrom"):
+            sample_from = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
+
+    main(sys.argv[1:], context={
+        "layerimg": layers_lvls,
+        "samplefrom": sample_from,
+        "output_dir": output_dir,
+        "output_base": output_base
+    })

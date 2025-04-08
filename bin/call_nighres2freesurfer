@@ -1,13 +1,19 @@
 #!/usr/bin/env python
 
-import nighres
+try:
+    import nighres
+except Exception:
+    raise ImportError(f"Could not import 'nighres'.. Please install")
+
 import sys
 from fmriproc.transform import fs2tkr
 import os
 import numpy as np
+from lazyfmri import utils
 opj = os.path.join
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"], allow_input_dir=False)
+def main(argv, context):
 
     """
 ---------------------------------------------------------------------------------------------------
@@ -35,18 +41,9 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject = None
-    mesh_fn = None
-    output  = None
-
-    if len(argv) < 3:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    subject = argv[0]
-    mesh_fn = argv[1]
-    output = argv[2]
+    subject = context["subject"]
+    mesh_fn = context["mesh"]
+    output = context["output"]
 
     mesh = nighres.io.load_mesh(mesh_fn)
     mesh.pop('data')
@@ -60,4 +57,24 @@ Example:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    subject = None
+    mesh_fn = None
+    output = None
+
+    try:
+        opts = sys.argv[1:]
+        if len(opts) < 3:
+            raise getopt.GetoptError("Not enough arguments")
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    subject = opts[0]
+    mesh_fn = opts[1]
+    output = opts[2]
+
+    main(sys.argv[1:], context={
+        "subject": subject,
+        "mesh": mesh_fn,
+        "output": output
+    })

@@ -181,21 +181,22 @@ for subID in ${search}; do
 
     if [[ ! -f ${output_dura} ]]; then
 
-      out_prob="${outdir_dura}/${output_root}_dura-proba.nii.gz"
+      out_prob="${outdir_dura}/${output_root}-dura_proba.nii.gz"
       if [[ ! -f "${out_prob}" ]]; then
-        echo "First running nighres to estimate the dura"
-        echo " -inv2: ${inv2}"
-        echo " -mask: ${inv2_mask}"
-        echo " -out:  ${out_prob}"
+        echo "Running nighres to estimate the dura"
+        echo -e " -inv2: ${BOLD_GREEN}${inv2}${RESET}"
+        echo -e " -mask: ${BOLD_GREEN}${inv2_mask}${RESET}"
+        echo -e " -out:  ${BOLD_GREEN}${out_prob}${RESET}"
 
-        cmd="""call_nighresdura \
-          --inv2 "${inv2}" \
-          --mask "${inv2_mask}" \
-          --outputdir "${outdir_dura}" \
-          --name "${output_root}""""
+        cmd=(
+          call_nighresdura
+          --inv2 "${inv2}"
+          --mask "${inv2_mask}"
+          --outputdir "${outdir_dura}"
+          --name "${output_root}"
+        )
         
-        print_cmd "${cmd}" && eval "${cmd}"
-
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ -f ${out_prob} ]]; then
           mv "${out_prob}" "${output_dura}"
         else
@@ -260,8 +261,9 @@ for subID in ${search}; do
       mkdir -p ${outdir_skull}
     fi
 
-    output_skullnighres=${outdir_skull}/${output_root}_strip_mask.nii.gz
+    output_skullnighres=${outdir_skull}/${output_root}-strip_mask.nii.gz
     if [[ ! -f ${output_skullnighres} ]]; then
+      echo "Running nighres to perform skullstripping"
       cmd=(
         call_nighresskullstrip
         --inv2 ${inv2}
@@ -271,7 +273,7 @@ for subID in ${search}; do
         --name ${output_root}
       )
 
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
       
       if [[ $? -ne 0 ]]; then
         echo

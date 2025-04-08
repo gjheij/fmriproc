@@ -132,13 +132,13 @@ for subID in ${search}; do
 
     cmd=(
       call_nighresprofsamp
-      --layering ${boundaries}
+      --layerimg ${boundaries}
       --samplefrom ${tobesampled}
       --outputdir ${nighres_dir}/profiling
       --name ${base}_acq-${DATA^^}_desc-profile_${TAG}
     )
 
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? != 0 ]]; then
       echo
       print_line -

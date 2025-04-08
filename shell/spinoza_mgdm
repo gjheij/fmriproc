@@ -206,11 +206,12 @@ for subID in ${search}; do
       # define command
       cmd=(
         ${job}
-        --inputdir ${input_dir}
-        --brainmask ${use_mask}
-        --duramask ${mask_outside}
-        --outputdir ${masked_seg}
-        --name ${output_root}
+        --inputdir "${input_dir}"
+        --brainmask "${use_mask}"
+        --duramask "${mask_outside}"
+        --outputdir "${masked_seg}"
+        --name "${output_root}"
+        "${kwargs_flag}"
       )
 
     else
@@ -242,12 +243,14 @@ for subID in ${search}; do
       job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
 
       # define command
-      cmd="""${job} \
-        --t1w ${bet_uni} \
-        --t1map ${bet_t1m} \
-        --outputdir ${masked_seg} \
-        --name ${output_root}
-        ${kwargs_flag}"""
+      cmd=(
+        "${job}"
+        --t1w "${bet_uni}"
+        --t1map "${bet_t1m}"
+        --outputdir "${masked_seg}"
+        --name "${output_root}"
+        "${kwargs_flag}"
+      )
 
     else
       execute_cmd=0
@@ -266,11 +269,10 @@ for subID in ${search}; do
 
     # execute command
     if [[ ${run_local} -eq 1 ]]; then
-      print_cmd "${cmd}"
+      print_cmd "${cmd[@]}"
     fi
 
-    eval "${cmd}"
-
+    "${cmd[@]}"
     if [[ $? != 0 ]]; then
       echo
       print_line -

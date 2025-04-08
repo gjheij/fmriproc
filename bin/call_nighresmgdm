@@ -14,9 +14,10 @@ from pathlib import Path
 opj = os.path.join
 rb = utils.color.RED+utils.color.BOLD
 gb = utils.color.GREEN+utils.color.BOLD
-end = rb = utils.color.END
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["T1w", "T1map"], allow_input_dir=True)
+def main(argv, context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -87,7 +88,7 @@ Args:
                         - Mask representing the skull (-s|--skull) is a "Filters"
                         - Mask representing the dura (-d|--dura) is a "Filters"
 
-    -x|--kwargs     Extra arguments that will be directly passed to 'cruise_cortex_extraction' (see
+    -x|--kwargs     Extra arguments that will be directly passed to 'mgdm_segmentation' (see
                     docs-link below for details). The format should be as follows: different para-
                     meters comma-separated, and parameter-value pair separated by '='):
                     
@@ -99,14 +100,13 @@ Args:
                     This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
                     The kwargs specified in this flag take precedent over the default kwargs:
 
-                    ```
                     defaults = {
                         "overwrite": True,
                         "save_data": True,
                         "output_dir": "directory specified with -o|--outputdir",
                         "file_name": "basename specified with -n|--name"
                     }
-                    ```
+
 Outputs
     taken from https://nighres.readthedocs.io/en/latest/brain/mgdm_segmentation.html
     Dictionary collecting outputs under the following keys (suffix of output files in brackets)
@@ -133,95 +133,27 @@ Example:
     call_nighresmgdm -t t1w.nii.gz.nii.gz -m t1map.nii.gz
     call_nighresmgdm -i /dir/containing/anatomical/files
 
----------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
     """
 
-    t1w = None
-    t1map = None
-    skull = None
-    dura = None
-    input_dir = None
-    output_dir = opj(os.getcwd(), 'mgdm')
-    output_base = "subject_acq-MP2RAGE_desc"
-    prior_list = [
-        "Mp2rage7T",
-        "T1map7T",
-        "Filters",
-        "Filters"
-    ]
-    kwargs = {}
-
-    try:
-        opts = getopt.getopt(argv,"ht:m:s:d:o:b:i:x:p:n:",["help", "t1w=", "t1map=", "skull=", "dura=", "outputdir=", "name=", "inputdir=", "kwargs=", "priors="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-t", "--t1w"):
-            t1w = arg
-        elif opt in ("-m", "--t1map"):
-            t1map = arg
-        elif opt in ("-s", "--skull"):
-            skull = arg
-        elif opt in ("-d", "--dura"):
-            dura = arg
-        elif opt in ("-o", "--outputdir"):
-            output_dir = arg
-        elif opt in ("-n", "--name"):
-            output_base = arg
-        elif opt in ("-i", "--inputdir"):
-            input_dir = arg  
-        elif opt in ("-p", "--priors"):
-            prior_list = arg
-        elif opt in ("-x", "--kwargs"):
-            kwargs = utils.parse_kwargs_to_dict(arg)
-
-    required_args = 2
-    if (
-        len(argv) < required_args
-        or not isinstance(input_dir, str)
-        or not os.path.isdir(input_dir)
-        ):
-
-        print("\nERROR: Missing or invalid arguments.")
-        if len(argv) < required_args:
-            print(" - Not enough command-line arguments specified.")
-        if not isinstance(input_dir, str):
-            print(" - Input directory is not a string.")
-        elif not os.path.isdir(input_dir):
-            print(f" - Input directory '{input_dir}' does not exist.")
-
-        print(main.__doc__)
-        sys.exit(1)
+    t1w = context["T1w"]
+    t1map = context["T1map"]
+    skull = context.get("skull")
+    dura = context.get("dura")
+    input_dir = context.get("input_dir")
+    output_dir = context.get("output_dir", opj(os.getcwd(), 'mgdm'))
+    output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
+    prior_list = context.get("prior_list", ["Mp2rage7T", "T1map7T", "Filters", "Filters"])
+    kwargs = context.get("kwargs", {})
 
     #---------------------------------------------------------------------------------------------------
     # Collect files depending on whether we got an input directory or not
-    print("Loading files..")
-    files = {}
-    pattern_map = {
-        "T1w": "T1w.nii.gz",
-        "T1map": "T1map.nii.gz",
-        "skull": "skull_mask.nii.gz",
-        "dura": "dura_mask.nii.gz"
+    files = {
+        "T1w": t1w,
+        "T1map": t1map,
+        "skull": skull,
+        "dura": dura
     }
-    if input_dir is not None:
-        # we got passed an input_dir, fetch files from directory
-
-        print(f"Loading files from {gb}{input_dir}{end}..")
-        for key, pattern in pattern_map.items():
-            in_file = utils.get_file_from_substring(pattern, input_dir, return_msg=None)
-            input_kws[key] = in_file
-    else:
-        print("Loading manually specified files..")
-        for key, val in zip(
-            list(pattern_map),
-            [t1w, t1map, skull, dura]
-        ):
-            input_kws[key] = val
 
     #---------------------------------------------------------------------------------------------------
     # Check that input files exist
@@ -240,27 +172,27 @@ Example:
 
     #---------------------------------------------------------------------------------------------------
     # temporarily reorient to RAS
-    print("Checking orientation..")
-
+    print("Checking orientation...")
     orig = {}
     init_files = {}
-    for i in files:
+    orient = False
 
-        ax  = nb.aff2axcodes(nb.load(files[i]).affine, labels=(('R', 'L'), ('A', 'P'), ('S', 'I')))
-        orig[i] = ax[0]+ax[1]+ax[2]
-        ras = ('R','A','S')#temp_code
-        lpi = ('L','P','I')#nb.as_closest_canonical (= RAS+, also seems to work with MGDM)
-        code = ras[0].lower()+ras[1].lower()+ras[2].lower()
+    for i in files:
+        ax = nb.aff2axcodes(nb.load(files[i]).affine, labels=(('R', 'L'), ('A', 'P'), ('S', 'I')))
+        orig[i] = "".join(ax)
+        ras = ('R','A','S')
+        lpi = ('L','P','I')
+        code = ''.join(ras).lower()
 
         if not ax == ras and not ax == lpi:
             orient = True
-            image.reorient_img(files[i], code=code, out=files[i].split('.')[0]+f"_{code}-valid.nii.gz")
-            init_files[i] = files[i].split('.')[0]+f"_{code}-valid.nii.gz"
+            reoriented_file = files[i].split('.')[0]+f"_{code}-valid.nii.gz"
+            image.reorient_img(files[i], code=code, out=reoriented_file)
+            init_files[i] = reoriented_file
         else:
-            orient = False
             init_files[i] = files[i]
 
-    print("Initialization (i.e., orienting) done. Starting procedure..")
+    print("Initialization (i.e., orienting) done. Starting procedure...")
 
     #---------------------------------------------------------------------------------------------------
     # Default kwargs
@@ -268,44 +200,36 @@ Example:
         "save_data": True,
         "overwrite": True,
         "output_dir": output_dir,
-        "file_name": output_base        
+        "file_name": output_base
     }
 
     for key, val in defaults.items():
-        kwargs = utils.update_kwargs(
-            kwargs,
-            key,
-            val
-        )
+        kwargs = utils.update_kwargs(kwargs, key, val)
 
     # Build dynamic argument dict
     mgdm_args = {
         "contrast_image1": init_files["T1w"],
         "contrast_type1": prior_list[0],
         "contrast_image2": init_files["T1map"],
-        "contrast_type2": prior_list[1],
+        "contrast_type2": prior_list[1]
     }
 
     if "dura" in init_files:
-        if len(prior_list)<3:
-            raise ValueError(f"List of priors is <3 ({len(prior_list)}), so I cannot derive what type of file this is..")
-
         mgdm_args["contrast_image3"] = init_files["dura"]
         mgdm_args["contrast_type3"] = prior_list[2]
 
     if "skull" in init_files:
-        if len(prior_list)<3:
-            raise ValueError(f"List of priors is <4 ({len(prior_list)}), so I cannot derive what type of file this is..")
-
         mgdm_args["contrast_image4"] = init_files["skull"]
         mgdm_args["contrast_type4"] = prior_list[3]
 
-    # combine input & kwargs
     combined_kwargs = {**mgdm_args, **kwargs}
 
     #---------------------------------------------------------------------------------------------------
     # Run MGDM
     results = mgdm_segmentation(**combined_kwargs)
+
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
+    print()
 
     #---------------------------------------------------------------------------------------------------
     # Reorient results back to original orientation (if reorientation was done)
@@ -313,41 +237,79 @@ Example:
         print("Reorienting results to original orientation")
         for result_name, result_path in results.items():
             try:
-                # Determine which original input this result came from (fallback to first input)
                 reference_key = list(orig.keys())[0]
                 orig_code = orig.get(reference_key, 'RAS')
-
                 image.reorient_img(result_path, code=orig_code)
             except Exception as e:
                 print(f"Warning: Failed to reorient result '{result_name}': {e}")
 
-        print("Cleaning up temporary reoriented inputs")
-        for key, file_path in ras_files.items():
-            if file_path.endswith(f"{code}-valid.nii.gz"):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    print(f"  Warning: Could not remove {file_path}: {e}")
-
     #---------------------------------------------------------------------------------------------------
-    # Nicer formatting of output filenames
+    # Rename file to BIDS style
+    print("Rename to more BIDS'ey style")
     output_path = Path(output_dir)
     suffixes = ["seg", "dist", "lbls", "mems"]
 
     for suffix in suffixes:
-        old_name = output_path / f"{output_base}_mgdm-{suffix}.nii.gz"
-        new_name = output_path / f"{output_base}-mgdm_{suffix}.nii.gz"
+        fn_old = os.path.join(output_dir, f"{output_base}_{suffix}.nii.gz")
+        fn_new = os.path.join(output_dir, f"{output_base}-{suffix}.nii.gz")
+        if os.path.exists(fn_old):
+            print(f" {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
+            os.rename(fn_old, fn_new)
 
-        if old_name.exists():
-            try:
-                print(f"Renaming: {old_name.name} → {gb}{new_name.name}{end}")
-                old_name.rename(new_name)
-            except Exception as e:
-                print(f"Warning: Could not rename {old_name.name}: {e}")
-        else:
-            print(f"File not found: {rb}{old_name.name}{end}")
-            
     print("Done")
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    t1w = None
+    t1map = None
+    skull = None
+    dura = None
+    input_dir = None
+    output_dir = opj(os.getcwd(), 'mgdm')
+    output_base = "subject_acq-MP2RAGE_desc"
+    prior_list = ["Mp2rage7T", "T1map7T", "Filters", "Filters"]
+    kwargs = {}
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "ht:m:s:d:o:b:i:x:p:n:",
+            ["help", "t1w=", "t1map=", "skull=", "dura=", "outputdir=", "name=", "inputdir=", "kwargs=", "priors="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-t", "--t1w"):
+            t1w = arg
+        elif opt in ("-m", "--t1map"):
+            t1map = arg
+        elif opt in ("-s", "--skull"):
+            skull = arg
+        elif opt in ("-d", "--dura"):
+            dura = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
+        elif opt in ("-i", "--inputdir"):
+            input_dir = arg
+        elif opt in ("-p", "--priors"):
+            prior_list = [i.strip() for i in arg.split(",")] if "," in arg else [arg.strip()]
+        elif opt in ("-x", "--kwargs"):
+            kwargs = utils.parse_kwargs_to_dict(arg)
+
+    main(sys.argv[1:], context={
+        "T1w": t1w,
+        "T1map": t1map,
+        "skull": skull,
+        "dura": dura,
+        "input_dir": input_dir,
+        "output_dir": output_dir,
+        "output_base": output_base,
+        "prior_list": prior_list,
+        "kwargs": kwargs
+    })
