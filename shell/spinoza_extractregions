@@ -255,8 +255,8 @@ for subID in ${search}; do
 
   executed_nighres=0
   if [[ ${COMB_ONLY} -eq 0 ]]; then
-    if [[ ! -f ${output} ]]; then
-      if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
+    if [[ ! -f ${output} || ${OW} -eq 1 ]]; then
+      if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz || ${OW} -eq 1 ]]; then
 
         # print header
         print_subject_header ${sub_name}
@@ -287,7 +287,7 @@ for subID in ${search}; do
     fi
   fi
 
-  if { [[ ! -f "${gm_prob}" ]] || [[ "${COMB_ONLY}" -eq 1 ]]; } && [[ "${SKIP_COMB}" -eq 0 ]]; then
+  if { [[ ! -f "${gm_prob}" ]] || [[ "${COMB_ONLY}" -eq 1 || ${OW} -eq 1 ]]; } && [[ "${SKIP_COMB}" -eq 0 ]]; then
 
     if [[ ${mask_dir} != *"nighres"* ]]; then
 
