@@ -1,11 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
-#$ -pe smp 5
-#Template provided by Daniel Levitas of Indiana University
-#Edits by Andrew Jahn, University of Michigan, 07.22.2020
 
 call_loadsetup
 source call_bashhelper
@@ -202,23 +195,23 @@ if [[ ${fd_only} -eq 0 ]]; then
   fi
 
   # --cleanenv required to prevent interference from FSL v6 present on the spinoza server
-    cmd="""${run_cmd} \
-    ${project} \
-    ${derivatives} \
-    ${proc_level} \
-    ${ses_flag} \
-    ${mod_flag} \
-    --nprocs ${n_cpus} \
-    --omp-nthreads 1 \
-    -w ${work} \
-    --verbose-reports \
-    --mem_gb 64 \
-    --no-sub"""
+  cmd=(
+    "${run_cmd}"
+    "${project}"
+    "${derivatives}"
+    "${proc_level}"
+    "${ses_flag}"
+    "${mod_flag}"
+    --nprocs "${n_cpus}"
+    --omp-nthreads 1
+    -w ${work}
+    --verbose-reports
+    --mem_gb 64
+    --no-sub
+  )
 
   # execute
-  print_cmd "${cmd}"
-  eval "${cmd}" 
-
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

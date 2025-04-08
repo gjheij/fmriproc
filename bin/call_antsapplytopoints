@@ -152,20 +152,26 @@ else
 fi
 
 # apply
-cmd="""antsApplyTransformsToPoints \
-  -d ${DIMS} \
-  -i ${input_csv} \
-  -o ${OUT_CSV} \
-  -t ${APPLY}"""
+cmd=(
+  antsApplyTransformsToPoints
+  --dimensionality "${DIMS}"
+  --input "${input_csv}"
+  --output "${OUT_CSV}"
+  --transform "${APPLY}"
+)
 
 if [[ ${verb} -eq 1 ]]; then
-  print_cmd "${cmd}"
+  print_cmd "${cmd[@]}"
 fi
-eval "${cmd}"
+"${cmd[@]}"
 
 # return command
 if [[ ${return_coord} -eq 1 ]]; then
-  coord=$(call_antsreadchicken ${OUT_CSV} ${trafo_type})
+  coord=$(
+    call_antsreadchicken \
+    "${OUT_CSV}" \
+    "${trafo_type}"
+  )
   echo $coord
 fi
 

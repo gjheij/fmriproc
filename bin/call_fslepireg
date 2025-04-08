@@ -139,9 +139,16 @@ if [[ ! -z ${matrix_file} ]]; then
     # for the mask image (wm), we use a GenericLabel interpolation, for the T1w-images a linear
 
     if [[ ${do_we_have_wm} -eq 1 ]]; then
-        cmd="call_antsapplytransforms --gen ${wm_file} ${wm_file} $(dirname ${out_file})/wm_$(basename $out_file) ${matrix_file}"
-        print_cmd "${cmd}" && eval "${cmd}"
+        cmd=(
+            call_antsapplytransforms
+            --gen
+            "${wm_file}"
+            "${wm_file}"
+            "$(dirname ${out_file})/wm_$(basename $out_file)"
+            "${matrix_file}"
+        )
 
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
             echo
             print_line -
@@ -153,8 +160,16 @@ if [[ ! -z ${matrix_file} ]]; then
         wm_flag="--wmseg=${wm_file}"
     fi
 
-    cmd="call_antsapplytransforms --lin ${t1head} ${t1head} $(dirname ${out_file})/t1head_$(basename $out_file) ${matrix_file}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+        call_antsapplytransforms
+        --lin
+        "${t1head}"
+        "${t1head}"
+        "$(dirname ${out_file})/t1head_$(basename $out_file)"
+        "${matrix_file}"
+    )
+
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -162,8 +177,16 @@ if [[ ! -z ${matrix_file} ]]; then
         exit 1
     fi
 
-    cmd="call_antsapplytransforms --lin ${wm_file} ${wm_file} $(dirname ${out_file})/t1brain_$(basename $out_file) ${matrix_file}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+        call_antsapplytransforms
+        --lin
+        "${wm_file}"
+        "${wm_file}"
+        "$(dirname ${out_file})/t1brain_$(basename $out_file)"
+        "${matrix_file}"
+    )
+
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -187,9 +210,16 @@ fi
 # Check if we should warp functional stuff
 if [[ ! -z ${initial} ]]; then
     initial=$(fetch_filepath ${initial})
-    cmd="call_antsapplytransforms --lin ${t1head} ${epi_file} $(dirname ${out_file})/bold_in_t1head.nii.gz ${initial}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+        call_antsapplytransforms
+        --lin
+        "${t1head}"
+        "${epi_file}"
+        "$(dirname ${out_file})/bold_in_t1head.nii.gz"
+        "${initial}"
+    )
 
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -203,9 +233,16 @@ fi
 #-----------------------------------------------------------------------------
 # Run the epi_reg command
 if [[ -f ${t1head} && -f ${t1brain} ]]; then
-    cmd="epi_reg --epi=${epi_file} --t1=${t1head} --t1brain=${t1brain} --out=${out_file} ${wm_flag}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+        epi_reg
+        --epi="${epi_file}"
+        --t1="${t1head}"
+        --t1brain="${t1brain}"
+        --out="${out_file}"
+        "${wm_flag}"
+    )
 
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -222,6 +259,36 @@ fi
 # Check if we should convert the matrix to ANTs format
 if [[ "${@}" == *"-a"* ]]; then
     fname=$(dirname ${out_file})/$(basename ${out_file} .nii.gz)
-    call_ras2fsl -i ${t1head} ${epi_file} ${fname}.mat ${fname}.txt
-    ConvertTransformFile 3 ${fname}.txt ${fname}_itk.mat --convertToAffineType
+    cmd=(
+        call_ras2fsl
+        -i
+        "${t1head}"
+        "${epi_file}"
+        "${fname}.mat"
+        "${fname}.txt"
+    )
+
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "call_ras2fsl"
+        exit 1
+    fi
+
+    cmd=(
+        ConvertTransformFile
+        3
+        "${fname}.txt"
+        "${fname}_itk.mat"
+        --convertToAffineType
+    )
+
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "ConvertTransformFile"
+        exit 1
+    fi
 fi

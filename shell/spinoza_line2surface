@@ -179,8 +179,16 @@ for f in ${ff[@]}; do
     else
       interp="nn"
     fi
-    cmd="call_antsapplytransforms -i 1 --${interp} ${fs_ref} ${f} ${transform_fs} ${from_fs_to_ses2}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+      call_antsapplytransforms
+      -i 1 
+      --${interp}
+      "${fs_ref}"
+      "${f}"
+      "${transform_fs}"
+      "${from_fs_to_ses2}"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
     if [[ $? != 0 ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
@@ -207,7 +215,7 @@ for f in ${qq[@]}; do
 
     print_create_img "${transform_ctx}"
     cmd="call_ctxsurfmove ${SUB} ${f} ${transform_ctx}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    print_cmd "${cmd}" && "${cmd}"
 
     if [[ $? -ne 0 ]]; then
       echo
@@ -228,11 +236,17 @@ echo "Done"
 echo
 echo "[STEP 3]: create the warp that pycortex needs for the viewer"
 
-if [[ ! -d ${outputdir}/${SUB}/transforms/fs2ctx ]]; then
+if [[ ! -d "${outputdir}/${SUB}/transforms/fs2ctx" ]]; then
   ref=$(find ${outputdir}/${SUB}/warped -type f -name "*space-ctx*" -and -name "*.nii.gz" -print -quit 2>/dev/null)
-  if [[ ! -z ${ref} ]]; then
-    cmd="call_ctxtransform -s ${SUB} -c ${outputdir} -i ${ref} -w fs2ctx"
-    print_cmd "${cmd}" && eval "${cmd}"
+  if [[ ! -z "${ref}" ]]; then
+    cmd=(
+      call_ctxtransform
+      -s "${SUB}"
+      -c "${outputdir}"
+      -i "${ref}"
+      -w fs2ctx
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
   fi
 fi
 

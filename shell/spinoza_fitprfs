@@ -601,52 +601,57 @@ for subID in ${search}; do
 
           # define call to call_prf
           export DISPLAY=:0
-          cmd="""${job} ${grid_flag} ${fit_hrf} ${clip_flag} \
-            -s ${sub_id} \
-            -n ${nr} \
-            -t ${task} \
-            -o ${prf_dir} \
-            -i ${full_input} \
-            -p ${use_pngdir} \
-            -u ${use_space} \
-            --${use_model} \
-            --jobs ${n_cpus} \
-            --n-pix ${n_pix} \
-            ${pyb_flag} \
-            ${folds_flag} \
-            ${tr_flag} \
-            ${kwargs_file} \
-            ${save_grid} \
-            ${lbl_flag} \
-            ${zscore_flag} \
-            ${raw_flag} \
-            ${verb_flag} \
-            ${OW_flag} \
-            ${use_constr} \
-            ${fit_flag} \
-            ${cut_vols} \
-            ${bounds_flag} \
-            ${merge_flag} \
-            ${bold_flag} \
-            ${dm_flag} \
-            ${redo_bold} \
-            ${skip_flag} \
-            ${trans_flag} \
-            ${par_flag} \
-            ${fix_hrf}"""
+          cmd=(
+            "${job}"
+            "${grid_flag}"
+            "${fit_hrf}"
+            "${clip_flag}"
+            -s "${sub_id}"
+            -n "${nr}"
+            -t "${task}"
+            -o "${prf_dir}"
+            -i "${full_input}"
+            -p "${use_pngdir}"
+            -u "${use_space}"
+            --${use_model}
+            --jobs "${n_cpus}"
+            --n-pix "${n_pix}"
+            "${pyb_flag}"
+            "${folds_flag}"
+            "${tr_flag}"
+            "${kwargs_file}"
+            "${save_grid}"
+            "${lbl_flag}"
+            "${zscore_flag}"
+            "${raw_flag}"
+            "${verb_flag}"
+            "${OW_flag}"
+            "${use_constr}"
+            "${fit_flag}"
+            "${cut_vols}"
+            "${bounds_flag}"
+            "${merge_flag}"
+            "${bold_flag}"
+            "${dm_flag}"
+            "${redo_bold}"
+            "${skip_flag}"
+            "${trans_flag}"
+            "${par_flag}"
+            "${fix_hrf}"
+          )
 
           if [[ ${run_local} -eq 1 ]]; then
-            print_cmd "${cmd}"
+            print_cmd "${cmd[@]}"
           fi
 
           cmd_file="${prf_dir}/sub-${sub_id}_ses-${nr}_task-${task}_desc-command.txt"
           (
             echo "### New invocation of ${script_name} @$(date)"
-            echo "$(echo ${cmd} | xargs)"
+            echo "$(echo ${cmd[@]} | xargs)"
             echo
           ) >> "${cmd_file}"
 
-          eval "${cmd}"
+          "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             echo
             print_line -

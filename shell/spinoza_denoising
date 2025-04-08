@@ -298,25 +298,27 @@ for subID in ${search}; do
         fi
 
         # full path is needed for qsub
-        cmd="""${job} \
-          -s ${sub_id} \
-          ${ses_flag} \
-          -o ${DENOISE} \
-          -r ${PYBEST_SPACE} \
-          -f ${FPREP} \
-          -c ${n_cpus} \
-          -p ${PYBEST_N_COMPS} \
-          ${kwargs_flags} \
-          ${task_flag} \
-          ${pre_flag} \
-          ${post_flag} \
-          ${pyb_flag} \
-          ${raw_flag}"""
+        cmd=(
+          "${job}"
+          -s "${sub_id}"
+          "${ses_flag}"
+          -o "${DENOISE}"
+          -r "${PYBEST_SPACE}"
+          -f "${FPREP}"
+          -c "${n_cpus}"
+          -p "${PYBEST_N_COMPS}"
+          "${kwargs_flags}"
+          "${task_flag}"
+          "${pre_flag}"
+          "${post_flag}"
+          "${pyb_flag}"
+          "${raw_flag}"
+        )
 
         if [[ ${run_local} -eq 1 ]]; then
-          print_cmd "${cmd}"
+          print_cmd "${cmd[@]}"
         fi
-        eval "${cmd}"
+        "${cmd[@]}"
 
         if [[ $? != 0 ]]; then
           print_error_msg "$(basename ${0})" "call_pybest"

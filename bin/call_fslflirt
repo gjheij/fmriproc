@@ -76,9 +76,17 @@ arg_str="${extra_args[*]}"
 # Run it
 if [[ -f "$ref" && -f "$in" ]]; then
   if [[ ! -f "$omat" ]]; then
-    cmd=(flirt -in "$in" -ref "$ref" -out "$out" -omat "$omat" "${extra_args[@]}")
+    cmd=(
+      flirt
+      -in "${in}"
+      -ref "${ref}"
+      -out "${out}"
+      -omat "${omat}"
+      "${extra_args[@]}"
+    )
+
     echo "Running FLIRT with command:"
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
@@ -86,7 +94,7 @@ if [[ -f "$ref" && -f "$in" ]]; then
       exit 1
     fi
   else
-    echo "Skipping registration: matrix '$omat' already exists."
+    echo "Skipping registration: matrix '${omat}' already exists."
   fi
 else
   echo

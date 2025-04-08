@@ -233,26 +233,28 @@ for subID in ${search}; do
           job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
 
           # define command
-          cmd="""${job} \
-            -i ${input_dir} \
-            -o ${output_dir} \
-            -b ${output_base} \
-            ${PARS_FLAG} \
-            ${UPs} \
-            ${lower} \
-            ${upper} \
-            ${SKIP_BG}"""
+          cmd=(
+            "${job}"
+            -i "${input_dir}"
+            -o "${output_dir}"
+            -b "${output_base}"
+            "${PARS_FLAG}"
+            "${UPs}"
+            "${lower}"
+            "${upper}"
+            "${SKIP_BG}"
+          )
 
-            # execute command
-            if [[ ${run_local} -eq 1 ]]; then
-              print_cmd "${cmd}"
-            fi
+          # execute command
+          if [[ ${run_local} -eq 1 ]]; then
+            print_cmd "${cmd[@]}"
+          fi
 
-            eval "${cmd}"
-            if [[ $? -ne 0 ]]; then
-              print_error_msg "$(basename ${0})" "call_${a,,}"
-              exit 1
-            fi
+          "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            print_error_msg "$(basename ${0})" "call_${a,,}"
+            exit 1
+          fi
         else
           # mprage job
           for file in ${in_files[@]}; do
@@ -268,22 +270,24 @@ for subID in ${search}; do
             job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
 
             # define command
-            cmd="""${job} \
-              ${kwargs} \
-              ${spm_flag} \
-              ${reg_flag} \
-              ${intensity_flag} \
-              ${file} \
-              ${lower} \
-              ${upper} \
-              ${output_dir}/${output_base}"""
+            cmd=(
+              "${job}"
+              "${kwargs}"
+              "${spm_flag}"
+              "${reg_flag}"
+              "${intensity_flag}"
+              "${file}"
+              "${lower}"
+              "${upper}"
+              "${output_dir}/${output_base}"
+            )
 
             # execute command
             if [[ ${run_local} -eq 1 ]]; then
               echo -e "Processing \"${BOLD_GREEN}${file}${RESET}\""
             fi
             
-            eval "${cmd}"
+            "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_${a,,}"
               exit 1

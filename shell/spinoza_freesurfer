@@ -300,22 +300,24 @@ for subID in ${search}; do
         fi
       fi
 
-      cmd="""call_freesurfer \
-        -s ${sub_name} \
-        -t ${input_t1w} \
-        -r ${STAGE} \
-        -j ${n_cpus} \
-        ${SGE_QUEUE} \
-        ${start_flag} \
-        ${T2_flag} \
-        ${highres_flag} \
-        ${expert_flag} \
-        ${XOPTS_} \
-        ${sge_flag} \
-        ${use_t2_flag} \
-        ${force_flag}"""
+      cmd=(
+        call_freesurfer
+        -s "${sub_name}"
+        -t "${input_t1w}"
+        -r "${STAGE}"
+        -j "${n_cpus}"
+        "${SGE_QUEUE}"
+        "${start_flag}"
+        "${T2_flag}"
+        "${highres_flag}"
+        "${expert_flag}"
+        "${XOPTS_}"
+        "${sge_flag}"
+        "${use_t2_flag}"
+        "${force_flag}"
+      )
 
-      print_cmd "${cmd}" && eval "${cmd}"
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
         print_error_msg "$(basename ${0})" "call_freesurfer"
         exit 1

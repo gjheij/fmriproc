@@ -173,24 +173,26 @@ if [[ ! -d $(dirname ${OUT}) ]]; then
   mkdir -p $(dirname ${OUT})
 fi
 
-cmd="""antsApplyTransforms \
-  --dimensionality 3 \
-  --float 1 \
-  ${VERBOSE} \
-  --interpolation ${INT} \
-  --input-image-type 3 \
-  --reference-image ${REF} \
-  --input ${MOV} \
-  ${ARRAY[@]} \
-  --output ${OUT}"""
+cmd=(
+  antsApplyTransforms
+  --dimensionality 3
+  --float 1
+  ${VERBOSE}
+  --interpolation ${INT}
+  --input-image-type 3
+  --reference-image "${REF}"
+  --input "${MOV}"
+  "${ARRAY[@]}"
+  --output "${OUT}"
+)
 
 if [ ${VERB} -eq 1 ]; then
-  print_cmd "${cmd}"
+  print_cmd "${cmd[@]}"
   echo
 fi 
 
 # eval doesn't quit script like 'exec' does
-eval "${cmd}"
+"${cmd[@]}"
 
 if [[ $? != 0 ]]; then
   echo

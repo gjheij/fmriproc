@@ -273,7 +273,7 @@ for subID in ${search}; do
           ${kwargs_flag}
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -324,18 +324,18 @@ for subID in ${search}; do
       fi
 
       cmd=(
-        ${run_cmd}
-        --sub ${sub_name}
-        --cat ${cat12}
-        --fast ${fprep_dir}
-        --fs ${fs}
-        --nighres ${region_dir}
-        --manual ${mask_dir}
-        --outputdir ${mask_dir}
-        --outputbase ${base}_acq-${DATA^^}
+        "${run_cmd}"
+        --sub "${sub_name}"
+        --cat "${cat12}"
+        --fast "${fprep_dir}"
+        --fs "${fs}"
+        --nighres "${region_dir}"
+        --manual "${mask_dir}"
+        --outputdir "${mask_dir}"
+        --name "${base}_acq-${DATA^^}"
       )
 
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo

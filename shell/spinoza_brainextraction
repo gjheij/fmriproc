@@ -376,8 +376,14 @@ for subID in ${search}; do
           fi
 
           if [[ ! -f ${brainmask} ]]; then
-            cmd="""call_cat12 ${mode} -s ${SPM_PATH} ${input} ${BET}"""
-            print_cmd "${cmd}" && eval "${cmd}"
+            cmd=(
+              call_cat12
+              "${mode}"
+              -s "${SPM_PATH}"
+              "${input}"
+              "${BET}"
+            )
+            print_cmd "${cmd[@]}" && "${cmd[@]}"
 
             if [[ $? != 0 ]]; then
               print_error_msg "$(basename ${0})" "call_cat12"
@@ -386,6 +392,7 @@ for subID in ${search}; do
 
             if [[ ${rename_base} -eq 1 ]]; then 
               cmd="rename $(basename ${input} .nii.gz) ${base}_acq-${DATA^^}_T1w ${BET}/*"
+              ${cmd} 2>dev/null
             fi
 
             mask_img=$(find -L ${BET} -type f -name "mask*" -print -quit 2>/dev/null)
@@ -413,31 +420,6 @@ for subID in ${search}; do
         biascorr=$(find -L ${BET} -type f -name "m${sub_name}*" 2>/dev/null)
         if [[ ! -z ${biascorr} ]]; then
 
-          # truncate and 
-          echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
-          cmd="call_winsorize -l ${lower} -u ${upper} ${biascorr}"
-          print_cmd "${cmd}" && eval "${cmd}"
-
-          if [[ $? != 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_winsorize"
-            exit 1
-          fi
-
-          # rescale clipped image
-          echo -e "Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
-          cmd="call_rescale ${biascorr} 0 4095 ${corrected_t1w}"
-          print_cmd "${cmd}" && eval "${cmd}"
-
-          if [[ $? != 0 ]]; then
-            echo
-            print_line -
-            print_error_msg "$(basename ${0})" "call_rescale"
-            exit 1
-          fi
-
-          # copy qform to sform
-          fslorient -copyqform2sform ${corrected_t1w}
-
           # Apply mask to T1w/T1map for MDGM input
           mask_img=$(find -L ${BET} -type f -name "mask*" -print -quit 2>/dev/null)
           if [[ ! -z ${mask_img} ]]; then
@@ -449,9 +431,15 @@ for subID in ${search}; do
           if [[ ! -z ${spm_mask} ]]; then
             echo "Getting rid of CAT12-induced background with SPM-mask"
 
-            cmd="call_rmbackground -t ${corrected_t1w} -m ${spm_mask} -i ${input} -o ${corrected_t1w}"
-            print_cmd "${cmd}" && eval "${cmd}"
+            cmd=(
+              call_rmbackground
+              -t "${biascorr}"
+              -m "${spm_mask}"
+              -i "${input}"
+              -o "${corrected_t1w}"
+            )
 
+            print_cmd "${cmd[@]}" && "${cmd[@]}"
             if [[ $? != 0 ]]; then
               echo
               print_line -
@@ -459,29 +447,40 @@ for subID in ${search}; do
               exit 1
             fi
 
-            # truncate image intensities
-            call_winsorize -l 0.01 -u 0.99 ${corrected_t1w}
-            if [[ $? != 0 ]]; then
-              print_error_msg "$(basename ${0})" "call_winsorize"
-              exit 1
-            fi
+            echo "Running post-processing to fix intensities and datatype"
+            cmd=(
+              call_wsd
+              -l "${lower}"
+              -u "${upper}"
+              "${corrected_t1w}"
+            )
 
-            call_rescale ${corrected_t1w} 0 4095
-            if [[ $? != 0 ]]; then
-              echo
-              print_line -
-              print_error_msg "$(basename ${0})" "call_rescale"
+            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
+              print_error_msg "$(basename ${0})" "call_wsd"
               exit 1
             fi
 
             if [[ ! -d $(dirname ${spm}) ]]; then
               mkdir -p $(dirname ${spm})
             fi
-            cp ${spm_mask} ${spm}
+            cp ${spm_mask} ${spm} 2>/dev/null
           fi
         else
-          echo -e "Could not find m*-image; copying ${BOLD_GREEN}${input}${RESET} to CAT12-directory"
-          cp "${input}" "${BET}"
+          echo -e "Could not find m*-image; running ${BOLD_BLUE}call_wsd${RESET} on ${BOLD_GREEN}${input}${RESET}"
+          cmd=(
+            call_wsd
+            -l "${lower}"
+            -u "${upper}"
+            "${input}"
+            "${BET}/$(basename ${input})"
+          )
+
+          print_cmd "${cmd[@]}" && "${cmd[@]}"
+          if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
+            print_error_msg "$(basename ${0})" "call_wsd"
+            exit 1
+          fi
         fi
       else
         if [[ -z ${input} ]]; then
@@ -507,13 +506,25 @@ for subID in ${search}; do
     fi
 
     if [[ ! -z ${spm_mask} ]]; then
-      cp ${spm_mask} ${spm}
+      cp ${spm_mask} ${spm} 2>/dev/null
     fi
 
     # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
     if [[ -f ${spm} && -f ${brainmask} ]]; then
-      cmd="fslmaths ${spm} -sub ${brainmask} -thr 0 ${duramask}"
-      print_cmd "${cmd}" && eval "${cmd}"
+      cmd=(
+        fslmaths
+        ${spm}
+        -sub ${brainmask}
+        -thr 0
+        ${duramask}
+      )
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      if [[ $? != 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "fslmaths"
+        exit 1
+      fi      
       echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
     fi
 

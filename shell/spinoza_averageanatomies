@@ -134,7 +134,7 @@ for subID in ${search}; do
           cmd="call_calculatemean ${ref} ${in_files[@]} ${out}"
         fi
         
-        eval "${cmd}"
+        print_cmd "${cmd}" && "${cmd}"
 
         if [[ $? != 0 ]]; then
           echo
@@ -191,11 +191,11 @@ for subID in ${search}; do
     spm=${spm_imgs[0]}
 
     # rename
-    final_spm="${output_dir}/${base}_acq-${DATA}_desc-spm_mask.nii.gz 2>/dev/null"
-    cp "${spm}" "${final_spm}"
+    final_spm="${output_dir}/${base}_acq-${DATA}_desc-spm_mask.nii.gz"
+    cp "${spm}" "${final_spm}" 2>/dev/null
   fi
 
-  t2_newspace=$(find ${input_dir} -type f \( -name "*acq-3DTSE*" -and -name "*space*" \) 2>/dev/null)
+  t2_newspace=$(find ${input_dir} -type f \( -name "*space*" -and -name "*T2w.nii.gz" \) 2>/dev/null)
   if [ ! -z ${t2_newspace} ]; then
     cp ${t2_newspace} ${output_dir}/${base}_acq-${DATA}_T2w.nii.gz 2>/dev/null
   fi  

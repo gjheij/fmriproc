@@ -20,11 +20,13 @@ rather than .nii.gz, set the output file to .nii. Internally, we'll convert any 
 for other operations. If the output file has .nii extension, the final output will not be gzip'ed
 
 Args:
-  --mag     use magnitude only
-  --tsnr    make tSNR images before and after NORDIC
-  <mag>     magnitude image
-  <phase>   phase image
-  <output>  nordic'ed output
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.99) for call_winsorize
+  --mag           use magnitude only
+  --tsnr          make tSNR images before and after NORDIC
+  <mag>           path representing the magnitude image
+  <phase>         path representing the phase image
+  <output>        path representing the nordic'ed output
 
 Usage:
   call_nordic [options] <mag file> <phase file> <nordic output>
@@ -44,7 +46,9 @@ USAGE
 # Deal with arguments
 mag_only=0
 make_tsnr=0
-while getopts :-:hmv: arg; do
+lower=0.01
+upper=0.99
+while getopts :-:hmv:u:l: arg; do
   case ${arg} in
     -)
       case "${OPTARG}" in
@@ -63,6 +67,10 @@ while getopts :-:hmv: arg; do
       esac;;    
     m)  mag_only=1
         ;;
+    l)  lower=${OPTARG}
+          ;;
+    u)  upper=${OPTARG}
+          ;;
   esac
 done
 
@@ -71,9 +79,9 @@ if [[ $# -lt 3 ]] ; then
   exit 1
 fi
 
-IMG_MAGN=${@:$OPTIND:1}
-IMG_PHASE=${@:$OPTIND+1:1}
-IMG_NORDIC=${@:$OPTIND+2:1}
+IMG_MAGN="${@:$OPTIND:1}"
+fn_phase="${@:$OPTIND+1:1}"
+fn_nordic="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # Get bash helper functions
@@ -82,10 +90,7 @@ source call_bashhelper
 #-----------------------------------------------------------------------------
 # Add entire path if just filename is specified
 fn_mag=$(fetch_filepath ${IMG_MAGN})
-fn_phase=$(fetch_filepath ${IMG_PHASE})
-fn_nordic=$(fetch_filepath ${IMG_NORDIC})
-
-ext_mag=$(fetch_extension ${IMG_MAGN})
+ext_mag=$(fetch_extension ${fn_mag})
 if [[ ${ext_mag} == "gz" ]]; then
   nii_mag=".nii.gz"
 else
@@ -93,20 +98,24 @@ else
   gzip -f ${fn_mag}
 fi
 
-ext_ph=$(fetch_extension ${IMG_PHASE})
+ext_ph=$(fetch_extension ${fn_phase})
 if [[ ${ext_ph} == "nii" ]]; then
   gzip -f ${fn_phase}
 fi
 
 # check if datatype != FLOAT64; might crash..
-dtype=$(fslval ${fn_mag} data_type)
+dtype=$(fslval "${fn_mag}" data_type)
 if [ ${dtype} == "FLOAT64" ]; then
   echo "Changing data_type of magnitude-image from float64 to uint16"
-  call_setdtype ${fn_mag}
+  cmd=(
+    call_setdtype
+    "${fn_mag}"
+  )
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 fi
 
-json_mag=$(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_mag}).json
-call_json ${json_mag} "Nordic" "off"
+json_mag="$(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_mag}).json"
+call_json "${json_mag}" "Nordic" "off"
 
 #-----------------------------------------------------------------------------
 # Get extension from input file
@@ -118,15 +127,22 @@ if [[ ${ext_nordic} == "gz" ]]; then
 else
   nii_ext=".nii"
 fi
-fn_nordic=$(dirname ${fn_nordic})/$(basename ${fn_nordic} ${nii_ext})
+fn_nordic="$(dirname ${fn_nordic})/$(basename ${fn_nordic} ${nii_ext})"
 
 # try to get run-ID from input file
-run_id=$(get_id ${fn_nordic} "run")
+run_id=$(get_id "${fn_nordic}" "run")
 
 #-----------------------------------------------------------------------------
 # winsorize intensities of nordic
 echo "Winsorizing intensities of magnitude image"
-call_winsorize ${fn_mag}
+cmd=(
+  call_winsorize
+  -l "${lower}"
+  -u "${upper}"
+  "${fn_mag}"
+)
+
+print_cmd "${cmd[@]}" && "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   print_error_msg "$(basename ${0})" "call_winsorize"
   exit 1
@@ -141,17 +157,22 @@ fi
 
 #-----------------------------------------------------------------------------
 # Run new script
-if [[ -f ${fn_mag} && -f ${fn_phase} ]]; then
+if [[ -f "${fn_mag}" && -f "${fn_phase}" ]]; then
 
-  make_nordic_script ${fn_mag} ${fn_phase} ${fn_nordic} ${mag_only} ${new_script}
+  make_nordic_script \
+    "${fn_mag}" \
+    "${fn_phase}" \
+    "${fn_nordic}" \
+    "${mag_only}" \
+    "${new_script}"
 
   # calculate tSNR before nordic
   if [[ ${make_tsnr} -eq 1 ]]; then
     # echo "Calculating tSNR pre-NORDIC"
     # call_tsnr2 --clean ${fn_mag} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_pre_nordic${nii_ext}
-    tsnr_out=$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpre_bold${nii_ext}
+    tsnr_out="$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpre_bold${nii_ext}"
     
-    call_tsnr ${fn_mag} ${tsnr_out}
+    call_tsnr "${fn_mag}" "${tsnr_out}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
@@ -159,7 +180,7 @@ if [[ -f ${fn_mag} && -f ${fn_phase} ]]; then
       exit 1
     fi
 
-    call_winsorize ${tsnr_out}
+    call_winsorize "${tsnr_out}"
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_winsorize"
       exit 1
@@ -209,9 +230,9 @@ call_json ${fn_nordic}.json "Nordic" ${msg}
 if [[ ${make_tsnr} -eq 1 ]]; then
   # echo "Calculating tSNR post-NORDIC"
   # call_tsnr2 --clean ${nord_file} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_post_nordic${nii_ext}
-  tsnr_out=$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpost_bold${nii_ext}
+  tsnr_out="$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpost_bold${nii_ext}"
 
-  call_tsnr ${nord_file} ${tsnr_out}
+  call_tsnr "${nord_file}" "${tsnr_out}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
@@ -219,7 +240,7 @@ if [[ ${make_tsnr} -eq 1 ]]; then
     exit 1
   fi
 
-  call_winsorize ${tsnr_out}
+  call_winsorize "${tsnr_out}"
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_winsorize"
     exit 1
@@ -227,4 +248,10 @@ if [[ ${make_tsnr} -eq 1 ]]; then
 fi
 
 # copy geometry from input image
-call_copyheader ${fn_mag} ${nord_file}
+call_copyheader "${fn_mag}" "${nord_file}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_copyheader"
+  exit 1
+fi

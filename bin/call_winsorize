@@ -101,15 +101,24 @@ fi
 
 # set dimensions and define command
 dim=$(fslval ${in_file} dim0)
-cmd="""ImageMath ${dim} ${out_file} TruncateImageIntensity ${in_file} ${lower} ${upper} ${n_bins}"""
+cmd=(
+  ImageMath
+  "${dim}"
+  "${out_file}"
+  TruncateImageIntensity
+  "${in_file}"
+  "${lower}"
+  "${upper}"
+  "${n_bins}"
+)
 
 # echo cmd
 if [[ ${VERB} -eq 1 ]]; then
-  print_cmd "${cmd}"
+  print_cmd "${cmd[@]}"
 fi
 
 # run cmd
-eval "${cmd}"
+"${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo

@@ -81,8 +81,14 @@ if [[ ! -d $(dirname ${aff}) ]]; then
 fi
 
 if [[ ! -f ${aff} ]]; then
-  cmd="call_antsregistration ${ses2} ${orig} $(dirname ${aff})/$(basename ${aff} genaff.mat) rigid"
-  print_cmd "${cmd}" && eval "${cmd}"
+  cmd=(
+    call_antsregistration
+    "${ses2}"
+    "${orig}"
+    "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+    rigid
+  )
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 else
   echo "Found outdated file; remove and run again to overwrite"
 fi

@@ -191,22 +191,27 @@ INPUT=$(fetch_filepath ${INPUT})
 # Do some preprocessing with 'scanphyslog2bids' from Lukas Snoek:
 if [[ ${RUN_PHYS} -eq 1 ]]; then
 
-  cmd="""scanphyslog2bids \
-    --file ${INPUT} \
-    --tr ${TR} \
-    --ndyns ${VOLS} \
-    --sf 496 \
-    --triggermethod interpolate \
-    --outdir $(dirname ${INPUT}) \
-    ${MAKE_PLOTS} \
-    --derivdir $(dirname ${INPUT})"""
+  # scanphyslog2bids required
+  check_python_package "scanphyslog2bids"
+
+  cmd=(
+    scanphyslog2bids
+    --file "${INPUT}"
+    --tr "${TR}"
+    --ndyns "${VOLS}"
+    --sf 496
+    --triggermethod interpolate
+    --outdir "$(dirname ${INPUT})"
+    ${MAKE_PLOTS}
+    --derivdir "$(dirname ${INPUT})"
+  )
   
   # echo and run
-  print_cmd "${cmd}"
-  eval "${cmd}"
-
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): scanphyslog2bids exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "scanphyslog2bids"
     exit 1
   fi
 

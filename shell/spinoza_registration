@@ -248,11 +248,11 @@ for subID in ${search}; do
       ext="from-T1w_to-${space}"
     fi
 
-    outWarp=${output_dir}/${base}_${ext}_mode-image_warp.nii.gz
-    outInvWarp=${output_dir}/${base}_${ext}_mode-image_invwarp.nii.gz
-    outGenAff=${output_dir}/${base}_${ext}_mode-image_xfm.mat
-    outFSLAff=${output_dir}/${base}_${ext}_mode-image_fsl.mat
-    cmd_file=${output_dir}/${base}_${ext}_mode-image_cmd.txt
+    outWarp="${output_dir}/${base}_${ext}_mode-image_warp.nii.gz"
+    outInvWarp="${output_dir}/${base}_${ext}_mode-image_invwarp.nii.gz"
+    outGenAff="${output_dir}/${base}_${ext}_mode-image_xfm.mat"
+    outFSLAff="${output_dir}/${base}_${ext}_mode-image_fsl.mat"
+    cmd_file="${output_dir}/${base}_${ext}_mode-image_cmd.txt"
 
     # echo "${txt}"
     # echo "Code: ${code}"
@@ -261,19 +261,21 @@ for subID in ${search}; do
     # echo "WARP: ${outGenAff}"
     # exit 1
 
-    if [[ ! -f ${outGenAff} ]]; then
-      if [[ ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
-        cmd="""call_antsregistration \
-          ${fsl_flag} \
-          ${verb_flag} \
-          ${reg_type} \
-          -j ${n_cpus} \
-          ${fixed_file} \
-          ${moving} \
-          ${output_dir}/${base}_${ext}"""
+    if [[ ! -f "${outGenAff}" ]]; then
+      if [[ ! -f "${output_dir}/${base}_${ext}genaff.mat" ]]; then
+        cmd=(
+          call_antsregistration
+          "${fsl_flag}"
+          "${verb_flag}"
+          "${reg_type}"
+          -j "${n_cpus}"
+          "${fixed_file}"
+          "${moving}"
+          "${output_dir}/${base}_${ext}"
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
-        if [[ $? -ne 0 || ! -f ${output_dir}/${base}_${ext}genaff.mat ]]; then
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        if [[ $? -ne 0 || ! -f "${output_dir}/${base}_${ext}genaff.mat" ]]; then
 
           # debugging purposes
           if [[ $? -eq 0 ]]; then
@@ -286,17 +288,17 @@ for subID in ${search}; do
         fi
 
         if [[ ${reg_type} == "--syn" ]]; then
-          mv ${output_dir}/${base}_${ext}1Warp.nii.gz ${outWarp} 2>/dev/null
-          mv ${output_dir}/${base}_${ext}1InverseWarp.nii.gz ${outInvWarp} 2>/dev/null
+          mv "${output_dir}/${base}_${ext}1Warp.nii.gz" "${outWarp}" 2>/dev/null
+          mv "${output_dir}/${base}_${ext}1InverseWarp.nii.gz" "${outInvWarp}" 2>/dev/null
         fi
 
         # we'll have this file regardless of registration type
-        mv ${output_dir}/${base}_${ext}genaff.mat ${outGenAff} 2>/dev/null
-        mv ${output_dir}/${base}_${ext}command.txt ${cmd_file} 2>/dev/null
+        mv "${output_dir}/${base}_${ext}genaff.mat" "${outGenAff}" 2>/dev/null
+        mv "${output_dir}/${base}_${ext}command.txt" "${cmd_file}" 2>/dev/null
 
         # check if we got fsl output
-        if [[ -f ${output_dir}/${base}_${ext}fsl.mat ]]; then
-          mv ${output_dir}/${base}_${ext}fsl.mat ${outFSLAff} 2>/dev/null
+        if [[ -f "${output_dir}/${base}_${ext}fsl.mat" ]]; then
+          mv "${output_dir}/${base}_${ext}fsl.mat" "${outFSLAff}" 2>/dev/null
         fi
       fi
     else
@@ -312,11 +314,11 @@ for subID in ${search}; do
         # check if file exists and warp it
         suff=$(echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1)
         in_file=$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz
-        if [ -f ${in_file} ]; then
+        if [ -f "${in_file}" ]; then
 
           # define output
-          acq=$(get_id ${moving} acq)
-          output=$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_space-${space}_${out}.nii.gz
+          acq=$(get_id "${moving}" acq)
+          output="$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_space-${space}_${out}.nii.gz"
 
           # overwrite if requested
           if [[ ${OW} -eq 1 ]]; then
@@ -333,9 +335,17 @@ for subID in ${search}; do
               invert="0"
             fi          
             echo " creating \"${output}\""
-            cmd="call_antsapplytransforms -i ${invert} ${fixed_file} ${in_file} ${output} ${matrices}"
-            eval "${cmd}"
+            cmd=(
+              call_antsapplytransforms
+              -i \"${invert}\"
+              "${fixed_file}"
+              "${in_file}"
+              "${output}"
+              \"${matrices}\"
+            )
 
+            # run
+            "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1

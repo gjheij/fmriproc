@@ -74,8 +74,7 @@ if [[ -f "${input}" && ! -f "${output}.nii.gz" ]]; then
     exit 1
   fi
 
-  print_cmd "${cmd[@]}"
-  eval "${cmd[@]}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   
   if [[ $? -ne 0 ]]; then
     echo

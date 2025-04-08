@@ -76,9 +76,15 @@ iout="${warp%.nii.gz}_warped.nii.gz"
 #-----------------------------------------------------------------------------
 # Run it
 if [[ -f "$ref" && -f "$in" && -f "$affine" ]]; then
-  cmd=(fnirt --in="$in" --ref="$ref" --aff="$affine" "${extra_args[@]}")
+  cmd=(
+    fnirt
+    --in="${in}"
+    --ref="${ref}"
+    --aff="${affine}"
+    "${extra_args[@]}"
+  )
   echo "Running FNIRT with command:"
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

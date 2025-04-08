@@ -179,9 +179,14 @@ for subID in ${search}; do
 
       if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
         echo -e "Running FAST on ${BOLD_GREEN}${input_t1w}${RESET}"
-        cmd="call_fslfast ${input_t1w} ${outputroot} ${kwargs}"
-        print_cmd "${cmd}" && eval "${cmd}"
+        cmd=(
+          call_fslfast
+          "${input_t1w}"
+          "${outputroot}"
+          "${kwargs}"
+        )
 
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_fslfast"
           exit 1

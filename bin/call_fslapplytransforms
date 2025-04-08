@@ -79,7 +79,13 @@ missing=0
 #---------------------------------------------------------------------------------------------------------
 # Build command
 cmd=(
-  flirt -in "$moving" -ref "$ref" -out "$output" -init "$matrix" -applyxfm)
+  flirt 
+  -in "$moving" \
+  -ref "$ref" \
+  -out "$output" \
+  -init "$matrix" \
+  -applyxfm
+)
 
 if [[ $invert_flag -eq 1 ]]; then
   cmd+=("-inverse")
@@ -89,7 +95,7 @@ cmd+=("${extra_args[@]}")
 
 #---------------------------------------------------------------------------------------------------------
 # Execute
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+print_cmd "${cmd[@]}" && "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo

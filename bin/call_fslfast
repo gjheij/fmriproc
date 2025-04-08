@@ -78,8 +78,15 @@ done
 #-----------------------------------------------------------------------------
 # Run it
 if [[ -f ${input} ]]; then
-  cmd=("fast" "${extra_args[@]}" "-o" "${output}" "${input}")
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  cmd=(
+    fast
+    "${extra_args[@]}"
+    "-o"
+    "${output}"
+    "${input}"
+  )
+
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

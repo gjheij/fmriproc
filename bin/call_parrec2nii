@@ -89,9 +89,6 @@ fn_exists()
   fi
 }
 
-cmd="parrec2nii"
-fn_exists ${cmd}
-
 #-----------------------------------------------------------------------------
 # Set default inputs/outputs
 if [[ -z ${pathInput} ]]; then
@@ -164,9 +161,20 @@ for par in ${par_files[@]}; do
   ext=$(fetch_extension ${par})
   orig_out=${pathOutput}/$(basename ${par} .${ext}).nii.gz
   if [ ! -f ${orig_out} ]; then
-    ${cmd} --scaling fp --verbose ${COMPR} -o ${pathOutput} ${par}
+    cmd=(
+      parrec2nii
+      --scaling fp
+      --verbose
+      "${COMPR}"
+      -o "${pathOutput}"
+      "${par}"
+    )
+
+    "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
-      echo "\"${cmd}\" exited with non-zero status"
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "parrec2nii"
       exit 1
     fi
   else
@@ -260,6 +268,12 @@ END
 
       fi
       python -c "$PYTHON_CODE"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "python-code"
+        exit 1
+      fi
     else
 
       # find where par become phase

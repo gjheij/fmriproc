@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source call_bashhelper
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -192,16 +194,26 @@ if [[ ! -z ${trafos} ]]; then
   moving=${INPUT}
   out=${fsnative_dir}/${PREF}_space-fsnative.nii.gz
 
-  cmd="call_antsapplytransforms ${VERBOSE} ${INT} ${invert} ${fixed} ${moving} ${out} ${trafos}"
+  cmd=(
+    call_antsapplytransforms
+    "${VERBOSE}"
+    "${INT}"
+    "${invert}"
+    "${fixed}"
+    "${moving}"
+    "${out}"
+    "${trafos}"
+  )
   if [[ ${VERB} -eq 1 ]]; then
-    print_cmd "${cmd}"
+    print_cmd "${cmd[@]}"
   fi
 
   # run
-  eval "${cmd}"
-
+  "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_antsapplytransforms"
     exit 1
   fi
   
@@ -228,7 +240,9 @@ for ii in "lh" "rh"; do
   mri_vol2surf --src ${INPUT} --out ${fsnative} ${REG} --hemi ${ii} --projfrac ${proj_frac}
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mri_vol2surf exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "mri_vol2surf"
     exit 1
   fi
 
@@ -247,11 +261,12 @@ for ii in "lh" "rh"; do
       --tval ${fsaverage}
 
     if [[ $? -ne 0 ]]; then
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): mri_surf2surf exited with non-zero status"
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "mri_surf2surf"
       exit 1
     fi
   fi
-
 done
 
 echo "Stacking gifti's into numpy-array"
@@ -270,7 +285,9 @@ for space in ${exec_spaces[@]}; do
   call_stackgifti ${lh} ${rh} ${both_hemis}
 
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_stackgiftis exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_stackgifti"
     exit 1
   fi
 
@@ -285,7 +302,9 @@ for space in ${exec_spaces[@]}; do
       call_giftimeta ${rh} "${TR_int_ms}"
 
       if [[ $? -ne 0 ]]; then
-        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_giftimeta exited with non-zero status"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "call_giftimeta"
         exit 1
       fi
     fi

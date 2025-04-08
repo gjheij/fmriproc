@@ -185,25 +185,27 @@ for subID in ${search}; do
     job="$(decide_job_type "call_lsprep" "${base}_desc-lsprep" "${run_local}" "${log_file}" "${n_cpus}" "${SGE_QUEUE}")"
 
     # define command
-    cmd="""${job} \
-      -s sub-${subID} \
-      -n ${s_id} \
-      ${LSPREP_KWARGS}"""
+    cmd=(
+      "${job}"
+      -s "sub-${subID}"
+      -n "${s_id}"
+      "${LSPREP_KWARGS}"
+    )
 
     # echo command
     if [[ ${run_local} -eq 1 ]]; then
-      print_cmd "${cmd}"
+      print_cmd "${cmd[@]}"
     fi
 
     (
       echo ""
       echo "### New invocation of call_lsprep @$(date)"
-      echo "$(echo ${cmd} | xargs)"
+      echo "$(echo ${cmd[@]} | xargs)"
       echo ""
     ) >> ${log_file}
     
     # execute cmd
-    eval "${cmd}"
+    "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       echo

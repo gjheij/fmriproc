@@ -161,16 +161,18 @@ else
 fi
 
 # define command
-cmd="""${job} \
-  -j ${n_cpus} \
-  ${verbose} \
-  ${ref} \
-  ${mov} \
-  $(dirname ${aff})/$(basename ${aff} genaff.mat)"""
+cmd=(
+  "${job}"
+  -j "${n_cpus}"
+  "${verbose}"
+  "${ref}"
+  "${mov}"
+  "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+)
 
 # echo command
 if [[ ${run_local} -eq 1 || ${debug} -eq 1 ]]; then
-  print_cmd "${cmd}"
+  print_cmd "${cmd[@]}"
 fi
 
 # execute
@@ -178,8 +180,8 @@ if [[ ${debug} -eq 0 ]]; then
   (
   echo ""
   echo "### New invocation of call_antsregistration @ `date`"
-  echo "$(echo ${cmd} | tr '\n' ' ')"
+  echo "$(echo ${cmd[@]} | tr '\n' ' ')"
   echo ""
   ) >> ${log_file}
-  eval "${cmd}"
+  "${cmd[@]}"
 fi

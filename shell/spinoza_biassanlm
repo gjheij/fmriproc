@@ -260,15 +260,24 @@ for subID in ${search}; do
         if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
           echo "Running bias field correction with SPM"
           call_="call_spmbias"
-          cmd="""${call_} ${input_for_bias} ${output}"""
+          cmd=(
+            ${call_}
+            ${input_for_bias}
+            ${output}
+          )
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
           call_="call_antsbias"
-          cmd="""${call_} ${input_for_bias} ${output} ${kwargs}"""
+          cmd=(
+            ${call_}
+            ${input_for_bias}
+            ${output}
+            ${kwargs}
+          )
         fi
 
-        eval "${cmd}"
+        "${cmd[@]}"
         if [[ ! -f ${output} ]]; then
           print_error_msg "$(basename ${0})" "${call_}"
           exit 1
@@ -283,8 +292,19 @@ for subID in ${search}; do
       fi
 
       echo "Running post-processing to fix intensities and datatype"
-      cmd="call_wsd -l ${lower} -u ${upper} ${output}"
-      print_cmd "${cmd}" && eval "${cmd}"
+      cmd=(
+        call_wsd
+        -l "${lower}"
+        -u "${upper}"
+        "${output}"
+      )
+
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      if [[ ! -f ${output} ]]; then
+        print_error_msg "$(basename ${0})" "call_wsd"
+        exit 1
+      fi
+      
       echo "Done"
     else
       print_output_exists "${sub_name}" "${output}"

@@ -1,8 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -120,7 +116,7 @@ if [ ${VERB} -eq 1 ]; then
   echo "creating script with:"
   print_cmd "${cmd}"
 fi
-eval "${cmd}"
+"${cmd}"
 
 # call_matlab = in call_bashhelper
 if [ ${VERB} -eq 1 ]; then
@@ -170,5 +166,5 @@ if [[ ${open_fv} -eq 1 ]]; then
   if [[ ${VERB} -eq 1 ]]; then
     print_cmd "${cmd}"
   fi
-  eval "${cmd}"
+  "${cmd}"
 fi

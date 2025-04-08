@@ -416,32 +416,32 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   fi
 
   # execute the fMRIPrep command
-  cmd="""
-${run_cmd} \
-  ${project} \
-  ${output_dir} \
-  participant \
-  --participant-label ${subj_ID} \
-  --skip-bids-validation \
-  --md-only-boilerplate \
-  --fs-license-file ${license} \
-  --output-spaces ${FPREP_OUT_SPACES} \
-  --fs-subjects-dir ${FS} \
-  ${crash_flag} \
-  ${bbr_flag} \
-  ${cifti_flag} \
-  ${syn_flag} \
-  ${config_flag} \
-  ${task_flag} \
-  ${init_flag} \
-  ${anat_only_flag} \
-  ${nthread_flag} \
-  -w ${work} \
-  ${kwargs[@]}
-"""
+  cmd=(
+    "${run_cmd}"
+    "${project}"
+    "${output_dir}"
+    participant
+    --participant-label "${subj_ID}"
+    --skip-bids-validation
+    --md-only-boilerplate
+    --fs-license-file "${license}"
+    --output-spaces "${FPREP_OUT_SPACES}"
+    --fs-subjects-dir "${FS}"
+    "${crash_flag}"
+    "${bbr_flag}"
+    "${cifti_flag}"
+    "${syn_flag}"
+    "${config_flag}"
+    "${task_flag}"
+    "${init_flag}"
+    "${anat_only_flag}"
+    "${nthread_flag}"
+    -w "${work}"
+    "${kwargs[@]}"
+  )
 
   # execute
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   
   if [[ $? != 0 ]]; then
     echo

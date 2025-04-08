@@ -176,20 +176,21 @@ for subID in ${search}; do
   job="$(decide_job_type "call_mriqc" "${sub_name}_desc-mriqc" "${run_local}" "${workdir}" "${n_cpus}" "${SGE_QUEUE}")"
 
   # execute the command
-  cmd="""${job} \
-    -s ${sub_id} \
-    ${ses_flag} \
-    -j ${n_cpus} \
-    -b ${FPREP_BINDING} \
-    -i ${MRIQC_SIMG} \
-    -r ${INPUT} \
-    -d ${OUTPUT} \
-    -w ${workdir}  \
-    ${mod_flag} \
-    ${fd_flag}"""
+  cmd=(
+    "${job}"
+    -s "${sub_id}"
+    "${ses_flag}"
+    -j "${n_cpus}"
+    -b "${FPREP_BINDING}"
+    -i "${MRIQC_SIMG}"
+    -r "${INPUT}"
+    -d "${OUTPUT}"
+    -w "${workdir}" 
+    "${mod_flag}"
+    "${fd_flag}"
+  )
 
-  print_cmd "${cmd}" && eval "${cmd}"
-
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_mriqc"
     exit 1

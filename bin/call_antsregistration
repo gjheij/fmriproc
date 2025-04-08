@@ -581,7 +581,7 @@ fi
 echo "${cmd}" >> ${OUT}command.txt
 
 # Execute command
-eval "${cmd}"
+"${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
@@ -619,7 +619,7 @@ if [[ ${fsl_fmt} -eq 1 ]]; then
     echo
   fi
 
-  eval "${cmd}"
+  "${cmd}"
 fi
 
 # remove temporary file
@@ -635,7 +635,7 @@ fi
 if [[ ${open_itk} -eq 1 ]]; then
   echo "Opening ITK-Snap. Load \"${OUT}genaff.mat\""
   cmd="launch_itksnap -g ${FIXED} -o ${MOVING}"
-  print "${cmd}" && eval "${cmd}"
+  print "${cmd}" && "${cmd}"
 fi
 
 # reset threads

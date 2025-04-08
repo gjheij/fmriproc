@@ -71,8 +71,14 @@ source call_bashhelper
 
 # truncate image intensities
 echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and ${n_bins} bins"
-cmd="call_winsorize -b ${n_bins} -l ${lower} -u ${upper} ${in_file}"
-print_cmd "${cmd}" && eval "${cmd}"
+cmd=(
+  call_winsorize
+  -b "${n_bins}"
+  -l "${lower}"
+  -u "${upper}"
+  "${in_file}"
+)
+print_cmd "${cmd[@]}" && "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   print_error_msg "$(basename ${0})" "call_winsorize"
@@ -81,8 +87,13 @@ fi
 
 # rescale clipped image
 echo -e "Rescaling image to [${BOLD_RED}0${RESET},${BOLD_RED}${max_value}${RESET}]"
-cmd="call_rescale ${in_file} 0 ${max_value}"
-print_cmd "${cmd}" && eval "${cmd}"
+cmd=(
+  call_rescale
+  "${in_file}"
+  0
+  "${max_value}"
+)
+print_cmd "${cmd[@]}" && "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo
@@ -94,7 +105,7 @@ fi
 # make integer to reduce file size
 echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
 cmd="call_setdtype ${in_file}"
-print_cmd "${cmd}" && eval "${cmd}"
+print_cmd "${cmd}" && "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo

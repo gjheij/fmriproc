@@ -39,7 +39,7 @@ if [[ -f $1 && -f $2 ]]; then
 
   if [[ ! -f $3 ]]; then
 
-    CMD=$(command -v mri_vol2vol)
+    cmd=(command -v mri_vol2vol)
     if [[ ! -z "${CMD}" ]]; then
       "${CMD}" \
         --mov "${1}" \

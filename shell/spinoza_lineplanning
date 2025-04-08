@@ -202,11 +202,23 @@ fi
 if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
   # enter bash ${DIR_SCRIPTS}/bin/call_antsregistration.sh for help
   echo "Register FS (orig.mgz) to session ${session}"
-  call_antsregistration \
-    -j 10 \
-    ${anat_session2} \
-    ${anat_session1} \
-    $(dirname ${genaff})/$(basename ${genaff} genaff.mat) 
+  cmd=(
+    call_antsregistration
+    -j "10"
+    "${anat_session2}"
+    "${anat_session1}"
+    "$(dirname ${genaff})/$(basename ${genaff} genaff.mat)" 
+  )
+
+  # run
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+
+  if [[ $? != 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_antsregistration"
+    exit 1
+  fi  
 else
   echo -e "ANTs matrix mapping fs to ses${session}     = ['${BOLD_RED}$(basename ${genaff})${RESET}']"
 fi
@@ -224,19 +236,20 @@ fi
 echo -e "File containing coordinates        = ['${BOLD_RED}$(basename ${line_orientation_file})${RESET}']"
 if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
 
-  cmd="""call_mrconsole \
-    -s ${subject} \
-    -q 1 \
-    -n ${session} \
-    -d ${DIR_DATA_DERIV} \
-    --ses2 ${anat_session2} \
-    -a ${genaff} \
-    ${hemi_flag} \
-    --line ${line_orientation_file}
-  """
+  cmd=(
+    call_mrconsole
+    -s "${subject}"
+    -q "1"
+    -n "${session}"
+    -d "${DIR_DATA_DERIV}"
+    --ses2 "${anat_session2}"
+    -a "${genaff}"
+    --line "${line_orientation_file}"
+    "${hemi_flag}"
+  )
 
   # run
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? != 0 ]]; then
     echo

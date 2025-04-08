@@ -102,7 +102,7 @@ if [[ ! -f ${MAN} ]]; then
   fi
   print_create_img "${MAN}"
   cmd="call_createimg ${REF} ${MAN}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd}" && "${cmd}"
 
   if [[ $? -ne 0 || ! -f ${MAN} ]]; then
     echo
@@ -116,7 +116,7 @@ echo -e "T1w: ${BOLD_GREEN}${REF}${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
 cmd="launch_itksnap -g ${REF} -s ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+print_cmd "${cmd}" && "${cmd}" 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -126,7 +126,7 @@ fi
 
 # copy header
 cmd="call_copyheader ${REF} ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}"
+print_cmd "${cmd}" && "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

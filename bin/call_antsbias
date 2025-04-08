@@ -114,7 +114,7 @@ if [[ ${verbose} -eq 1 ]]; then
   echo "Executing: ${cmd[*]}"
 fi
 
-eval "${cmd[@]}"
+"${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo

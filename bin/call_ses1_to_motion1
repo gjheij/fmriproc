@@ -65,5 +65,11 @@ fi
 
 echo "run \"itksnap -g ${ses2} -o ${ses1}\" to verify registration"
 echo
-cmd="call_antsregistration ${ses2} ${ses1} $(dirname ${aff})/$(basename ${aff} genaff.mat) rigid"
-print_cmd "${cmd}" && eval "${cmd}"
+cmd=(
+  call_antsregistration
+  "${ses2}"
+  "${ses1}"
+  "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+  rigid
+)
+print_cmd "${cmd[@]}" && "${cmd[@]}"

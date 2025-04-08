@@ -279,19 +279,22 @@ for subID in ${search}; do
           out=${func_folder}/$(basename ${mag_img})
           
           # define command
-          cmd="""${job} \
-            ${mag_flag} \
-            ${tsnr_flag} \
-            ${mag_img} ${ph_img} ${out}"""
+          cmd=(
+            "${job}"
+            "${mag_flag}"
+            "${tsnr_flag}"
+            "${mag_img}"
+            "${ph_img}"
+            "${out}"
+          )
 
           # print command
           if [[ ${run_local} -eq 1 ]]; then
-            print_cmd "${cmd}"
+            print_cmd "${cmd[@]}"
           fi
 
           # run command
-          eval "${cmd}"
-
+          "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_nordic"
             exit 1

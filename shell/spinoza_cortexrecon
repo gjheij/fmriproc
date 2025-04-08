@@ -161,7 +161,7 @@ for subID in ${search}; do
   else
     INTRO="Overwrite mode disabled"
   fi
-
+  
   if [[ ! -f ${output} ]]; then
 
     # print header
@@ -183,7 +183,7 @@ for subID in ${search}; do
           ${kwargs_flag}
         )
         
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ $? != 0 ]]; then
           echo
           print_line -
@@ -191,31 +191,19 @@ for subID in ${search}; do
           exit 1
         fi
 
-        declare -a NIGH_OUT=(cortex gwb cgb avg thick pwm pgm pcsf)
-        for f in ${NIGH_OUT[@]}; do
-          out=$(find -L "$(dirname ${output})" -type f \( -name "*acq-${DATA^^}*" -and -name "*${f}*" \) 2>/dev/null)
-
-          if [[ ! -f ${output_root}-cruise_${f}.nii.gz ]]; then
-            if [[ ! -z ${out} ]]; then
-              mv ${out} ${output_root}-cruise_${f}.nii.gz
-            else
-              print_file_not_in_dir "${sub_name}" "${f}""$(dirname ${output})" "Needed for CRUISE.."
-              continue 2
-            fi
-          else
-            print_output_exists "${sub_name}" "${output_root}-cruise_${f}.nii.gz"
-          fi
-        done
-
         # create binary mask from CRUISE segmentation
+        cruise_mask=${p}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz
+        echo
+        print_line -
+        print_create_img "${cruise_mask}"
         cmd=(
           fslmaths
-          ${output_root}-cruise_cortex.nii.gz
+          "${output_root}-cruise_cortex.nii.gz"
           -bin
-          ${input_dir}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz
+          "${cruise_mask}"
         )
         
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
         if [[ $? != 0 ]]; then
           echo
           print_line -
@@ -242,7 +230,7 @@ for subID in ${search}; do
             --name "$(basename ${output_root})"
           )
 
-          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+          print_cmd "${cmd[@]}" && "${cmd[@]}"
           if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
             echo
             print_line -

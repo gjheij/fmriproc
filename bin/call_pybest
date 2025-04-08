@@ -202,16 +202,18 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        cmd="""call_unzscore \
-          -s ${sub} \
-          ${ses_raw} \
-          -o ${outputdir} \
-          -f ${input_dir} \
-          -t ${task_id} \
-          -p ${in_space} \
-          --pre"""
+        cmd=(
+          call_unzscore
+          -s "${sub}"
+          "${ses_raw}"
+          -o "${outputdir}"
+          -f "${input_dir}"
+          -t "${task_id}"
+          -p "${in_space}"
+          --pre
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
@@ -225,21 +227,23 @@ for task_id in ${task_ids[@]}; do
       for hemi in "L" "R"; do
 
         echo "Dealing with hemi-${hemi}"
-        cmd="""pybest \
-          ${sub_input} \
-          ${ses_input} \
-          --task ${task_id} \
-          --space ${in_space} \
-          --hemi ${hemi} \
-          ${cpu_input} \
-          --verbose ERROR \
-          --save-all \
-          --out-dir ${outputdir} \
-          ${input_dir} \
-          --n-comps ${n_comps} \
-          ${kwargs}"""
+        cmd=(
+          pybest
+          "${sub_input}"
+          "${ses_input}"
+          "${cpu_input}"
+          "${input_dir}"
+          ${kwargs}
+          --task "${task_id}"
+          --space "${in_space}"
+          --hemi "${hemi}"
+          --verbose ERROR
+          --save-all
+          --out-dir "${outputdir}"
+          --n-comps "${n_comps}"
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -256,16 +260,18 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        cmd="""call_unzscore \
-          -s ${sub} \
-          ${ses_raw} \
-          -o ${output_dir} \
-          -f ${input_dir} \
-          -t ${task_id} \
-          -p ${in_space} \
-          --post"""
+        cmd=(
+          call_unzscore
+          -s "${sub}"
+          "${ses_raw}"
+          -o "${output_dir}"
+          -f "${input_dir}"
+          -t "${task_id}"
+          -p "${in_space}"
+          --post
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -283,16 +289,18 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        cmd="""call_unzscore \
-          -s ${sub} \
-          ${ses_raw} \
-          -o ${outputdir} \
-          -f ${input_dir} \
-          -t ${task_id} \
-          -p ${in_space} \
-          --pre"""
+        cmd=(
+          call_unzscore
+          -s "${sub}"
+          "${ses_raw}"
+          -o "${outputdir}"
+          -f "${input_dir}"
+          -t "${task_id}"
+          -p "${in_space}"
+          --pre
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -305,19 +313,21 @@ for task_id in ${task_ids[@]}; do
 
     if [[ ${execute_pyb} -eq 1 ]]; then
       # we got volumetric data, so stuff gets a bit more exotic
-      cmd="""pybest \
-        ${sub_input} \
-        ${ses_input} \
-        --out-dir ${outputdir} \
-        --task ${task_id} \
-        --space ${in_space} \
-        --verbose ERROR \
-        --save-all \
-        ${input_dir} \
-        --n-comps ${n_comps} \
-          ${kwargs}"""
+      cmd=(
+        pybest
+        "${sub_input}"
+        "${ses_input}"
+        "${input_dir}"
+        "${kwargs}"
+        --out-dir "${outputdir}"
+        --task "${task_id}"
+        --space "${in_space}"
+        --verbose ERROR
+        --save-all
+        --n-comps "${n_comps}"
+      )
 
-      print_cmd "${cmd}" && eval "${cmd}"
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo
@@ -332,16 +342,18 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        cmd="""call_unzscore \
-          -s ${sub} \
-          ${ses_raw} \
-          -o ${output_dir} \
-          -f ${input_dir} \
-          -t ${task_id} \
-          -p ${in_space} \
-          --post"""
+        cmd=(
+          call_unzscore
+          -s "${sub}"
+          "${ses_raw}"
+          -o "${output_dir}"
+          -f "${input_dir}"
+          -t "${task_id}"
+          -p "${in_space}"
+          --post
+        )
 
-        print_cmd "${cmd}" && eval "${cmd}"
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -395,8 +407,8 @@ for task_id in ${task_ids[@]}; do
 
             # define and run cmd
             echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
-            cmd="""fslmaths ${bold} -mas ${mask} ${masked_bold}"""
-            eval "${cmd}"
+            cmd=(fslmaths ${bold} -mas ${mask} ${masked_bold})
+            "${cmd[@]}"
 
             # check if execution was ok
             if [[ $? -ne 0 ]]; then

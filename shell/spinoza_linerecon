@@ -304,22 +304,32 @@ for subID in ${search}; do
         fi
 
         # decide the job type
-        job="$(decide_job_type "call_linerecon" "$(basename ${log_file} .log)" "${run_local}" "${log_file}" "1" "${SGE_QUEUE}")"
+        job="$(
+          decide_job_type \
+          "call_linerecon" \
+          "$(basename ${log_file} .log)" \
+          "${run_local}" \
+          "${log_file}" \
+          "1" \
+          "${SGE_QUEUE}"
+        )"
 
         # define cmd
-        cmd="""${job} \
-          -r ${run} \
-          ${comps_flag} \
-          ${echo_flag} \
-          ${NORDIC} \
-          ${DEBUG} \
-          ${bold} \
-          ${lsd} \
-          ${outputbase}"""
+        cmd=(
+          "${job}"
+          -r "${run}"
+          "${comps_flag}"
+          "${echo_flag}"
+          "${NORDIC}"
+          "${DEBUG}"
+          "${bold}"
+          "${lsd}"
+          "${outputbase}"
+        )
 
         # echo cmd if not on cluster
         if [[ ${verbose} -eq 1 ]]; then
-          print_cmd "${cmd}"
+          print_cmd "${cmd[@]}"
           echo
         fi
 
@@ -327,13 +337,13 @@ for subID in ${search}; do
           (
             echo ""
             echo "### New invocation of call_linerecon @$(date)"
-            echo "$(echo ${cmd} | xargs)"
+            echo "$(echo ${cmd[@]} | xargs)"
             echo ""
           ) >> "${log_file}"
         fi
 
         # run cmd
-        eval "${cmd}"
+        "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_linerecon"

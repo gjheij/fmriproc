@@ -459,57 +459,71 @@ for subID in ${search}; do
 
   # sort out working directory
   manage_fmriprep_workdir \
-    "$workdir" \
-    "$project" \
-    "$sub_id" \
-    "$remove_surf_wf" \
-    "$remove_wf" \
-    "$overwrite" \
+    "${workdir}" \
+    "${project}" \
+    "${sub_id}" \
+    "${remove_surf_wf}" \
+    "${remove_wf}" \
+    "${overwrite}" \
     "${n_runs[@]}"
 
   # check configuration file
-  confFile=$(generate_config_file "$conf" "${n_runs[@]}")
+  confFile="$(
+    generate_config_file \
+    "$conf" \
+    "${n_runs[@]}"
+  )"
 
   # decide the job type
-  job="$(decide_job_type "call_feat" "${sub_name}_desc-fmriprep" "${run_local}" "${workdir}" "${n_cpus}" "${SGE_QUEUE}")"
+  job="$(
+    decide_job_type \
+    "call_fmriprep" \
+    "${sub_name}_desc-fmriprep" \
+    "${run_local}" \
+    "${workdir}" \
+    "${n_cpus}" \
+    "${SGE_QUEUE}"
+  )"
 
   # define the command
-  cmd="""${job} \
-    -s ${sub_id} \
-    -m ${mode} \
-    -b ${FPREP_BINDING} \
-    -r ${INPUT} \
-    -d ${OUTPUT} \
-    -w ${workdir} \
-    -c ${n_cpus} \
-    ${crash_flag} \
-    ${keep_runs} \
-    ${confFile} \
-    ${task_id} \
-    ${bbr_flag} \
-    ${warp_only} \
-    ${kwargs_file} \
-    ${boldref_flag} \
-    ${clean_wd} \
-    ${fsl_flag} \
-    ${func_flag} \
-    ${anat_flag} \
-    ${mask_flag} \
-    ${docker_flag} \
-    ${fd_flag}"""
+  cmd=(
+    "${job}"
+    -s "${sub_id}"
+    -m "${mode}"
+    -b "${FPREP_BINDING}"
+    -r "${INPUT}"
+    -d "${OUTPUT}"
+    -w "${workdir}"
+    -c "${n_cpus}"
+    "${crash_flag}"
+    "${keep_runs}"
+    "${confFile}"
+    "${task_id}"
+    "${bbr_flag}"
+    "${warp_only}"
+    "${kwargs_file}"
+    "${boldref_flag}"
+    "${clean_wd}"
+    "${fsl_flag}"
+    "${func_flag}"
+    "${anat_flag}"
+    "${mask_flag}"
+    "${docker_flag}"
+    "${fd_flag}"
+  )
 
-    # echo cmd
-    if [[ ${run_local} -eq 1 ]]; then
-      print_cmd "${cmd}"
-    fi
+  # echo cmd
+  if [[ ${run_local} -eq 1 ]]; then
+    print_cmd "${cmd[@]}"
+  fi
 
-    # run
-    eval "${cmd}"
-    
-    if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "${cmd}"
-      exit 1
-    fi
+  # run
+  "${cmd[@]}"
+  
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_fmriprep"
+    exit 1
+  fi
 
 done
 

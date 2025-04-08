@@ -116,5 +116,12 @@ else
   exit 1
 fi
 
-cmd="bbregister --s ${SUBJECT} --mov ${MOVING} ${CONTRAST} ${init} ${format}"
-print_cmd "${cmd}" && eval "${cmd}"
+cmd=(
+  bbregister
+  --s "${SUBJECT}"
+  --mov "${MOVING}"
+  "${CONTRAST}"
+  "${init}"
+  "${format}"
+)
+print_cmd "${cmd[@]}" && "${cmd[@]}"

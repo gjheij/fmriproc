@@ -1,8 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -21,38 +17,38 @@ Steps include:
   - Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
 
 Options:
-    -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
-    -l <lower>      lower percentile (default = 0.01) for call_winsorize
-    -u <upper>      upper percentile (default = 0.99) for call_winsorize
-    --spm           use SPM for bias correction (default is ANTs)
-    --no-sanlm      do not apply SANLM filtering
-    --no-winsor     do not apply winsoring of image intensities; would recommend this though..
-    -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
-                    separated flags as follows: 
-                      - if you specify a flag and values | <flag>=<value>
-                      - if you specify a flag only | <flag>
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.99) for call_winsorize
+  --spm           use SPM for bias correction (default is ANTs)
+  --no-sanlm      do not apply SANLM filtering
+  --no-winsor     do not apply winsoring of image intensities; would recommend this though..
+  -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                    combine as:
-                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+                  combine as:
+                  "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
-                    e.g.,
-                    "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
-    --no-reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
-                    packages such as Nighres. This allows you to generate layerification in 
-                    voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-
-                    rate T1map. By default, we'll register that file to the MPRAGE T1w. If
-                    this flag is specified, we'll assume they are in the same space. Note that
-                    the output will have the same filenaming as the T1w, although that is not
-                    entirely fair. For instance, the output could be:
-                    "sub-<subID>_ses-<sesID>_acq-MPRAGE_T1map"; the T1map is not derived from
-                    the MPRAGE file, so the "acq-*" tag is a bit misleading. However, this is
-                    necessary to be compatible with subsequent steps of the pipeline.
+                  e.g.,
+                  "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+  --no-reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
+                  packages such as Nighres. This allows you to generate layerification in 
+                  voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-
+                  rate T1map. By default, we'll register that file to the MPRAGE T1w. If
+                  this flag is specified, we'll assume they are in the same space. Note that
+                  the output will have the same filenaming as the T1w, although that is not
+                  entirely fair. For instance, the output could be:
+                  "sub-<subID>_ses-<sesID>_acq-MPRAGE_T1map"; the T1map is not derived from
+                  the MPRAGE file, so the "acq-*" tag is a bit misleading. However, this is
+                  necessary to be compatible with subsequent steps of the pipeline.
 
 Positional arguments
-    <input image>   input image
-    <output image>	output base. Base name (including directory) for the output. 
-                    "*_T1w.nii.gz" and "*_desc-spm_mask" will be appended.
-                    E.g., "DIR_DATA_DERIV/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MPRAGE"
+  <input image>   input image
+  <output image>	output base. Base name (including directory) for the output. 
+                  "*_T1w.nii.gz" and "*_desc-spm_mask" will be appended.
+                  E.g., "DIR_DATA_DERIV/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MPRAGE"
 
 Usage:
  call_mprage sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE             # standard
@@ -155,9 +151,14 @@ mask_file="${out_file}_desc-spm_mask.nii.gz"
 # remove old versions
 rm $(dirname ${mask_file})/$(basename ${mask_file} .gz)* 2>/dev/null
 
-cmd="call_spmmask --clean ${in_file} ${mask_file}"
+cmd=(
+  call_spmmask
+  --clean
+  "${in_file}"
+  "${mask_file}"
+)
 echo " Generating brain mask with SPM.."
-eval "${cmd}"
+"${cmd[@]}"
 
 if [[ ! -f "${mask_file}" ]]; then  
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmmask failed, mask-file not created"
@@ -168,15 +169,26 @@ fi
 # Run bias correction
 bias_file="$(dirname ${out_file})/tmp_bias.nii.gz"
 if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
-  cmd="call_spmbias -s ${SPM_PATH} ${in_file} ${bias_file}"
+  cmd=(
+    call_spmbias
+    -s "${SPM_PATH}"
+    "${in_file}"
+    "${bias_file}"
+  )
   software="SPM"
 else
   software="ANTs"
-  cmd="call_antsbias ${in_file} ${bias_file} -x ${mask_file} ${kwargs}"
+  cmd=(
+    call_antsbias
+    "${in_file}"
+    "${bias_file}"
+    -x "${mask_file}"
+    "${kwargs}"
+  )
 fi
 
 echo " Bias correction with ${software}.."
-eval "${cmd}"
+"${cmd[@]}"
 
 if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
   print_error_msg "$(basename ${0})" "${cmd})"
@@ -186,9 +198,14 @@ fi
 #-----------------------------------------------------------------------------
 # SANLM
 if [[ ${RUN_SANLM} -eq 1 ]]; then
-  cmd="call_spmsanlm -s ${SPM_PATH} ${bias_file} ${final_file}"
+  cmd=(
+    call_spmsanlm
+    -s "${SPM_PATH}"
+    "${bias_file}"
+    "${final_file}"
+  )
   echo " Denoising with SANLM.."
-  eval "${cmd}"
+  "${cmd[@]}"
 
   if [[ $? -ne 0 || ! -f ${final_file} ]]; then
     print_error_msg "$(basename ${0})" "call_spmsanlm"
@@ -196,7 +213,7 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
   fi
 
   # clean up
-  rm ${bias_file} 2>/dev/null
+  rm "${bias_file}" 2>/dev/null
 else
   # simply copy bias-corrected file as final output
   echo " SANLM turned off: simply copy bias-corrected file as final output"
@@ -207,8 +224,13 @@ fi
 # truncate intensities and rescale
 if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
-  cmd="call_winsorize -l ${lower} -u ${upper} ${final_file}"
-  eval "${cmd}"
+  cmd=(
+    call_winsorize
+    -l ${lower}
+    -u ${upper}
+    "${final_file}"
+  )
+  "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_winsorize"
@@ -216,8 +238,13 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
   fi
 
   echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}4095${RESET}]"
-  cmd="call_rescale ${final_file} 0 4095"
-  eval "${cmd}"
+  cmd=(
+    call_rescale
+    "${final_file}"
+    0
+    4095
+  )
+  "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     echo
@@ -233,7 +260,7 @@ fi
 # set dtype to uint16
 echo "Set dtype to UINT16"
 cmd="call_setdtype ${final_file}"
-eval "${cmd}"
+"${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
@@ -251,22 +278,30 @@ if [[ ! -z ${t1map} ]]; then
   if [[ ${REG_T1} -eq 1 ]]; then
     genaff="${out_file}_from-T1map_to-T1w_genaff.mat"
     if [[ ! -f "${genaff}" ]]; then
-      cmd="""call_antsregistration \
+      cmd=(
+        call_antsregistration
         --rigid
-        ${final_file} \
-        ${t1map} \
-        ${out_file}_from-T1map_to-T1w_"""
+        "${final_file}"
+        "${t1map}"
+        "${out_file}_from-T1map_to-T1w_"
+      )
 
       echo " Registering $(basename ${t1map}) to $(basename ${final_file}).."
-      eval "${cmd}"
+      "${cmd[@]}"
     else  
       echo " Using matrix: \"${genaff}\".."
     fi
 
     # applying warp
     echo " Applying warp.."
-    cmd="call_antsapplytransforms ${final_file} ${t1map} ${t1_reg} ${genaff}"
-    eval "${cmd}"
+    cmd=(
+      call_antsapplytransforms
+      "${final_file}"
+      "$"{t1map}
+      "${t1_reg}"
+      "${genaff}"
+    )
+    "${cmd[@]}"
     
     if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
@@ -282,8 +317,13 @@ if [[ ! -z ${t1map} ]]; then
   # truncate intensities and rescale
   if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
     echo -e " Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and 256 bins"
-    cmd="call_winsorize -l ${lower} -u ${upper} ${t1_reg}"
-    eval "${cmd}"
+    cmd=(
+      call_winsorize
+      -l ${lower}
+      -u ${upper}
+      "${t1_reg}"
+    )
+    "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_winsorize"
@@ -291,8 +331,13 @@ if [[ ! -z ${t1map} ]]; then
     fi
 
     echo -e " Rescaling T1w to [${BOLD_RED}0${RESET},${BOLD_RED}5050${RESET}]"
-    cmd="call_rescale ${t1_reg} 0 5050"
-    eval "${cmd}"
+    cmd=(
+      call_rescale
+      "${t1_reg}"
+      0
+      5050
+    )
+    "${cmd[@]}"
     
     if [[ $? -ne 0 ]]; then
       echo
@@ -308,7 +353,7 @@ if [[ ! -z ${t1map} ]]; then
   # set dtype to uint16
   echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
   cmd="call_setdtype ${t1_reg}"
-  eval "${cmd}"
+  "${cmd}"
 fi
 
 echo " Done"

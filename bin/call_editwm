@@ -71,7 +71,7 @@ fi
 # create ref from rawavg.mgz
 if [[ -d ${FS_DIR} ]]; then
   cmd="call_mriconvert ${FS_DIR}/mri/rawavg.mgz"
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd}" && "${cmd}"
   if [[ $? -ne 0 || ! -f ${MAN} ]]; then
     echo
     print_line -
@@ -80,7 +80,7 @@ if [[ -d ${FS_DIR} ]]; then
   fi  
 
   cmd="call_mriconvert ${FS_DIR}/mri/wm.mgz"
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd}" && "${cmd}"
   if [[ $? -ne 0 || ! -f ${MAN} ]]; then
     echo
     print_line -
@@ -101,7 +101,7 @@ if [[ ! -f ${MAN} ]]; then
   fi
   print_create_img "${MAN}"
   cmd="call_createimg ${FS_DIR}/mri/rawavg.nii.gz ${MAN}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_cmd "${cmd}" && "${cmd}"
 
   if [[ $? -ne 0 || ! -f ${MAN} ]]; then
     echo
@@ -116,7 +116,7 @@ echo -e "WM: ${BOLD_GREEN}${FS_DIR}/mri/wm.nii.gz${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
 cmd="launch_itksnap -g ${FS_DIR}/mri/rawavg.nii.gz -o ${FS_DIR}/mri/wm.nii.gz -s ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+print_cmd "${cmd}" && "${cmd}" 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -126,7 +126,7 @@ fi
 
 # copy header
 cmd="call_copyheader ${BOLD_GREEN}${FS_DIR}/mri/rawavg.nii.gz ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}"
+print_cmd "${cmd}" && "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
