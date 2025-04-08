@@ -272,7 +272,7 @@ for subID in ${search}; do
       print_cmd "${cmd[@]}"
     fi
 
-    "${cmd[@]}"
+    eval "${cmd[@]}"
     if [[ $? != 0 ]]; then
       echo
       print_line -

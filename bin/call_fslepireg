@@ -148,7 +148,7 @@ if [[ ! -z ${matrix_file} ]]; then
             "${matrix_file}"
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
             echo
             print_line -
@@ -169,7 +169,7 @@ if [[ ! -z ${matrix_file} ]]; then
         "${matrix_file}"
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -186,7 +186,7 @@ if [[ ! -z ${matrix_file} ]]; then
         "${matrix_file}"
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -219,7 +219,7 @@ if [[ ! -z ${initial} ]]; then
         "${initial}"
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -242,7 +242,7 @@ if [[ -f ${t1head} && -f ${t1brain} ]]; then
         "${wm_flag}"
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -268,7 +268,7 @@ if [[ "${@}" == *"-a"* ]]; then
         "${fname}.txt"
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -284,7 +284,7 @@ if [[ "${@}" == *"-a"* ]]; then
         --convertToAffineType
     )
 
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
         echo
         print_line -

@@ -158,7 +158,7 @@ cmd=(
   "${mask_file}"
 )
 echo " Generating brain mask with SPM.."
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 if [[ ! -f "${mask_file}" ]]; then  
   echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmmask failed, mask-file not created"
@@ -188,7 +188,7 @@ else
 fi
 
 echo " Bias correction with ${software}.."
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
   print_error_msg "$(basename ${0})" "${cmd})"
@@ -205,7 +205,7 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
     "${final_file}"
   )
   echo " Denoising with SANLM.."
-  "${cmd[@]}"
+  eval "${cmd[@]}"
 
   if [[ $? -ne 0 || ! -f ${final_file} ]]; then
     print_error_msg "$(basename ${0})" "call_spmsanlm"
@@ -230,7 +230,7 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
     -u ${upper}
     "${final_file}"
   )
-  "${cmd[@]}"
+  eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_winsorize"
@@ -244,7 +244,7 @@ if [[ ${WINSORIZE_INTENSITIES} -eq 1 ]]; then
     0
     4095
   )
-  "${cmd[@]}"
+  eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     echo
@@ -260,7 +260,7 @@ fi
 # set dtype to uint16
 echo "Set dtype to UINT16"
 cmd="call_setdtype ${final_file}"
-"${cmd}"
+eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo
@@ -287,7 +287,7 @@ if [[ ! -z ${t1map} ]]; then
       )
 
       echo " Registering $(basename ${t1map}) to $(basename ${final_file}).."
-      "${cmd[@]}"
+      eval "${cmd[@]}"
     else  
       echo " Using matrix: \"${genaff}\".."
     fi
@@ -301,7 +301,7 @@ if [[ ! -z ${t1map} ]]; then
       "${t1_reg}"
       "${genaff}"
     )
-    "${cmd[@]}"
+    eval "${cmd[@]}"
     
     if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
@@ -323,7 +323,7 @@ if [[ ! -z ${t1map} ]]; then
       -u ${upper}
       "${t1_reg}"
     )
-    "${cmd[@]}"
+    eval "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_winsorize"
@@ -337,7 +337,7 @@ if [[ ! -z ${t1map} ]]; then
       0
       5050
     )
-    "${cmd[@]}"
+    eval "${cmd[@]}"
     
     if [[ $? -ne 0 ]]; then
       echo
@@ -353,7 +353,7 @@ if [[ ! -z ${t1map} ]]; then
   # set dtype to uint16
   echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
   cmd="call_setdtype ${t1_reg}"
-  "${cmd}"
+  eval "${cmd}"
 fi
 
 echo " Done"

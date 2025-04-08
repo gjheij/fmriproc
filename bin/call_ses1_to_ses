@@ -183,5 +183,5 @@ if [[ ${debug} -eq 0 ]]; then
   echo "$(echo ${cmd[@]} | tr '\n' ' ')"
   echo ""
   ) >> ${log_file}
-  "${cmd[@]}"
+  eval "${cmd[@]}"
 fi

@@ -102,14 +102,14 @@ if [[ ! -f ${MAN} ]]; then
   fi
   echo "Creating $(basename ${man}) with call_createimg"    
   cmd="call_createimg ${REF} ${MAN}"
-  print_cmd "${cmd}" && "${cmd}"
+  print_cmd "${cmd}" && eval "${cmd}"
 fi
 
 echo -e "T1w:  ${BOLD_GREEN}${REF}${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
 cmd="launch_itksnap -g ${REF} -s ${MAN}"
-print_cmd "${cmd}" && "${cmd}" 2>/dev/null
+print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -118,7 +118,7 @@ if [[ $? -ne 0 ]]; then
 fi
 
 cmd="call_copyheader ${REF} ${MAN}"
-print_cmd "${cmd}" && "${cmd}"
+print_cmd "${cmd}" && eval "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

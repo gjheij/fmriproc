@@ -250,7 +250,7 @@ for subID in ${search}; do
             print_cmd "${cmd[@]}"
           fi
 
-          "${cmd[@]}"
+          eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_${a,,}"
             exit 1
@@ -287,7 +287,7 @@ for subID in ${search}; do
               echo -e "Processing \"${BOLD_GREEN}${file}${RESET}\""
             fi
             
-            "${cmd[@]}"
+            eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_${a,,}"
               exit 1

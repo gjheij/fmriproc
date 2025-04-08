@@ -383,7 +383,7 @@ for subID in ${search}; do
               "${input}"
               "${BET}"
             )
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
             if [[ $? != 0 ]]; then
               print_error_msg "$(basename ${0})" "call_cat12"
@@ -439,7 +439,7 @@ for subID in ${search}; do
               -o "${corrected_t1w}"
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? != 0 ]]; then
               echo
               print_line -
@@ -455,7 +455,7 @@ for subID in ${search}; do
               "${corrected_t1w}"
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_wsd"
               exit 1
@@ -476,7 +476,7 @@ for subID in ${search}; do
             "${BET}/$(basename ${input})"
           )
 
-          print_cmd "${cmd[@]}" && "${cmd[@]}"
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
           if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_wsd"
             exit 1
@@ -518,7 +518,7 @@ for subID in ${search}; do
         -thr 0
         ${duramask}
       )
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ $? != 0 ]]; then
         echo
         print_line -

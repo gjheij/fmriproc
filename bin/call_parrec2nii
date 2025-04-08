@@ -170,7 +170,7 @@ for par in ${par_files[@]}; do
       "${par}"
     )
 
-    "${cmd[@]}"
+    eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -

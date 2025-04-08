@@ -29,7 +29,7 @@ launch_viewer() {
     echo
     print_line -
     echo -e "Starting '${BOLD_RED}${func}${RESET}'. ${msg} ${BOLD_RED}ALWAYS SAVE YOUR CHANGES!${RESET}"
-    print_cmd "${cmd}" && "${cmd}" 2>/dev/null
+    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
 
     if [[ $? -ne 0 ]]; then
       echo
@@ -214,7 +214,7 @@ for subID in ${search}; do
         # threshold R2star mask and binarize mask
         echo -e "Thresholding [${BOLD_RED}${thresh}${RESET} and binarizing ${BOLD_GREEN}$(basename ${r2star})${RESET}"
         cmd="fslmaths ${r2star} -thr ${thresh} -bin -fillh ${sinus_mask}"
-        print_cmd "${cmd}" && "${cmd}"
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -228,7 +228,7 @@ for subID in ${search}; do
           # launch the viewer
           echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
           cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
-          print_cmd "${cmd}" && "${cmd}"
+          print_cmd "${cmd}" && eval "${cmd}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "launch_viewer"
             exit 1
@@ -257,7 +257,7 @@ for subID in ${search}; do
 
         # create empty image so we can load it as segmentation
         cmd="call_createimg ${t1w} ${sinus_mask}"
-        print_cmd "${cmd}" && "${cmd}" 2>/dev/null
+        print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -268,7 +268,7 @@ for subID in ${search}; do
         # launch the viewer
         echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
         cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
-        print_cmd "${cmd}" && "${cmd}"
+        print_cmd "${cmd}" && eval "${cmd}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "launch_viewer"
           exit 1

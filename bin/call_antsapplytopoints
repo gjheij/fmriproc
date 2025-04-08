@@ -163,7 +163,7 @@ cmd=(
 if [[ ${verb} -eq 1 ]]; then
   print_cmd "${cmd[@]}"
 fi
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 # return command
 if [[ ${return_coord} -eq 1 ]]; then

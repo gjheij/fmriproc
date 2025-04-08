@@ -134,7 +134,7 @@ for subID in ${search}; do
           cmd="call_calculatemean ${ref} ${in_files[@]} ${out}"
         fi
         
-        print_cmd "${cmd}" && "${cmd}"
+        print_cmd "${cmd}" && eval "${cmd}"
 
         if [[ $? != 0 ]]; then
           echo

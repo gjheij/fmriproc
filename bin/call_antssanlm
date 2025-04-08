@@ -102,7 +102,7 @@ if [[ ${verbose} -eq 1 ]]; then
   echo "Executing: ${cmd[*]}"
 fi
 
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo "Error: DenoiseImage failed." >&2

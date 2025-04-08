@@ -78,7 +78,7 @@ cmd=(
   -u "${upper}"
   "${in_file}"
 )
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   print_error_msg "$(basename ${0})" "call_winsorize"
@@ -93,7 +93,7 @@ cmd=(
   0
   "${max_value}"
 )
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo
@@ -105,7 +105,7 @@ fi
 # make integer to reduce file size
 echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
 cmd="call_setdtype ${in_file}"
-print_cmd "${cmd}" && "${cmd}"
+print_cmd "${cmd}" && eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then
   echo

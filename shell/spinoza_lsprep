@@ -205,7 +205,7 @@ for subID in ${search}; do
     ) >> ${log_file}
     
     # execute cmd
-    "${cmd[@]}"
+    eval "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       echo

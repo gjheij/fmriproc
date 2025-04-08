@@ -111,7 +111,7 @@ if [ ${dtype} == "FLOAT64" ]; then
     call_setdtype
     "${fn_mag}"
   )
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 fi
 
 json_mag="$(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_mag}).json"
@@ -142,7 +142,7 @@ cmd=(
   "${fn_mag}"
 )
 
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   print_error_msg "$(basename ${0})" "call_winsorize"
   exit 1

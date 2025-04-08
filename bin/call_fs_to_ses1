@@ -97,7 +97,7 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
       "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
       rigid
     )
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   else
     echo "Found outdated file; remove and run again to overwrite"
   fi

@@ -116,7 +116,7 @@ if [ ${VERB} -eq 1 ]; then
   echo "creating script with:"
   print_cmd "${cmd}"
 fi
-"${cmd}"
+eval "${cmd}"
 
 # call_matlab = in call_bashhelper
 if [ ${VERB} -eq 1 ]; then
@@ -166,5 +166,5 @@ if [[ ${open_fv} -eq 1 ]]; then
   if [[ ${VERB} -eq 1 ]]; then
     print_cmd "${cmd}"
   fi
-  "${cmd}"
+  eval "${cmd}"
 fi

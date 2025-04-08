@@ -65,7 +65,7 @@ ref="$(dirname "${input}")/$(basename "${input}" .nii.gz)_refvol.nii.gz"
 if [[ ! "${arg_str}" =~ "-refvol" ]]; then
   echo "Taking first volume as reference"
   cmd=(fslroi "${input}" "${ref}" 0 1)
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     echo
@@ -91,7 +91,7 @@ cmd=(mcflirt -in "${input}" "${extra_args[@]}")
 
 # Print and run
 echo "Running McFlirt with command:"
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo

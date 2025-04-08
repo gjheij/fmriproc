@@ -209,7 +209,7 @@ if [[ ! -z ${trafos} ]]; then
   fi
 
   # run
-  "${cmd[@]}"
+  eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

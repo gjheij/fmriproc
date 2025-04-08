@@ -441,7 +441,7 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   )
 
   # execute
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   
   if [[ $? != 0 ]]; then
     echo

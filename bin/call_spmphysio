@@ -207,7 +207,7 @@ if [[ ${RUN_PHYS} -eq 1 ]]; then
   )
   
   # echo and run
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

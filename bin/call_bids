@@ -984,7 +984,7 @@ else
     -d "${searchDepth}"
   )
   
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_dcm2niix"

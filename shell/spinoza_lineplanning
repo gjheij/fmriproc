@@ -211,7 +211,7 @@ if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
   )
 
   # run
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? != 0 ]]; then
     echo
@@ -249,7 +249,7 @@ if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
   )
 
   # run
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? != 0 ]]; then
     echo

@@ -188,7 +188,7 @@ for f in ${ff[@]}; do
       "${transform_fs}"
       "${from_fs_to_ses2}"
     )
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
     if [[ $? != 0 ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
@@ -215,7 +215,7 @@ for f in ${qq[@]}; do
 
     print_create_img "${transform_ctx}"
     cmd="call_ctxsurfmove ${SUB} ${f} ${transform_ctx}"
-    print_cmd "${cmd}" && "${cmd}"
+    print_cmd "${cmd}" && eval "${cmd}"
 
     if [[ $? -ne 0 ]]; then
       echo
@@ -246,7 +246,7 @@ if [[ ! -d "${outputdir}/${SUB}/transforms/fs2ctx" ]]; then
       -i "${ref}"
       -w fs2ctx
     )
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   fi
 fi
 

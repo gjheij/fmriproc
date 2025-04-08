@@ -211,7 +211,7 @@ if [[ ${fd_only} -eq 0 ]]; then
   )
 
   # execute
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

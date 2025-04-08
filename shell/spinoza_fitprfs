@@ -651,7 +651,7 @@ for subID in ${search}; do
             echo
           ) >> "${cmd_file}"
 
-          "${cmd[@]}"
+          eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             echo
             print_line -

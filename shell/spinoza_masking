@@ -173,7 +173,7 @@ for subID in ${search}; do
           )
 
           # echo command
-          print_cmd "${cmd[@]}" && "${cmd[@]}"
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
           if [[ $? != 0 ]]; then
             echo
@@ -197,7 +197,7 @@ for subID in ${search}; do
               "${MASKED}"
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_wsd"
               exit 1
@@ -251,7 +251,7 @@ for subID in ${search}; do
               "${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_${inputs[${ct}]}.nii.gz"
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "fslmaths" "Making failed for ${BOLD_RED}${inputs[$ct]}${RESET}"
               exit 1

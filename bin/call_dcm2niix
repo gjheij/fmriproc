@@ -191,7 +191,7 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
   } >> "$log"
   
   # Convert using parrec2nii (adjust output handling if needed)
-  print_cmd "${cmd[@]}" && "${cmd[@]}" >> "${log}" 2>&1
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}" >> "${log}" 2>&1
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_parrec2nii"
@@ -216,7 +216,7 @@ else
     echo
   } >> "${log}"
 
-  print_cmd "${cmd[@]}" && "${cmd[@]}" >> "${log}" 2>&1
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}" >> "${log}" 2>&1
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

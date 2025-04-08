@@ -244,7 +244,7 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
 
   # copy geometry from input file
   cmd="call_copyheader "${INPUT}" "${out_file}""
-  "${cmd}"
+  eval "${cmd}"
   # check for error-directory
   if [[ $? -ne 0 ]]; then
     echo 
@@ -259,7 +259,7 @@ img_for_mask=$(find ${OUTPUT} -type f -name "p0*") 2>/dev/null
 if [ ! -z ${img_for_mask} ]; then
   echo "Create mask from brain extracted segmentation image \"p0\""
   cmd="fslmaths ${img_for_mask} -bin ${OUTPUT}/mask$(basename ${img_for_mask})"
-  "${cmd}"
+  eval "${cmd}"
   
   if [[ $? -ne 0 ]]; then
     echo 

@@ -196,7 +196,7 @@ for subID in ${search}; do
           --name "${output_root}"
         )
         
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ -f ${out_prob} ]]; then
           mv "${out_prob}" "${output_dura}"
         else
@@ -273,7 +273,7 @@ for subID in ${search}; do
         --name ${output_root}
       )
 
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       
       if [[ $? -ne 0 ]]; then
         echo

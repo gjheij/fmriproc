@@ -183,7 +183,7 @@ for subID in ${search}; do
           ${kwargs_flag}
         )
         
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? != 0 ]]; then
           echo
           print_line -
@@ -203,7 +203,7 @@ for subID in ${search}; do
           "${cruise_mask}"
         )
         
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? != 0 ]]; then
           echo
           print_line -
@@ -230,7 +230,7 @@ for subID in ${search}; do
             --name "$(basename ${output_root})"
           )
 
-          print_cmd "${cmd[@]}" && "${cmd[@]}"
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
           if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
             echo
             print_line -

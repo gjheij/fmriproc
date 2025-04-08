@@ -84,7 +84,7 @@ if [[ -f "$ref" && -f "$in" && -f "$affine" ]]; then
     "${extra_args[@]}"
   )
   echo "Running FNIRT with command:"
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

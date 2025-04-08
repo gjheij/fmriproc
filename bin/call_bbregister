@@ -124,4 +124,4 @@ cmd=(
   "${init}"
   "${format}"
 )
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"

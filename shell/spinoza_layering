@@ -229,7 +229,7 @@ for subID in ${search}; do
         ${kwargs_flag}
       )
 
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
       if [[ $? != 0 ]]; then
         echo

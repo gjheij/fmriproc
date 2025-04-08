@@ -192,7 +192,7 @@ if [ ${VERB} -eq 1 ]; then
 fi 
 
 # eval doesn't quit script like 'exec' does
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 if [[ $? != 0 ]]; then
   echo

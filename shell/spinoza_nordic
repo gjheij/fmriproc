@@ -294,7 +294,7 @@ for subID in ${search}; do
           fi
 
           # run command
-          "${cmd[@]}"
+          eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_nordic"
             exit 1

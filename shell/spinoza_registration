@@ -274,7 +274,7 @@ for subID in ${search}; do
           "${output_dir}/${base}_${ext}"
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 || ! -f "${output_dir}/${base}_${ext}genaff.mat" ]]; then
 
           # debugging purposes
@@ -345,7 +345,7 @@ for subID in ${search}; do
             )
 
             # run
-            "${cmd[@]}"
+            eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1

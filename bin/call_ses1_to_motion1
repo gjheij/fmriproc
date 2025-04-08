@@ -72,4 +72,4 @@ cmd=(
   "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
   rigid
 )
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"

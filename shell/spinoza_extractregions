@@ -273,7 +273,7 @@ for subID in ${search}; do
           ${kwargs_flag}
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -335,7 +335,7 @@ for subID in ${search}; do
         --name "${base}_acq-${DATA^^}"
       )
 
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo

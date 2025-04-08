@@ -29,7 +29,7 @@ launch_viewer() {
     echo
     print_line -
     echo -e "Starting '${BOLD_RED}${func}${RESET}'. ${msg} ${BOLD_RED}ALWAYS SAVE YOUR CHANGES!${RESET}"
-    print_cmd "${cmd}" && "${cmd}" 2>/dev/null
+    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
 
     if [[ $? -ne 0 ]]; then
       echo
@@ -229,7 +229,7 @@ for subID in ${search}; do
               $(dirname ${t2})/tmp_$(basename ${t2})
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               echo
               print_line -
@@ -247,7 +247,7 @@ for subID in ${search}; do
             )
         
             echo
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               echo
               print_line -
@@ -268,7 +268,7 @@ for subID in ${search}; do
                 --out "${pn_anat}/${base}_acq-${DATA^^}"
               )
 
-              print_cmd "${cmd[@]}" && "${cmd[@]}"
+              print_cmd "${cmd[@]}" && eval "${cmd[@]}"
               if [[ $? -ne 0 || ! -f "${fn_ratio}" ]]; then
                 echo
                 print_line -
@@ -308,7 +308,7 @@ for subID in ${search}; do
               \"${mat_file} ${warp_file}\"
             )
 
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             if [[ $? -ne 0 || ! -f "${fn_mni}" ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1
@@ -325,7 +325,7 @@ for subID in ${search}; do
             )
 
             echo
-            print_cmd "${cmd[@]}" && "${cmd[@]}"
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
             if [[ $? -ne 0 || -f "${fn_mni}" ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
@@ -347,7 +347,7 @@ for subID in ${search}; do
           echo
           echo "Multiplying template mask with nuisance-image"
           cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
-          print_cmd "${cmd}" && "${cmd}"
+          print_cmd "${cmd}" && eval "${cmd}"
 
           if [[ $? != 0 ]]; then
             echo
@@ -365,7 +365,7 @@ for subID in ${search}; do
               echo "\"${cmd}\""
             else
               echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
-              print_cmd "${cmd}" && "${cmd}"
+              print_cmd "${cmd}" && eval "${cmd}"
             fi
           fi
         else

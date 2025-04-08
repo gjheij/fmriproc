@@ -76,5 +76,5 @@ done
 
 ANAT=$(find "${DIR_DATA_DERIV}/cat12/${base_dir}" -type f \( -name "${sub}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
 cmd="launch_itksnap -g ${ANAT} ${ARRAY[@]}"
-print_cmd "${cmd}" && "${cmd}"  
+print_cmd "${cmd}" && eval "${cmd}"  
 

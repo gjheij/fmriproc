@@ -55,7 +55,7 @@ for f in ${funcs[@]}; do
     echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
     out=${base_name}masked_bold.nii.gz
     cmd="fslmaths ${f} -mas ${mask_file} ${out}"
-    "${cmd}"
+    eval "${cmd}"
 
     if [ $? -ne 0 ]; then
       echo "fslmaths exited with non-zero status"

@@ -277,7 +277,7 @@ for subID in ${search}; do
           )
         fi
 
-        "${cmd[@]}"
+        eval "${cmd[@]}"
         if [[ ! -f ${output} ]]; then
           print_error_msg "$(basename ${0})" "${call_}"
           exit 1
@@ -299,7 +299,7 @@ for subID in ${search}; do
         "${output}"
       )
 
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ ! -f ${output} ]]; then
         print_error_msg "$(basename ${0})" "call_wsd"
         exit 1

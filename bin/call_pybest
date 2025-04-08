@@ -213,7 +213,7 @@ for task_id in ${task_ids[@]}; do
           --pre
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
@@ -243,7 +243,7 @@ for task_id in ${task_ids[@]}; do
           --n-comps "${n_comps}"
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -271,7 +271,7 @@ for task_id in ${task_ids[@]}; do
           --post
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -300,7 +300,7 @@ for task_id in ${task_ids[@]}; do
           --pre
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo
@@ -327,7 +327,7 @@ for task_id in ${task_ids[@]}; do
         --n-comps "${n_comps}"
       )
 
-      print_cmd "${cmd[@]}" && "${cmd[@]}"
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
       if [[ $? -ne 0 ]]; then
         echo
@@ -353,7 +353,7 @@ for task_id in ${task_ids[@]}; do
           --post
         )
 
-        print_cmd "${cmd[@]}" && "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
         if [[ $? -ne 0 ]]; then
           echo

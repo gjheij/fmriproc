@@ -118,7 +118,7 @@ if [[ ${VERB} -eq 1 ]]; then
 fi
 
 # run cmd
-"${cmd[@]}"
+eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo

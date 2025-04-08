@@ -390,7 +390,7 @@ for subID in ${search}; do
       "${skip_prf_info}"
     )
     
-    print_cmd "${cmd[@]}" && "${cmd[@]}"
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
     if [[ $? != 0 ]]; then
       echo

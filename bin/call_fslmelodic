@@ -94,7 +94,7 @@ cmd=(melodic -i "${input}" -o "${output}" "${extra_args[@]}")
 
 # Echo and run
 echo "Running MELODIC with command:"
-print_cmd "${cmd[@]}" && "${cmd[@]}"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo
