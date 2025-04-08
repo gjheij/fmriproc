@@ -4,6 +4,7 @@ import nibabel as nb
 import numpy as np
 import sys, getopt
 import os
+from lazyfmri import utils
 
 def main(argv):
 
@@ -56,13 +57,7 @@ Example:
     hdr = img.header
     dim = hdr["dim"][0]
     cmd_txt = f"ImageMath {dim} {out} RescaleImage {input_image} {min_range} {max_range}"
-
-    try:
-        os.system(cmd_txt)
-    except:
-        print("Something went wrong")
-        sys.exit(1)
-    # rescl.to_filename(out)
+    utils.run_shell_wrapper(cmd_txt)
 
     try:
         os.system(f"fslorient -copyqform2sform {out}")
