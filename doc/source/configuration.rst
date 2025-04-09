@@ -395,7 +395,7 @@ Setting up Nighres_
 Nighres is a Python package for processing of high-resolution neuroimaging data.
 It developed out of CBS High-Res Brain Processing Tools and aims to make those tools easier to install, use and extend.
 Nighres now includes new functions from the IMCN imaging toolkit.
-Because of its dependency on Java, it requires a slightly more exotic installation.
+Because of its dependency on Java, it requires a slightly more exotic installation (and I haven't managed to get it to work on MacOS, yet).
 
 Start with cloning the repository:
 
@@ -410,23 +410,23 @@ Then make sure you install some Java stuff:
     # on ubuntu/WSL
     sudo apt-get install openjdk-8-jdk
 
-The Nighres-installer will look for `$JAVA_HOME/bin/javac`, where ``JAVA_HOME`` is automatically set as:
+The Nighres-installer will look for ``$JAVA_HOME/bin/javac``, where ``JAVA_HOME`` is automatically set as:
 
 .. code-block:: bash
 
     detected_java=$(java -XshowSettings:properties -version 2>&1 | tr -d ' '| grep java.home | cut -f 2 -d '=')
 
-In newer versions of openjdk-8-jdk, the jre/ subfolder is no longer included, because it's now merged with the main JDK. So:
+In newer versions of **openjdk-8-jdk**, the **jre/** subfolder is no longer included, because it's now merged with the main JDK. So:
 
-.. code-block:: none
+.. code-block:: bash
     
     # Expected path:
-    /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/javac ❌
+    /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/javac # wrong
 
     # Actual path:
-    /usr/lib/jvm/java-8-openjdk-amd64/bin/javac ✅
+    /usr/lib/jvm/java-8-openjdk-amd64/bin/javac     # correct
 
-Thus, add the following to your ``~/.bash_profile```-file:
+Thus, add the following to your ``~/.bash_profile``-file:
 
 .. code-block:: bash
 
