@@ -3,6 +3,11 @@
 fMRIproc Documentation
 ======================
 
+.. image:: imgs/overview.png
+   :alt: fmriproc overview
+   :width: 600px
+   :align: center
+
 Welcome to the **fMRIproc** documentation. This pipeline is designed for the acquisition and post-processing of **line scanning** and **whole-brain/partial FOV BOLD** data at the **Spinoza Centre for Neuroimaging**.
 This repository contains all of the tools used during the acquisition and postprocessing of line scanning data at the Spinoza Centre for Neuroimaging in Amsterdam.
 Over time, it has evolved to also incorporate regular whole-brain/partial FOV BOLD data.
