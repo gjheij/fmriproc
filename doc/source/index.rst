@@ -35,4 +35,4 @@ HRF estimation, plotting, and other analysis approaches performed in my line-sca
    :caption: Reference
    
    classes/index
-   bash
+   generated_modules

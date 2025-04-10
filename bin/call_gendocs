@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+
+import requests
+from pathlib import Path
+from typing import Optional
+
+# Set your repo and branch
+GITHUB_USER = "gjheij"
+GITHUB_REPO = "fmriproc"
+GITHUB_BRANCH = "main"
+
+# Path in the repo where the bash scripts live
+SCRIPT_DIR = "shell"
+
+# Local output file
+OUTPUT_FILE = Path("../doc/source/generated_modules.rst")
+
+# GitHub API URL to list contents
+list_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{SCRIPT_DIR}?ref={GITHUB_BRANCH}"
+
+print(f"Fetching file list from {list_url}")
+response = requests.get(list_url)
+files = response.json()
+
+def extract_bash_usage_block(content: str) -> Optional[str]:
+    """Extracts the help section between dashes that precede and follow a line starting with spinoza_"""
+    lines = content.splitlines()
+    start_idx = None
+    end_idx = None
+
+    for i, line in enumerate(lines):
+        if "spinoza_" in line:
+            start_idx = i - 1
+            break
+
+    if start_idx is not None:
+        for k in range(start_idx + 1, len(lines)):
+            if lines[k].strip().startswith("-------") and set(lines[k].strip("# ").strip()) == {"-"}:
+                end_idx = k
+                break
+
+    if start_idx is not None and end_idx is not None:
+        return "\n".join(lines[start_idx + 1:end_idx]).strip()
+    else:
+        return None
+
+with OUTPUT_FILE.open("w") as out:
+    out.write(".. include:: links.rst\n\n")
+    out.write("------------\nBash modules\n------------\n")
+
+    for file_info in files:
+        name = file_info["name"]
+        if not name.startswith("spinoza_"):
+            continue
+
+        script_url = file_info["download_url"]
+        print(f"Fetching {name} from {script_url}")
+        try:
+            content = requests.get(script_url).text
+            help_text = extract_bash_usage_block(content)
+
+            out.write(f"\n{name}\n{'=' * 100}\n\n")
+            out.write(".. code-block:: none\n\n")
+
+            if help_text:
+                for line in help_text.splitlines():
+                    out.write(f"    {line.rstrip()}\n")
+            else:
+                out.write("    (No help text found)\n")
+        except Exception as e:
+            print(f"❌ Failed to fetch or process {name}: {e}")
+            out.write(f"\n{name}\n{'=' * 100}\n\n")
+            out.write(".. code-block:: none\n\n")
+            out.write("    (Error fetching or parsing help text)\n")
