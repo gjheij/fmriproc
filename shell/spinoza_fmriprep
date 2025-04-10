@@ -195,7 +195,7 @@ exists, we will copy it to the directory where the T1-weighted is located (<inpu
 that it is included by fMRIprep.
 
 Usage:
-  spinoza_fmriprep [options] <anat dir> <derivatives folder> <mode> <T2 dir>
+  spinoza_fmriprep [arguments] [options] <anat dir> <derivatives folder> <mode> <T2 dir>
 
 Arguments:
   -a <keep runs>    if you're running fMRIprep with MNI152* as output space, you're creating massive
@@ -227,16 +227,9 @@ Arguments:
   -u <config>       configuration file as specified in /misc/fmriprep_config?.json
   -w <workdir>      custom working directory; defaults to PATH_HOME/fmriprep/<PROJECT>
 
-Positional:
-  <anat dir>        directory containing the anatomical data. Can also be the regular project root
-                    folder if you want fMRIprep do the surface reconstruction
-  <derivatives>     output folder for fMRIprep; generally this will be <project>/derivatives
-  <mode>            run anatomical workflow only with 'anat', or everything with 'func'
-  <T2 dir>          if you have a T2w-file, but that is not in <anat dir> (because you preprocessed
-                    the T1w-file, but not the T2w-file), you can specify the directory where it lives
-                    here. Generally this will be the same as <func dir>
-
 Options:
+  -o|--ow           only removes folders within single_subj workflow with "run-". If specific runs are 
+                    requested with '-r', only these folders will be removed
   --clean           remove the single-subject workflow folder completely. This saves storage, but comes
                     at the price that it re-runs EVERYTHING if you restart the process.
   --docker          run fmriprep through docker image (requires 'fmriprep-docker' to be installed!)
@@ -253,8 +246,6 @@ Options:
                     associated with the timeseries files
   --no-bbr          maps to '--force-no-bbr' in call_fmriprep
   --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
-  --ow              only removes folders within single_subj workflow with "run-". If specific runs are 
-                    requested with '-r', only these folders will be removed
   --remove-surf-wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for re-
                     gistration and transformation
   --remove-wf       remove full single_subject workflow folder. Use \"--remove-surf-wf\" to specifically 
@@ -263,6 +254,15 @@ Options:
                     with "run-"
   --warp-only       skips fMRIPrep, but creates new boldref images (if '--no-boldref' is not specified) 
                     and copies the bold-to-T1w warps to the subject's output folder
+
+Positional:
+  <anat dir>        directory containing the anatomical data. Can also be the regular project root
+                    folder if you want fMRIprep do the surface reconstruction
+  <derivatives>     output folder for fMRIprep; generally this will be <project>/derivatives
+  <mode>            run anatomical workflow only with 'anat', or everything with 'func'
+  <T2 dir>          if you have a T2w-file, but that is not in <anat dir> (because you preprocessed
+                    the T1w-file, but not the T2w-file), you can specify the directory where it lives
+                    here. Generally this will be the same as <func dir>
 
 Example:
   spinoza_fmriprep <project>/derivatives/masked_mp2rage <project>/derivatives anat

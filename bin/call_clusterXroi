@@ -1,10 +1,10 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# source bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
 	cat <<USAGE
@@ -17,11 +17,11 @@ Multiplies cluster masks given a subject with a directory containing ROIs.
 Usage:
   call_stats2surf -s <subj_ID> -f <featdir> -g <gfeatdir> -m <maskdir> -c 1,2,3,4 -z 1
 
-Args:
+Arguments:
   -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
   -f <featdir>        path to FEAT-directory
   -g <gfeatdir>       which group analysis should I use for the cluster mask?
-  -m <maskdir>        path to directory containing the masks. Default is /fast/project/PG_Niendorf_fmri/fmri/studies/pipeline_params/PainMatrixMasks/
+  -m <maskdir>        path to directory containing the masks
   -c <copes>          for which copes do we need to run this? Default is one, for H02, this should be 1,2,3,4, for H01 this is 1
   -z <zstat>          which zstat to process? CONTROLS = zstat1; PATIENT = zstat2, for instance.
   -r <run ID>         if multiple runs were acquired, add a 'run-' flag. Must be integer
@@ -29,14 +29,14 @@ Args:
 Example:
   call_clusterXroi -s sub-001 -f <featdir> -m <dir with ROI masks> -z "1,2,3"
 
-Cluster:
-for i in 002 003 004 005; do \
-  qsub -N extract_${i} \
-  call_clusterXroi \
-	-s sub-${i} \
-	-f /path/to/level1/sub-${i}.feat \
-	-g /path/to/level2/fixed_thres-3.1_space-MNI152NLin6Asym.gfeat;
-done
+Example:
+  for i in 002 003 004 005; do \
+    qsub -N extract_${i} \
+    call_clusterXroi \
+    -s sub-${i} \
+    -f /path/to/level1/sub-${i}.feat \
+    -g /path/to/level2/fixed_thres-3.1_space-MNI152NLin6Asym.gfeat;
+  done
 
 ---------------------------------------------------------------------------------------------------
 
@@ -80,8 +80,18 @@ else
   fbase=${subj_ID}
 fi
 
-if [[ -z ${maskdir} ]]; then
-  maskdir=/fast/project/PG_Niendorf_fmri/fmri/pipeHMR/repo/toolboxes/ROIs
+if [[ ! -d ${maskdir} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify a directory with binary masks.."
+  exit 1
+fi
+
+if [[ ! -d ${featdir} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify a path pointing to a FEAT directory"
+  exit 1
 fi
 
 if [[ -z ${copes} ]]; then
@@ -95,13 +105,6 @@ fi
 echo "General settings:"
 echo " copes: ${copes}"
 echo " zstat: ${nr_zstat}"
-
-
-# start by warping file from template to anat-space
-if [[ ! -d ${maskdir} ]] || [[ ! -d ${featdir} ]]; then
-  echo "Could not find ROI-directory and FEAT-directory.."
-  exit 1
-fi
 
 outdir=${featdir}/cluster_x_roi/$(basename ${gfeatdir})
 if [[ ! -d ${outdir} ]]; then

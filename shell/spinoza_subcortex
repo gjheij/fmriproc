@@ -17,14 +17,13 @@ Subcortex segmentation using Nighres' MASSP-algorithm. Calls on call_nighresmass
 for more information on the required inputs.
 
 Usage:
-  spinoza_subcortex [options] <project root dir> <prob seg dir> <region> <overwrite>
+  spinoza_subcortex [arguments] [options] <project root dir> <prob seg dir> <region> <overwrite>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -j <cpus>           number of cores to use (default is 1)
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -o|--ow             overwrite existing files
   -x <kwargs>         Additional commands to be passed to 'antsRegistration'. Format should
                       be comma-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -43,9 +42,13 @@ Arguments:
                       combine as:
                       "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands                      
+                      This allows bash commands to be translated to python commands
+
+Options:
+  -o|--ow             Overwrite existing output
   --sge               submit job to cluster
 
+Positional:
   <anat folder>       folder containing the files required for MASSP. Files should end with:
                         -"*_R1.nii.gz"   > 1/T1map file
                         -"*_R2s.nii.gz"  > 1/T2* file
@@ -87,10 +90,12 @@ do
           ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}" >&2
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
           fi
           ;;
-      esac;;    
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

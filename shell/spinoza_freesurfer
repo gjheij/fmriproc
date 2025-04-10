@@ -17,17 +17,19 @@ Surface parcellation with FreeSurfer. We only need to specify where to look for 
 stage we should run (default is 'all'), and where to look for a T2w-image if there is one.
 
 Usage:
-  spinoza_freesurfer [options] <directory with anats> <stage> <T2-directory>
+  spinoza_freesurfer [arguments] [options] <directory with anats> <stage> <T2-directory>
 
-Flagged arguments:
+Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or n)
   -e <start>          start stage (maps to '-r' from 'call_freesurfer'). Must be one of 'pial', 
                       'cp', or 'wm' if <freesurfer stage> != 'all'
   -j <cpus>           number of cores to use (default is 1)
-  -o|--ow             overwrite existing files
   -x <file>           use expert file
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  
+Options:
+  -o|--ow             overwrite existing files
   --force-exec        Force execution even though directory exists already
   --local             Force local processing even though cluster is available
   --no-highres        Turn of highres mode by setting '-highres' flag empty
@@ -140,7 +142,7 @@ do
             exit 1
           fi
           ;;
-      esac;;   
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

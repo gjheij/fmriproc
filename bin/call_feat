@@ -18,13 +18,15 @@ according to your input. If '--sge' is specified, the job will be submitted to t
 specified number of cores (default = 1) to a specific queue (default = long.q, check your setup file).
 
 Usage:
-  call_feat [options] <fsf file>
+  call_feat [arguments] [options] <fsf file>
 
-Args:
+Arguments:
   -n <name>   custom name for job (default = 'feat')
   -j <cpus>   number of cores to use (default is 1)
   -q <queue>  submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
               must be used with '--sge', otherwise it'll run locally still
+
+Options:
   --sge       submit the script to a cluster using a template script
 
 Example:

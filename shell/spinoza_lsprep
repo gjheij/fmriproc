@@ -18,7 +18,7 @@ only run it on the spinoza cluster. It calls upon call_lsprep, which internally 
 for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
 
 Usage:
-  spinoza_lsprep [options] <project root directory> <sourcedata>
+  spinoza_lsprep [arguments] [options] <project root directory> <sourcedata>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -36,7 +36,11 @@ Arguments:
 
                       This allows bash commands to be translated to python commands
 
+Options:
+  -o|--ow             Overwrite existing output
   -c|--sge            submit job to cluster (SGE/SLURM)
+
+Positional:
   <project root>      base directory containing the derivatives and the subject's folders.
   <derivatives>       base directory to store the 'lsprep'-folder in 
 

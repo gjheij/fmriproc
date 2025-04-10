@@ -36,13 +36,15 @@ files will be named properly. Thus, the folder structure is expected to be like:
                 └── sub-<subject>_ses-<session>_task-<task_id>_run-<run_id>_bold_ph.nii.gz
 
 Usage:
-  spinoza_nordic [options] <bids folder>
+  spinoza_nordic [arguments] [options] <bids folder>
 
 Arguments:
   -s <subject>  subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>  session ID (e.g., 1, 2, or none
   -r <run>      run ID (e.g., 1). Can also be comma-separated list: 1,3,4
   -q <queue>    submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+
+Options:
   --sge         submit individual NORDIC processes to the cluster for parallellization. If you do 
                 this, it's advised to have identifiable 'run-' flags in your filenames so that the 
                 template file is not overwritten; this can cause problems. If you do not have run 
@@ -51,6 +53,8 @@ Arguments:
   -o|--ow       overwrite existing files even if "Nordic"-field is populated in json file
   --mag         use magnitude only
   --no-tsnr     skip tSNR maps before/after NORDIC
+
+Positional:
   <bids folder> parent directory containing the sub-xxx folders for functional data. Generally, 
                 this should be DIR_DATA_HOME
 
@@ -95,11 +99,12 @@ do
           ;;                                                                                               
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;      
+      esac;;    
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

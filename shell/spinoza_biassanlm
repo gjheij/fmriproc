@@ -22,7 +22,7 @@ viously created mask with SPM is used to boost performance on ANTs functions (e.
 rection).
 
 Usage:
-  spinoza_biassanlm [options] <anat folder> <output folder>
+  spinoza_biassanlm [arguments] [options] <anat folder> <output folder>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -31,12 +31,6 @@ Arguments:
   -l <lower>          lower percentile (default = 0.01) for call_winsorize
   -u <upper>          upper percentile (default = 0.99) for call_winsorize  
   -o                  overwrite existing files
-  --spm               run bias correction with SPM (default = False)
-  --no-sanlm          do not run SANLM denoising (in case you don't have CAT12..)
-  --no-mask           do not use SPM mask for SANLM/Bias correction with ANTs
-  --n4                run bias correction with N4BiasCorrection (ANTs)
-  --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
-                      CAT12.
   -x <kwargs>         Additional commands to be passed to 'call_antsbias'. Format should
                       be colon-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -48,6 +42,15 @@ Arguments:
                       e.g.,
                       "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
 
+Options
+  --spm               run bias correction with SPM (default = False)
+  --no-sanlm          do not run SANLM denoising (in case you don't have CAT12..)
+  --no-mask           do not use SPM mask for SANLM/Bias correction with ANTs
+  --n4                run bias correction with N4BiasCorrection (ANTs)
+  --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
+                      CAT12.
+
+Positional:
   <anat dir>          parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
                       DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
   <output>            Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
@@ -105,7 +108,7 @@ do
             exit 1
           fi
           ;;
-      esac;;       
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

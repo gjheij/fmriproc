@@ -38,6 +38,11 @@ Arguments:
   --debug           don't submit job, just print inputs/outputs
   -n|--no-nordic    skip NORDIC during reconstruction
 
+Positional:
+  <raw data>        raw k-space data
+  <lsd image>       slice image with saturation pulses AND phase-encoding turned on
+  <output file>     output .mat file
+
 Example:
   call_linerecon bold.lab lsd.lab func.mat
   call_linerecon -n -m 5 bold.lab lsd.lab func.mat

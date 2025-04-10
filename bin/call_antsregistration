@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
-#$ -pe smp 1
 
 #-----------------------------------------------------------------------------
 # source bash helper functions
@@ -19,20 +14,10 @@ This scripts makes the call to 'antsRegistration' a little easier, as you'll onl
 reference image, the moving image, the output-prefix, the type of registration and an initial trans-
 formation file (optional, will be included if specified, otherwise ignored).
 
-Flagged arguments:
-  -v|--verbose  Turn on verbose
-  --<metric>    Flag to use a given metric. Available options are: 'cc' (cross-correlation), 'mi',
-                (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' (glo-
-                bal correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' (jensen-
-                havrda-charvet-tsallis), 'igdm'
-                For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, use 
-                '--bspl5'.
-                For now it's not possible to set the metrics for different stages separately (rigid>
-                affine>SyN). The same metric is used for all stages. By default, 'Cross-correlation'
-                is used for SyN-diffeomorphic registration (the final stage). The rigid-body and af-
-                fine stages before the SyN-registration can be altered.
-  --fsl         also output the matrix in FSL-compatible format (not available for SyN)
-  --itk         open ITK-Snap to verify how registration went
+Usage:
+  call_antsregistration [arguments] [options] <fixed> <moving> <output prefix>
+
+Arguments:
   -x <mask>     Image masks to limit voxels considered by the metric
   -i <initial>  the initial moving transform(s) which get immediately incorporated into the compo-
                 site transform
@@ -58,12 +43,27 @@ Flagged arguments:
                 be identical to the examples above, so values separated by 'x', without spaces, 
                 with the number of values corresponding to the number of stages to perform            
   -j <cores>    number of cores to use; default = 1
+  -n <levels>   number of levels to use (default = 4)
+
+Options:
+  -v|--verbose  Turn on verbose
+  --<metric>    Flag to use a given metric. Available options are: 'cc' (cross-correlation), 'mi',
+                (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' (glo-
+                bal correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' (jensen-
+                havrda-charvet-tsallis), 'igdm'
+                For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, use 
+                '--bspl5'.
+                For now it's not possible to set the metrics for different stages separately (rigid>
+                affine>SyN). The same metric is used for all stages. By default, 'Cross-correlation'
+                is used for SyN-diffeomorphic registration (the final stage). The rigid-body and af-
+                fine stages before the SyN-registration can be altered.
+  --fsl         also output the matrix in FSL-compatible format (not available for SyN)
+  --itk         open ITK-Snap to verify how registration went
   --<interp>    interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
                 (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
                 (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
                 For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
                 '--gen'
-  -n <levels>   number of levels to use (default = 4)
   --rigid       use rigid-body registration
   --affine      use affine registration
   --syn         use SyN-diffeomorphic registration
@@ -78,13 +78,10 @@ Flagged arguments:
                 predictable.
   --no-winsor   don't winsorize the image prior to registration
 
-Positional arguments (after options):
+Positional:
   <reference>   Reference image (nii/nii.gz/mgz)
   <moving>      Moving image (nii/nii.gz/mgz)
   <output>      Basename (incl path) for output files ('genaff'/'rigid' will be appended)
-
-Usage:
-  call_antsregistration [options] <fixed> <moving> <output prefix>
 
 Example:
   call_antsregistration -i initial.txt ref.nii.gz mov.nii.gz out_ rigid

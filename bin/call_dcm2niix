@@ -19,26 +19,27 @@ rors (happens with laaarge PAR/RECs), we'll attempt to convert with parrec2nii (
 table with nibabel). This will attempt to put the correct information in an accompanying json side-
 car (not produced by parrec2nii); some information (e.g., RepetitionTime) could be missing.
 
-Parameters
-----------
-  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
-                      sequence of TRs 
+Usage:
+  call_dcm2niix [arguments] [options]
+
+Arguments:
   -i <input folder>   folder containing the files to be processed. Always needed!
   -o <output folder>  output folder. If empty, it will use <input folder>/nifti
   -c <compress>       create nii's ("n") or nii.gz's ("o"; default)
-  -v <version>        2019|2020 (2020 fails sometimes when dealing with fMRI phase data)
   -d <depth>          search depth for dcm2niix
   -p <pattern>        pattern for file-name reconstruction (default = %n_%p, representing Patient-
                       Name & Protocol Name). You can change this, but then I don't bear any respon-
                       sibilities over the consequences in later scripts.. This option is only avai-
                       lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
 
+Options:
+  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
+                      sequence of TRs
 Example
 ----------
   call_dcm2niix -i /path/to/PARRECs         # most basic call
   call_dcm2niix -i /path/to/PARRECs -c n    # don't compress
-  call_dcm2niix -i /path/to/PARRECs -v dev  # use developmental version
-
+  
 ---------------------------------------------------------------------------------------------------
 
 USAGE

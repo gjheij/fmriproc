@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # source helper functions
 source ${SETUP_FILE}
 source call_bashhelper
-load_colors
 
 #---------------------------------------------------------------------------------------------------------
 # extra functions
-
 construct_bids_filename() {
   local bold="$1"
   local bids_dir="$2"
@@ -807,6 +802,12 @@ Arguments:
                       Name & Protocol Name). You can change this, but then I don't bear any respon-
                       sibilities over the consequences in later scripts.. This option is only avai-
                       lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
+  -a <suffixes>       use suffixes to store other anatomical files in the BIDS folder. This over-
+                      writes the SEARCH_ANATOMICALS-variable in the setup-file. For instance, if 
+                      you have qMRI-data that did not come from MP2RAGEME, you can specify:
+                      "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
+                      will be added to the search. 'acq' and 'run' tags are derived from the file-
+                      name.
 
 Options:
   --ow                overwrite existing files
@@ -874,7 +875,8 @@ skip_tr=0
 cut_vols=0
 trim_fmap=1
 pattern_flag=""
-while getopts :-:i:o:b:n:r:d:t:v:p: argument
+include_anatomicals=""
+while getopts :-:i:o:b:n:r:d:t:v:p:a: argument
 do
   case ${argument} in
     -)
@@ -919,11 +921,12 @@ do
           ;;                                                                                                                        
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}, did you mean \"--lines\"?"
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
             exit 1
           fi
-          ;;  
-      esac;;    
+          ;;
+      esac;;   
     i)  input_dir=${OPTARG}
           ;;
     o)  tmp_dir=${OPTARG}
@@ -941,7 +944,9 @@ do
     v)  cut_vols=${OPTARG}
           ;; 
     p)  pattern_flag="-p ${OPTARG}"
-          ;;                                         
+          ;;
+    a)  include_anatomicals="${OPTARG}"
+          ;;                                                   
   esac
 done
 
@@ -954,6 +959,13 @@ fi
 if [[ ! -z ${runs} ]]; then
   # read specified subjects into array
   IFS=', ' read -r -a n_runs <<< "${runs}"
+  unset IFS
+fi
+
+# sort out anatomicals
+if [[ ! -z ${include_anatomicals} ]]; then
+  # read specified subjects into array
+  IFS=', ' read -r -a SEARCH_ANATOMICALS <<< "${include_anatomicals}"
   unset IFS
 fi
 

@@ -18,6 +18,9 @@ ty. Do you want to run it locally, make sure you have all dependencies installed
 There's also a bunch of other things you can customize, but to keep it as simple as possible without
 making it similar to the fmriprep call itself, see arguments for customizable options
 
+Usage:
+  call_fmriprep [arguments] [options]
+
 Arguments:
   -s <sub number>   number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
                     enter "001")
@@ -43,6 +46,8 @@ Arguments:
                     this argument you can specify which runs to keep. Again, if not specified, all
                     nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
                     ces will be left alone. Use '-a all' to keep all runs (not recommended..)     
+
+Options:
   --docker          use command 'fmriprep-docker' to invoke docker image               
   --warp-only       skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
   --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.

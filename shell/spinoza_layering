@@ -20,13 +20,12 @@ This doesn't take too long, so it doesn't really matter and prevents the need fo
 To disable, you can specify a condition before running this particular script.
 
 Usage:
-  spinoza_layering [options] <input dir> <software>
+  spinoza_layering [arguments] [options] <input dir> <software>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
   -l <nr_layers>      number of layers to estimate (defaults: nighres=10; FreeSurfer=5)
-  -o                  overwrite existing files
   -x <kwargs>         Additional commands to be passed to 'volumetric_layering'. Format should
                       be comma-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -37,6 +36,10 @@ Arguments:
 
                       This allows bash commands to be translated to python commands
 
+Options:
+  -o|--ow             Overwrite existing output
+
+Positional:
   <input folder>      if software == 'nighres', then we need the nighres output folder (generally 
                       DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the SUB-
                       JECTS_DIR
@@ -86,6 +89,19 @@ kwargs_flag=""
 while getopts os:n:l:x: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        ow)
+          OW=1
+          ;;            
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

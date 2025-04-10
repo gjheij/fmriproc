@@ -20,7 +20,10 @@ files to do this before sampling it to the surface. Some flags from call_antsapp
 therefore inherited, such as '-i' (for inverting matrices) and the interpolation methods (default
 is 'Linear' [--lin]). Use '--gen' for masks and 'mul' for files lookup-table files (label files)
 
-Args:
+Usage:
+  call_vol2fsaverage [arguments] [options] <subject> <in_file> <out_name>
+
+Arguments:
   <-r file>   registration file; sometimes useful if you're warping partial FOVs and want to use
               an identity matrix for instance.
   <-o out>    output directory
@@ -33,20 +36,21 @@ Args:
   -i <invert> invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
               warp files, specify a space-separated list between quotes as inversion tag; if not
               everything will be set to 'do not invert'  
-  --<interp>    interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
-                (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
-                (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
-                For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
-                '--gen'                                                  
+  
+Options
+  --<interp>  interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
+              (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
+              (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
+              For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
+              '--gen'                                                  
   <--tr>      set repetition time in .gii-files
+
+Positional:
   <subject>   subject ID as used in the FreeSurfer directory
   <in_file>   path to the input file that needs to be projected to the surface
   <suffix>    suffix for the output. The output file will be an .gii file in both the subject-
               specific folder (mri_vol2surf) and fsaverage/volumes. <subject>_hemi-<L|R>_space-
               <fsnative|fsaverage>_<suffix>.gii is default
-
-Usage:
-  call_vol2fsaverage [options] <subject> <in_file> <out_name>
 
 Example:
   call_vol2fsaverage sub-001 t1map.nii.gz T1map
@@ -54,6 +58,7 @@ Example:
   call_vol2fsaverage -o /some/directory -r ident.dat sub-001 bold.nii.gz bold.func
   call_vol2fsaverage -p sub-999_ses-1_task-pRF -r ident.dat sub-001 bold.nii.gz run-1_bold.func
   call_vol2fsaverage -t from-T1w_to-bold.mat -i 0 sub-001 bold.nii.gz bold.func
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE

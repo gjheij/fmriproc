@@ -18,7 +18,7 @@ only run it on the spinoza cluster. It calls upon call_linerecon, which internal
 for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
 
 Usage:
-  spinoza_linerecon [options] <project root directory> <sourcedata>
+  spinoza_linerecon [arguments] [options] <project root directory> <sourcedata>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -30,29 +30,33 @@ Arguments:
   -c <comps>          percentage of components to remove using NORDIC (default is to use scree 
                       plot to remove appropriae number of components)
   -f <suffix>         add custom suffix; overwrites default of "bold"
-  -o|--ow             overwrite existing files
+
+Options:
+  -o|--ow             Overwrite existing output
   --debug             don't submit job, just print inputs/outputs
   --no-nordic         turn off NORDIC denoising during reconstruction
   --sge               submit job to cluster (SGE)
+
+Positional:
   <project root>      base directory containing the derivatives and the subject's folders.
   <sourcedata>        base directory containing the raw data for reconstruction
 
-Eample:
+Example:
+  # call the module
   spinoza_linerecon DIR_DATA_HOME DIR_DATA_SOURCE
 
+  # run with master:  
+    "master -m 03a -s 003 -n 4 -e 5" (sub-003, ses-4, multi-echo (5) acquisition)
+    "master -m 03a -s 003 -n 4"      (sub-003, ses-4, single-echo acquisition)
+    "master -m 03a --sge"            (submit to cluster)
+    "master -m 03a -o"               (overwrite existing files)
+    "master -m 03a -o --sge"         (overwrite and submit)
+    "master -m 03a -s 003 --debug"   (debug mode)
+
 Notes:
-  relies on matlab scripts stored in '/data1/projects/MicroFunc/common'. As it relies on MRecon,
-  we can only run this on the spinoza server
+  Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
+  bution is not uniform.
 
-run with master:  
-  "master -m 03a -s 003 -n 4 -e 5" (sub-003, ses-4, multi-echo (5) acquisition)
-  "master -m 03a -s 003 -n 4"      (sub-003, ses-4, single-echo acquisition)
-  "master -m 03a --sge"            (submit to cluster)
-  "master -m 03a -o"               (overwrite existing files)
-  "master -m 03a -o --sge"         (overwrite and submit)
-  "master -m 03a -s 003 --debug"   (debug mode)
-
-Runs by default NORDIC denoising!
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -93,11 +97,12 @@ do
           ;;                                                                    
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;    
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

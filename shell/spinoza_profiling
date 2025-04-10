@@ -21,16 +21,20 @@ find the file the we want to sample. The last argument specifies a tag to look f
 file (e.g., T1map)
 
 Usage:
-  spinoza_profiling [options] <nighres input> <input folder> <extension for to-be-sampled file>
+  spinoza_profiling [arguments] [options] <nighres input> <input folder> <extension for to-be-sampled file>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+
+Options:
+  -o|--ow             Overwrite existing output
+
+Positional:
   <nighres>           parent directory containing the output files of Nighres
                         -<nighres>/<subject>/<session>/layering/*boundaries*
                         -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
-  <tag>               tag to use to look for to-be-sampled dataset (e.g., T1map)
+  <suffix>            suffix to use to look for to-be-sampled dataset (e.g., T1map)
 
 Example:
   spinoza_profiling NIGHRES DIR_DATA_HOME T1map
@@ -50,9 +54,22 @@ fi
 
 # Check for subject & session flags
 OW=0
-while getopts s:n: argument
+while getopts :-:os:n: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        ow)
+          OW=1
+          ;;            
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

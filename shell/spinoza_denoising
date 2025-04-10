@@ -18,7 +18,7 @@ during the preprocessing with fmriprep. By default, it will use FSNative, unless
 variable in the setup file says something else, or if the '--fsaverage' flag is specified
 
 Usage:
-  spinoza_denoising [options] <fmriprep directory> <pybest output directory>
+  spinoza_denoising [arguments] [options] <fmriprep directory> <pybest output directory>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -28,12 +28,14 @@ Arguments:
   -j <n_cpus>         number of CPUs to use (default = 1)
   -c <n_comps>        overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
                       the PCA (default = 10)
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>         other arguments that should be passed to pybest
+  
+Options:  
   -o|--ow             overwrite existing files. Note that this does not delete the full ses-<> folder!
                       use --full to completely remove a folder
   --full              Overwrite (i.e., remove) existing output. In case of "-r 'all'", the entire
                       subject directory is removed
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -x <kwargs>         other arguments that should be passed to pybest
   --sge               submit job to cluster (called with 'master -m <module> --sge')
   --no-raw            do NOT unzscore the output from pybest (default is to do so)
   --fsaverage         overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
@@ -138,11 +140,12 @@ do
           ;;                                   
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;     
+      esac;;   
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

@@ -23,7 +23,7 @@ preprocessing pipeline for optimizing the segmentations. To disable, run this pa
 the overwrite switch set to 'n': master -m <module> -o n
 
 Usage:
-  spinoza_mgdm [arguments/options] <skullstripped> <mgdm> <masks>
+  spinoza_mgdm [arguments] [options] <skullstripped> <mgdm> <masks>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -39,16 +39,17 @@ Arguments:
                       "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
                       This allows bash commands to be translated to python commands
-Positional:
-  <skullstripped>     path to skullstripped data
-  <mgdm>              path to output directory
-  <masks>             path to masks
 
 Options:
   -o|--ow             overwrite existing files
   --gdh               run GdH-pipeline version (call_gdhmgdm, default is call_nighresmgdm). This
                       versions uses input from fMRIPrep and FreeSurfer as inputs for MGDM.
   --sge               submit job to cluster (SGE)
+
+Positional:
+  <skullstripped>     path to skullstripped data
+  <mgdm>              path to output directory
+  <masks>             path to masks
 
 Example:
   spinoza_mgdm SKULLSTRIP NIGHRES/mgdm MASKS

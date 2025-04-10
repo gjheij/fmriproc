@@ -12,24 +12,28 @@ warp files (0=no; 1=yes), and the list of the warp files in order of application
 that the warp files are specified in the last argument, as that's what the script will create a list
 of warps from.
 
-Args:
+Usage:
+  call_antsapplytransforms [arguments] [options] <ref> <moving> <output> <warp files>
+
+Arguments:
+  -i <invert>   invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
+                warp files, specify a comma-separated list between quotes as inversion tag (e.g., 
+                '-i 0,1'); if not everything will be set to 'do not invert'
+
+Options:
   -v|--verbose  Turn on verbose
   --<interp>    interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
                 (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
                 (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
                 For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
                 '--gen'
-  -i <invert>   invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
-                warp files, specify a comma-separated list between quotes as inversion tag (e.g., 
-                '-i 0,1'); if not everything will be set to 'do not invert'
+
+Positional:
   <ref>         space to warp file to
   <moving>      file to warp
   <output>      moving-in-ref output name
   <warp files>  all warp files in order of application; specify a comma-separated list if multiple
                 files need to be considerd (e.g., 'file1.mat,file2.mat')
-
-Usage:
-  call_antsapplytransforms -i <invert 0=no|1=yes> --<interp> <ref> <moving> <output> <warp files>
 
 Example:
   call_antsapplytransforms ref.nii.gz mov.nii.gz out.nii.gz genaff.mat
@@ -91,11 +95,12 @@ do
           ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;        
+      esac;;
     i)  invert=${OPTARG}
           ;;
     v)  VERBOSE="--verbose 1"

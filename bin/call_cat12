@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-#$ -S /usr/bin/env bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -15,19 +11,22 @@ call_cat12
 Wrapper for brain extraction CAT12. You should have the toolbox installed in <path>. This script
 uses a tempate script to run CAT12 in SPM.
 
-Args:
+Usage:
+ call_cat12 [arguments] [options] <input file> <output directory>
+ 
+Arguments:
  -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
  -l <LOG_PATH>	path to working directory, defaults to DIR_LOGS
+
+Options:
  --full         refers to a full processing with CAT12, which is sometimes overkill (makes the brain 
                 too smooth). Default is just tissue segmentation.
+
+Positional:
  <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
                 new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
                 not like *.nii.gz files.
  <output path>	path to output directory; in here, 'mri' and 'report' will be stored
-
-Usage:
- call_cat12 -l <log_dir> -s <SPM_PATH> <input file> <output directory>
- call_cat12 <input file> <output directory>
 
 Example:
  call_cat12 /path/to/inputfile.nii.gz /path/to/output_dir

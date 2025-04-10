@@ -17,19 +17,24 @@ Quality control using MRIqc. It uses the singularity container defined in the se
 MRIQC_SIMG).
 
 Usage:
-  spinoza_mriqc [options] <project dir> <derivatives>
+  spinoza_mriqc [arguments] [options] <project dir> <derivatives>
 
 Arguments:
-  --local         don't submit to SGE, run locally
-  --anat-only     only include anatomical images in the process (default is everything it can find)
-  --func-only     only include functional images in the process (default is everything it can find)  
-  --fd            only get FD-timecourse file without initializing MRIqc
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05. use 'group' 
                   if you want group statistics
   -n <session>    session ID (e.g., 1, 2, or none); If set, only data from this session will be 
                   used
   -j <cpus>       number of cores to use (default is 1)
   -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  
+Options:
+  -o|--ow         Overwrite existing output  
+  --local         don't submit to SGE, run locally
+  --anat-only     only include anatomical images in the process (default is everything it can find)
+  --func-only     only include functional images in the process (default is everything it can find)  
+  --fd            only get FD-timecourse file without initializing MRIqc
+
+Positional:
   <project dir>   directory containing the anatomical data. Can also be the regular project root
                   folder if you want MRIqc do the surface reconstruction
   <derivatives>   output folder for MRIqc; generally this will be <project>/derivatives
@@ -79,13 +84,18 @@ do
           ;;    
         fd)
           fd_flag="--fd"
-          ;;                                       
+          ;;
+        ow)
+          OW=1
+          ;;            
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}" >&2
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
           fi
           ;;
-      esac;;  
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

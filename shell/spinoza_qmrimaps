@@ -17,7 +17,7 @@ wrapper for estimation of T1 and other parametric maps from the (ME)MP2RAGE sequ
 the two inversion and phase images in PYMP2RAGE (https://github.com/Gilles86/pymp2rage).
 
 Usage:
-  spinoza_qmrimaps [options] <project root> <derivatives>
+  spinoza_qmrimaps [arguments] [options] <project root> <derivatives>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
@@ -120,6 +120,7 @@ do
           ;;                                      
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}, did you mean \"--ow\", \"--full\", \"--ups\", \"--skip-bg\", \"--force-exec\", \"--sge\", \"--sge\", \"--spm\", or \"--no-reg\"?"
             exit 1
           fi

@@ -20,7 +20,23 @@ this script requires input from FreeSurfer, so it won't do much if that hasn't r
 should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this thing
 so it can also take in the pRF to locate an even better vertex.
 
-Args:
+Usage:
+  spinoza_bestvertex [arguments] [options] <sourcedata> <derivatives> <ROI>
+
+Arguments:
+  -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
+  -n <session>    session ID used to extract the correct pRF-parameters. Will combined with <deriva-
+                  tives>/prf/ses-<session>
+  -l <line ses>   session ID for new line-scanning session; default = 2
+  -t <task>       select pRF estimates from a particular task; by default the first element of TASK_
+                  SES1 in spinoza_setup
+  -v <vertices>   manually specify two vertices to use instead of having the program look for it. 
+                  The format is important here and should always be: "<vertex in lh>,<vertex in rh>".
+                  Always try to specify two vertices; doesn't matter too much if one is not relevant
+  -e <epi_file>   Specify custom EPI-intensity file rather than looking in DIR_DATA_DERIV/fmriprep. 
+                  Automatically sets --use_epi.
+
+Options:
   -o|--ow         rename existing file to numerically increasing (e.g., line_pycortex > line_pycor-
                   tex1.csv) so that a new line_pycortex.csv-file is created. Given that the original
                   file is NOT deleted, I consider this a soft-overwrite mode. You can always manual-
@@ -79,17 +95,8 @@ Args:
                   you want an indication of the pRF-properties, but want to refit yourself. This is 
                   the case where I use M. Aqil's fitting output, which has been fitted with an out-
                   dated screen distance.      
-  -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
-  -n <session>    session ID used to extract the correct pRF-parameters. Will combined with <deriva-
-                  tives>/prf/ses-<session>
-  -l <line ses>   session ID for new line-scanning session; default = 2
-  -t <task>       select pRF estimates from a particular task; by default the first element of TASK_
-                  SES1 in spinoza_setup
-  -v <vertices>   manually specify two vertices to use instead of having the program look for it. 
-                  The format is important here and should always be: "<vertex in lh>,<vertex in rh>".
-                  Always try to specify two vertices; doesn't matter too much if one is not relevant
-  -e <epi_file>   Specify custom EPI-intensity file rather than looking in DIR_DATA_DERIV/fmriprep. 
-                  Automatically sets --use_epi.
+
+Positional:
   <project root>  Path to where the subject-drectories are located; used to loop through subjects, 
                   unless the -s switch is triggered
   <derivatives>   Derivatives folder containing the output from pycortex and pRF-fitting. Looks for 
@@ -211,14 +218,15 @@ do
           ;;     
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
-          ;;                                                                      
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;    
+      esac;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

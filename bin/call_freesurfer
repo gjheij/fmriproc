@@ -22,9 +22,9 @@ step 20: 'Automatic Topology Fixer', right before -autorecon3. So in order to in
 need to run autorecon2 and 3.
 
 Usage:
-  call_freesurfer -s <subj_ID> -t <t1 input> -p <t2 input> -r <recon stage (all | 1 | 2 | 3)>
-                  -e <edit type> -o <other editing options> [other options]
-Args:
+  call_freesurfer [arguments] [options]
+
+Arguments:
   -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
   -t <t1 input>       T1-weighted image (not necessary if you're running debugging mode)
   -p <t2 input>       T2-weighted image (not necessary, but recommended for better pial-surface
@@ -50,6 +50,8 @@ Args:
   -o <other editing>  Here you can specify the gcut-option to remove latched on pial surface
   -x <expert opts>    expert option file that maps to '-expert'. 
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+
+Options:
   --freeview          Open FreeView automatically (default is NO!)
   --force-exec        Force execution even though directory exists already
   --sge               Submit the script to a cluster using a template script
@@ -449,9 +451,6 @@ if [[ ! -z ${option} ]]; then
   fi
 
   if [[ ${FREEVIEW} -eq 1 ]]; then
-
-    # check if we have a function called call_freeview
-    call_checkfunction call_freeview
 
     if [[ $? == 0 ]]; then
       echo "Opening Freeview .."

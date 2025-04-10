@@ -22,19 +22,23 @@ you added the location of antsBrainExtraction.sh to your path e.g., in your ~/.b
 \"export PATH=PATH:/directory/with/antsBrainExtraction.sh\"
 
 Usage:
-  spinoza_brainextraction [options] <input dir> <skullstrip output> <mask output> <ants/FSL/cat12>
+  spinoza_brainextraction [arguments] [options] <input dir> <skullstrip output> <mask output> <ants/FSL/cat12>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or n)
-  -o|--ow             overwrite existing files including CAT12-segmentation (takes long!)
   -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
+  -u <upper>          upper percentile (default = 0.99) for call_winsorize
+
+Options:
+  -o|--ow             Overwrite existing output
   --full              do full processing with CAT12 including iterative SANLM filtering and bias 
                       correction. Default is just tissue segmentation. 
   --fs                use rawavg.mgz from FreeSurfer; overwrites the specified input
                       directory 
   --fprep             use desc-preproc_T1w from fMRIprep. The input is linked the '-n' flag
+
+Positional:
   <input directory>   directory for inputs
   <skullstrip>        directory for skull-stripped outputs
   <mask>              directory for masks
@@ -75,13 +79,14 @@ do
         ow)
           OW=1
           ;;            
-    *)
-      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
-        exit 1
-      fi
-      ;;
-      esac;;            
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

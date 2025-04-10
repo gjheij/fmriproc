@@ -18,12 +18,11 @@ on the required inputs. This script is by default in overwrite mode, meaning tha
 earlier will be overwritten when re-ran. To disable, run this module as master -m <module> -o n
 
 Usage:
-  spinoza_cortexrecon [options] <project root dir> <prob seg dir> <region>
+  spinoza_cortexrecon [arguments] [options] <project root dir> <prob seg dir> <region>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
   <prob seg>          directory containing probabilities of tissue segmentation. By default it will 
                       use the MDGM output, but you can specify your own. E.g., in the case of GdH-
                       pipeline
@@ -36,6 +35,10 @@ Arguments:
                       "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
                       This allows bash commands to be translated to python commands
+Options:
+  -o|--ow             Overwrite existing output
+
+Positional:              
   <project>           output folder for nighres
   <region>            region you wish to reconstruct. Should be same as spinoza_extractregions
 
@@ -58,9 +61,22 @@ fi
 # Check for subject & session flags
 OW=0
 kwargs_flag=""
-while getopts os:n:x: argument
+while getopts :-os:n:x: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        ow)
+          OW=1
+          ;;            
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

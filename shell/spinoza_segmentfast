@@ -50,12 +50,11 @@ mp2rage module in combination with the masking module prior to running this. If 
 on these images.
 
 Usage:
-  spinoza_segmentfast <-s sub> <-n ses> <skullstripped dir> <output dir> <overwrite>
+  spinoza_segmentfast [arguments] [options] <skullstripped dir> <output dir> <overwrite>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
   -x <kwargs>         Additional commands to be passed to 'FAST'. Format should
                       be comma-separated flags as follows: 
                         - if you specify a flag and values | <flag>=<value>
@@ -67,6 +66,10 @@ Arguments:
                       e.g.,
                       "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
 
+Options:
+  -o|--ow             Overwrite existing output
+
+Positional:
   <anat folder>       folder containing the files required for FAST. Input must be skullstripped
   <output>            output folder (<subject>/[<ses->] will be appended!)
 
@@ -85,6 +88,19 @@ OW=0
 while getopts os:n:x: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        ow)
+          OW=1
+          ;;            
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

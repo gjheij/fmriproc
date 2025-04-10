@@ -22,12 +22,16 @@ that step with fMRIprep, but can be useful if you need the registration file map
 without warping the actual 4D file to MNI-space (saves disk space).
 
 Usage:
-  spinoza_registration [options] <anat folder> <output folder> <registration type>
+  spinoza_registration [arguments] [options] <anat folder> <output folder> <registration type>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o                  overwrite existing files
+  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -j <n_cpus>         number of CPUs to use (default = 1)
+
+Options:
+  -o|--ow             Overwrite existing output
   --affine            use affine-registration (12 parameters)
   --rigid             use rigid-body registration (6 parameters). Default if <registration type> 
                       != 'mni' and no registration method is specified
@@ -40,8 +44,8 @@ Arguments:
   --cmd               only echo command; can be useful to submit multiple subjects without waiting 
                       for the process to finish. This requires the master command to be re-run again
                       to apply and files
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -j <n_cpus>         number of CPUs to use (default = 1)
+
+Positional:
   <anat folder>       folder containing images for registration. If DATA == "AVERAGE", we'll look
                       for T1w-images containing 'acq-MP2RAGE_' and 'acq-MP2RAGEME_', create a warp
                       file, and apply this file to MP2RAGEME-files with ('T1w' 'T1map' 'R2starmap
@@ -113,13 +117,17 @@ do
           FSL_FMT=1
           fsl_flag="--fsl"
           ;;                            
+        ow)
+          OW=1
+          ;;            
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
-          ;;  
-      esac;;                    
+          ;;
+      esac;;                  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

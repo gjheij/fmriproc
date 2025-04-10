@@ -22,7 +22,9 @@ Arguments:
                     the initialization matrix (either FSL .mat or ITK .txt file)
   -f <FSL format>   no input required, but if flag is specified both LTA and FSL matrix will be
                     outputted.
-  -c <contrast>     contrast to assume. Default = t1, but can be t2 to work with fMRI data                    
+  -c <contrast>     contrast to assume. Default = t1, but can be t2 to work with fMRI data
+
+Positional
   <sub number>      number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
                     for "sub-001", enter "001").
   <moving>          string-like path to moving object (either .mgz or .nii.gz)                    

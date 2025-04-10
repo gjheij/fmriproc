@@ -28,13 +28,17 @@ variable, the fMRIprep-directory you'll need to specify with the -f flag BEFORE 
 arguments, and the MASK-directory you will already specify.
 
 Usage:
-  spinoza_extractregions [options] <nighres folder> <probability folder> <ROI>
+  spinoza_extractregions [arguments] [options] <nighres folder> <probability folder> <ROI>
 
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
-  -o|--ow             overwrite existing files
+
+Options:
+  -o|--ow             Overwrite existing output
   --skip-combine      do not combine all segmentations, just exit after Nighres
+
+Positional:
   <nighres folder>    folder with nighres output
   <prob folder>       folder containing masks
   <region>            region to extract with Nighres
@@ -86,13 +90,14 @@ do
         ow)
           OW=1
           ;;         
-    *)
-      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
-        exit 1
-      fi
-      ;;
-      esac;;   
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}

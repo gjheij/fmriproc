@@ -18,6 +18,9 @@ use either call_dcm2niix.py (session 1 - which is FromScannerToBIDS.py from M. A
 nicely with the anatomical and functional stuff or call_dcm2niix.sh, which is more specific for the
 line scanning stuff.
 
+Usage:
+  spinoza_scanner2bids [arguments] [options] <project root> <sourcedata>
+
 Arguments:
   -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>        session ID (e.g., 1, 2, or none)
@@ -31,10 +34,12 @@ Arguments:
                       Name & Protocol Name). You can change this, but then I don't bear any respon-
                       sibilities over the consequences in later scripts.. This option is only avai-
                       lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
-
-Positional:
-  <project root>      directory to output BIDSified data to
-  <sourcedata>        directory containing to be converted data
+  -a <suffixes>       use suffixes to store other anatomical files in the BIDS folder. This over-
+                      writes the SEARCH_ANATOMICALS-variable in the setup-file. For instance, if 
+                      you have qMRI-data that did not come from MP2RAGEME, you can specify:
+                      "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
+                      will be added to the search. 'acq' and 'run' tags are derived from the file-
+                      name.
 
 Options:
   -o|--ow             Overwrite existing output
@@ -58,6 +63,10 @@ Options:
                       mended, but exists for debugging purposes.
   --skip-fmap         do not trim the time series from FMAPs. By default, it is assumed that all your
                       functional files have dummy-saving turned on.
+
+Positional:
+  <project root>      directory to output BIDSified data to
+  <sourcedata>        directory containing to be converted data
 
 Example:
   spinoza_scanner2bids /path/to/project_root /path/to/your/project/sourcedata     # regular
@@ -112,7 +121,8 @@ CUT_VOLS=""
 TRIM_FMAP=""
 SGE_QUEUE=${SGE_QUEUE_SHORT}
 pattern_flag=""
-while getopts :-:os:n:r:q:d:t:v:p: argument
+search_flag=""
+while getopts :-:os:n:r:q:d:t:v:p:a: argument
 do
   case ${argument} in
     -)
@@ -191,7 +201,9 @@ do
     v)  CUT_VOLS="-v ${OPTARG}"
           ;;
     p)  pattern_flag="-p ${OPTARG}"
-          ;;                                      
+          ;;   
+    a)  search_flag="-a ${OPTARG}"
+          ;;                                                
   esac
 done
 
@@ -277,6 +289,7 @@ for subID in ${search}; do
       echo " VOLS FLAG   = ${CUT_VOLS}"
       echo " TRIM FMAP   = ${TRIM_FMAP}"
       echo " PATTERN     = ${pattern_flag}"
+      echo " SEARCH ANAT = ${search_flag}"
     fi
 
     cmd=(
@@ -292,13 +305,14 @@ for subID in ${search}; do
       "${SKIP_TR}"
       "${CUT_VOLS}"
       "${TRIM_FMAP}"
+      "${search_flag}"
       -i "${input_dir}"
       -o "${output_dir}"
       -b "${bids_dir}"
       -n "${base}"
       -d "${SEARCH_DEPTH}"
       "${RUNS}"
-      ${pattern_flag}
+      "${pattern_flag}"
     )
 
     # echo command if running locally
@@ -330,11 +344,14 @@ if [[ ! -f "${PROJECT_ROOT}/dataset_description.json" ]]; then
   cd "$PROJECT_ROOT"
   echo "Enter project name for dataset_description.json: "
   read -r DESCRIPTION
+
+  echo "Enter author/owner of the project: "
+  read -r OWNER
   cat > dataset_description.json <<EOF
 {
-    "Name": "$DESCRIPTION",
+    "Name": "${DESCRIPTION}",
     "BIDSVersion": "1.2.2",
-    "Authors": ["G.J. Heij"]
+    "Authors": ["${OWNER}"]
 }
 EOF
   cd - > /dev/null
