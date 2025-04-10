@@ -4,7 +4,7 @@
 Bash modules
 ------------
 
-spinoza_averageanatomies
+spinoza_averageanatomies_
 ====================================================================================================
 
 .. code-block:: none
@@ -34,7 +34,7 @@ spinoza_averageanatomies
       spinoza_averagesanatomies DIR_DATA_DERIV DIR_DATA_DERIV
       spinoza_averagesanatomies -s 001 -n 1 DIR_DATA_DERIV DIR_DATA_DERIV
 
-spinoza_bestvertex
+spinoza_bestvertex_
 ====================================================================================================
 
 .. code-block:: none
@@ -153,7 +153,7 @@ spinoza_bestvertex
       spinoza_bestvertex -s 001 DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
       spinoza_bestvertex -s 001 -v "1957,8753" DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
 
-spinoza_biassanlm
+spinoza_biassanlm_
 ====================================================================================================
 
 .. code-block:: none
@@ -210,7 +210,7 @@ spinoza_biassanlm
       # run SANLM and Bias correction with ANTs
       spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised --n4 --denoise
 
-spinoza_brainextraction
+spinoza_brainextraction_
 ====================================================================================================
 
 .. code-block:: none
@@ -253,14 +253,14 @@ spinoza_brainextraction
       spinoza_brainextraction -o dir/to/pymp2rage dir/to/cat12 /dir/to/masks cat12
       spinoza_brainextraction -s 01,02 -n 2 dir/to/inv2 dir/to/skullstrip /dir/to/masks inv2
 
-spinoza_config
+spinoza_config_
 ====================================================================================================
 
 .. code-block:: none
 
     (No help text found)
 
-spinoza_cortexrecon
+spinoza_cortexrecon_
 ====================================================================================================
 
 .. code-block:: none
@@ -300,7 +300,7 @@ spinoza_cortexrecon
       spinoza_cortexrecon PROBSEGS CRUISE cerebrum
       spinoza_cortexrecon -s 001 -n 1 -o PROBSEGS CRUISE cerebellum
 
-spinoza_denoising
+spinoza_denoising_
 ====================================================================================================
 
 .. code-block:: none
@@ -359,7 +359,7 @@ spinoza_denoising
       There are multiple flags to change the PYBEST_SPACE-variable. If your desired space is not speci-
       fied, update the variable in the setup file.
 
-spinoza_dura
+spinoza_dura_
 ====================================================================================================
 
 .. code-block:: none
@@ -390,7 +390,7 @@ spinoza_dura
       spinoza_dura T1wdir INV2dir nighresdir maskdir
       spinoza_dura -s 001 -n 1 T1wdir INV2dir nighresdir maskdir
 
-spinoza_extractregions
+spinoza_extractregions_
 ====================================================================================================
 
 .. code-block:: none
@@ -445,7 +445,7 @@ spinoza_extractregions
         > tissues(func)
         > brain_mask
 
-spinoza_fitprfs
+spinoza_fitprfs_
 ====================================================================================================
 
 .. code-block:: none
@@ -562,7 +562,7 @@ spinoza_fitprfs
       spinoza_fitprfs -g -l DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
       spinoza_fitprfs -o DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
 
-spinoza_fmriprep
+spinoza_fmriprep_
 ====================================================================================================
 
 .. code-block:: none
@@ -668,7 +668,7 @@ spinoza_fmriprep
       master -m 15 -s 01 -n 1 --func -j 15 --sge  # run via master with singularity and 15 cores
       master -m 15 -s 01 -n 1 --func --docker     # run via master with docker
 
-spinoza_freesurfer
+spinoza_freesurfer_
 ====================================================================================================
 
 .. code-block:: none
@@ -746,7 +746,7 @@ spinoza_freesurfer
       ('--xopts-use'), or (2) delete it ('--xopts-clean'). If this file exsts and the user specifies
       another expert options file, then the user must also specify '--xopts-overwrite'.
 
-spinoza_gdhpipeline
+spinoza_gdhpipeline_
 ====================================================================================================
 
 .. code-block:: none
@@ -811,7 +811,7 @@ spinoza_gdhpipeline
       spinoza_gdhpipeline -s ${SUBJECT_PREFIX}001 -r n -f n -z n (run call_gdhmgdm only)
       spinoza_gdhpipeline -s ${SUBJECT_PREFIX}001 -f n -z n -y n (only inject manual edits and re-run FreeSurfer)
 
-spinoza_install
+spinoza_install_
 ====================================================================================================
 
 .. code-block:: none
@@ -838,7 +838,7 @@ spinoza_install
       spinoza_install setup no-conda /home/user/my_spinoza_config
       spinoza_install help
 
-spinoza_layering
+spinoza_layering_
 ====================================================================================================
 
 .. code-block:: none
@@ -892,7 +892,7 @@ spinoza_layering
       - If the script doesn't give an error before printing the starting time, it means it found the
         script.
 
-spinoza_line2surface
+spinoza_line2surface_
 ====================================================================================================
 
 .. code-block:: none
@@ -932,7 +932,7 @@ spinoza_line2surface
     Example:
       spinoza_line2surface -s ${SUBJECT_PREFIX}001 -y anat_session2 -d /output/directory/whatev
 
-spinoza_lineplanning
+spinoza_lineplanning_
 ====================================================================================================
 
 .. code-block:: none
@@ -977,7 +977,7 @@ spinoza_lineplanning
       master -m 00 -s 001 --lh -n 3               # use session 3
       master -m 00 -s 001 --rh -n 2 --identity    # use session 1 (uses identity matrix)
 
-spinoza_linerecon
+spinoza_linerecon_
 ====================================================================================================
 
 .. code-block:: none
@@ -1028,7 +1028,7 @@ spinoza_linerecon
       Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
       bution is not uniform.
 
-spinoza_lsprep
+spinoza_lsprep_
 ====================================================================================================
 
 .. code-block:: none
@@ -1075,7 +1075,7 @@ spinoza_lsprep
       "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" # customize
       "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" # customize # submit
 
-spinoza_masking
+spinoza_masking_
 ====================================================================================================
 
 .. code-block:: none
@@ -1117,7 +1117,7 @@ spinoza_masking
       spinoza_masking <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
       spinoza_masking -s 01 -n 1 <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
 
-spinoza_mgdm
+spinoza_mgdm_
 ====================================================================================================
 
 .. code-block:: none
@@ -1167,7 +1167,7 @@ spinoza_mgdm
       spinoza_mgdm -s 001 -n 1 SKULLSTRIP NIGHRES/mgdm MASKS
       spinoza_mgdm -s 001 -n 1 --gdh SKULLSTRIP NIGHRES/mgdm MASKS
 
-spinoza_mriqc
+spinoza_mriqc_
 ====================================================================================================
 
 .. code-block:: none
@@ -1205,7 +1205,7 @@ spinoza_mriqc
       spinoza_mriqc -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
                        vatives anat
 
-spinoza_nordic
+spinoza_nordic_
 ====================================================================================================
 
 .. code-block:: none
@@ -1266,7 +1266,7 @@ spinoza_nordic
     - By default, tSNR maps from before/after NORDIC clipped to 100 will be produced and stored in the
       no-nordic folder as '*desc-tSNRpre_bold.nii.gz' and '*desc-tSNRpost_bold.nii.gz'
 
-spinoza_profiling
+spinoza_profiling_
 ====================================================================================================
 
 .. code-block:: none
@@ -1300,7 +1300,7 @@ spinoza_profiling
       spinoza_profiling NIGHRES DIR_DATA_HOME T1map
       spinoza_profiling -s 01 -n 2 NIGHRES DIR_DATA_HOME T1map
 
-spinoza_qmrimaps
+spinoza_qmrimaps_
 ====================================================================================================
 
 .. code-block:: none
@@ -1358,7 +1358,7 @@ spinoza_qmrimaps
       spinoza_qmrimaps DIR_DATA_HOME DIR_DATA_DERIV
       spinoza_qmrimaps -s 999 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/pymp2rage
 
-spinoza_registration
+spinoza_registration_
 ====================================================================================================
 
 .. code-block:: none
@@ -1419,7 +1419,7 @@ spinoza_registration
       spinoza_registration <project>/derivatives/pymp2rage <project>/derivatives/ants mp2rage
       spinoza_registration -s 001 -n 1 <project>/derivatives/pymp2rage <project>/derivatives/ants
 
-spinoza_sagittalsinus
+spinoza_sagittalsinus_
 ====================================================================================================
 
 .. code-block:: none
@@ -1462,7 +1462,7 @@ spinoza_sagittalsinus
       spinoza_sagittalsinus --freeview project/derivatives/pymp2rage project/derivatives/manual_masks
       spinoza_sagittalsinus --itk -s 01 project/derivatives/pymp2rage project/derivatives/manual_masks
 
-spinoza_scanner2bids
+spinoza_scanner2bids_
 ====================================================================================================
 
 .. code-block:: none
@@ -1548,7 +1548,7 @@ spinoza_scanner2bids
               ├── fmap
               └── phase
 
-spinoza_segmentfast
+spinoza_segmentfast_
 ====================================================================================================
 
 .. code-block:: none
@@ -1589,14 +1589,14 @@ spinoza_segmentfast
       spinoza_segmentfast DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
       spinoza_segmentfast -s 001 -n 1 DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
 
-spinoza_setup
+spinoza_setup_
 ====================================================================================================
 
 .. code-block:: none
 
     (No help text found)
 
-spinoza_sinusfrommni
+spinoza_sinusfrommni_
 ====================================================================================================
 
 .. code-block:: none
@@ -1630,7 +1630,7 @@ spinoza_sinusfrommni
       spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
       spinoza_sinusfrommni -s 001 -n 1 DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
 
-spinoza_subcortex
+spinoza_subcortex_
 ====================================================================================================
 
 .. code-block:: none

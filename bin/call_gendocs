@@ -59,7 +59,7 @@ with OUTPUT_FILE.open("w") as out:
             content = requests.get(script_url).text
             help_text = extract_bash_usage_block(content)
 
-            out.write(f"\n{name}\n{'=' * 100}\n\n")
+            out.write(f"\n{name}_\n{'=' * 100}\n\n")
             out.write(".. code-block:: none\n\n")
 
             if help_text:
