@@ -24,7 +24,7 @@
 .. _spinoza_lsprep: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_lsprep
 .. _spinoza_qmrimaps: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_qmrimaps
 .. _spinoza_registration: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_registration
-.. _spinoza_averagesanatomies: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_averageanatomies
+.. _spinoza_averageanatomies: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_averageanatomies
 .. _spinoza_sinusfrommni: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_sinusfrommni
 .. _spinoza_biassanlm: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_biassanlm
 .. _spinoza_brainextraction: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_brainextraction
