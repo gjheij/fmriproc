@@ -3,7 +3,7 @@
 fMRIproc Documentation
 ======================
 
-.. image:: imgs/overview.png
+.. image:: ../imgs/overview.png
    :alt: fmriproc overview
    :width: 600px
    :align: center
