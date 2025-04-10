@@ -559,14 +559,14 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       VERTICES=${OPTARG}
       ;;
     p)
-      PRF_MODEL=${OPTARG}
+      P_KWARGS=${OPTARG}
       PARS_FILE="-p $(readlink -f \"${OPTARG}\")"
       ;;
     c)
       C_FLAG=${OPTARG}
       ;;
     x)
-      KWARGS=${OPTARG}
+      X_KWARGS=${OPTARG}
       ;;
     u)
       CONF=${OPTARG}
@@ -611,59 +611,60 @@ done
 # set the execute flag
 FLAG_executeModule="${MOD}"
 
+
 #---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
-    cat <<USAGE
+    # Read in your external files
+    ARGS_CONTENT=$(< "${REPO_DIR}/misc/arguments.txt")
+    MODULES_CONTENT=$(< "${REPO_DIR}/misc/modules.txt")
+    
+    echo ""
+    echo "==================================================================================================="
+    echo "                            MASTER SCRIPT FOR LINE SCANNING ANALYSIS"
+    echo "==================================================================================================="
+    echo ""
+    echo "Main script governing all (pre-)processing steps for high resolution anatomical data, as well as"
+    echo "whole-brain fMRI data analyses (specifically population receptive field [pRF]) and linescanning"
+    echo "data. All modules can be called with master -m <module>. You can also include an -s flag to"
+    echo "process a single subject. See below for additional settings."
+    echo ""
+    echo "Have fun!"
+    echo ""
 
-===================================================================================================
-                            MASTER SCRIPT FOR LINE SCANNING ANALYSIS
-===================================================================================================
+    # 🔹 Load and print the color-formatted arguments.txt
+    eval "printf \"%b\n\" \"$ARGS_CONTENT\""
 
-Main script governing all (pre-)processing steps for high resolution anatomical data, as well as 
-whole-brain fMRI data analyses (specifically population receptive field [pRF]) and linescanning
-data. All modules can be called with master -m <module>, which in it's bare form with loop through
-the subjects it can find in the specified input directories. You can also include an -s flag to 
-process a single subject. See below for additional settings. Please read through it's module what
-it's default settings are and what you'd need to do to get it running for you.
+    echo ""
+    echo "Models for pRF fitting:"
+    echo "  --gauss           run standard Gaussian model (default) [Dumoulin & Wandell, 2008]"
+    echo "  --dog             run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]"
+    echo "  --css             run compressive spatial summation model (compression) [Kay, et al. 2013]"
+    echo "  --norm            run divisive normalization model (suppression+compression) [Aqil, et al. 2021]"
+    echo ""
+    echo "Usage:"
+    echo "  master -m <MODULES TO RUN>"
+    echo "  master -m 01,02,03,04           (run multiple modules in succession)"
+    echo "  master -m 00 -q                 (print help-text of module 00)"
+    echo "  master -l mgdm                  (get module number for mgdm)"
+    echo "  master -m 02 -n 2 --lines       (line-scanning session)"
+    echo "  master -m 15 -t func            (run fMRIPrep on available tasks)"
+    echo "  master -m 17 --norm --local     (DN-model, local execution)"
+    echo ""
+    echo "Additional options:"
+    echo "  -s <subject>      run single subject"
+    echo "  -h <hemi>         specify hemisphere"
+    echo "  -n <session>      session number"
+    echo "  -t <type|task>    e.g., 'func' or 'anat'"
+    echo ""
 
-Have fun!
+    eval "printf \"%b\n\" \"$MODULES_CONTENT\""
 
-$(cat "${REPO_DIR}/misc/arguments.txt")
-
-Models for pRF fitting:
-  --gauss           run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
-  --dog             run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
-  --css             run compressive spatial summation model (compression) [Kay, et al. 2013]
-  --norm            run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
-
-Usage:
-  master -m <MODULES TO RUN>
-  master -m 01,02,03,04           (comma-separated for running multiple modules in succession)
-  master -m 00 -q                 (print help-text of module 00)
-  master -l mgdm                  (fetch module number mgdm-module)
-  master -m 02 -n 2 --lines       (line-scanning session)
-  master -m 02 -n 2 --lines --inv (line-scanning session + high resolution anatomies)
-  master -m 15 -t func            (run fMRIPrep on available tasks)
-  master -m 15 -t scenes          (run fMRIPrep on scenes-task only)
-  master -m 17 --norm --local     (run pRF-fitting with DN-model and don't submit to cluster)
-
-Additional options:
-  - Specify a subject to run (for certain modules):   master -m <module> -s <subj-ID>
-  - Specify a hemisphere (for certain modules):       master -m <module> -h left
-  - Disable overwrite mode (for certain modules):     master -m <module> -o n
-  - Specify a particular session to use:              master -m <module> -n 1
-  - Specify processing type fMRIprep (anat|func)      master -m <module> -t anat
-
-$(cat "${REPO_DIR}/misc/modules.txt")
-
---END--
----------------------------------------------------------------------------------------------------
-
-USAGE
+    echo ""
+    echo "--END--"
+    echo "---------------------------------------------------------------------------------------------------"
     exit 1
 }
-
 
 #---------------------------------------------------------------------------------------------------
 # Error handling
@@ -786,10 +787,9 @@ fi
 module=02
 
 if [[ ${FLAG_executeModule} == ${module} ]]; then
-  echo -e "${BOLD_RED}DEPRECATION WARNING${RESET}: module 02 has been split in 02a (spinoza_scanner2bids) & 02b (spinoza_mriqc)"
+  echo -e "${BOLD_RED}DEPRECATION WARNING${RESET}: module 02 has been split in 02a (${BOLD_BLUE}spinoza_scanner2bids${RESET}) & 02b (${BOLD_BLUE}spinoza_mriqc${RESET})"
   exit 1
 fi
-
 
 #---------------------------------------------------------------------------------------------------
 # STEP 02a: Convert raw files to nifti
@@ -811,9 +811,9 @@ if [[ $? -eq 0 ]]; then
 
   # check for priors list
   PATTERN_FLAG=""
-  if [[ ! -z ${PRF_MODEL} ]]; then
-    PATTERN_FLAG="-p ${PRF_MODEL}"
-  fi  
+  if [[ ! -z ${P_KWARGS} ]]; then
+    PATTERN_FLAG="-p ${P_KWARGS}"
+  fi
 
   # print module intro
   print_module_start "${module}" "Convert raw files (PAR/REC or DCM) to nifti"
@@ -841,6 +841,7 @@ if [[ $? -eq 0 ]]; then
     "${TRIM_FMAP}"
     "${CUT_VOLS}"
     "${PATTERN_FLAG}"
+    "${KEEP_RUNS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 
@@ -976,8 +977,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   cmd=(
@@ -1019,8 +1020,8 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Multiparametric mapping using pymp2rage"
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
   
   cmd=(
@@ -1280,8 +1281,8 @@ if [[ $? -eq 0 ]]; then
   INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   cmd=(
@@ -1444,7 +1445,8 @@ if [[ $? -eq 0 ]]; then
     "${SUBJECT}"
     "${SESSION}"
     "${OW}"
-    "${INPUT_DIR}" "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks")
+    "${INPUT_DIR}" "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks"
+  )
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
@@ -1576,8 +1578,8 @@ if [[ $? -eq 0 ]]; then
   INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
   # check for expert file
-  if [ ! -z ${KWARGS} ]; then
-    expert_flag="-x ${KWARGS}"
+  if [ ! -z ${X_KWARGS} ]; then
+    expert_flag="-x ${X_KWARGS}"
   fi
 
   # check -f we got '-e' flag
@@ -1738,8 +1740,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for expert options
-  if [ ! -z ${KWARGS} ]; then
-    expert_flag="-x ${KWARGS}"
+  if [ ! -z ${X_KWARGS} ]; then
+    expert_flag="-x ${X_KWARGS}"
   fi
 
   cmd=(
@@ -1815,8 +1817,8 @@ if [[ $? -eq 0 ]]; then
   fi  
 
   # set constraints flag; note that 'use_constr' can also be set with '--tc' or '--bgfs'
-  if [ ! -z ${KWARGS} ]; then
-    use_constr="-x ${KWARGS}"
+  if [ ! -z ${X_KWARGS} ]; then
+    use_constr="-x ${X_KWARGS}"
   fi
 
   if [[ ! -z ${VERTICES} ]]; then
@@ -1956,8 +1958,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   # print module intro
@@ -2001,14 +2003,14 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "MGDM segmentation with nighres"
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   # check for priors list
   PRIOR_LIST=""
-  if [[ ! -z ${PRF_MODEL} ]]; then
-    PRIOR_LIST="-p ${PRF_MODEL}"
+  if [[ ! -z ${P_KWARGS} ]]; then
+    PRIOR_LIST="-p ${P_KWARGS}"
   fi  
 
   cmd=(
@@ -2059,8 +2061,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   cmd=(
@@ -2107,8 +2109,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   # print module intro
@@ -2169,8 +2171,8 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   cmd=(
@@ -2212,13 +2214,13 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Subcortex parcellation with MASSP"
 
   # check for kwargs
-  if [[ ! -z ${KWARGS} ]]; then
-    KWARGS_FLAG="-x ${KWARGS}"
+  if [[ ! -z ${X_KWARGS} ]]; then
+    KWARGS_FLAG="-x ${X_KWARGS}"
   fi
 
   # check for kwargs
-  if [[ ! -z ${PRF_MODEL} ]]; then
-    KWARGS_MASSP="-p ${PRF_MODEL}"
+  if [[ ! -z ${P_KWARGS} ]]; then
+    KWARGS_MASSP="-p ${P_KWARGS}"
   fi
 
   cmd=(
@@ -2311,10 +2313,10 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "Profile sampling using Nighres"
 
-  if [[ -z ${KWARGS} ]]; then
+  if [[ -z ${X_KWARGS} ]]; then
     KWARGS="T2starmap"
   else
-    KWARGS=${KWARGS}
+    KWARGS=${X_KWARGS}
   fi    
 
   # spinoza_profiling "${SUBJECT}" "${SESSION}" "${OW}" "${DIR_DATA_DERIV}/nighres" ${DIR_DATA_HOME} T1map
@@ -2323,7 +2325,7 @@ if [[ $? -eq 0 ]]; then
     "${SUBJECT}"
     "${SESSION}"
     "${OW}"
-    "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_HOME}" "${KWARGS}"
+    "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_HOME}" "${X_KWARGS}"
   )
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    

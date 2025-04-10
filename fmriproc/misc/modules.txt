@@ -1,30 +1,30 @@
-Available modules:                                     Script                           hh:mm:ss
-  -01:  Register anat ses-1 to ms ses-1 for planning   (spinoza_lineplanning)           00:06:00
-  -02a: Convert raw files to nifti                     (spinoza_scanner2bids)           00:02:00
-  -02b: Quality control with MRIQC                     (spinoza_mriqc)                  00:30:00
-  -03a: Reconstruction of line data                    (spinoza_linerecon)              00:10:00
-  -03a: Preprocessing of linescanning data             (spinoza_lsprep)                 00:02:00
-  -04:  Estimate T1's from mp2rage and memp2rage       (spinoza_qmrimaps)               00:01:30
-  -05a: Register T1 from memp2rage to T1 from mp2rage  (spinoza_registration)           00:03:00
-  -05b: Register T1 from mp2rage to MNI152             (spinoza_registration)           01:05:00
-  -06:  Average T1w/T1map from MP2RAGE & MP2RAGEME     (spinoza_averageanatomies)       00:02:00
-  -07:  Make sinus mask from T1w/T2w ratio             (spinoza_sinusfrommni)           00:03:00
-  -08:  Bias correction + SANLM denoising              (spinoza_biassanlm)              00:07:00
-  -09:  Brain extract (CAT12 || ANTs || FSL)           (spinoza_brainextraction)        00:10:00
-  -10:  NORDIC denoising of whole-brain data           (spinoza_nordic)                 00:05:00
-  -11:  Dura estimation and skull estimations          (spinoza_dura)                   00:08:00
-  -12:  Create mask of sagittal sinus                  (spinoza_sagittalsinus)          00:03:00
-  -13:  Combine all masks and apply to average         (spinoza_masking)                00:02:30
-  -14:  Surface segmentation with FreeSurfer           (spinoza_freesurfer)             09:30:00
-  -15:  Preprocessing with fMRIprep                    (spinoza_fmriprep)               14:00:00
-  -16:  Data denoising with pybest                     (spinoza_denoising)              00:05:00
-  -17:  pRF-fitting with pRFpy                         (spinoza_fitprfs)                00:07:00
-  -18:  Determine best vertex with pycortex            (spinoza_bestvertex)             00:01:30
-  -19:  Tissue segmentation with FAST                  (spinoza_segmentfast)            00:17:00
-  -20:  Tissue segmentation with MGDM                  (spinoza_mgdm)                   00:11:45
-  -21:  Region extraction with nighres                 (spinoza_extractregions)         00:02:00
-  -22:  Cortex reconstruction with nighres             (spinoza_cortexrecon)            00:05:30
-  -23:  Layering with nighres/surface_tools            (spinoza_layering)               00:07:30
-  -24:  Subcortex parcellation with nighres            (spinoza_segmentsubcortex)       00:10:00
-  -25:  Project line to surface                        (spinoza_line2surface)           00:02:00
-  -26:  Sample a dataset across depth with Nighres     (spinoza_profiling)              00:20:00
+Available modules:                                     Script                          hh:mm:ss
+  ${BOLD_MAGENTA}01${RESET}:  Register anat ses-1 to ms ses-1 for planning   (${BOLD_BLUE}spinoza_lineplanning${RESET})           00:06:00
+  ${BOLD_MAGENTA}02a${RESET}: Convert raw files to nifti                     (${BOLD_BLUE}spinoza_scanner2bids${RESET})           00:02:00
+  ${BOLD_MAGENTA}02b${RESET}: Quality control with MRIQC                     (${BOLD_BLUE}spinoza_mriqc${RESET})                  00:30:00
+  ${BOLD_MAGENTA}03a${RESET}: Reconstruction of line data                    (${BOLD_BLUE}spinoza_linerecon${RESET})              00:10:00
+  ${BOLD_MAGENTA}03a${RESET}: Preprocessing of linescanning data             (${BOLD_BLUE}spinoza_lsprep${RESET})                 00:02:00
+  ${BOLD_MAGENTA}04${RESET}:  Estimate T1's from mp2rage and memp2rage       (${BOLD_BLUE}spinoza_qmrimaps${RESET})               00:01:30
+  ${BOLD_MAGENTA}05a${RESET}: Register T1 from memp2rage to T1 from mp2rage  (${BOLD_BLUE}spinoza_registration${RESET})           00:03:00
+  ${BOLD_MAGENTA}05b${RESET}: Register T1 from mp2rage to MNI152             (${BOLD_BLUE}spinoza_registration${RESET})           01:05:00
+  ${BOLD_MAGENTA}06${RESET}:  Average T1w/T1map from MP2RAGE & MP2RAGEME     (${BOLD_BLUE}spinoza_averageanatomies${RESET})       00:02:00
+  ${BOLD_MAGENTA}07${RESET}:  Make sinus mask from T1w/T2w ratio             (${BOLD_BLUE}spinoza_sinusfrommni${RESET})           00:03:00
+  ${BOLD_MAGENTA}08${RESET}:  Bias correction + SANLM denoising              (${BOLD_BLUE}spinoza_biassanlm${RESET})              00:07:00
+  ${BOLD_MAGENTA}09${RESET}:  Brain extract (CAT12 || ANTs || FSL)           (${BOLD_BLUE}spinoza_brainextraction${RESET})        00:10:00
+  ${BOLD_MAGENTA}10${RESET}:  NORDIC denoising of whole-brain data           (${BOLD_BLUE}spinoza_nordic${RESET})                 00:05:00
+  ${BOLD_MAGENTA}11${RESET}:  Dura estimation and skull estimations          (${BOLD_BLUE}spinoza_dura${RESET})                   00:08:00
+  ${BOLD_MAGENTA}12${RESET}:  Create mask of sagittal sinus                  (${BOLD_BLUE}spinoza_sagittalsinus${RESET})          00:03:00
+  ${BOLD_MAGENTA}13${RESET}:  Combine all masks and apply to average         (${BOLD_BLUE}spinoza_masking${RESET})                00:02:30
+  ${BOLD_MAGENTA}14${RESET}:  Surface segmentation with FreeSurfer           (${BOLD_BLUE}spinoza_freesurfer${RESET})             09:30:00
+  ${BOLD_MAGENTA}15${RESET}:  Preprocessing with fMRIprep                    (${BOLD_BLUE}spinoza_fmriprep${RESET})               14:00:00
+  ${BOLD_MAGENTA}16${RESET}:  Data denoising with pybest                     (${BOLD_BLUE}spinoza_denoising${RESET})              00:05:00
+  ${BOLD_MAGENTA}17${RESET}:  pRF-fitting with pRFpy                         (${BOLD_BLUE}spinoza_fitprfs${RESET})                00:07:00
+  ${BOLD_MAGENTA}18${RESET}:  Determine best vertex with pycortex            (${BOLD_BLUE}spinoza_bestvertex${RESET})             00:01:30
+  ${BOLD_MAGENTA}19${RESET}:  Tissue segmentation with FAST                  (${BOLD_BLUE}spinoza_segmentfast${RESET})            00:17:00
+  ${BOLD_MAGENTA}20${RESET}:  Tissue segmentation with MGDM                  (${BOLD_BLUE}spinoza_mgdm${RESET})                   00:11:45
+  ${BOLD_MAGENTA}21${RESET}:  Region extraction with nighres                 (${BOLD_BLUE}spinoza_extractregions${RESET})         00:02:00
+  ${BOLD_MAGENTA}22${RESET}:  Cortex reconstruction with nighres             (${BOLD_BLUE}spinoza_cortexrecon${RESET})            00:05:30
+  ${BOLD_MAGENTA}23${RESET}:  Layering with nighres/surface_tools            (${BOLD_BLUE}spinoza_layering${RESET})               00:07:30
+  ${BOLD_MAGENTA}24${RESET}:  Subcortex parcellation with nighres            (${BOLD_BLUE}spinoza_segmentsubcortex${RESET})       00:10:00
+  ${BOLD_MAGENTA}25${RESET}:  Project line to surface                        (${BOLD_BLUE}spinoza_line2surface${RESET})           00:02:00
+  ${BOLD_MAGENTA}26${RESET}:  Sample a dataset across depth with Nighres     (${BOLD_BLUE}spinoza_profiling${RESET})              00:20:00
