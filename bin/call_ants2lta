@@ -37,4 +37,12 @@ else
 fi
 
 out_file=${2}
-lta_convert --initk ${in_file} --outlta ${out_file} --src ${3} --trg ${4}
+cmd=(
+  "lta_convert"
+  --initk "${in_file}"
+  --outlta "${out_file}"
+  --src "${3}"
+  --trg "${4}"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}
