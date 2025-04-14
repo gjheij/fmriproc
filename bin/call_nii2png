@@ -11,9 +11,12 @@
 #              MIT License              #
 #########################################
 
-import scipy, numpy, shutil, os, nibabel
-import sys, getopt
-
+import numpy
+import shutil
+import os
+import nibabel
+import sys
+import getopt
 import imageio
 
 

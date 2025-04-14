@@ -3,7 +3,6 @@
 import nibabel as nb
 import numpy as np
 import sys
-import ast
 
 def main(argv):
 

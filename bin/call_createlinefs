@@ -2,7 +2,8 @@
 
 from lazyfmri.utils import color, get_file_from_substring, reverse_sign
 from fmriproc import scanner
-import sys, getopt
+import sys
+import getopt
 import os
 opj = os.path.join
 

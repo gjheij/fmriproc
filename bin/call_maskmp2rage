@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 import numpy as np
 import nibabel as nb
 
@@ -13,19 +14,18 @@ call_maskmp2rage
 This super short script masks and scales the T1-weighted image with the T1-map from the MP2RAGE
 sequences
 
-Args:
+Arguments:
     <t1-weighted>      string-like path to the T1-weighted image
     <t1-map>           string-like path to the T1-map image
     <scaled output>    string-like path to the output image
 
-Outputs
+Outputs:
     output file        new volume scaled accordingly.
 
 Example:
-    python call_maskmp2rage t1w.nii.gz t1map.nii.gz scaled.nii.gz
+    call_maskmp2rage t1w.nii.gz t1map.nii.gz scaled.nii.gz
 
 ---------------------------------------------------------------------------------------------------
-
     """
 
     if len(argv) < 2:

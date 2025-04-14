@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 import getopt
 from fmriproc.image import create_line_from_slice
 from lazyfmri.utils import reverse_sign

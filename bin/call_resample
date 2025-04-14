@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-import os
 from nilearn import image
-import nibabel as nb
-import sys, getopt
+import sys
 
 def main(argv):
 
@@ -40,7 +38,7 @@ Example:
         out_img = argv[2]
     else:
         print(main.__doc__)        
-        raise ValueError("Got {} arguments. Only require 3".format(len(argv)))
+        raise ValueError(f"Got {len(argv)} arguments. Only require 3")
 
 
     resampled_img = image.resample_to_img(in_img, ref_img, interpolation='nearest')

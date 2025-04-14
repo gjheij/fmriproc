@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from fmriproc.image import massp_mask_img
-import warnings
-import os, getopt, sys
-warnings.filterwarnings("ignore")
+import os
+import getopt
+import sys
 opj = os.path.join
 
 def main(argv):
@@ -59,7 +59,7 @@ Example:
     # Convert label to volume table
 
     if os.path.exists(input) and os.path.exists(mask):
-        vol_file = massp_mask_img(input, mask, out=output)
+        _ = massp_mask_img(input, mask, out=output)
         # print(f"wrote {vol_file}")
     else:
         raise FileNotFoundError(f"Could not find input file or to-be-masked image")

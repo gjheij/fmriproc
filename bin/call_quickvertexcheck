@@ -2,17 +2,13 @@
 
 import os
 import numpy as np
-import nibabel as nb
 import cortex
-import sys, getopt
+import sys
 import random
 from pathlib import Path
-from lazyfmri.utils import get_base_dir, get_file_from_substring
+from lazyfmri import utils
 
-import warnings
-warnings.filterwarnings('ignore')
-
-base, place = get_base_dir()
+base, place = utils.get_base_dir()
 opj = os.path.join
 
 hemi = None
@@ -28,15 +24,16 @@ cxdir = opj(os.environ['CTX'])
 prfdir = opj(os.environ['PRF'])
 
 if hemi == "left":
-    vert = get_file_from_substring("hemi-L", opj(prfdir, f'sub-{subject}'))
+    search = "hemi-L_"
 elif hemi == "right":
-    vert = get_file_from_substring("hemi-R", opj(prfdir, f'sub-{subject}'))
+    search = "hemi-R_"
 elif hemi == "both":
-    vert = get_file_from_substring("hemi-LR", opj(prfdir, f'sub-{subject}'))
+    search = "hemi-LR_"
 else:
     raise NameError(f"Unknown option for hemisphere: {hemi}. Need 'left', 'right', or 'both'")
 
-if vert != None:
+vert = utils.get_file_from_substring(search, opj(prfdir, f'sub-{subject}'))
+if vert is not None:
     print(f"  Loading in vertex array: {vert}")
 else:
     raise ValueError(f"Could not find array: {vert}")

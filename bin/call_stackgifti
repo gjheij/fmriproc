@@ -2,8 +2,6 @@
 
 import sys
 import numpy as np
-import warnings
-warnings.simplefilter('ignore')
 from nilearn import surface
 
 def main(argv):
@@ -44,7 +42,15 @@ Example:
 
     in1_mesh = surface.load_surf_data(in1)
     in2_mesh = surface.load_surf_data(in2)
-    out_mesh = np.squeeze(np.vstack((in1_mesh[...,np.newaxis],in2_mesh[...,np.newaxis])),axis=-1)
+    out_mesh = np.squeeze(
+        np.vstack(
+            (
+                in1_mesh[...,np.newaxis],
+                in2_mesh[...,np.newaxis]
+            )
+        ),
+        axis=-1
+    )
     np.save(out, out_mesh)
 
 if __name__ == "__main__":

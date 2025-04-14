@@ -2,10 +2,9 @@
 
 import os
 import numpy as np
-import warnings
 from nilearn import image
 import nibabel as nb
-import sys, getopt
+import sys
 opj = os.path.join
 
 def main(argv):

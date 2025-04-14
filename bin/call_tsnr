@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 from fmriproc.image import tsnr
 
 def main(argv):
@@ -12,12 +13,9 @@ call_tsnr
 Calculate the tSNR of an input image and save the tSNR map to a given output file name. 
 Output will automatically be clipped at 100.
 
-Args:
+Positional:
     <input file>        string-like path to file to calculate tSNR from
     <output file>       string-like path to output tSNR map
-
-Outputs
-    output file         new volume representing the tSNR map
 
 Example:
     call_tsnr func.nii.gz tsnr.nii.gz
@@ -42,7 +40,8 @@ Example:
         mean_tsnr = tsnr(
             in_file, 
             file_name=tsnr_map,
-            clip=100)
+            clip=100
+        )
 
         print(f"tSNR of {os.path.basename(in_file)} is {round(mean_tsnr,2)}", flush=True)
 

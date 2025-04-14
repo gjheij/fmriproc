@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 import numpy as np
 import nibabel as nb
 from lazyfmri import utils
@@ -34,8 +35,8 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    in_file     = ''
-    out_file    = ''
+    in_file     = None
+    out_file    = None
 
     if len(argv) < 2:
         print("NOT ENOUGH ARGUMENTS SPECIFIED")

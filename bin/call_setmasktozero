@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import nibabel as nb
-import numpy as np
-import sys, getopt
+import sys
+import getopt
 import os
 
 def main(argv):
@@ -16,9 +16,9 @@ the opposite of regular 'making', where values in the mask are retained in the i
 are set to zero!
 
 Args:
-    -i (--input=)         input image
-    -m (--mask=)          mask image
-    -o (--output=)        output image (optional)
+    -i|--input      input image
+    -m|--mask       mask image
+    -o|--output     output image (optional)
 
 Outputs
     same as input image but with values from mask image set to zero

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from fmriproc.image import massp_to_table
-import warnings
-import os, getopt, sys
-warnings.filterwarnings("ignore")
+import os
+import getopt
+import sys
 opj = os.path.join
 
 def main(argv):
@@ -53,7 +53,6 @@ Example:
         print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
-
 
     #---------------------------------------------------------------------------------------------------
     # Convert label to volume table

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 import numpy as np
 from lazyfmri.utils import get_file_from_substring
 opj = os.path.join

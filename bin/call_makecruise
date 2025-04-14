@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import os, sys
+import os
+import sys
 import numpy as np
 import nibabel as nb
 opj = os.path.join
@@ -18,6 +19,7 @@ Args:
     <wm file>       path to white matter segmentation
     <gm file>       path to gray matter segmentation
     <output>        path to output name
+
 Example:
     call_makecruise wm.nii.gz gm.nii.gz cruise.nii.gz
 

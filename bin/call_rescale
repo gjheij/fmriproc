@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import nibabel as nb
-import numpy as np
-import sys, getopt
+import sys
 import os
 from lazyfmri import utils
 
