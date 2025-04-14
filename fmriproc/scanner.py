@@ -5,8 +5,6 @@ from lazyfmri import utils
 import nibabel as nb
 import numpy as np
 import os
-import warnings
-warnings.filterwarnings('ignore')
 opj = os.path.join
 
 class Scanner(object):
