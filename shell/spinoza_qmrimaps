@@ -130,9 +130,9 @@ do
           ;;
     n)  ses=${OPTARG}
           ;;   
-    l)  lower="-l ${OPTARG}"
+    l)  lower="--lower ${OPTARG}"
           ;;
-    u)  upper="-u ${OPTARG}"
+    u)  upper="--upper ${OPTARG}"
           ;;
     o)  OW=1
           ;;         
@@ -236,9 +236,9 @@ for subID in ${search}; do
           # define command
           cmd=(
             "${job}"
-            -i "${input_dir}"
-            -o "${output_dir}"
-            -b "${output_base}"
+            --inputdir "${input_dir}"
+            --outputdir "${output_dir}"
+            --name "${output_base}"
             "${PARS_FLAG}"
             "${UPs}"
             "${lower}"

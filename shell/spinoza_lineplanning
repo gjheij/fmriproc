@@ -100,7 +100,7 @@ do
     p)  ctxfile=${OPTARG}
           ;;
     h)  hemi=${OPTARG}
-        hemi_flag="-l ${hemi}"
+        hemi_flag="--hemi ${hemi}"
           ;;
   esac
 done
@@ -238,12 +238,11 @@ if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
 
   cmd=(
     call_mrconsole
-    -s "${subject}"
-    -q "1"
-    -n "${session}"
-    -d "${DIR_DATA_DERIV}"
+    --sub "${subject}"
+    --line-ses "${session}"
+    --deriv "${DIR_DATA_DERIV}"
     --ses2 "${anat_session2}"
-    -a "${genaff}"
+    --tfm "${genaff}"
     --line "${line_orientation_file}"
     "${hemi_flag}"
   )

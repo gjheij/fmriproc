@@ -186,13 +186,21 @@ for subID in ${search}; do
     fi
 
     # decide the job type
-    job="$(decide_job_type "call_lsprep" "${base}_desc-lsprep" "${run_local}" "${log_file}" "${n_cpus}" "${SGE_QUEUE}")"
+    job="$(
+      decide_job_type \
+      "call_lsprep" \
+      "${base}_desc-lsprep" \
+      "${run_local}" \
+      "${log_file}" \
+      "${n_cpus}" \
+      "${SGE_QUEUE}"
+    )"
 
     # define command
     cmd=(
       "${job}"
-      -s "sub-${subID}"
-      -n "${s_id}"
+      --sub "sub-${subID}"
+      --ses "${s_id}"
       "${LSPREP_KWARGS}"
     )
 

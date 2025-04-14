@@ -161,6 +161,9 @@ folds_flag=""
 skip_flag=""
 trans_flag=""
 fix_hrf=""
+bold_flag=""
+dm_flag=""
+par_flag=""
 SGE_QUEUE=${SGE_QUEUE_LONG}
 
 while getopts :-:los:n:m:t:x:c:v:j:k:q:r:p:f: argument
@@ -557,9 +560,6 @@ for subID in ${search}; do
           # decide how to execute the process
           if [[ ${refit_data} -eq 0 ]]; then
             script_name="call_prf"
-            bold_flag=""
-            dm_flag=""
-            par_flag=""
           else
             script_name="call_refit"
 
@@ -577,7 +577,7 @@ for subID in ${search}; do
               exit 1
             fi
              
-            bold_flag="--in ${bold_file}"
+            bold_flag="--input ${bold_file}"
             dm_flag="--dm ${dm_file}"
 
             # old params
@@ -612,13 +612,13 @@ for subID in ${search}; do
             "${grid_flag}"
             "${fit_hrf}"
             "${clip_flag}"
-            -s "${sub_id}"
-            -n "${nr}"
-            -t "${task}"
-            -o "${prf_dir}"
-            -i "${full_input}"
-            -p "${use_pngdir}"
-            -u "${use_space}"
+            --sub "${sub_id}"
+            --ses "${nr}"
+            --task "${task}"
+            --outputdir "${prf_dir}"
+            --inputdir "${full_input}"
+            --png "${use_pngdir}"
+            --space "${use_space}"
             --${use_model}
             --jobs "${n_cpus}"
             --n-pix "${n_pix}"

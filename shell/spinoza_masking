@@ -127,7 +127,7 @@ for subID in ${search}; do
     nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
     base_path=${sub_name}/ses-${nr}
     base=${sub_name}_ses-${nr}
-    ses_flag="-n ${nr}"
+    ses_flag="--ses ${nr}"
   else
     base_path=${sub_name}
     base=${sub_name}
@@ -172,9 +172,9 @@ for subID in ${search}; do
           cmd=(
             call_gdhmasking
             "${man_flag}"
-            -s "${sub_name}"
             "${ses_flag}"
-            -t "${t1w_fn}"
+            --sub "${sub_name}"
+            --t1 "${t1w_fn}"
           )
 
           # echo command
