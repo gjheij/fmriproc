@@ -11,10 +11,12 @@ call_slicer
 This script produces the images like slicesdir would do but without the website around it. This al-
 lows us to create our own fMRIprep-like output file.
 
-Args:
+Arguments:
   <-o overlay>    overlay file for red edges around input file
   <-d output dir> output directory to store the figure(s)
   <-b basename>   output basename, otherwise input filename is used
+
+Positional:
   <input file>    file to create the image from
 
 Usage:

@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-#$ -q short.q
-#$ -cwd
-#$ -j Y
-#$ -V
 
 import os
-import sys, getopt
+import sys
+import getopt
 from bids import BIDSLayout
 from lazyfmri import (
     utils,
@@ -13,9 +10,10 @@ from lazyfmri import (
 )
 opj = os.path.join
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject", "ses"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_lsprep
 
@@ -23,167 +21,94 @@ Basic preprocessing of all line-scanning data into a single h5-file. We'll try t
 we can, including onsets, eyetracking, and physiology data (though the latter doesn't do much) for
 line-scanning.
 
-Parameters
-----------
-  -s|--subject      subject ID (full, including prefix)
-  -n|--session      session ID
-  -r|--run          limit processing to a certain run ID; default is to do all runs
-  -b|--bids     project root folder; defaults to DIR_DATA_HOME
-  -o|--output_dir   output directory; defaults to DIR_DATA_DERIV/lsprep
-  -c|--comps      number of components for ICA/PCA
-  --coil <value>    maps onto 'voxel_cutoff', which dictates which voxels are considered in the
-                    linescanning.segmentations.Segmentations-class. Default = 300.
-  --phase_onset     phase index which denotes stimulus onsets (default = 1, but can be 0 too)
-  --ses-trafo       transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
-                    _rec-motion1' in DIR_DATA_DERIV/pycortex/<subject>/transforms)
-  --filter-pca      cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
-  --first           delete number of volumes from beginning (default = 0)
-  --last            delete number of volumes from the end (default = 0)
-  --tr              set repetition time (default is 0.105)
-  --window          window length for low-pass filtering. Default is 7 TRs
-  --poly-order      order of polynomial for low-pass filtering. Default is 3
-  --shift           sometimes we have to move the slice relative to the saturation slabs to ensure
-                    that we're sampling from our intended line. This flag allows you to shift the
-                    slice with that same factor so that the white matter/CSF voxels are selected
-                    appropriately. Default is 0 (no shift)
-  --filters         additional filters to search for functional files
-  --suff(ix)        custom suffix for h5-output file (default = "desc-preproc_bold.h5")
+Usage:
+  call_lsprep [mandatory] [arguments] [options]
 
-Options
-----------
-  -v|--verbose      turn on verbose
-  --ow|--overwrite  overwrite existing outputs
-  --no-report       do not create report (in case you already have one)
-  --no-acompcor     do not perform aCompCor even if you have all files
-  --ica             denoise with ICA rather than aCompCor
-  --force-acompcor  force acompcor execution even if you do not have all files. E.g., you have mul-
+Mandatory (required input):
+  -s|--sub          subject ID (full, including prefix e.g., 'sub-01')
+  -n|--ses          session ID (e.g., 2)
+
+Optional (flags with defaults):
+    -r|--run        limit processing to a certain run ID; default is to do all runs
+    -b|--bids       project root folder; defaults to DIR_DATA_HOME + <subject>/<session>
+    -o|--output_dir output directory; defaults to DIR_DATA_DERIV/lsprep + <subject>/<session>
+    -c|--comps      number of components for ICA/PCA
+    --coil <value>  maps onto 'voxel_cutoff', which dictates which voxels are considered in the
+                    lazyfmri.preproc.Segmentations-class. Default = 300.
+    --phase-onset   phase index which denotes stimulus onsets (default = 1, but can be 0 too)
+    --tfm           transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
+                    _rec-motion1' in DIR_DATA_DERIV/pycortex/<subject>/transforms)
+    --filter-pca    cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
+    --first         delete number of volumes from beginning (default = 0)
+    --last          delete number of volumes from the end (default = 0)
+    --tr            set repetition time (default is 0.105)
+    --window        window length for low-pass filtering. Default is 7 TRs
+    --poly-order    order of polynomial for low-pass filtering. Default is 3
+    --filters       additional filters to search for functional files
+    --suff(ix)      custom suffix for h5-output file (default = "desc-preproc_bold.h5")
+
+Options (extra):
+    -h|--help       print this help text
+    -v|--verbose    turn on verbose
+    --ow            overwrite existing outputs
+    --no-report     do not create report (in case you already have one)
+    --no-acompcor   do not perform aCompCor even if you have all files
+    --ica           denoise with ICA rather than aCompCor
+    --force         force acompcor execution even if you do not have all files. E.g., you have mul-
                     tiple functional runs but only 1 anatomical reference image. That same anato-
                     mical image is then used for all functional runs
-  --no-button       do not add button responses to onset dataframe (default is to do so)
-  --lp              do low-pass filtering ontop of any other filtering
+    --no-button     do not add button responses to onset dataframe (default is to do so)
+    --lp            do low-pass filtering ontop of any other filtering
 
+Examples:
+    # simple call
+    call_lsprep -s sub-001 -n 1 --verbose
 
-Example
-----------
-  call_lsprep -s sub-001 -n 1 --verbose
+    # acompcor
+    call_lsprep \
+        -s sub-001 \
+        -n 1 \
+        --verbose \
+        --filter-pca 0.18 \ # filter components at 0.18 Hz
+        --first 150 \       # remove first 150 volumes
+        --last 150          # remove last 150 volumes
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject         = None
-    ses             = None
-    bids_dir        = None
-    run_id          = None
-    output_dir      = None
-    verbose         = False
-    ses_trafo       = None
-    run_trafos      = None
-    n_comps         = 5
-    filter_pca      = 0.2
-    filter_strat    = "hp"
-    poly_order      = 3
-    window_length   = 7    
-    make_report     = True
-    do_acompcor     = True
-    do_ica          = False
-    t_r             = 0.105
-    shift           = 0
-    force_acompcor  = False
-    button_press    = True
-    overwrite       = False
-    del_first       = 0
-    del_last        = 0
-    bsl_length      = 24
-    phase_onset     = 0
-    filters         = None
-    suff            = "desc-preproc_bold"
-    coil_cutoff     = 300
-
-    # long options without argument: https://stackoverflow.com/a/54170513
-    try:
-        opts = getopt.getopt(argv,"qgvh:b:d:n:r:o:f:l:i:s:c:",["help", "subject=", "bids=", "session=", "ses-trafo=", "output_dir=", "filter-pca=", "run=", "no-report", "verbose", "no-acompcor", "tr=", "overwrite", "ow", "shift=","lp", "no-button", "comps=", "coil=", "window=", "poly-order=", "ica", "first=", "last=", "bsl", "phase_onset=", "filters=","suff=","suffix="])[0]
-    except getopt.GetoptError:
-        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?")
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts: 
-        if opt in ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subject"):
-            subject = arg   
-        elif opt in ("-n", "--session"):
-            ses = arg                         
-        elif opt in ("-b", "--bids"):
-            bids_dir = arg
-        elif opt in ("-o", "--output_dir"):
-            output_dir = arg
-        elif opt in ("-r", "--run"):
-            run_id = arg
-        elif opt in ("-c", "--comps"):
-            n_comps = int(arg)
-        elif opt in ("--ses-trafo"):
-            ses_trafo = arg
-        elif opt in ("--lowpass"):
-            filter_strat = "lp"
-        elif opt in ("--filter-pca"):
-            filter_pca = float(arg)
-        elif opt in ("-v", "--verbose"):
-            verbose = True
-        elif opt in ("--no-report"):
-            make_report = False
-        elif opt in ("--no-acompcor"):
-            do_acompcor = False
-        elif opt in ("--ica"):
-            do_ica = True
-        elif opt in ("--force-acompcor"):
-            force_acompcor = True
-        elif opt in ("--no-button"):
-            button_press = False
-        elif opt in ("--tr"):
-            t_r = float(arg)
-        elif opt in ("--first"):
-            del_first = int(arg)            
-        elif opt in ("--last"):
-            del_last = int(arg)            
-        elif opt in ("--bsl"):            
-            bsl_length = float(arg)            
-        elif opt in ("--lp"):
-            filter_strat = "lp"
-        elif opt in ("--window"):
-            window_length = int(arg)
-        elif opt in ("--poly-order"):
-            poly_order = int(arg)
-        elif opt in ("--phase_onset"):
-            phase_onset = int(arg)     
-        elif opt in ("--coil"):
-            coil_cutoff = int(arg)                     
-        elif opt in ("--shift"):
-            shift = arg
-            if "," in shift:
-                shift = [float(i) for i in utils.string2list(shift)]
-            else:
-                shift = float(shift)
-        elif opt in ("--filters"):
-            filters = arg
-            if "," in filters:
-                filters = [i for i in utils.string2list(filters)]
-            else:
-                filters = [filters]
-        elif opt in ("--ow", "--overwrite"):
-            overwrite = True
-        elif opt in ("--suff", "--suffix"):
-            suff = arg
-
-    if len(argv) == 0:
-        print(main.__doc__)
-        sys.exit()
+    subject        = context.get("subject")
+    ses            = context.get("ses")
+    bids_dir       = context.get("bids_dir")
+    run_id         = context.get("run_id")
+    output_dir     = context.get("output_dir")
+    verbose        = context.get("verbose")
+    ses_trafo      = context.get("ses_trafo")
+    run_trafos     = context.get("run_trafos")
+    n_comps        = context.get("n_comps")
+    filter_pca     = context.get("filter_pca")
+    filter_strat   = context.get("filter_strat")
+    poly_order     = context.get("poly_order")
+    window_length  = context.get("window_length")
+    make_report    = context.get("make_report")
+    do_acompcor    = context.get("do_acompcor")
+    do_ica         = context.get("do_ica")
+    t_r            = context.get("t_r")
+    force_acompcor = context.get("force_acompcor")
+    button_press   = context.get("button_press")
+    overwrite      = context.get("overwrite")
+    del_first      = context.get("del_first")
+    del_last       = context.get("del_last")
+    bsl_length     = context.get("bsl_length")
+    phase_onset    = context.get("phase_onset")
+    filters        = context.get("filters")
+    suff           = context.get("suff")
+    coil_cutoff    = context.get("coil_cutoff")
 
     #---------------------------------------------------------------------------------------
     # get some defaults 
     base_path = subject
     base_name = subject
+
     if isinstance(ses, (str,int,float)):
         base_path = opj(base_path, f"ses-{ses}")
         base_name += f"_ses-{ses}"
@@ -206,7 +131,7 @@ Example
 
     #---------------------------------------------------------------------------------------
     # check if we should do single runs or all runs at once for the output name of aCompCor figure
-    if run_id != None and run_id != "all":
+    if run_id is not None and run_id != "all":
         func_search = ["task-", "bold.mat", f"run-{run_id}"]
         eye_search  = ["task-", ".edf", f"run-{run_id}"]
         tsv_search  = ["task-", ".tsv", f"run-{run_id}"]
@@ -222,10 +147,36 @@ Example
     else:
       final_filters = func_search
 
-    func_files  = utils.get_file_from_substring(final_filters, funcs, exclude="acq-3DEPI", return_msg=None)
-    eye_files   = utils.get_file_from_substring(eye_search, funcs, return_msg=None)
-    tsv_files   = utils.get_file_from_substring(tsv_search, funcs, exclude="acq-3DEPI", return_msg=None)
-    ref_slices  = utils.get_file_from_substring(anat_search, anats, exclude="._", return_msg=None)
+    # funcs
+    func_files = utils.get_file_from_substring(
+        final_filters,
+        funcs, 
+        exclude="acq-3DEPI",
+        return_msg=None
+    )
+
+    # eye-tracking
+    eye_files = utils.get_file_from_substring(
+        eye_search,
+        funcs,
+        return_msg=None
+    )
+
+    # ExpTools2 files
+    tsv_files = utils.get_file_from_substring(
+        tsv_search,
+        funcs,
+        exclude="acq-3DEPI",
+        return_msg=None
+    )
+
+    # anat slices
+    ref_slices = utils.get_file_from_substring(
+        anat_search,
+        anats,
+        exclude="._",
+        return_msg=None
+    )
 
     if not isinstance(func_files, (str,list)):
         raise ValueError(f"Could not find functional files (*.mat) in '{opj(bids_dir, 'func')}'; run 'master -m 03a -s {subject.split('-')[-1]} -n {ses} --sge'")
@@ -234,7 +185,8 @@ Example
     collect_dict = {}
     for tag,val in zip(
         ["func", "anat", "eye", "tsv", "run_trafos"],
-        [func_files, ref_slices, eye_files, tsv_files, run_trafos]):
+        [func_files, ref_slices, eye_files, tsv_files, run_trafos]
+        ):
 
         # set everything to None by default, fill in if applicable
         collect_dict[tag] = None
@@ -246,14 +198,13 @@ Example
                 collect_dict[tag] = val
 
     # match lists to exlude 3DEPI stuff
-    for ii in ["eye","tsv"]:
+    for ii in ["eye", "tsv"]:
         if isinstance(collect_dict[ii], list):
             collect_dict[ii] = utils.match_lists_on(
                 collect_dict["func"], 
                 collect_dict[ii], 
                 matcher=["task","run"]
             )
-    
     
     # set acompcor to false if ica == True
     if do_ica:
@@ -267,7 +218,7 @@ Example
                 print(*collect_dict["anat"], sep="\n")
                 raise ValueError(f"number of func files ({len(collect_dict['func'])}) does not match number of anatomical files ({len(collect_dict['anat'])})")
             else:
-                utils.verbose(f"unequal number of FUNC files and ANAT files, but --force-acompcor was triggered, using same slice for all FUNCs", verbose)
+                utils.verbose(f"unequal number of FUNC files and ANAT files, but --force was specified, using same slice for all FUNCs", verbose)
                 collect_dict['anat'] = [collect_dict['anat'][0] for ii in range(len(collect_dict['func']))]
 
         if not isinstance(collect_dict['anat'], list):
@@ -336,4 +287,136 @@ Example
     )
 
 if __name__ == "__main__":
-    main(sys.argv[1:])    
+
+    subject         = None
+    ses             = None
+    bids_dir        = None
+    run_id          = None
+    output_dir      = None
+    verbose         = False
+    ses_trafo       = None
+    run_trafos      = None
+    n_comps         = 5
+    filter_pca      = 0.2
+    filter_strat    = "hp"
+    poly_order      = 3
+    window_length   = 7    
+    make_report     = True
+    do_acompcor     = True
+    do_ica          = False
+    t_r             = 0.105
+    force_acompcor  = False
+    button_press    = True
+    overwrite       = False
+    del_first       = 0
+    del_last        = 0
+    bsl_length      = 24
+    phase_onset     = 0
+    filters         = None
+    suff            = "desc-preproc_bold"
+    coil_cutoff     = 300
+
+    # long options without argument: https://stackoverflow.com/a/54170513
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hgvh:b:d:n:r:o:f:l:i:s:c:",
+            ["help", "sub=", "bids=", "ses=", "tfm=", "output_dir=", "filter-pca=", "run=", "no-report", "verbose", "no-acompcor", "tr=", "overwrite", "ow", "lp", "no-button", "comps=", "coil=", "window=", "poly-order=", "ica", "first=", "last=", "bsl", "phase-onset=", "filters=","suff=","suffix="]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts: 
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg   
+        elif opt in ("-n", "--ses"):
+            ses = arg                         
+        elif opt in ("-b", "--bids"):
+            bids_dir = arg
+        elif opt in ("-o", "--output_dir"):
+            output_dir = arg
+        elif opt in ("-r", "--run"):
+            run_id = arg
+        elif opt in ("-c", "--comps"):
+            n_comps = int(arg)
+        elif opt in ("--tfm"):
+            ses_trafo = arg
+        elif opt in ("--lowpass"):
+            filter_strat = "lp"
+        elif opt in ("--filter-pca"):
+            filter_pca = float(arg)
+        elif opt in ("-v", "--verbose"):
+            verbose = True
+        elif opt in ("--no-report"):
+            make_report = False
+        elif opt in ("--no-acompcor"):
+            do_acompcor = False
+        elif opt in ("--ica"):
+            do_ica = True
+        elif opt in ("--force"):
+            force_acompcor = True
+        elif opt in ("--no-button"):
+            button_press = False
+        elif opt in ("--tr"):
+            t_r = float(arg)
+        elif opt in ("--first"):
+            del_first = int(arg)            
+        elif opt in ("--last"):
+            del_last = int(arg)            
+        elif opt in ("--bsl"):            
+            bsl_length = float(arg)            
+        elif opt in ("--lp"):
+            filter_strat = "lp"
+        elif opt in ("--window"):
+            window_length = int(arg)
+        elif opt in ("--poly-order"):
+            poly_order = int(arg)
+        elif opt in ("--phase-onset"):
+            phase_onset = int(arg)     
+        elif opt in ("--coil"):
+            coil_cutoff = int(arg)
+        elif opt in ("--filters"):
+            filters = arg
+            if "," in filters:
+                filters = [i for i in utils.string2list(filters)]
+            else:
+                filters = [filters]
+        elif opt in ("--ow", "--overwrite"):
+            overwrite = True
+        elif opt in ("--suff", "--suffix"):
+            suff = arg
+
+    main(context={
+        "subject": subject,
+        "ses": ses,
+        "bids_dir": bids_dir,
+        "run_id": run_id,
+        "output_dir": output_dir,
+        "verbose": verbose,
+        "ses_trafo": ses_trafo,
+        "run_trafos": run_trafos,
+        "n_comps": n_comps,
+        "filter_pca": filter_pca,
+        "filter_strat": filter_strat,
+        "poly_order": poly_order,
+        "window_length": window_length,
+        "make_report": make_report,
+        "do_acompcor": do_acompcor,
+        "do_ica": do_ica,
+        "t_r": t_r,
+        "force_acompcor": force_acompcor,
+        "button_press": button_press,
+        "overwrite": overwrite,
+        "del_first": del_first,
+        "del_last": del_last,
+        "bsl_length": bsl_length,
+        "phase_onset": phase_onset,
+        "filters": filters,
+        "suff": suff,
+        "coil_cutoff": coil_cutoff
+    })

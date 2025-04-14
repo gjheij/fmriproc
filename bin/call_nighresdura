@@ -10,11 +10,11 @@ import getopt
 import os
 from lazyfmri import utils
 opj = os.path.join
-rb = utils.color.RED + utils.color.BOLD
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["inv2", "mask"], allow_input_dir=False)
-def main(argv, context):
+def main(context):
     r"""
 ---------------------------------------------------------------------------------------------------
 call_nighresdura
@@ -24,21 +24,29 @@ image and a quantitative T1 map, based on the magnitude and phase-information of
 volumes of a MP2RAGE-sequence (Marques et al., 2010). It can also further correct this map
 for B1 inhomogenieties using a B1 map (Marques et al., 2014)
 
-Args:
+Mandatory (required input):
     -i|--inv2       2nd inversion image
     -m|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
+
+Optional (flags with defaults):
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
-Outputs
-    taken from https://nighres.readthedocs.io/en/latest/brain/mp2rage_dura_estimation.html
-    Dictionary collecting outputs under the following keys (suffix of output files in brackets)
+Options (extra):
+    -h|--help       print this help text
 
-    - result (niimg): Dura probability image (_dura-proba)
+Outputs
+    result (niimg): Dura probability image (-dura_proba)
 
 Example:
-    call_nighresdura -i inv2.nii.gz -m inv2_mask.nii.gz -o derivatives/nighres -n sub-001_desc
+    call_nighresdura \
+        -i inv2.nii.gz \
+        -m inv2_mask.nii.gz \
+        -o derivatives/nighres \
+        -n sub-001_desc
 
+Notes:
+    docs: https://nighres.readthedocs.io/en/latest/brain/mp2rage_dura_estimation.html
 ---------------------------------------------------------------------------------------------------
     """
 
@@ -101,7 +109,7 @@ if __name__ == "__main__":
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    main(sys.argv[1:], context={
+    main(context={
         "inv2": inv2_skull,
         "mask": inv2_mask,
         "output_dir": output_dir,

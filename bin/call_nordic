@@ -1,8 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -19,17 +15,20 @@ template script is overwritten before another has initiated. If you want .nii ou
 rather than .nii.gz, set the output file to .nii. Internally, we'll convert any .nii file to .nii.gz
 for other operations. If the output file has .nii extension, the final output will not be gzip'ed
 
-Args:
+Usage:
+  call_nordic [options] <mag file> <phase file> <nordic output>
+
+Options:
+  -h|--help       print this help text
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize
   --mag           use magnitude only
   --tsnr          make tSNR images before and after NORDIC
+
+Positional:
   <mag>           path representing the magnitude image
   <phase>         path representing the phase image
   <output>        path representing the nordic'ed output
-
-Usage:
-  call_nordic [options] <mag file> <phase file> <nordic output>
 
 Example:
   call_nordic func_mag.nii.gz func_phase.nii.gz func_nordic.nii.gz          # mag + phase
@@ -57,9 +56,14 @@ while getopts :-:hmv:u:l: arg; do
           ;;  
         tsnr)
           make_tsnr=1
-          ;;   
+          ;;
+        help)
+          Usage >&2
+          exit 1
+          ;;           
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
@@ -71,6 +75,9 @@ while getopts :-:hmv:u:l: arg; do
           ;;
     u)  upper=${OPTARG}
           ;;
+    h)  Usage >&2
+        exit 1
+          ;;          
   esac
 done
 

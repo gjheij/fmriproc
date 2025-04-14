@@ -13,18 +13,18 @@ call_json
 
 Add a key an description to a given json file. 
 
-Parameters
-----------
-    --merge         don't overwrite existing keys/value pairings
+Usage:
+    call_json [options] <file> <key> <message>
+
+Arguments:
     <json file>     path representing a valid json-file
     <key>           string of the key that should be added; use double+single quotes (see example) 
                     for list-like input
     <messsage>      message that is linked to the key; use double+single quotes (see example) 
                     for list-like input. Order must match list-like input from <key>
 
-Usage
-----------
-    call_json <file> <key> <message>
+Options:
+    --merge         don't overwrite existing keys/value pairings
 
 Example
 ----------

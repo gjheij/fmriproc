@@ -5,10 +5,12 @@ import sys
 import scipy.io as io
 import nibabel as nb
 import getopt
+from lazyfmri import utils
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["raw", "nii"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_func2nifti
 
@@ -18,59 +20,46 @@ file so we can combine it. Also support multi-echo data, assuming the input arra
 file is a 4D-array with the last dimension representing the echoes. If multi-echo data is used as
 input, '_echo-x' will be appended right before the "*.nii.gz"
 
-Args:
-    -i <mat file>          matrix containing reconstructed data (see call_linerecon)
-    -r <empty nifti>       nifti image with correct dimensions for line (see call_createline)
-    -o <output name>       custom output name; leave empty to overwrite <empty nifti>
-    -c <complex>           specify '-c' if you want complex data; otherwise absolute values will
-                           used 
+Usage:
+  call_func2nifti -i <mat file> -r <ref slice> [options]
+
+Mandatory (required input):
+    -i|--raw        matrix containing reconstructed data (see call_linerecon)
+    -r|--ref        nifti image with correct dimensions for line (see call_createline)
+
+Optional (flags with defaults):
+    -o|--out        custom output name; leave empty to overwrite <empty nifti>
+
+Options (extra):
+    -h|--help       print this help text
+    -c|--complex    store complex values instead of absolute values
 
 Outputs:
     4D nibabel.Nifti1Image image
 
 Example:
-    call_func2nifti -i sub-001_task-LR_bold.mat -r sub-001_task-LR_bold.nii.gz -o bold.nii.gz
-    call_func2nifti -i sub-001_task-LR_bold.mat -r sub-001_task-LR_bold.nii.gz -o bold.nii.gz -c
+    call_func2nifti \
+        -i sub-001_task-LR_bold.mat \
+        -r sub-001_task-LR_bold.nii.gz \
+        -o bold.nii.gz
+
+    call_func2nifti \
+        --raw sub-001_task-LR_bold.mat \
+        --ref sub-001_task-LR_bold.nii.gz \
+        --complex
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    raw     = None
-    nii     = None
-    out     = None
-    complex = False
+    raw = context.get("raw")
+    nii = context.get("nii")
+    out = context.get("out")
+    complex = context.get("complex")
 
-    try:
-        opts = getopt.getopt(argv,"hi:r:o:c",["raw", "nii=", "out=", "complex"])[0]
-    except getopt.GetoptError:
-        print("ERROR IN ARGUMENT HANDLING!")
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-i", "--raw"):
-            raw = arg
-        elif opt in ("-r", "--nii"):
-            nii = arg
-        elif opt in ("-o", "--out"):
-            out = arg
-        elif opt in ("-c", "--complex"):
-            complex = True
-
-    if len(argv) < 2:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
-
-    print("Processing {}".format(os.path.basename(raw)))
+    print(f"Processing {os.path.basename(raw)}")
 
     # overwrite if left empty
-    if out:
-        out = out
-    else:
+    if not isinstance(out, str):
         out = nii
 
     # load in matrix
@@ -165,4 +154,39 @@ Example:
     print("Done")
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    raw     = None
+    nii     = None
+    out     = None
+    complex = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "chi:r:o",
+            ["raw", "ref=", "out=", "complex"]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR IN ARGUMENT HANDLING!")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-i", "--raw"):
+            raw = arg
+        elif opt in ("-r", "--ref"):
+            nii = arg
+        elif opt in ("-o", "--out"):
+            out = arg
+        elif opt in ("-c", "--complex"):
+            complex = True
+
+    main(context={
+        "raw": raw,
+        "nii": nii,
+        "out": out,
+        "complex": complex
+    })

@@ -12,16 +12,18 @@ Simple wrapper around 'perl' to search for a particular string and replace with 
 or directory of files. I preferred perl because it works the same on MacOS and Linux, whereas 'sed'
 has all sorts of complications.
 
-Args:
-  -h|--help         show this help text
-  -r|--recursive    run in recursive mode; use at own risk
-  --verbose         echo what is being replaced by what
+Usage:
+  call_replace [options] <search for> <replace with> <directory/file>
+  
+Arguments:
   <search for>      string to be replaced
   <replace with>    replacement string
   <dir/file>        directory or file to perform the operation on
 
-Usage:
-  call_replace [options] <search for> <replace with> <directory/file>
+Options:
+  -h|--help         show this help text
+  -r|--recursive    run in recursive mode; use at own risk
+  --verbose         echo what is being replaced by what
 
 Example:
   call_replace /home/heij@spinozacentre.knaw.nl /home/heij ~/.conda/envs/prfline/bin

@@ -1,8 +1,8 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Ys
-#$ -V
+
+#---------------------------------------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -16,17 +16,23 @@ Cerebellum segmentation with SUIT. This can be useful if you're editing FreeSurf
 want to exclude the cerebellum again. Naturally also useful if you're interested specifically in the
 cerebellum. 
 
-Args:
- -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
- -d <delete>    don't delete intermediate files
- <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
-                new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
-                not like *.nii.gz files.
- <output base>	basename of output image, including directory, '_desc-cereb_mask.nii[.gz]', '_desc-
-                                cereb-wm.nii[.gz]', and '_desc-cereb_gm.nii[.gz]' will be appended
-
 Usage:
- call_spmsuit t1w.nii.gz <project>/derivatives/suit/<subject>/<ses>/<subject>
+  call_spmsuit [options] <input image> <output directory + basename>
+
+Options:
+  -h|--help       print this help text
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
+Positional:
+  <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
+                  new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
+                  not like *.nii.gz files.
+  <output base>	  directory+basename of output image, including directory, '_desc-cereb_mask.nii[.gz]',
+                  '_desc-cereb-wm.nii[.gz]', and '_desc-cereb_gm.nii[.gz]' will be appended
+
+Example:
+ call_spmsuit t1w.nii.gz derivatives/suit/sub-01/ses-1/sub-01_acq-MP2RAGE
 
 ---------------------------------------------------------------------------------------------------
 
@@ -40,19 +46,33 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts s: argument
+RM=1
+while getopts :-:hds: argument
 do
-  case ${argument} in
+  case ${argument} in      
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;          
     s)  SPM=${OPTARG}
-            ;;
+          ;;
+    d)  RM=0
+          ;;
+    h)  Usage >&2
+        exit 1
+          ;;              
   esac
 done
-
-if [[ "${@}" == *"-d"* ]]; then
-  RM=0
-else
-  RM=1
-fi
 
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
@@ -69,10 +89,6 @@ if [[ -z ${SPM} ]]; then
 else
   SPM_PATH=${SPM}
 fi
-
-#-----------------------------------------------------------------------------
-# Get extension from input file
-source call_bashhelper
 
 # if file specified is in current directory, add entire path
 INPUT=$(fetch_filepath ${INPUT})

@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
-import os, sys, getopt
+import os
+import sys
+import getopt
 from fmriproc.transform import fs2vert
+from lazyfmri import utils
 import numpy as np
 import ast
 
 opj = os.path.join
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject", "coord", "hemi", "output"], allow_input_dir=False)
+def main(argv, context):
 
     """
 ---------------------------------------------------------------------------------------------------
@@ -18,10 +22,10 @@ This function returns a vertex given a voxel coordinate in orig.mgz space using 
 save the vertex-map as an .npz array that you can use to view it in Pycortex.
 
 Args:
-    -s (--subj=)    subject name (e.g., sub-xxx)
-    -c (--coord=)   voxel coordinate (CRS) in orig.mgz space; should be formatted like [x,y,z]
-    -h (--hemi=)    hemisphere to use
-    -o (--output=)  output npz-file containing vertex object        
+    -s|--subj   subject name (e.g., sub-xxx)
+    -c|--coord  voxel coordinate (CRS) in orig.mgz space; should be formatted like [x,y,z]
+    -h|--hemi   hemisphere to use
+    -o|--output output npz-file containing vertex object        
 
 Example:
     call_vox2vert -s sub-001 -c [187,177,40] -h lh -o vert.npy
@@ -29,41 +33,26 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject   = None
-    coord     = None
-    hemi      = "lh"
-    output    = None
-
-    try:
-        opts = getopt.getopt(argv,"qs:c:h:o:",["help=", "subj=", "coord=", "hemi=", "output="])[0]
-    except getopt.GetoptError:
+    if len(argv) == 1:
         print(main.__doc__)
-        sys.exit(2)
+        sys.exit(1)
 
-    for opt, arg in opts:
-        if opt == '-q':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subj"):
-            subject = arg
-        elif opt in ("-c", "--coord"):
-            coord = arg
-        elif opt in ("-h", "--hemi"):
-            hemi = arg
-        elif opt in ("-o", "--output"):
-            output = arg
-
-    if len(argv) < 1:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
+    subject = context["subject"]
+    coord = context["coord"]
+    hemi = context["hemi"]
+    output = context["output"]
 
     try:
       coord = np.array(ast.literal_eval(coord))
     except:
       raise ValueError(f"You used '-c {coord}'. Make sure to use '-c [x,y,z]' (comma-separated)")
     
-    pp = fs2vert(subject, coord=coord, hemi=hemi)
+    pp = fs2vert(
+       subject,
+       coord=coord,
+       hemi=hemi
+    )
+
     vert = pp['vert_nr']
     obj = pp['vert_obj']['whole_roi']
 
@@ -76,4 +65,38 @@ Example:
       print(vert)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject   = None
+    coord     = None
+    hemi      = "lh"
+    output    = None
+    
+    try:
+        opts = getopt.getopt(
+           sys.argv[1:],
+           "hs:c:h:o:",
+           ["help=", "subj=", "coord=", "hemi=", "output="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--subj"):
+            subject = arg
+        elif opt in ("-c", "--coord"):
+            coord = arg
+        elif opt in ("-h", "--hemi"):
+            hemi = arg
+        elif opt in ("-o", "--output"):
+            output = arg
+
+    main(sys.argv[1:], context={
+        "subject": subject,
+        "coord": coord,
+        "hemi": hemi,
+        "output": output
+    })

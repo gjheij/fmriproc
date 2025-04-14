@@ -8,12 +8,13 @@ import os
 import numpy as np
 from nibabel.freesurfer.io import read_morph_data, write_morph_data
 opj = os.path.join
-gb = utils.color.BOLD+utils.color.GREEN
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["prf_file"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_prf2fs
 
@@ -21,25 +22,22 @@ Convert the pRF-estimates obtained with pRFpy to files that freesurfer can under
 us to draw ROIs on the surface using Freeview
 
 Usage:
-  call_prf2fs [arguments] [options]
+  call_prf2fs [mandatory] [arguments] [options]
 
-Arguments:
-    -i|--in     <prf file>      file containing the pRF estimates
-    -s|--sub    <sub number>    number of subject's FreeSurfer directory. If not specified, we'll 
-                                try to read it from `prf file`
-    -m|--model  <model type>    one of ['gauss','dog','css','norm'], default = 'gauss'. You can 
-                                also call models with '--gauss', '--dog', '--css', or '--norm'
-                                (see below). If these flags are not used, we'll try to read the
-                                model-type from the filename if it contains the 'model-' flag. If
-                                that also fails, we'll default to 'gauss', which should also be 
-                                fine given that we're mainly interested in polar angle maps and 
-                                eccentricities; these are extracted regardless of model type
-    -t|--thr <r2 thresh>        r2 threshold to use for thresholding the eccentricity/polar angle
-                                maps
+Mandatory (required input):
+    -i|--in         file containing the pRF estimates
 
-Options
-    --max_ecc   <value>         maximum eccentricity value to consider when plotting. Default = 10
-    --freeview                  immediately open freeview to draw stuff
+Optional (flags with defaults):
+    -s|--sub        Subject ID used for FreeSurfer. If not specified, we'll try to read it from
+                    the input file
+    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
+    -t|--thr        r2 threshold to use for thresholding the eccentricity/polar angle maps
+    --max_ecc       maximum eccentricity value to consider when plotting. Default = 10
+
+Options (extra):
+    -h|--help       print this help text
+    --freeview      immediately open freeview to draw stuff
 
 Models:
     --gauss         use standard Gaussian model (default) [Dumoulin & Wandell, 2008]
@@ -56,49 +54,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 """
 
-    subject     = None
-    prf_file    = None
-    model       = None
-    r2_thresh   = 0.1
-    max_ecc     = 10.0
-    freeview    = False
 
-    try:
-        opts = getopt.getopt(argv,"h:n:m:t:i:",["in=", "help", "sub=", "model=", "gauss", "dog", "css", "norm", "thr=", "max_ecc=", "freeview"])[0]
-    except getopt.GetoptError:
-        print("ERROR while reading arguments; did you specify an illegal argument?")
-        print(main.__doc__)
-        sys.exit(2)
-    
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--sub"):
-            subject = arg
-        elif opt in ("-i", "--in"):
-            prf_file = os.path.abspath(arg)
-        elif opt in ("-m", "--model"):
-            model = arg
-        elif opt in ("-t", "--thr"):
-            r2_thresh = float(arg)
-        elif opt in ("--gauss"):
-            model = "gauss" 
-        elif opt in ("--dog"):
-            model = "dog"
-        elif opt in ("--css"):
-            model = "css"
-        elif opt in ("--norm"):
-            model = "norm"
-        elif opt in ("--max_ecc"):
-            max_ecc = float(max_ecc)
-        elif opt in ("--freeview"):
-            freeview = True            
-
-    if len(argv) < 1:
-        print("NEED AT LEAST THE FILE WITH PRF ESTIMATES")
-        print(main.__doc__)
-        sys.exit()
 
     # try to derive model type from file
     if not isinstance(model, str) or not isinstance(subject, str):
@@ -118,7 +74,8 @@ Example:
     output_dir = opj(
         fs_dir,
         subject,
-        "surf")    
+        "surf"
+    ) 
 
     # read the estimates into a dataframe
     print(f"Reading '{prf_file}'")
@@ -146,13 +103,63 @@ Example:
     for ff,dd in zip(["lh","rh"],[lh_masked_pol,rh_masked_pol]):
         out_f = opj(output_dir, f"{ff}.masked_pol")
         
-        print("Writing "+gb+out_f+end)
+        print(f"Writing {gb}{out_f}{end}")
         write_morph_data(out_f, dd)
 
     if freeview:
         cmd=f"freeview -f {opj(output_dir, 'lh.inflated')}:overlay={opj(output_dir, 'lh.masked_pol')}:overlay_custom=-3.14,255,0,0,-2.65,255,255,0,-2.09,0,128,0,-1.75,0,255,255,-1.05,0,0,255,-0.5,238,130,238,0,255,0,0,0.5,255,255,0,1.05,0,128,0,1.57,0,255,255,2.09,0,0,255,2.65,238,130,238,3.14,255,0,0 {opj(output_dir, 'rh.inflated')}:overlay={opj(output_dir, 'rh.masked_pol')}:overlay_custom=-3.14,255,0,0,-2.65,255,255,0,-2.09,0,128,0,-1.75,0,255,255,-1.05,0,0,255,-0.5,238,130,238,0,255,0,0,0.5,255,255,0,1.05,0,128,0,1.57,0,255,255,2.09,0,0,255,2.65,238,130,238,3.14,255,0,0 2>/dev/null"
-        print(cmd)
-        os.system(cmd)
+        utils.run_shell_wrapper(cmd)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject     = None
+    prf_file    = None
+    model       = None
+    r2_thresh   = 0.1
+    max_ecc     = 10.0
+    freeview    = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "h:n:m:t:i:",
+            ["in=", "help", "sub=", "model=", "gauss", "dog", "css", "norm", "thr=", "max_ecc=", "freeview"]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR while reading arguments; did you specify an illegal argument?")
+        print(main.__doc__)
+        sys.exit(2)
+    
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg
+        elif opt in ("-i", "--in"):
+            prf_file = os.path.abspath(arg)
+        elif opt in ("-m", "--model"):
+            model = arg
+        elif opt in ("-t", "--thr"):
+            r2_thresh = float(arg)
+        elif opt in ("--gauss"):
+            model = "gauss" 
+        elif opt in ("--dog"):
+            model = "dog"
+        elif opt in ("--css"):
+            model = "css"
+        elif opt in ("--norm"):
+            model = "norm"
+        elif opt in ("--max_ecc"):
+            max_ecc = float(max_ecc)
+        elif opt in ("--freeview"):
+            freeview = True
+
+    main(context={
+        "subject": subject,
+        "prf_file": prf_file,
+        "model": model,
+        "r2_thresh": r2_thresh,
+        "max_ecc": max_ecc,
+        "freeview": freeview
+    })

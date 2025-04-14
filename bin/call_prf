@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-#$ -j Y
-#$ -cwd
-#$ -V
+
 import mkl
 mkl.set_num_threads=1
 
@@ -15,15 +13,103 @@ import numpy as np
 import os
 from scipy import io
 import sys
-import warnings
 import json
 import yaml
-warnings.filterwarnings('ignore')
 opj = os.path.join
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+end = utils.color.END
 
-def main(argv):
+def get_clip_input(clip_dm):
 
-    """
+    if isinstance(clip_dm, str):
+        if clip_dm.endswith("json"):
+            ff = open(clip_dm)
+            clip_dm = json.load(ff)
+            ff.close()
+        elif clip_dm.endswith("txt"):
+            clip_dm = np.loadtxt(clip_dm)
+            if len(clip_dm) != 4:
+                raise ValueError(f"Length of given list for clipping must be 4, not '{len(clip_dm)}': {clip_dm}")
+            else:
+                # make integer
+                clip_dm = clip_dm.astype(int)
+        elif clip_dm.endswith("yml"):
+            with open(clip_dm, 'rb') as input:
+                settings = yaml.safe_load(input)
+
+            if "screen_delim" in list(settings.keys()):
+                screen_set = settings["screen_delim"]
+                clip_dm = [
+                    screen_set["top"],
+                    screen_set["bottom"],
+                    screen_set["left"],
+                    screen_set["right"]
+                ]
+
+    return clip_dm
+
+def define_design(
+    design_file,
+    verbose=False,
+    n_pix=100,
+    png_dir=None,
+    clip_dm=[0,0,0,0]
+    ):
+
+    if os.path.isfile(design_file):
+        utils.verbose(f"Design matrix: {design_file}", verbose)
+        design_matrix = prf.read_par_file(design_file)
+    else:
+        utils.verbose(f"Creating new design matrix (n_pix={n_pix})", verbose)
+        if os.path.isdir(png_dir):
+            try:
+                dm = prf.get_prfdesign(
+                    png_dir, 
+                    n_pix=n_pix, 
+                    dm_edges_clipping=clip_dm
+                )
+            except:
+                raise TypeError(f"Failed to create {design_file}")
+
+            io.savemat(design_file, {"stim": dm})
+            design_matrix = prf.read_par_file(design_file)
+        else:
+            utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -')
+            utils.verbose(f"ERROR in {rb}call_prf{end}: invalid directory '{gb}{png_dir}{end}'", True)
+            sys.exit(1)
+    
+    return design_matrix
+
+def set_output_base(
+    sub=None,
+    ses=None,
+    task=None,
+    label=None,
+    merge=False,
+    roi_tag=None    
+    ):
+
+    # set output base
+    out = f"sub-{sub}"
+    if merge:
+        out += f"_ses-avg"
+    else:
+        if isinstance(ses, (int,str)):
+            out += f"_ses-{ses}" 
+    
+    if task is not None:
+        out += f"_task-{task}"
+
+    if isinstance(label, str):
+        out += f"_roi-{roi_tag}"
+
+    return out
+
+@utils.validate_cli_inputs(required_keys=["sub", "input_dir"])
+def main(context):
+
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_prf
 
@@ -33,45 +119,54 @@ you're not running that particular experiment, you'll need to create a design ma
 sumes the input is BIDS compliant, as it will extract certain features from the filenames. Current-
 ly compatible with output from pybest (ending with "*desc-denoised_bold.npy") and from fMRIPrep (en-
 ding with "*bold.func.gii"). It will throw an error if neither of these conditions are met. If you 
-have a different case (e.g., nifti's), please open an issue so we can deal with that. We'll select 
-files from the input directory based on 'space-' (check spinoza_setup)/'run-'/'task-IDs. They are 
-then paired into left+right hemisphere. Finally, the median over all runs is calculated and inser-
-ted in the model-fitting object.
+have a different case (e.g., nifti's), please open an issue so we can deal with that.
+
+We'll select files from the input directory based on 'space-' (check spinoza_setup)/'run-'/'task-IDs.
+They are then paired into left+right hemisphere. Finally, the median over all runs is calculated
+and inserted in the model-fitting object.
+
+Strictly speaking, we only need a subject ID and the input directory with functional data (e.g.,
+fMRIPrep or Pybest). The output will be stored in a 'prf/<subject>/<ses>' folder, which is assu-
+med to contain a 'design-pRF.mat' file. In case you want a different output folder and you have a
+different task name (e.g., '2R' for Marco's experiments), use the appropriate flags.
 
 Usage:
-  call_prf [arguments] [options]
+  call_prf [mandatory] [optional] [options]
 
-Arguments:
-    -s|--sub    <sub number>        number of subject's FreeSurfer directory from which you can omit 
-                                    "sub-" (e.g.,for "sub-001", enter "001").
-    -n|--ses    <session number>    session number (e.g., "1")
-    -t|--task   <task name>         name of the experiment performed (e.g., "2R")
-    -o|--out    <prf dir>           output directory containing pRF-stuff (/derivatives/prf)
-    -i|--in     <input dir>         input directory (e.g., output of pybest/fMRIPrep)
-    -j|--jobs <nr of jobs>          number of jobs to parallellize over (default = 5)
-    -p|--png    <path to pngs>      path to png's if you ran M. Aqil's experiment
-    -m|--model  <model type>        one of ['gauss','dog','css','norm'], default = 'gauss'. You can 
-                                    also call models with '--gauss', '--dog', '--css', or '--norm'
-                                    (see below).
-    -x|--kwargs <file>              path to file containing arguments you want to set manually, 
-                                    rather than taking the settings in `prf_analysis.yml`.
-    -u|--space  <fit space>         default is set as PYBEST_SPACE in spinoza_setup
-    -c|--constr <constraints>       string or list representing the type of constraints to use for
-                                    each stage (Gaussian and beyond). By default, we'll use trust-
-                                    constr minimization ('tc'), but you can speed up the normaliza-
-                                    tion fitting by using L-BGFS ('bgfs'). To specify a list, use 
-                                    the format '-c [tc,bgfs]'. Use --tc, --bgfs, or --nelder to sync 
-                                    the minmizers across stages
-    --cut-vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
-                                    Default is 0, but sometimes it's good to get rid of the initial
-                                    transient
-    --tr                            manually set repetition time (TR). Default = 1.5. Can be read
-                                    from gifti files (if input = fMRIprep).
-    --folds <number>                number of repeats WITHIN runs to average over. This can be used
-                                    to increase SNR if your run consists of multiple equal bar-pass
-                                    sequences
+Mandatory (required input):
+    -s|--sub        subject ID as used in FreeSurfer directory from which you can omit "sub-"
+                    (e.g.,for "sub-001", enter "001").
+    -i|--inputdir   input directory (e.g., output of pybest/fMRIPrep)
 
-Options:                                  
+Optional (flags with defaults):
+    -n|--ses        session number (e.g., "1")
+    -t|--task       name of the experiment performed (e.g., "2R"). Default = 'pRF'. In any case,
+                    we expect files with 'sub-<sub_id>_task-<task_id>*' to exist.
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'prf'))
+    -j|--jobs       number of jobs to parallellize over (default = 5)
+    -p|--png        path to png's if you ran M. Aqil's experiment
+    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
+    -x|--kwargs     path to file containing arguments you want to set manually, rather than taking
+                    the settings in 'prf_analysis.yml'.
+    -u|--space      default is set as PYBEST_SPACE in spinoza_setup
+    -c|--constr     string or list representing the type of constraints to use for each stage
+                    (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
+                    but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
+                    specify a list, use the format: 
+                    
+                        '-c tc,bgfs'
+                        
+                    Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
+    --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
+                    but sometimes it's good to get rid of the initial transient
+    --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
+                    (if input = fMRIprep).
+    --folds         number of repeats WITHIN runs to average over. This can be used to increase
+                    SNR if your run consists of multiple equal bar-pass sequences
+
+Options (extra):
+    -h|--help       print this help text             
     --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
                     Use the -x flag if you want different minimizers for both stages
     --bold          re-calculate BOLD timecourses; otherwise use 'hemi-LR_desc-avg_bold.npy' file
@@ -106,7 +201,7 @@ Options:
     --no-fit        Stop the process before fitting, right after saving out averaged data. This was 
                     useful for me to switch to percent-signal change without requiring a re-fit.
     --overwrite     If specified, we'll overwrite existing Gaussian parameters. If not, we'll look
-                    for a file with ['model-gauss', 'stage-iter', 'params.pkl'] in *outputdir* and,
+                    for a file with ['model-gauss', 'stage-iter', 'params.pkl'] in *output_dir* and,
                     if it exists, inject it in the normalization model (if `model=norm`)  
     --raw           use unzscore'd data from pybest; do not percent-signal change.
     --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
@@ -120,7 +215,9 @@ Options:
     --zscore        Do NOT convert the data to percent signal change. If you do want percent signal
                     change, the input directory needs to be unzscored data.
                     PSC will be calculated following M. Aqil's strategy:
+
                         psc = signals*100/(mean(signals)) - median(signals_without_stimulus)
+
     --pyb-type      used in combination with '--merge-ses' to differentiate 'unzscored' or 'de-
                     noised' files. Should be one of 'unzscored' or 'denoised'. If '--merge-ses' is
                     not specified, the correct session files will be selected automatically
@@ -132,242 +229,109 @@ Models:
     --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
 
 Example:
-  call_prf -s 001 -n 1 -t 2R -o /path/derivatives/prf -i /path/to/pybest/sub-001 -p /path/png
-  call_prf --sub 001 --ses 1 --task 2R --out /path/derivatives/prf --in /path/to/pybest/sub-001
+  call_prf \
+    -s 001 \
+    -n 1 \
+    -t 2R \
+    -o /path/derivatives/prf \
+    -i /path/to/pybest/sub-001 \
+    -p /path/png
+
+  call_prf \
+    --sub 001 \
+    --ses 1 \
+    --task 2R \
+    --out /path/derivatives/prf \
+    --inputdir /path/to/pybest/sub-001
+
+Notes:
+    see docs: https://fmriproc.readthedocs.io/en/latest/classes/prf.html#fmriproc.prf.pRFmodelFitting
 
 ---------------------------------------------------------------------------------------------------
 """
 
-    sub = None
-    ses = None
-    task = None
-    outputdir = None
-    inputdir = None
-    png_dir = None
-    model = "gauss"
-    stage = "iter"
-    grid_only = False
-    space = None
-    giftis = False
-    fit_hrf = True
-    verbose = True
-    n_pix = 100
-    clip_dm = [0,0,0,0]
-    file_ending = None
-    psc = True
-    overwrite = False
-    constraints = "tc"
-    do_fit = True
-    cut_vols = 0
-    lbl = None
-    save_grid = False
-    grid_bounds = True   
-    n_jobs = 5
-    kwargs_file = None
-    merge_sessions = False
-    tr = 1.5
-    separate_hrf = False
-    overwrite_bold = False
-    n_folds = None
-    pybest_type = None
-    fix_hrf = False
+    sub = context.get("sub")
+    input_dir = context.get("input_dir")
+    output_dir = context.get("output_dir")
+    ses = context.get("ses")
+    task = context.get("task")
+    png_dir = context.get("png_dir")
+    space = context.get("space")
+    file_ending = context.get("file_ending")
+    lbl = context.get("lbl")
+    kwargs_file = context.get("kwargs_file")
+    n_folds = context.get("n_folds")
+    pybest_type = context.get("pybest_type")
+    model = context.get("model")
+    stage = context.get("stage")
+    grid_only = context.get("grid_only")
+    giftis = context.get("giftis")
+    fit_hrf = context.get("fit_hrf")
+    verbose = context.get("verbose")
+    n_pix = context.get("n_pix")
+    clip_dm = context.get("clip_dm")
+    psc = context.get("psc")
+    overwrite = context.get("overwrite")
+    constraints = context.get("constraints")
+    do_fit = context.get("do_fit")
+    cut_vols = context.get("cut_vols")
+    save_grid = context.get("save_grid")
+    grid_bounds = context.get("grid_bounds")
+    n_jobs = context.get("n_jobs")
+    merge_sessions = context.get("merge_sessions")
+    tr = context.get("tr")
+    separate_hrf = context.get("separate_hrf")
+    overwrite_bold = context.get("overwrite_bold")
+    fix_hrf = context.get("fix_hrf")
 
-    try:
-        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:f:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no-hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "separate-hrf", "bold", "folds=", "pyb-type=", "fix-hrf", "nelder"])[0]
-    except getopt.GetoptError:
-        print("ERROR while reading arguments; did you specify an illegal argument?")
-        print(main.__doc__)
-        sys.exit(2)
-    
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--sub"):
-            sub = arg
-        elif opt in ("-n", "--ses"):
-            ses = arg
-        elif opt in ("-t", "--task"):
-            task = arg
-        elif opt in ("-o", "--out"):
-            outputdir = arg
-        elif opt in ("-i", "--in"):
-            inputdir = arg
-        elif opt in ("-p", "--png"):
-            png_dir = arg
-        elif opt in ("-m", "--model"):
-            model = arg
-        elif opt in ("-u", "--space"):
-            space = arg
-        elif opt in ("-g", "--grid"):
-            grid_only = True
-        elif opt in ("-x", "--kwargs"):
-            kwargs_file = arg
-        elif opt in ("-f", "--folds"):
-            n_folds = int(arg)
-        elif opt in ("--no-hrf"):
-            fit_hrf = False
-        elif opt in ("--n-pix"):
-            n_pix = int(arg)
-        elif opt in ("-v", "--verbose"):
-            verbose = True
-        elif opt in ("-j", "--jobs"):
-            n_jobs = int(arg)
-        elif opt in ("--clip"):
-            clip_dm = arg
-        elif opt in ("--file-ending"):
-            file_ending = arg
-        elif opt in ("--zscore"):
-            psc = False
-        elif opt in ("--bold"):
-            overwrite_bold = True
-        elif opt in ("--raw"):
-            psc = False 
-        elif opt in ("--gauss"):
-            model = "gauss" 
-        elif opt in ("--dog"):
-            model = "dog"
-        elif opt in ("--css"):
-            model = "css"
-        elif opt in ("--norm"):
-            model = "norm"  
-        elif opt in ("--abc"):
-            model = "abc"  
-        elif opt in ("--abd"):
-            model = "abd"
-        elif opt in ("--overwrite"):
-            overwrite = True
-        elif opt in ("--tc"):
-            constraints = "tc"
-        elif opt in ("--bgfs"):
-            constraints = "bgfs"
-        elif opt in ("--nelder"):
-            constraints = "nelder"        
-        elif opt in ("--no-fit"):
-            do_fit = False
-        elif opt in ("--separate-hrf"):
-            separate_hrf = True
-        elif opt in ("--constr"):
-            constraints = utils.string2list(arg)
-        elif opt in ("--cut-vols"):
-            cut_vols = int(arg)
-        elif opt in ("--v1"):
-            lbl = "V1_exvivo.thresh"
-            roi_tag = "V1"
-        elif opt in ("--v2"):
-            lbl = "V2_exvivo.thresh"
-            roi_tag = "V2"
-        elif opt in ("--no-bounds"):
-            grid_bounds = False  
-        elif opt in ("--merge-ses"):
-            merge_sessions = True  
-        elif opt in ("--fix-hrf"):
-            fix_hrf = True                           
-        elif opt in ("--no-grid"):
-            save_grid = False
-            if grid_only:
-                print("WARNING: '--no-grid' was specified (meaning 'do not save out gridsearch parameters', though '-g' or '--grid' was specified (meaning do gridsearch only). Overruling '--no-grid'")
-                save_grid = True         
-        elif opt in ("--save-grid"):
-            save_grid = True   
-        elif opt in ("--tr"):
-            tr = float(arg)         
-        elif opt in ("--pyb-type"):
-            pybest_type = arg
-
-    if len(argv) < 2:
-        print(main.__doc__)
-        sys.exit()
-    
     # automatically save grid if grid only is requested
     if grid_only:
         save_grid = True
 
     # check clip input:
-    if isinstance(clip_dm, str):
-        if clip_dm.endswith("json"):
-            ff = open(clip_dm)
-            clip_dm = json.load(ff)
-            ff.close()
-        elif clip_dm.endswith("txt"):
-            clip_dm = np.loadtxt(clip_dm)
-            if len(clip_dm) != 4:
-                raise ValueError(f"Length of given list for clipping must be 4, not '{len(clip_dm)}': {clip_dm}")
-            else:
-                # make integer
-                clip_dm = clip_dm.astype(int)
-        elif clip_dm.endswith("yml"):
-            with open(clip_dm, 'rb') as input:
-                settings = yaml.safe_load(input)
-
-            if "screen_delim" in list(settings.keys()):
-                screen_set = settings["screen_delim"]
-                clip_dm = [
-                    screen_set["top"],
-                    screen_set["bottom"],
-                    screen_set["left"],
-                    screen_set["right"]
-                ]
+    clip_dm = get_clip_input(clip_dm)
 
     # Create output directory
-    if not os.path.exists(outputdir):
-        os.makedirs(outputdir, exist_ok=True)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
 
     # Create design matrix if it doesn't exists
-    design_file = opj(outputdir, f'design_task-{task}.mat')
-    if os.path.isfile(design_file):
-        utils.verbose(f"Design matrix: {design_file}", verbose)
-        design_matrix = prf.read_par_file(design_file)
-    else:
-        utils.verbose(f"Creating new design matrix (n_pix={n_pix})", verbose)
-        if os.path.isdir(png_dir):
-            try:
-                dm = prf.get_prfdesign(
-                    png_dir, 
-                    n_pix=n_pix, 
-                    dm_edges_clipping=clip_dm
-                )
-            except:
-                raise TypeError(f"Failed to create {design_file}")
-
-            io.savemat(design_file, {"stim": dm})
-            design_matrix = prf.read_par_file(design_file)
-        else:
-            print("\n---------------------------------------------------------------------------------------------------")
-            print(f"ERROR in {os.path.basename(__file__)}: invalid directory '{png_dir}'")
-            sys.exit(1)
+    design_file = opj(output_dir, f'design_task-{task}.mat')
+    design_matrix = define_design(
+        design_file,
+        verbose=verbose,
+        n_pix=n_pix,
+        png_dir=png_dir,
+        clip_dm=clip_dm
+    )
 
     # fetch available runs
     if file_ending == None:
-        if "pybest" in inputdir:
+        if "pybest" in input_dir:
             file_ending = "desc-denoised_bold.npy"
-        elif "fmriprep" in inputdir:
+        elif "fmriprep" in input_dir:
             file_ending = "bold.func.gii"
             giftis = True
         else:
-            raise ValueError(f"Unknown input directory '{inputdir}'. Expecting output from pybest ('*desc-denoised_bold.npy') or fMRIPrep ('*bold.func.gii')")
+            raise ValueError(f"Unknown input directory '{input_dir}'. Expecting output from pybest ('*desc-denoised_bold.npy') or fMRIPrep ('*bold.func.gii')")
 
     # search for space-/task-/ and file ending; add run as well to avoid the concatenated version being included
     search_for = ["run-", f"task-{task}", file_ending]
-    if space != None:
+    if space is not None:
         search_for += [f"space-{space}"]
 
     # set output base
-    out = f"sub-{sub}"
-    if merge_sessions:
-        out += f"_ses-avg"
-    else:
-        if isinstance(ses, (int,str)):
-            out += f"_ses-{ses}" 
-    
-    if task != None:
-        out += f"_task-{task}"
-
-    if isinstance(lbl, str):
-        out += f"_roi-{roi_tag}"
+    out = set_output_base(
+        sub=sub,
+        ses=ses,
+        task=task,
+        merge=merge_sessions,
+        label=lbl,
+        roi_tag=roi_tag
+    )
 
     # search for bold
-    bold_file = opj(outputdir, f"{out}_hemi-LR_desc-avg_bold.npy")
+    bold_file = opj(output_dir, f"{out}_hemi-LR_desc-avg_bold.npy")
     exclude = None
 
     # decide execution rules
@@ -385,7 +349,7 @@ Example:
     if execute:
         
         # find all files in input folder
-        found_files = utils.FindFiles(inputdir, extension=file_ending).files
+        found_files = utils.FindFiles(input_dir, extension=file_ending).files
         files = utils.get_file_from_substring(search_for, found_files)
         if merge_sessions:
             
@@ -477,7 +441,8 @@ Example:
                 verbose=verbose, 
                 standardization='raw', 
                 use_bids=True, 
-                filter_strategy="raw")
+                filter_strategy="raw"
+            )
 
             # get pandas dataframe with all runs
             prf_tc_data = obj.fetch_fmri()
@@ -543,8 +508,8 @@ Example:
         # save files
         utils.verbose("Saving averaged data", verbose)
         np.save(bold_file, m_prf_tc_data)
-        np.save(opj(outputdir, f'{out}_hemi-L_desc-avg_bold.npy'), m_prf_tc_data[:,:n_verts[0]])
-        np.save(opj(outputdir, f'{out}_hemi-R_desc-avg_bold.npy'), m_prf_tc_data[:,n_verts[0]:])
+        np.save(opj(output_dir, f'{out}_hemi-L_desc-avg_bold.npy'), m_prf_tc_data[:,:n_verts[0]])
+        np.save(opj(output_dir, f'{out}_hemi-R_desc-avg_bold.npy'), m_prf_tc_data[:,n_verts[0]:])
     else:
         utils.verbose(f"Reading '{bold_file}'", verbose)
         m_prf_tc_data = np.load(bold_file)
@@ -561,8 +526,7 @@ Example:
                 tr = dataset.ParseGiftiFile(pair[0]).TR_sec
                 utils.verbose(f"Setting TR to {tr}", verbose)
             else:
-                utils.verbose("Could not find func-file, setting TR to 1.5; CHECK THIS!", verbose)
-                tr = 1.5
+                utils.verbose(f"Could not find func-file, setting TR to {tr}; CHECK THIS!", verbose)
         else:
             utils.verbose(f"Using manually specified TR of {tr}", verbose)
 
@@ -575,17 +539,17 @@ Example:
             search_list = [out, 'model-gauss', f'stage-{stage}', 'params.pkl']
             old_params = utils.get_file_from_substring(
                 search_list, 
-                outputdir, 
+                output_dir, 
                 return_msg=None, 
                 exclude=exclude)
             
-            if old_params != None:
+            if old_params is not None:
                 if isinstance(old_params, list):
                     raise TypeError(f"old_params cannot be a list.. {old_params}")
 
                 utils.verbose(f"Injecting '{old_params}' into {model}-model", verbose)
             else:
-                utils.verbose(f"Could not find Gaussian parameters in '{outputdir}': {search_list}", verbose)
+                utils.verbose(f"Could not find Gaussian parameters in '{output_dir}': {search_list}", verbose)
         else:
             old_params = None
 
@@ -615,7 +579,7 @@ Example:
             model=model, 
             stage=stage, 
             verbose=verbose, 
-            output_dir=outputdir,
+            output_dir=output_dir,
             output_base=out,
             write_files=True,
             fit_hrf=fit_hrf_stage1,
@@ -664,4 +628,180 @@ Example:
             stage2.fit()    
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    sub = None
+    input_dir = None
+    output_dir = opj(os.getcwd(), 'prf')
+    ses = None
+    task = "pRF"
+    png_dir = None
+    space = None
+    file_ending = None
+    lbl = None
+    kwargs_file = None
+    n_folds = None
+    pybest_type = None
+    model = "gauss"
+    stage = "iter"
+    grid_only = False
+    giftis = False
+    fit_hrf = True
+    verbose = True
+    n_pix = 100
+    clip_dm = [0,0,0,0]
+    psc = True
+    overwrite = False
+    constraints = "tc"
+    do_fit = True
+    cut_vols = 0
+    save_grid = False
+    grid_bounds = True   
+    n_jobs = 5
+    merge_sessions = False
+    tr = 1.5
+    separate_hrf = False
+    overwrite_bold = False
+    fix_hrf = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "ghs:n:t:o:i:p:m:x:u:c:v:j:f:",
+            ["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "no-hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "separate-hrf", "bold", "folds=", "pyb-type=", "fix-hrf", "nelder"]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR while reading arguments; did you specify an illegal argument?")
+        print(main.__doc__)
+        sys.exit(2)
+    
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            sub = arg
+        elif opt in ("-n", "--ses"):
+            ses = arg
+        elif opt in ("-t", "--task"):
+            task = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-i", "--inputdir"):
+            input_dir = arg
+        elif opt in ("-p", "--png"):
+            png_dir = arg
+        elif opt in ("-m", "--model"):
+            model = arg
+        elif opt in ("-u", "--space"):
+            space = arg
+        elif opt in ("-g", "--grid"):
+            grid_only = True
+        elif opt in ("-x", "--kwargs"):
+            kwargs_file = arg
+        elif opt in ("-f", "--folds"):
+            n_folds = int(arg)
+        elif opt in ("--no-hrf"):
+            fit_hrf = False
+        elif opt in ("--n-pix"):
+            n_pix = int(arg)
+        elif opt in ("-v", "--verbose"):
+            verbose = True
+        elif opt in ("-j", "--jobs"):
+            n_jobs = int(arg)
+        elif opt in ("--clip"):
+            clip_dm = arg
+        elif opt in ("--file-ending"):
+            file_ending = arg
+        elif opt in ("--zscore"):
+            psc = False
+        elif opt in ("--bold"):
+            overwrite_bold = True
+        elif opt in ("--raw"):
+            psc = False 
+        elif opt in ("--gauss"):
+            model = "gauss" 
+        elif opt in ("--dog"):
+            model = "dog"
+        elif opt in ("--css"):
+            model = "css"
+        elif opt in ("--norm"):
+            model = "norm"  
+        elif opt in ("--abc"):
+            model = "abc"  
+        elif opt in ("--abd"):
+            model = "abd"
+        elif opt in ("--overwrite"):
+            overwrite = True
+        elif opt in ("--tc"):
+            constraints = "tc"
+        elif opt in ("--bgfs"):
+            constraints = "bgfs"
+        elif opt in ("--nelder"):
+            constraints = "nelder"        
+        elif opt in ("--no-fit"):
+            do_fit = False
+        elif opt in ("--separate-hrf"):
+            separate_hrf = True
+        elif opt in ("--constr"):
+            constraints = utils.string2list(arg)
+        elif opt in ("--cut-vols"):
+            cut_vols = int(arg)
+        elif opt in ("--v1"):
+            lbl = "V1_exvivo.thresh"
+            roi_tag = "V1"
+        elif opt in ("--v2"):
+            lbl = "V2_exvivo.thresh"
+            roi_tag = "V2"
+        elif opt in ("--no-bounds"):
+            grid_bounds = False  
+        elif opt in ("--merge-ses"):
+            merge_sessions = True  
+        elif opt in ("--fix-hrf"):
+            fix_hrf = True                           
+        elif opt in ("--no-grid"):
+            save_grid = False
+            if grid_only:
+                print("WARNING: '--no-grid' was specified (meaning 'do not save out gridsearch parameters', though '-g' or '--grid' was specified (meaning do gridsearch only). Overruling '--no-grid'")
+                save_grid = True         
+        elif opt in ("--save-grid"):
+            save_grid = True   
+        elif opt in ("--tr"):
+            tr = float(arg)         
+        elif opt in ("--pyb-type"):
+            pybest_type = arg
+
+    main(context={
+        "sub": sub,
+        "input_dir": input_dir,
+        "output_dir": output_dir,
+        "ses": ses,
+        "task": task,
+        "png_dir": png_dir,
+        "space": space,
+        "file_ending": file_ending,
+        "lbl": lbl,
+        "kwargs_file": kwargs_file,
+        "n_folds": n_folds,
+        "pybest_type": pybest_type,
+        "model": model,
+        "stage": stage,
+        "grid_only": grid_only,
+        "giftis": giftis,
+        "fit_hrf": fit_hrf,
+        "verbose": verbose,
+        "n_pix": n_pix,
+        "clip_dm": clip_dm,
+        "psc": psc,
+        "overwrite": overwrite,
+        "constraints": constraints,
+        "do_fit": do_fit,
+        "cut_vols": cut_vols,
+        "save_grid": save_grid,
+        "grid_bounds": grid_bounds,
+        "n_jobs": n_jobs,
+        "merge_sessions": merge_sessions,
+        "tr": tr,
+        "separate_hrf": separate_hrf,
+        "overwrite_bold": overwrite_bold,
+        "fix_hrf": fix_hrf
+    })

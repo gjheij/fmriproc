@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -13,7 +15,7 @@ call_fslmelodic
 This script is a short wrapper for FSL's MELODIC. It runs ICA decomposition with some default 
 settings, but allows you to override or extend them by passing extra options after the main args.
 
-Args:
+Arguments:
   <input file>         path to 4D-NIfTI file
   <output directory>   path to output directory ('.ica' will be added if missing)
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -14,23 +18,24 @@ uses a tempate script to run CAT12 in SPM.
 Usage:
  call_cat12 [arguments] [options] <input file> <output directory>
  
-Arguments:
- -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
- -l <LOG_PATH>	path to working directory, defaults to DIR_LOGS
+Options:
+  -h|--help       print this help text
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
 
 Options:
- --full         refers to a full processing with CAT12, which is sometimes overkill (makes the brain 
-                too smooth). Default is just tissue segmentation.
+  --full          refers to a full processing with CAT12, which is sometimes overkill (makes the
+                  brain too smooth). Default is just tissue segmentation.
 
 Positional:
- <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
-                new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
-                not like *.nii.gz files.
- <output path>	path to output directory; in here, 'mri' and 'report' will be stored
+  <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
+                  new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
+                  not like *.nii.gz files.
+  <output path>	path to output directory; in here, 'mri' and 'report' will be stored
 
 Example:
- call_cat12 /path/to/inputfile.nii.gz /path/to/output_dir
- call_cat12 -l /path/to/logs -s /packages/matlab/toolbox/spm12 input.nii.gz /path/to/output
+  call_cat12 /path/to/inputfile.nii.gz /path/to/output_dir
+  call_cat12 -l /path/to/logs -s /packages/matlab/toolbox/spm12 input.nii.gz /path/to/output
 
 ---------------------------------------------------------------------------------------------------
 
@@ -45,7 +50,7 @@ fi
 
 # Check for subject & session flags
 MODE="brain"
-while getopts :-:l:s:m: argument
+while getopts :-:hl:s:m: argument
 do
   case ${argument} in
     -)
@@ -53,28 +58,32 @@ do
         full)
           MODE="full"
           ;;
-    *)
-      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
-        exit 1
-      fi
-      ;;
-      esac;;    
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;   
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
             ;;
     m)  MODE=${OPTARG}
-            ;;			
+            ;;
+    h)  Usage >&2
+        exit 1
+          ;;               
   esac
 done
 
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Define default SPM-path

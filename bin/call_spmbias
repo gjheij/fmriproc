@@ -1,8 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -16,16 +12,22 @@ Bias field correction using SPM12. Let's see if this makes CAT12 more reliable..
 good and up there with ANTs' N4-biasfield correction. Apparently, John Polimeni and Laurentius Hu-
 ber use this prior to FreeSurfer and find it really helps..
 
-Args:
- -d <delete>    don't delete intermediate files such as the bias field etc.
- -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
- -l <LOG_PATH>	path to working directory, defaults to DIR_LOGS
- <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
-                new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
-                not like *.nii.gz files.
- <output image>	name of output image, including directory
-
 Usage:
+  call_spmsanlm [options] <input image> <output directory + basename>
+
+Options:
+  -h|--help       print this help text
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+  -d <delete>     don't delete intermediate files such as the bias field etc.
+
+Positional:
+  <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
+                  new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
+                  not like *.nii.gz files.
+  <output base>	  directory+basename of output image
+
+Example:
  call_spmmask -d inv2.nii.gz mask_inv2
 
 ---------------------------------------------------------------------------------------------------
@@ -40,13 +42,30 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts dl:s: argument
+while getopts :-:hdl:s: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;  
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
             ;;
+    h)  Usage >&2
+        exit 1
+          ;;            
   esac
 done
 

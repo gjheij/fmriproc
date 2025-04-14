@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -22,23 +26,60 @@ car (not produced by parrec2nii); some information (e.g., RepetitionTime) could 
 Usage:
   call_dcm2niix [arguments] [options]
 
-Arguments:
-  -i <input folder>   folder containing the files to be processed. Always needed!
-  -o <output folder>  output folder. If empty, it will use <input folder>/nifti
-  -c <compress>       create nii's ("n") or nii.gz's ("o"; default)
-  -d <depth>          search depth for dcm2niix
-  -p <pattern>        pattern for file-name reconstruction (default = %n_%p, representing Patient-
-                      Name & Protocol Name). You can change this, but then I don't bear any respon-
-                      sibilities over the consequences in later scripts.. This option is only avai-
-                      lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
+Mandatory:
+  -i <input>      folder containing the files to be processed. Always needed!
+
+Optional:
+  -o <output>     output folder. If empty, it will use <input folder>/nifti
+  -d <depth>      search depth for dcm2niix
+  -p <pattern>    pattern for file-name reconstruction (default = %n_%p, representing Patient-
+                  Name & Protocol Name). You can change this, but then I don't bear any respon-
+                  sibilities over the consequences in later scripts.. This option is only avai-
+                  lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
+  -c <input>      Maps onto the '-z' flag from 'dcm2niix': gz compress images (y/o/i/n/3, default
+                  'o') [y=pigz, o=optimal pigz, i=internal:miniz, n=no, 3=no,3D]
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The format
+                  should be as follows: different parameters comma-separated, and parameter-value pair
+                  separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  # dcm2niix
+                  cmd_args=(
+                    dcm2niix
+                    -b y          # output JSON side cars
+                    -f %n_%p      # file name pattern     (-p flag)
+                    -z o          # compression           (-c flag)
+                    -d 0          # search depth          (-d flag)
+                    -o output_dir # output directory      (-o flag)
+                    -v 1          # verbosity
+                    input_dir     # input directory       (-i flag)
+                  )
+
+                  # parrec2nii
+                  cmd_args=(
+                    parrec2nii
+                    --scaling fp  # floating point
+                    --verbose     # make noise
+                    --compressed  # make nii.gz, suppressed with --no-compress
+                    --output-dir  # output directory      (-o flag)
+                  )
 
 Options:
-  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
-                      sequence of TRs
-Example
-----------
-  call_dcm2niix -i /path/to/PARRECs         # most basic call
-  call_dcm2niix -i /path/to/PARRECs -c n    # don't compress
+  -h|--help       print this help text
+  --take-avg-tr   Take the average over all TRs from the par file, rather than the first in the
+                  sequence of TRs 
+  --no-compress   create nii's instead of nii.gz's (default)
+  --force-exec    Force execution even though converted nifti already exists
+
+Examples:
+  call_dcm2niix -i /path/to/PARRECs                     # most basic call
+  call_dcm2niix -i /path/to/PARRECs -c n/--no-compress  # don't compress
   
 ---------------------------------------------------------------------------------------------------
 
@@ -49,17 +90,33 @@ USAGE
 
 # Allocate input arguments to variables
 #
-prot_flag=""
+tr_prot_flag=""
 searchDepth=0
 pattern="%n_%p"
-while getopts :-:i:o:c:v:d: argument
+compress="o"
+compress_flag="--compressed"
+kwargs=""
+kwargs_flag=""
+force_flag=""
+while getopts :-:i:o:c:v:d:x: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in     
         take-avg-tr)
-          prot_flag="--take-avg-tr"
-          ;;            
+          tr_prot_flag="--take-avg-tr"
+          ;;
+        no-compress)
+          compress="n"
+          compress_flag=""
+          ;;             
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        force-exec)
+          force_flag="--force-exec"
+          ;;                       
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -74,12 +131,18 @@ do
           ;;          
     o)  pathOutput=${OPTARG}
           ;;
-    c)  compress=${OPTARG}
-          ;;
     v)  version=${OPTARG}
           ;;
     p)  pattern=${OPTARG}
-          ;;          
+          ;;     
+    c)  compress=${OPTARG}
+          ;;    
+    x)  kwargs=${OPTARG}
+        kwargs_flag="-x ${kwargs}"
+          ;;              
+    h)  Usage >&2
+        exit 1
+          ;;                  
   esac
 done
 
@@ -87,7 +150,6 @@ if [[ $# -lt 1 ]] ; then
   Usage >&2
   exit 1
 fi
-
 
 #-----------------------------------------------------------------------------
 # Function to extract filename from "Convert ..." line
@@ -129,9 +191,6 @@ function fix_compression {
     prev_line="$line"
   done < "$log"
 }
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Set default inputs/outputs
@@ -146,20 +205,17 @@ if [[ -z ${pathOutput} ]]; then
 fi
 
 # Determine NIfTI compression type
-if [[ -z ${compress} ]]; then
-  NIIGZ="o"  # default: optimized compression
-elif [[ ${compress} =~ ^(n|y|i|3|o)$ ]]; then
-  NIIGZ="${compress}"
+if [[ ${compress} =~ ^(n|y|i|3|o)$ ]]; then
+  compress_type="${compress}"
 else
   dcm2niix -h
   echo
   print_line -
   echo "Invalid compression option: \"${compress}\""
   echo "Accepted values: \"n\" (none), \"y\" (yes), \"i\" (input), \"3\" (3D), \"o\" (optimized)"
-  echo "Or leave empty to use default: \"o\""
+  echo "Leave empty to use default: \"o\" or use \"--no-compress\" to get .nii-files"
   exit 1
 fi
-
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -178,9 +234,13 @@ n_par_files=($(find ${pathInput} -type f -iname "*par"))
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
   echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
+  
   cmd=(
     call_parrec2nii
-    ${prot_flag}
+    "${kwargs_flag}"
+    "${tr_prot_flag}"
+    "${compress_flag}"
+    "${force_flag}"
     -i "${pathInput}"
     -o "${pathOutput}"
   )
@@ -199,25 +259,43 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
     exit 1
   fi
 else
+
   echo "Assuming DICOM format, using 'dcm2niix'"
-  cmd_args=(
-    dcm2niix
-    -b y
-    -f ${pattern}
-    -z ${NIIGZ}
-    -d ${searchDepth}
-    -o ${pathOutput}
-    -v 1
-    "${pathInput}"
-  )
+  
+  # Turn kwargs into space-separated array
+  if [[ -n "${kwargs}" ]]; then
+    IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
+  else
+    user_args=()
+  fi
+
+  # Convert user_args into string for matching
+  arg_str="${user_args[*]}"
+
+  # Initialize base command
+  cmd_args=(dcm2niix)
+  
+  # Add defaults only if not already specified
+  [[ ! "$arg_str" =~ "-b" ]] && cmd_args+=("-b" "y")
+  [[ ! "$arg_str" =~ "-f" ]] && cmd_args+=("-f" "${pattern}")
+  [[ ! "$arg_str" =~ "-z" ]] && cmd_args+=("-z" "${compress_type}")
+  [[ ! "$arg_str" =~ "-d" ]] && cmd_args+=("-d" "${searchDepth}")
+  [[ ! "$arg_str" =~ "-o" ]] && cmd_args+=("-o" "${pathOutput}")
+  [[ ! "$arg_str" =~ "-v" ]] && cmd_args+=("-v" "1")
+
+  # Add user-specified options
+  cmd_args+=("${user_args[@]}")
+  
+  # Final positional input (the directory)
+  cmd_args+=("${pathInput}")
 
   {
     echo "### New invocation of call_dcm2niix @$(date)"
-    echo "${cmd[@]}"
+    echo "${cmd_args[@]}"
     echo
   } >> "${log}"
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}" >> "${log}" 2>&1
+  print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}" >> "${log}" 2>&1
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

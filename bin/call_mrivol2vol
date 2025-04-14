@@ -17,11 +17,14 @@ Usage:
   call_mrivol2vol <-t transform name> <moving> <target> <output> <seg/vol>
 
 Arguments:
-  -t <transform>  output name for transform (optional)
   <moving>        image to be moved
   <target>        image to move to
   <output>        output name
   <vol/seg>       type input image
+
+Options:
+  -h|--help       print this help text
+  -t <transform>  output name for transform (optional)
 
 Example:
   call_mrivol2vol seg.mgz raw.mgz seg
@@ -33,10 +36,27 @@ USAGE
     exit 1
 }
 
-while getopts t: arg; do
-  case $arg in
+while getopts :-:ht: argument; do
+  case $argument in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;    
     t)  tname=${OPTARG}
           ;;
+    h)  Usage >&2
+        exit 1
+          ;;             
   esac
 done
 

@@ -8,17 +8,16 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
 import os
 import pathlib
 from lazyfmri import utils
 from fmriproc import image
-import warnings
-warnings.filterwarnings("ignore")
 opj = os.path.join
-rb = utils.color.RED+utils.color.BOLD
-gb = utils.color.GREEN+utils.color.BOLD
-end = rb = utils.color.END
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+end = utils.color.END
 
 def _single_step_reg(
     src=None,
@@ -62,7 +61,7 @@ def _single_step_reg(
     return single_ants
 
 @utils.validate_cli_inputs(required_keys=["R1", "R2","QSM"], allow_input_dir=True)
-def main(argv, context):
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -80,17 +79,20 @@ If you have these files, make sure you name them accordingly. The script will lo
 *_R1.nii.gz*, *_R2s*, and *_QSM*.nii.gz in your input folder (given the subject and the session
 number)
 
-Args:
+Mandatory (required input):
+    --r1            File representing the R1-map (= 1/T1-map)
+    --r2s           File representing the R2s-map (= 1/T2*-map)
+    --qsm           File representing the QSM map
+
+    OR:
     -i|--inputdir   automatically search for files in the anatomy folder. Files should have the 
                     following suffixes:
 
-                    ```
                     pattern_map = {
                         "qr1": "R1.nii.gz",
                         "qr2s": "R2s.nii.gz",
                         "qsm": "QSM.nii.gz",
                     }
-                    ```
 
                     Alternatively, individual files can be specified with --r1, --r2s, and --qsm
 
@@ -100,15 +102,14 @@ Args:
                     format should be as follows: different parameters comma-separated, and
                     parameter-value pair separated by '='):
                     
-                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                     E.g.,:
-                    "-x rigid_iterations=10000,ignore_affine=False"
+                        "-x rigid_iterations=10000,ignore_affine=False"
 
                     This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
                     The kwargs specified in this flag take precedent over the default kwargs:
 
-                    ```
                     defaults = {
                         "run_rigid": True,
                         "run_affine": True,
@@ -124,21 +125,19 @@ Args:
                         "ignore_affine": True,
                         "save_data": True
                     }
-                    ```
 
     -p|--mkwargs    Extra arguments that will be directly passed to 'massp'. The format should be
                     as follows: different parameters comma-separated, and parameter-value pair
                     separated by '='):
                     
-                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                     E.g.,:
-                    "-x rigid_iterations=10000,ignore_affine=False"
+                        "-x rigid_iterations=10000,ignore_affine=False"
 
                     This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
                     The kwargs specified in this flag take precedent over the default kwargs:
 
-                    ```
                     defaults = {
                         "max_iterations": 120,
                         "max_difference": 0.1,
@@ -149,12 +148,10 @@ Args:
                         "map_to_target": ants_file,
                         "target_images": [input_files[k] for k in list(pattern_map)]
                     }
-                    ```
         
-    Optional:
-    --r1               File representing the R1-map (= 1/T1-map)
-    --r2s              File representing the R2s-map (= 1/T2*-map)
-    --qsm              File representing the QSM map
+Options (extra):
+    -h|--help       print this help text
+
 
 Outputs
     Dictionary collecting outputs under the following keys (suffix of output files in brackets)
@@ -319,7 +316,7 @@ Example:
     print(f"Parsing output to {gb}{json_file}{end} (unit='mm')")
     vol_file = image.massp_to_table(
         massp_results['max_label'],
-        out=,
+        out=json_file,
         unit="mm"
     )
     
@@ -368,7 +365,7 @@ if __name__ == "__main__":
             QSM = arg
 
     # Pass all parsed CLI values into `main` via `context`
-    main(sys.argv[1:], context={
+    main(context={
         "input_dir": input_dir,
         "R1": R1,
         "R2": R2s,

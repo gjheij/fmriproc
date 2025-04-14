@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -12,16 +12,18 @@ Follow workflow https://mumfordbrainstats.tumblr.com/post/166054797696/feat-regi
 To use fMRIprep output in FEAT. Uses the mean of the functional run as 'standard', rather than the
 MNI152-image.
 
-Args:
-  -p <project dir>  project root folder (defaults to DIR_DATA_HOME)
-  -l <level1 tag>   tag for level1 analysis (e.g., 'level1' [default] or 'level1_confounds')
-  -f <feat dir>     directory where your subject-specific feat-directories live (defaults to DIR-
-                    DATA_HOME/derivatives/feat/<level1_tag>)
+Arguments:
+  -p <proj dir>   project root folder (defaults to DIR_DATA_HOME)
+  -l <level1 tag> tag for level1 analysis (e.g., 'level1' [default] or 'level1_confounds')
+  -f <feat dir>   directory where your subject-specific feat-directories live (defaults to DIR-
+                  DATA_HOME/derivatives/feat/<level1_tag>)
+
+Options:
+  -h|--help       print this help text
 
 Example:
-  ./call_injectmatrices # run script for all .feat-folders in DIR_DATA_HOME/derivatives/feat/<level1_tag>
-  ./call_injectmatrices -p feat_dir/sub-01 # run script for all feat-folders in 'feat_dir/sub-01'
-  ./call_injectmatrices --mni # run script for all feat-folders in 'feat_dir/sub-01'
+  call_injectmatrices # run script for all .feat-folders in DIR_DATA_HOME/derivatives/feat/<level1_tag>
+  call_injectmatrices -p feat_dir/sub-01 # run script for all feat-folders in 'feat_dir/sub-01'
 
 ---------------------------------------------------------------------------------------------------
 
@@ -37,16 +39,20 @@ do
     -)
       case "${OPTARG}" in
         help)
-          HELP=1
-          ;;                      
+          Usage >&2
+          exit 1
+          ;;         
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}" >&2
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
           fi
           ;;
       esac;;   
-    h)  HELP=1
-        ;;                
+    h)  Usage >&2
+        exit 1
+          ;;            
     l)  L1_tag=${OPTARG}
           ;;
     f)  ft_dir=${OPTARG}
@@ -91,11 +97,6 @@ function fix_reg_dir {
     echo "Feat directory does not exists"
   fi
 }
-
-if [[ ${HELP} -eq 1 ]]; then
-  Usage >&2
-  exit 1
-fi
 
 # specify defaults
 if [[ -z ${project_dir} ]]; then

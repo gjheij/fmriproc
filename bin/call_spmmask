@@ -1,8 +1,4 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -16,16 +12,22 @@ Creates an initial brain mask based on the second inversion magnitude image. Thi
 moval of noise using call_rmbackground, which enhances the result from CAT12. Uses spmBrainMask and 
 myGRE_BrainMask, which should be located in the data-folder.
 
-Args:
- -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
- -l <LOG_PATH>	path to working directory, defaults to DIR_LOGS
- --clean        remove intermediate files
- <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
-                new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
-                not like *.nii.gz files.
- <output image>	name of output image, including directory
-
 Usage:
+  call_spmsanlm [options] <input image> <output directory + basename>
+
+Options:
+  -h|--help       print this help text
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+  --clean         remove intermediate files
+
+Positional:
+  <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
+                  new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
+                  not like *.nii.gz files.
+  <output base>	  directory+basename of output image
+
+Examples:
   call_spmmask inv2.nii.gz mask_inv2.nii.gz
   call_spmmask --clean inv2.nii.gz mask_inv2.nii.gz
   
@@ -42,7 +44,7 @@ fi
 
 # Check for subject & session flags
 CLEAN_UP=0
-while getopts :-:l:s: argument
+while getopts :-:hl:s: argument
 do
   case ${argument} in
     -)
@@ -50,6 +52,10 @@ do
         clean)
           CLEAN_UP=1
           ;;        
+        help)
+          Usage >&2
+          exit 1
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -57,11 +63,14 @@ do
             exit 1
           fi
           ;;
-      esac;;   
+      esac;;
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
             ;;
+    h)  Usage >&2
+        exit 1
+          ;;            
   esac
 done
 

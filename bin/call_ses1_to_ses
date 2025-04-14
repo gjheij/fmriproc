@@ -22,16 +22,18 @@ And output a transformation matrix as:
   CTX/transforms/<subject>_from-ses1_to-ses2_desc-genaff.mat
 
 Arguments:
-  --inv         invert the matrix 
-  --sge         submit job to SoGE
-  --verbose     print stuff to the terminal
-  --clear       remove existing log-file
-  --debug       just print command, don't execute
   -s <subject>  subject ID, e.g., sub-001
   -n <ses nr>   session number, e.g., 2
   -d <depth>    passed along to 'find_hierarchical_anatomy'. Defaults to DIR_DATA_DERIV/pymp2rage
   -q <queue>    queue name for when --sge is passed. Default = short.q
   -j <n_cpus>   number of cores to use (default = 1)
+
+Options: 
+  --inv         invert the matrix 
+  --sge         submit job to SoGE
+  --verbose     print stuff to the terminal
+  --clear       remove existing log-file
+  --debug       just print command, don't execute
 
 Usage:
   call_ses1_to_ses [options] -s <subject> -n <ses_nr> -q <queue> -d <depth> -j <n_cpus>

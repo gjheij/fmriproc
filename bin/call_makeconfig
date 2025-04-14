@@ -9,17 +9,12 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_makeconfig
 
-Create a configuration file for fMRIprep. Mainly used foro multi-session setups where you want to 
+Create a configuration file for fMRIprep. Mainly used for multi-session setups where you want to 
 point to one session for the anatomies, and to another for the BOLD files. You'll only need to spe-
 cify the json file used as output
 
-Usage
-----------
+Usage:
     call_makeconfig config.json
-
-Example
-----------
-    call_makeconfig sub-001_desc-fmriprep.json
 
 ---------------------------------------------------------------------------------------------------
     """

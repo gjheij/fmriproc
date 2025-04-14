@@ -1,26 +1,22 @@
 #!/usr/bin/env python
 
-import sys, getopt
+import sys
+import getopt
 import os
 from nilearn import image
 from scipy import ndimage
 import pathlib
 from lazyfmri import utils
-import warnings
-import subprocess
-warnings.filterwarnings("ignore")
-import platform
-
 opj = os.path.join
-gr = utils.color.GREEN
-rd = utils.color.RED
-bld = utils.color.BOLD
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+bb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
-bl = utils.color.BLUE
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_gdhmasking
 
@@ -31,82 +27,55 @@ mp2rage', then 'DIR_DATA_HOME'. Default INV2-image will be read from 'DIR_DATA_H
 sion>/anat', default mask folder is DIR_DATA_DERIV/manual_masks (see linescanning/shell/spinoza_set
 up) where these variables point to.
 
-Parameters
-----------
-  -s|--subj       subject number
-  -n|--ses        session number
-  -i|--inv        second inversion image
-  -t|--t1w        T1-weighted image
-  -d|--masks      Directory containing the following masks:
-                    - Dura mask    '_desc-cat_dura'/'_desc-dura'/'_desc-dura_dil'
-                    - T1w mask     '_desc-bet_mask'
-                    - Sinus mask   '_desc_sagittalsinus'/'_desc-mni_sinus'
-  -o|--output     Output basename (leave empty to overwrite inputs = default). This will cause the 
-                  T1w-masked image to end up in the same folder as the mask itself! Just leave it 
-                  empty..
-                    - masked T1w: suffixed with _masked.nii.gz
-                    - mask:       suffixed with _brainmask.nii.gz
-  --no-manual     Do not do any further manual edits; use the masks as is
+Usage:
+    call_gdhmasking [mandatory] [arguments] [options]
 
-Returns
-----------
+Mandatory (required input):
+    -s|--subj         subject number
+
+Optional (flags with defaults):  
+    -n|--ses        session number
+    -i|--inv        second inversion image (defaults to ["inv-2", "part-mag", ".nii.gz"] in DIR_
+                    DATA_HOME/<subject>/<session>/anat)
+    -t|--t1         T1-weighted image
+    -d|--masks      Directory containing the following masks:
+                        - Dura mask    '_desc-cat_dura'/'_desc-dura'/'_desc-dura_dil'
+                        - T1w mask     '_desc-bet_mask'
+                        - Sinus mask   '_desc_sagittalsinus'/'_desc-mni_sinus'
+    -o|--output     Output basename (leave empty to overwrite inputs = default). This will cause the 
+                    T1w-masked image to end up in the same folder as the mask itself! Just leave it 
+                    empty..
+                        - masked T1w: suffixed with _masked.nii.gz
+                        - mask:       suffixed with _brainmask.nii.gz
+
+Options (extra):
+    -h|--help       print this help text
+    --no-manual     Do not do any further manual edits; use the masks as is
+
+Outputs:
   - masked T1w image
   - brainmask
 
-Example
-----------
-  call_gdhmasking -s sub-001 -n 1 -i inv2.nii.gz -u T1w.nii.gz -d /dir/with/masks
-
-Notes
----------
-Need at least the subject number!
-if left to empty, it will look by default for the following files:
-  - inv2   > /data_home/<subject>/ses-<ses>/anat/inv2.nii.gz
-  - t1w    > /denoised|pymp2rage/<subject>/ses-<ses>/T1w.nii.gz
-  - masks  > /manual_masks/<subject>/ses-<ses>
+Example:
+  call_gdhmasking \
+    --sub sub-001 \
+    --ses 1 \
+    --inv inv2.nii.gz \
+    --t1 T1w.nii.gz \
+    --masks /dir/with/masks
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject = None
-    ses = None
-    inv2 = None
-    t1w_fn = None
-    masks = None
-    output = None
-    manual = True
-    inv2_mask = None
-    inside = None
-
-    try:
-        opts = getopt.getopt(argv,"hs:n:i:t:m:d:o:",["subj=", "ses=", "inv=", "t1w=", "masks=", "output=", "no-manual"])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subj"):
-            subject = arg
-        elif opt in ("-n", "--ses"):
-            ses = arg
-        elif opt in ("-i", "--inv"):
-            inv2 = arg
-        elif opt in ("-t", "--t1w"):
-            t1w_fn = arg
-        elif opt in ("-d", "--masks"):
-            masks = arg
-        elif opt in ("-o", "--output"):
-            output = arg
-        elif opt in ("--no-manual"):
-            manual = False
-
-    if len(argv) < 1:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit()
+    subject     = context.get("subject")
+    ses         = context.get("ses")
+    inv2        = context.get("inv2")
+    t1w_fn      = context.get("t1w_fn")
+    masks       = context.get("masks")
+    output      = context.get("output")
+    manual      = context.get("manual")
+    inv2_mask   = context.get("inv2_mask")
+    inside      = context.get("inside")
 
     # set subject        
     if subject is None:
@@ -244,7 +213,7 @@ if left to empty, it will look by default for the following files:
         all_masks,
         ['-outside', 'sinus'],
         fallback=dura_mask,
-        msg=f"Could not find mask with '{rd}{bld}sinus{end}' in '{masks}'. Setting 'dura'-mask as 'sinus'-mask"
+        msg=f"Could not find mask with '{rb}sinus{end}' in '{masks}'. Setting 'dura'-mask as 'sinus'-mask"
     )
 
     # get inside mask
@@ -258,21 +227,21 @@ if left to empty, it will look by default for the following files:
         [dura_mask, t1w_mask, outside, inside, inv2_mask], 
         ["dura", "t1w", "outside", "inside", "inv2"]):
         if isinstance(i, str):
-            utils.verbose(f" {t}: {gr}{bld}{i}{end}", True)
+            utils.verbose(f" {t}: {gb}{i}{end}", True)
 
     utils.verbose("Fetching structural files", True)
     for i,t in zip([inv2, t1w_fn], ["inv2", "T1w"]):
         if isinstance(i, str):
-            utils.verbose(f" found: {gr}{bld}{i}{end}", True)
+            utils.verbose(f" found: {gb}{i}{end}", True)
         else:
-            utils.verbose(f" missing '{rd}{bld}{t}{end}'-file..", True)
+            utils.verbose(f" missing '{rb}{t}{end}'-file..", True)
 
     # create output directory
     if not os.path.exists(os.path.dirname(masked_out)):
         pathlib.Path(os.path.dirname(masked_out)).mkdir(parents=True, exist_ok=True)
 
     # refine brain mask with inside and inv2-masks
-    utils.verbose(f"Refine brain mask with {rd}{bld}inside{end} and {rd}{bld}inv2{end}-masks", True)
+    utils.verbose(f"Refine brain mask with {rb}inside{end} and {rb}inv2{end}-masks", True)
     if inside is not None:
         t1w_mask = image.math_img(
             '(t1w_mask + inside) > 0',
@@ -291,7 +260,7 @@ if left to empty, it will look by default for the following files:
     outside_fn = opj(masks, f"{base}_{acq_tag}desc-outside.nii.gz")
     if not "-outside" in outside:
 
-        utils.verbose(f"Creating {rd}{bld}outside{end} mask: {gr}{bld}{outside_fn}{end}", True)
+        utils.verbose(f"Creating {rb}outside{end} mask: {gb}{outside_fn}{end}", True)
 
         if not "dura_dil" in dura_mask:
             # Dilate dura mask
@@ -332,7 +301,7 @@ if left to empty, it will look by default for the following files:
         cmd = f"call_copyheader {t1w_fn} {outside_fn}"
         utils.run_shell_wrapper(
             cmd,
-            f"Copying geometry from input {rd}{bld}T1w{end}-image",
+            f"Copying geometry from input {rb}T1w{end}-image",
             verb=True
         )
 
@@ -358,7 +327,7 @@ if left to empty, it will look by default for the following files:
 
     # final masking
     if inv2 is not None:
-        utils.verbose(f"Masking T1w with INV2 and T1w-mask (same as {bl}{bld}call_rmbackground{end})", True)
+        utils.verbose(f"Masking T1w with INV2 and T1w-mask (same as {bb}call_rmbackground{end})", True)
         image.math_img(
             't1w * t1w_mask * np.mean(inv2[t1w_mask == 1]/np.max(inv2)) + t1w * inv2/np.max(inv2) * (1-t1w_mask)',
             t1w=t1w,
@@ -368,7 +337,57 @@ if left to empty, it will look by default for the following files:
     else:
         t1w.to_filename(masked_out)
 
-    utils.verbose(f"{bl}{bld}call_gdhmasking{end} completed; wrote {gr}{bld}{masked_out}{end}", True)
+    utils.verbose(f"{bb}call_gdhmasking{end} completed; wrote {gb}{masked_out}{end}", True)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject = None
+    ses = None
+    inv2 = None
+    t1w_fn = None
+    masks = None
+    output = None
+    manual = True
+    inv2_mask = None
+    inside = None
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hs:n:i:t:m:d:o:",
+            ["help", "sub=", "ses=", "inv=", "t1=", "masks=", "output=", "no-manual"]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg
+        elif opt in ("-n", "--ses"):
+            ses = arg
+        elif opt in ("-i", "--inv"):
+            inv2 = arg
+        elif opt in ("-t", "--t1"):
+            t1w_fn = arg
+        elif opt in ("-d", "--masks"):
+            masks = arg
+        elif opt in ("-o", "--output"):
+            output = arg
+        elif opt in ("--no-manual"):
+            manual = False
+
+    main(context={
+        "subject": subject,
+        "ses": ses,
+        "inv2": inv2,
+        "t1w_fn": t1w_fn,
+        "masks": masks,
+        "output": output,
+        "manual": manual,
+        "inv2_mask": inv2_mask,
+        "inside": inside
+    })

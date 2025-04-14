@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-#$ -j Y
-#$ -cwd
-#$ -V
+
 import mkl
 mkl.set_num_threads=1
 
@@ -10,14 +8,13 @@ from fmriproc import prf
 from lazyfmri import utils
 import os
 import sys
-import warnings
 import yaml
-warnings.filterwarnings('ignore')
 opj = os.path.join
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["bold_file", "refit_file"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_refit
 
@@ -27,35 +24,35 @@ also assumes the formatting is all done already; just pass on the file to the pe
 data, design matrix, and other model-related parameters
 
 Usage:
-  call_refit [arguments] [options]
+  call_refit [mandatory] [arguments] [options]
 
-Arguments:
-    -i|--in     <bold data>         path to data used for previous fitting
-    -d|--dm     <design matrix>     path to design matrix
-    -o|--out    <prf dir>           output directory containing pRF-stuff, defaults to dirname out
-                                    bold data
-    -j|--jobs <nr of jobs>          number of jobs to parallellize over (default = 5)
-    -m|--model  <model type>        one of ['gauss','dog','css','norm'], default = 'gauss'. You can 
-                                    also call models with '--gauss', '--dog', '--css', or '--norm'
-                                    (see below).
-    -x|--kwargs <file>              path to file containing arguments you want to set manually, 
-                                    rather than taking the settings in `prf_analysis.yml`.
-    -c|--constr <constraints>       string or list representing the type of constraints to use for
-                                    each stage (Gaussian and beyond). By default, we'll use trust-
-                                    constr minimization ('tc'), but you can speed up the normaliza-
-                                    tion fitting by using L-BGFS ('bgfs'). To specify a list, use 
-                                    the format '-c [tc,bgfs]'. Use --tc or --bgfs to sync the mini-
-                                    mizers across stages
-    --cut-vols <volumes>            Number of volumes to remove at the beginning of the timeseries. 
-                                    Default is 0, but sometimes it's good to get rid of the initial
-                                    transient
-    --old <file>                    file containing parameters that needs refitting
-    --tr                            manually set repetition time (TR). Default = 1.5. Can be read
-                                    from gifti files (if input = fMRIprep).
+Mandatory (required input):
+    --in            path to BOLD data used for previous fitting
+    --old           pkl-file containing parameters that need refitting
 
-Options:                                  
-    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. Use 
-                    the -x flag if you want different minimizers for both stages                      
+Optional (flags with defaults):
+    -d|--dm         path to design matrix
+    -o|--outputdir  output directory containing pRF-stuff, defaults to dirname out bold data
+    -j|--jobs       number of jobs to parallellize over (default = 5)
+    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
+    -c|--constr     string or list representing the type of constraints to use for each stage
+                    (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
+                    but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
+                    specify a list, use the format: 
+                    
+                        '-c tc,bgfs'
+                        
+                    Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
+    --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
+                    but sometimes it's good to get rid of the initial transient
+    --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
+                    (if input = fMRIprep).
+
+Options (extra):
+    -h|--help       print this help text
+    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
+                    Use the -x flag if you want different minimizers for both stages                   
     --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
                     will need to calculate how many pixels are to be set to zero given the visual 
                     field of the subject in the scanner (with a screensize of [1920,1080]px and 
@@ -80,41 +77,121 @@ Options:
                     an error saying the shapes do not match up. In that case, try this flag
     --skip-settings avoids overwriting of particular settings (e.g., screen_distance_cm), and takes
                     them from the reference analysis file instead
+
 Models:
     --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
     --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
     --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
     --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+    --abd           DN-model with fixed C-parameter [Aqil, et al. 2021]
+    --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
 
 Example:
-  call_refit --in bold.npy --dm design.mat --old params_to_refit.pkl
+  call_refit \
+    --in bold.npy \
+    --dm design.mat \
+    --old params_to_refit.pkl
 
 ---------------------------------------------------------------------------------------------------
-"""
+    """
 
-    outputdir   = None
-    model       = "gauss"
-    stage       = "iter"
-    verbose     = True
+    bold_file = context.get("bold_file")
+    output_dir = context.get("output_dir")
+    refit_file = context.get("refit_file")
+    model = context.get("model")
+    stage = context.get("stage")
+    verbose = context.get("verbose")
+    constraints = context.get("constraints")
+    grid_bounds = context.get("grid_bounds")
+    n_jobs = context.get("n_jobs")
+    kwargs_file = context.get("kwargs_file")
+    tr = context.get("tr")
+    do_fit = context.get("do_fit")
+    transpose = context.get("transpose")
+    skip_settings = context.get("skip_settings")
+
+
+    # Create output directory
+    if not isinstance(output_dir, str):
+        output_dir = os.path.dirname(output_dir)
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    # derive basename from input
+    file_parts = refit_file.split("_")
+    model_ix = file_parts.index(f"model-{model}")
+    out = "_".join(file_parts[:model_ix])
+
+    # read kwargs file if exists
+    if isinstance(kwargs_file, str):
+        try:
+            with open(kwargs_file) as ff:
+                kwargs = yaml.safe_load(ff)
+        except:
+            raise TypeError(f"Could not read '{kwargs_file}'. Please format like a yaml-file.")
+    else:
+        kwargs = {}
+
+    # initiate fitter
+    stage1 = prf.pRFmodelFitting(
+        bold_file, 
+        transpose=transpose,
+        design_matrix=dm_file, 
+        TR=tr, 
+        model=model, 
+        stage=stage, 
+        verbose=verbose, 
+        output_dir=output_dir,
+        output_base=out,
+        write_files=True,
+        save_grid=False,
+        fit_hrf=True,
+        fix_bold_baseline=True,
+        old_params=refit_file,
+        constraints=constraints,
+        skip_grid=True,
+        nr_jobs=n_jobs,
+        use_grid_bounds=grid_bounds,
+        skip_settings=skip_settings,
+        **kwargs
+    )
+
+    # start fitter
+    if do_fit:
+        stage1.fit()
+    else:
+        print("Skipping fit; '--no-fit' was passed")
+
+if __name__ == "__main__":
+
+    output_dir = None
+    refit_file = None
+    model = "gauss"
+    stage = "iter"
+    verbose = True
     constraints = "tc"
     grid_bounds = True   
-    n_jobs      = 5
+    n_jobs = 5
     kwargs_file = None
-    tr          = 1.5
-    refit_file  = None
-    do_fit      = True
-    transpose   = False
+    tr = 1.5
+    do_fit = True
+    transpose = False
     skip_settings = False
+    bold_file = None
 
     try:
-        opts = getopt.getopt(argv,"ghs:n:t:o:i:p:m:x:u:c:v:j:",["help", "sub=", "model=", "ses=", "task=", "out=", "in=", "png=", "kwargs=", "grid", "space=", "hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "in=", "old=", "dm=", "transpose", "skip-settings"])[0]
+        opts = getopt.getopt(
+            sys.argv[1:],"ghs:n:t:o:i:p:m:x:u:c:v:j:",
+            ["help", "sub=", "model=", "ses=", "task=", "outputdir=", "in=", "png=", "kwargs=", "grid", "space=", "hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "in=", "old=", "dm=", "transpose", "skip-settings", "nelder"]
+        )[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)
         sys.exit(2)
     
     for opt, arg in opts:
-        if opt in ('-h', '--help'):
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("--in"):
@@ -122,7 +199,7 @@ Example:
         elif opt in ("--dm"):
             dm_file = arg
         elif opt in ("-o", "--out"):
-            outputdir = arg
+            output_dir = arg
         elif opt in ("--old"):
             refit_file = arg            
         elif opt in ("-m", "--model"):
@@ -149,6 +226,8 @@ Example:
             constraints = "tc"
         elif opt in ("--bgfs"):
             constraints = "bgfs"
+        elif opt in ("--nelder"):
+            constraints = "nelder"            
         elif opt in ("--constr"):
             constraints = utils.string2list(arg)
         elif opt in ("--no-bounds"):
@@ -160,62 +239,21 @@ Example:
         elif opt in ("--transpose"):
             transpose = True         
         elif opt in ("--skip-settings"):
-            skip_settings = True                                                             
+            skip_settings = True
 
-    if len(argv) < 2:
-        print(main.__doc__)
-        sys.exit()
-
-    # Create output directory
-    if not isinstance(outputdir, str):
-        outputdir = os.path.dirname(outputdir)
-
-    if not os.path.exists(outputdir):
-        os.makedirs(outputdir, exist_ok=True)
-
-    # derive basename from input
-    file_parts = refit_file.split("_")
-    model_ix = file_parts.index(f"model-{model}")
-    out = "_".join(file_parts[:model_ix])
-
-    # read kwargs file if exists
-    if isinstance(kwargs_file, str):
-        try:
-            with open(kwargs_file) as ff:
-                kwargs = yaml.safe_load(ff)
-        except:
-            raise TypeError(f"Could not read '{kwargs_file}'. Please format like a yaml-file.")
-    else:
-        kwargs = {}
-
-    # initiate fitter
-    stage1 = prf.pRFmodelFitting(
-        bold_file, 
-        transpose=transpose,
-        design_matrix=dm_file, 
-        TR=tr, 
-        model=model, 
-        stage=stage, 
-        verbose=verbose, 
-        output_dir=outputdir,
-        output_base=out,
-        write_files=True,
-        save_grid=False,
-        fit_hrf=True,
-        fix_bold_baseline=True,
-        old_params=refit_file,
-        constraints=constraints,
-        skip_grid=True,
-        nr_jobs=n_jobs,
-        use_grid_bounds=grid_bounds,
-        skip_settings=skip_settings,
-        **kwargs)
-
-    # start fitter
-    if do_fit:
-        stage1.fit()
-    else:
-        print("Skipping fit; '--no-fit' was passed")
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+    main(context={
+        "bold_file": bold_file,
+        "output_dir": output_dir,
+        "refit_file": refit_file,
+        "model": model,
+        "stage": stage,
+        "verbose": verbose,
+        "constraints": constraints,
+        "grid_bounds": grid_bounds,
+        "n_jobs": n_jobs,
+        "kwargs_file": kwargs_file,
+        "tr": tr,
+        "do_fit": do_fit,
+        "transpose": transpose,
+        "skip_settings": skip_settings
+    })

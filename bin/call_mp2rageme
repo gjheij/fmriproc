@@ -10,14 +10,10 @@ from lazyfmri import utils
 from fmriproc import image
 opj = os.path.join
 
-rb = utils.color.BOLD+utils.color.RED
-gb = utils.color.BOLD+utils.color.GREEN
-bb = utils.color.BOLD+utils.color.BLUE
-end = utils.color.END
+@utils.validate_cli_inputs(required_keys=["input_dir"])
+def main(context):
 
-def main(argv):
-
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_mp2rageme
 
@@ -26,32 +22,40 @@ a quantitative T1 map, based on the magnitude and phase-information of the two v
 sequence (Marques et al., 2010). It can also further correct this map for B1 inhomogenieties using 
 a B1 map (Marques et al., 2014) and calculated several parametric maps (R2*, t1map, t2*)
 
-Args:
-    -i|--inputdir <dir>     project root directory with the subject-directories on which we need 
-                            to run the script. Should be BIDS-compliant, up until 'anat' folder
-    -o|--outputdir <dir>    path to output directory; you should specify <subject>/<ses-?> yourself
-    -b|--outputbase <name>  if you don't want <subject_ID>_ses-<session>_acq-MP2RAGE, specify a dif-
-                            ferent prefix for output files
-    -l|--lower              lower bound for truncing image intensities using 'call_winsorize'. Default
-                            is 0.01
-    -u|--upper              upper bound for truncing image intensities using 'call_winsorize'. Default
-                            is 0.99                            
-    --pars <file>           json-file with custom parameter settings. Should have the following format:
-                            {
-                                "TR": 6.723,
-                                "inv_times": [0.67, 3.68],
-                                "fa": [4,4],
-                                "nZ": 150,
-                                "FLASH_tr": [0.0062,0.31246],
-                                "echo_times": [0.006, 0.0145, 0.023, 0.0315]
-                            }
-                            see: $REPO_DIR/misc/mp2rageme_pars.json
+Usage:
+  call_mp2rageme [mandatory] [arguments] [options]
 
-Options:
-    -c|--mask               make INV2 mask with SPM+FSL to remove background noise induced by the 
-                            combination of INV-images. Note that not doing this will results in pat-
-                            terns of noise around the brain which will confuse automated segmentation 
-                            softwares 
+Mandatory (required input):
+    -i|--inputdir   project root directory with the subject-directories on which we need to run
+                    the script. Should be BIDS-compliant, up until 'anat' folder
+
+Optional (flags with defaults):
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'pymp2rage'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGEME"). '*_{suffix}.nii.gz'
+                    will be added
+    -l|--lower      lower bound for truncing image intensities using 'call_winsorize'. Default
+                    is 0.01
+    -u|--upper      upper bound for truncing image intensities using 'call_winsorize'. Default
+                    is 0.99                            
+    -p|--pars       json-file with custom parameter settings. Should have the following format:
+
+                    {
+                        "TR": 6.723,
+                        "inv_times": [0.67, 3.68],
+                        "fa": [4,4],
+                        "nZ": 150,
+                        "FLASH_tr": [0.0062,0.31246],
+                        "echo_times": [0.006, 0.0145, 0.023, 0.0315]
+                    }
+                    see: $REPO_DIR/misc/mp2rageme_pars.json
+
+Options (extra):
+    -h|--help       print this help text
+    -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the combina-
+                    tion of INV-images. Note that not doing this will results in patterns of noise
+                    around the brain which will confuse automated segmentation softwares 
+    --skip-bg       Skip background stuff (default = remove noise around brain)
+
 Outputs:
     r2star (Nifti1Image):       Relaxation map (1/T2*)
     t2star (Nifti1Image):       T2*-weighted image
@@ -61,10 +65,16 @@ Outputs:
     s0 (Nifti1Image):           Residual (S0) map
 
 Example:
-    call_mp2rageme -i DIR_DATA_HOME/sub-01/ses-1 -o DIR_DATA_DERIV/pymp2rage -b sub-999_acq-MP2-
-    RAGME
-    call_mp2rageme -i DIR_DATA_HOME/sub-01/ses-1 -o DIR_DATA_DERIV/pymp2rage -b sub-999_acq-MP2-
-    RAGME --mask
+    call_mp2rageme \
+        -i DIR_DATA_HOME/sub-01/ses-1 \
+        -o DIR_DATA_DERIV/pymp2rage \
+        -b sub-01_acq-MP2RAGEME
+
+    call_mp2rageme \
+        -i DIR_DATA_HOME/sub-01/ses-1 \
+        -o DIR_DATA_DERIV/pymp2rage \
+        -b sub-999_acq-MP2RAGEME \
+        --mask
 
 Notes:
     Assumes you ran spinoza_scanner2bids before. If not, change the required filenames in the
@@ -74,56 +84,26 @@ Notes:
     - INV1ph        ('inv-1_part-phase')
     - INV2 e1-4,    ('inv-2_echo-[1-4]_part-mag')
     - INV2ph e1-4   ('inv-2_echo-[1-4]_part-phase')
+
 ---------------------------------------------------------------------------------------------------
     """
 
-    inputdir = None
-    outputdir = None
-    outputbase = "sample_desc"
-    do_stuff = False
-    pars_file = None
-    lower = 0.01
-    upper = 0.99
-    
-    try:
-        opts = getopt.getopt(argv,"hci:s:n:o:b:u:l:",["help", "inputdir=", "subject=", "outputdir=", "outputbase=", "ups", "mask", "pars=", "upper=", "lower="])[0]
-    except getopt.GetoptError:
-        print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-i", "--inputdir"):
-            inputdir = arg
-        elif opt in ("-o", "--outputdir"):
-            outputdir = arg
-        elif opt in ("-b", "--outputbase"):
-            outputbase = arg
-        elif opt in ("-c", "--mask"):
-            do_stuff = True
-        elif opt in ("-l", "--lower"):
-            lower = float(arg)
-        elif opt in ("-u", "--upper"):
-            upper = float(arg)           
-        elif opt in ("--pars"):
-            pars_file = os.path.abspath(arg)
-
-    if len(argv) < 6:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit(1)
+    input_dir    = context.get("input_dir")
+    pars_file    = context.get("pars_file")
+    output_dir   = context.get("output_dir")
+    output_base  = context.get("output_base")
+    do_stuff     = context.get("do_stuff")
+    lower        = context.get("lower")
+    upper        = context.get("upper")
 
     # Define paths to images
     select_fn = utils.select_files_from_bids(
-        inputdir,
+        input_dir,
         filters=['inv', 'acq-MP2RAGEME']
     )
 
     if len(select_fn) != 10:
-        raise ValueError(f"For MEMP2RAGE-reconstruction we should have 10 files; got {len(select_fn)}; looked for files containing 'inv' and 'acq-MP2RAGEME' in '{inputdir}'")
+        raise ValueError(f"For MEMP2RAGE-reconstruction we should have 10 files; got {len(select_fn)}; looked for files containing 'inv' and 'acq-MP2RAGEME' in '{input_dir}'")
 
     # define MR parameters
     pars = image.define_mr_parameters(
@@ -152,7 +132,7 @@ Notes:
     )
 
     # create output directory
-    pathlib.Path(outputdir).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # Define output file types
     file_types = ["R2starmap", "T1w", "T1map", "T2starw", "T2starmap", "S0"]
@@ -164,7 +144,7 @@ Notes:
     }
 
     # Generate the OUTPUT dictionary dynamically
-    output_dict = {attr.lower(): opj(outputdir, f"{outputbase}_{suff}.nii.gz") for attr, suff in zip(file_types["attr"], file_types["suffix"])}
+    output_dict = {attr.lower(): opj(output_dir, f"{output_base}_{suff}.nii.gz") for attr, suff in zip(file_types["attr"], file_types["suffix"])}
 
     print("Creating output files")
     for key, val in output_dict.items():
@@ -183,11 +163,60 @@ Notes:
 
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
-        spm_mask = opj(outputdir, f'{outputbase}_desc-spm_mask.nii.gz')
+        spm_mask = opj(output_dir, f'{output_base}_desc-spm_mask.nii.gz')
         cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
         utils.run_shell_wrapper(cmd, verb=True)
 
     print("Done")
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    input_dir = None
+    pars_file = None
+    output_dir = opj(os.getcwd(), "pymp2rage")
+    output_base = "subject_acq-MP2RAGEME"
+    do_stuff = False
+    lower = 0.01
+    upper = 0.99
+    
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hc:i:o:n:l:u:p:",
+            ["help", "inputdir=", "outputdir=", "name=", "mask", "pars=", "upper=", "lower="]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-i", "--inputdir"):
+            input_dir = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
+        elif opt in ("-c", "--mask"):
+            do_stuff = True
+        elif opt in ("--skip-bg"):
+            do_stuff = False              
+        elif opt in ("-l", "--lower"):
+            lower = float(arg)
+        elif opt in ("-u", "--upper"):
+            upper = float(arg)           
+        elif opt in ("-p", "--pars"):
+            pars_file = os.path.abspath(arg)
+
+    main(context={
+        "input_dir": input_dir,
+        "pars_file": pars_file,
+        "output_dir": output_dir,
+        "output_base": output_base,
+        "do_stuff": do_stuff,
+        "lower": lower,
+        "upper": upper
+    })

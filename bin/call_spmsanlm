@@ -1,8 +1,8 @@
 #!/bin/bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
+
+#---------------------------------------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #---------------------------------------------------------------------------------------------------------
 # Create help text
@@ -13,18 +13,24 @@ function Usage {
 call_spmsanlm
 
 Denoising using Cat12 as part of SPM. Let's see if this makes CAT12 more reliable.. It tends to make
-the image as nice as a full on `call_cat12`-run, but sometimes that's a bit overkill. Using SANLM-
+the image as nice as a full on 'call_cat12'-run, but sometimes that's a bit overkill. Using SANLM-
 filter and bias correction separately we obtain the best of both worlds, presumably.
 
-Args:
- -s <SPM_PATH>  path to SPM; should contain CAT12 in toolbox directory
- -l <LOG_PATH>	path to working directory, defaults to DIR_LOGS
- <input image>  input image. Can either be *.nii.gz or *.nii image. In the case of the former,
-                new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
-                not like *.nii.gz files.
- <output image>	name of output image, including directory
-
 Usage:
+  call_spmsanlm [options] <input image> <output directory + basename>
+
+Options:
+  -h|--help       print this help text
+  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
+Positional:
+  <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
+                  new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
+                  not like *.nii.gz files.
+  <output base>	  directory+basename of output image
+
+Example:
  call_spmsanlm input.nii.gz output.nii.gz
 
 ---------------------------------------------------------------------------------------------------
@@ -39,22 +45,35 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts l:s: argument
+while getopts :-:hl:s: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in       
+        help)
+          Usage >&2
+          exit 1
+          ;;
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;          
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
             ;;
+    h)  Usage >&2
+        exit 1
+          ;;            
   esac
 done
 
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Define default LOG-path

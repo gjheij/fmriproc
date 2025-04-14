@@ -5,7 +5,7 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -28,6 +28,9 @@ Arguments:
 
 Options:
   --sge       submit the script to a cluster using a template script
+
+Positional:
+  <fsf file>
 
 Example:
   call_feat design.fsf # standard implementation

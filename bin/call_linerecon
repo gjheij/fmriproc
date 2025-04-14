@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-#$ -S /bin/bash
-#$ -cwd
-#$ -j Y
-#$ -V
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -14,34 +14,27 @@ call_linerecon
 
 wrapper for the reconstruction of line-data using a matlab template. For now, we can only run it
 on the Spinoza server, maybe we can port it to local processing as well some day. For now we also
-need to submit it to the minerva server by specifying -q all.q@minerva, because that's the only
+need to submit it to the minerva server by specifying -q recon.q@minerva, because that's the only
 place MRecon seems to work.
 
 Usage:
   call_linerecon [options] <raw data> <lsd image> <output file>
 
 Arguments:
-  -m <nr_echoes>    number of echoes in a multi-echo acquisition. Leave empty if acquisition was 
-                    single-echo
-  -r <run>          When running multiple reconstructions in parallel, it can help to add a run ID 
-                    so that the script-naming doesn't get mixed up.
-  -c <comps>        percentage of components to remove with NORDIC. The default is to remove compo-
-                    nents based on the scree plot
-  <raw data>        path to raw files on which to run reconstruction. Needs to contain .lab files of
-                    the "recon"-slice (slice with rest-slabs on) and the .lab file of the functional
-                    run ("bold"-file)
-  <lsd data>        path to file with slice + saturation slabs (LSD-image). Generally is called some-
-                    thing with "desc-recon", and should be run-specific to avoid any minor changes 
-                    between runs
-  <basename>        basename for output. Will automatically store the output in a .mat file, so spe-
-                    cify up until .mat
-  --debug           don't submit job, just print inputs/outputs
-  -n|--no-nordic    skip NORDIC during reconstruction
+  -h|--help       print this help text
+  -n|--no-nordic  skip NORDIC during reconstruction
+  -d|--debug      don't submit job, just print inputs/outputs
+  -m <nr_echoes>  number of echoes in a multi-echo acquisition. Leave empty if acquisition was 
+                  single-echo
+  -r <run>        When running multiple reconstructions in parallel, it can help to add a run ID 
+                  so that the script-naming doesn't get mixed up.
+  -c <comps>      percentage of components to remove with NORDIC. The default is to remove compo-
+                  nents based on the scree plot
 
 Positional:
-  <raw data>        raw k-space data
-  <lsd image>       slice image with saturation pulses AND phase-encoding turned on
-  <output file>     output .mat file
+  <raw data>      raw k-space data
+  <lsd image>     slice image with saturation pulses AND phase-encoding turned on
+  <output file>   output .mat file
 
 Example:
   call_linerecon bold.lab lsd.lab func.mat
@@ -58,7 +51,7 @@ do_nordic="on"
 DEBUG=0
 n_echos=1
 n_comps=0
-while getopts :-:hnm:r:c: argument
+while getopts :-:dhnm:r:c: argument
 do
   case ${argument} in
     -)
@@ -69,17 +62,24 @@ do
         no-nordic)
           do_nordic="off"
           ;;                                                                      
+        help)
+          Usage >&2
+          exit 1
+          ;;         
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;  
+      esac;;   
     m)  n_echos=${OPTARG}
           ;;       
     r)  run_id=${OPTARG}
           ;;
+    d)  DEBUG=1
+          ;;          
     n)  do_nordic="off"
           ;;
     c)  n_comps=${OPTARG}
@@ -87,6 +87,9 @@ do
           n_comps=0
         fi
           ;;
+    h)  Usage >&2
+        exit 1
+          ;;             
   esac
 done
 
@@ -109,10 +112,6 @@ if [[ ${n_echos} -gt 1 ]]; then
 else
   multiecho=0
 fi
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Start loop

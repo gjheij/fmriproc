@@ -5,7 +5,7 @@ from fmriproc.transform import mri_surf2surf
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_surf2surf
 
@@ -25,8 +25,21 @@ Outputs
     output file     <src file> projected onto the surface of <trg subject>
 
 Example:
-    call_surf2surf fsaverage sub-001 lh.fsaverage.thresh lh.fsnative.thresh.gii lh (fsaverage > fsnative)
-    call_surf2surf sub-001 fsaverage lh.fsnative.thresh.gii lh.fsaverage.thresh lh (fsnative > fsaverage)
+    # fsaverage > fsnative
+    call_surf2surf \
+        fsaverage \
+        sub-001 \
+        lh.fsaverage.thresh.gii \
+        lh.fsnative.thresh.gii
+        lh
+
+    # fsnative > fsaverage
+    call_surf2surf \
+        sub-001 \
+        fsaverage \
+        lh.fsnative.thresh.gii \
+        lh.fsaverage.thresh \
+        lh
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -46,7 +59,8 @@ Example:
         trg_subj=trg_subj, 
         src_file=src_file, 
         out_file=out_file, 
-        hemi=hemi)
+        hemi=hemi
+    )
 
 if __name__ == "__main__":
     main(sys.argv[1:])

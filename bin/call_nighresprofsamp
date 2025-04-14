@@ -5,12 +5,13 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
 import os
 from lazyfmri import utils
 opj = os.path.join
-rb = utils.color.RED + utils.color.BOLD
-gb = utils.color.GREEN + utils.color.BOLD
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["layerimg", "samplefrom"])
@@ -23,20 +24,21 @@ call_nighresprofsamp
 The Profile Sampling module of CBS Tools was used to transform the 2-dimensional level-sets to 3D
 representations of any input data
 
-Args:
+Mandatory (required input):
     -l|--layerimg   4D image containing levelset representations of different intracortical 
                     surfaces on which data should be sampled (the 4D output from call_nighres-
                     layering; "-layering_boundaries")
     -s|--samplefrom Image from which data should be sampled
+
+Optional (flags with defaults):
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'profiling'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
-Outputs:
-  (taken from https://nighres.readthedocs.io/en/latest/laminar/profile_sampling.html)
-  Dictionary collecting outputs under the following keys (suffix of output files in brackets)
+Options (extra):
+    -h|--help       print this help text
 
-  result (niimg): 4D profile image , where the 4th dimension represents the profile for each 
-                  voxel (-lps_data)
+Outputs:
+  result (niimg): 4D profile image , where the 4th dimension represents the profile for each voxel
 
 Example:
   call_nighresprofsamp \
@@ -45,11 +47,14 @@ Example:
     -d derivatives/nighres/sub-001/profiling \
     -n sub-001_ses-1_acq-MP2RAGE_desc-profile_T1map
 
+Notes:
+    docs: https://nighres.readthedocs.io/en/latest/laminar/profile_sampling.html
+
 ---------------------------------------------------------------------------------------------------
     """
 
-    layers_lvls = context["layerimg"]
-    sample_from = context["samplefrom"]
+    layers_lvls = context.get("layerimg")
+    sample_from = context.get("samplefrom")
     output_dir = context.get("output_dir", opj(os.getcwd(), 'profiling'))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
@@ -59,6 +64,7 @@ Example:
         layers_lvls,
         sample_from,
         save_data=True,
+        overwrite=True,
         output_dir=output_dir,
         file_name=output_base
     )
@@ -103,7 +109,7 @@ if __name__ == "__main__":
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    main(sys.argv[1:], context={
+    main(context={
         "layerimg": layers_lvls,
         "samplefrom": sample_from,
         "output_dir": output_dir,

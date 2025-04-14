@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
@@ -16,24 +22,25 @@ Usage:
   call_antsapplytransforms [arguments] [options] <ref> <moving> <output> <warp files>
 
 Arguments:
-  -i <invert>   invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
-                warp files, specify a comma-separated list between quotes as inversion tag (e.g., 
-                '-i 0,1'); if not everything will be set to 'do not invert'
+  -i <invert>     invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
+                  warp files, specify a comma-separated list between quotes as inversion tag (e.g., 
+                  '-i 0,1'); if not everything will be set to 'do not invert'
 
 Options:
-  -v|--verbose  Turn on verbose
-  --<interp>    interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
-                (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
-                (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
-                For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
-                '--gen'
+  -h|--help       print this help text
+  -v|--verbose    Turn on verbose
+  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
+                  (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
+                  (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
+                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
+                  '--gen'
 
 Positional:
-  <ref>         space to warp file to
-  <moving>      file to warp
-  <output>      moving-in-ref output name
-  <warp files>  all warp files in order of application; specify a comma-separated list if multiple
-                files need to be considerd (e.g., 'file1.mat,file2.mat')
+  <ref>           space to warp file to
+  <moving>        file to warp
+  <output>        moving-in-ref output name
+  <warp files>    all warp files in order of application; specify a comma-separated list if multiple
+                  files need to be considerd (e.g., 'file1.mat,file2.mat')
 
 Example:
   call_antsapplytransforms ref.nii.gz mov.nii.gz out.nii.gz genaff.mat
@@ -51,7 +58,7 @@ source call_bashhelper
 # Check for subject flag
 INT="Linear"
 VERB=0
-while getopts :-:vi:t: argument
+while getopts :-:hvi:t: argument
 do
   case ${argument} in
     -)
@@ -93,6 +100,10 @@ do
           VERBOSE="--verbose 1"
           VERB=1
           ;;
+        help)
+          Usage >&2
+          exit 1
+          ;;                   
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -105,7 +116,10 @@ do
           ;;
     v)  VERBOSE="--verbose 1"
         VERB=1
-          ;;          
+          ;; 
+    h)  Usage >&2
+        exit 1
+          ;;                  
   esac
 done
 

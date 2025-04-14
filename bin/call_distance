@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-#$ -cwd
-#$ -j Y
-#$ -V
-#$ -pe smp 1
-#
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -16,24 +15,29 @@ call_distance
 Wrapper for FreeSurfer's mris_pmake. Calculates the distance between <startVertex> & <endVertex> 
 using Dykstra's algorithm
 
-Parameters
-----------
-  subject     ID as used in the FreeSurfer reconstruction
-  output      output filename (ideally json file)
-  -s <start>  vertex to calculate distances to
-  -e <end>    vertex to calculate distance to <start>
-  -l <label>  label image to extract vertices from        [default = V1_exvivo.thresh]
-  --lh|--rh   which hemisphere to process                 [default = "lh"]
-  --fiducial  use fiducial (mid-thickness) surface        [default]
-  --white     use WM/GM boundary surface (?h.white)
-  --pial      use GM/CSF boundary surface (?h.pial)
-
 Usage:
-  call_distance --lh|--rh --white|--pial -l <label> -s <start> -e <end> <subject> <output>
+  call_distance [options] <subject> <output>
+
+Arguments:
+  -s <start>      vertex to calculate distances to
+  -e <end>        vertex to calculate distance to <start>
+  -l <label>      label image to extract vertices from        [default = V1_exvivo.thresh]
+
+Options:
+  -h|--help       print this help text
+  --lh|--rh       which hemisphere to process                 [default = "lh"]
+  --fiducial      use fiducial (mid-thickness) surface        [default]
+  --white         use WM/GM boundary surface (?h.white)
+  --pial          use GM/CSF boundary surface (?h.pial)
+
+Positional:
+  subject         subject ID as used in the FreeSurfer reconstruction
+  output          output filename (ideally json file)
 
 Example:
   call_distance --lh --fiducial -s 1053 -e 784 sub-001 distance.json
   call_distance --lh -s 1053 -l V1_exvivo.thresh sub-001 distance.json
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -46,7 +50,7 @@ white=0
 pial=0
 label="V1_exvivo.thresh"
 end_v=""
-while getopts :-:s:e:l: arg; do
+while getopts :-:hs:e:l: arg; do
   case $arg in
     -)
       case "${OPTARG}" in
@@ -65,19 +69,27 @@ while getopts :-:s:e:l: arg; do
         fiducial)
           fiducial=1
           ;;          
+        help)
+          Usage >&2
+          exit 1
+          ;;         
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;    
+      esac;;   
     s)  start_v=${OPTARG}
         ;;
     l)  label=${OPTARG}
         ;;      
     e)  end_v=${OPTARG}
-        ;;          
+        ;;
+    h)  Usage >&2
+        exit 1
+          ;;        
   esac
 done
 

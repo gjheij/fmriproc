@@ -3,10 +3,9 @@
 import ast
 import os
 import numpy as np
-import sys, getopt
-import warnings
+import sys
+import getopt
 from lazyfmri import utils
-warnings.filterwarnings('ignore')
 opj = os.path.join
 
 try:
@@ -14,9 +13,10 @@ try:
 except ImportError:
     print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject", "out"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_targetvertex
 
@@ -28,26 +28,34 @@ ties, we can now also set cut off criteria for cortical thickness and sulcal dep
 wish to apply a certain filter, just leave it empty and press ENTER. That way, the default value 
 (i.e., no thresholding) will be used.
 
-Parameters
-----------
+Usage:
+  call_targetvertex [mandatory] [arguments] [options]
+
+Mandatory (required input):
     -s|--sub        Subject name as defined in FreeSurfer directory
-    -d|--deriv      Path to all derivatives (e.g., freesurfer/pycortex/prf)
+    -o|--out        Output file containing translation and rotation values
+
+Optional (flags with defaults):
+    -d|--deriv      Path to all derivatives (e.g., freesurfer/pycortex/prf). Defaults to:
+                    'os.environ.get("DIR_DATA_DERIV")'
     -r|--roi        ROI to be used; must be a label present in <fs_dir>/<subject>/label; default 
                     = V1_exvivo.thresh. It should be following the nomenclature of FreeSurfer but 
                     omitting the 'lh'/'rh' to include both hemispheresin the analysis
-    -o|--out        Output file containing translation and rotation values
-    -u|--use-prf    Include pRF in the calculation of the best vertex even if you have a pRF-para-
-                    meter file to only use surface (anatomical) information
     -v|--vert       list of manually specified vertices instead of based on surface calculation.
                     use the format [5875,8872] with the first vertex in left hemisphere and se-
                     cond in right hemisphere.
+    -p|--prf-file   File containing the pRF-estimates. Required if '--use-prf' is specified
+    --srf-file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
+
+Options (extra):
+    -h|--help       print this help text
+    -u|--use-prf    Include pRF in the calculation of the best vertex even if you have a pRF-para-
+                    meter file to only use surface (anatomical) information
     -f|--freeview   Disable FreeView while verifying vertex location. Only do this if you already 
                     know where it's located!
-    -p|--prf-file   File containing the pRF-estimates. Required if '--use-prf' is specified
-    -e|--use_epi    Use EPI intensity data from fmriprep
-    --srf           Include size-response functions (SRFs) in criteria
-    --srf-file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
-                    for the vertices that survive the initial criterias
+    -e|--use-epi    Use EPI intensity data from fmriprep
+    --srf           Include size-response functions (SRFs) in criteria for the vertices that sur-
+                    vive the initial criterias
     --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and 
                     SRFs are included, this will yield in a 4x5 grid with brainmaps of various 
                     kinds that were used in the selection process of the target vertex.
@@ -59,13 +67,26 @@ Parameters
 
 Returns
 ----------
-a csv-file called line_pycortex.csv in the pycortex/sub-xxx directory specifying the orientation 
-of the line in the first session anatomy
+    a csv-file in the pycortex/sub-xxx directory specifying the orientation of the line in the
+    first session anatomy
 
 Examples
 ----------
-call_targetvertex -s sub-001 -d /dir/to/derivatives -p prf_params.pkl --use-prf
-call_targetvertex -s sub-001 -d /dir/to/derivatives 
+# use pRF
+call_targetvertex \
+    -s sub-001 \
+    -p prf_params.pkl \
+    --use-prf
+
+# use pRF & SRFs
+call_targetvertex \
+    --sub sub-001 \
+    --deriv /dir/to/derivatives \
+    --prf-file prf_params.pkl \
+    --use-prf \
+    --srf-file /dir/to/derivatives/prf/sub-001/srfs.pkl \
+    --srf \
+    --use-epi
 
 Notes
 ----------
@@ -86,74 +107,23 @@ Notes
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject     = None
-    out         = None
-    roi         = "V1_exvivo.thresh"
-    use_prf     = False
-    use_epi     = False
-    verts       = None
-    open_fv     = True
-    deriv       = None
-    prf_file    = None
-    srf_flag    = False
-    srf_file    = None
-    gallery     = False
-    selection   = None
-    open_with   = "fs"
-    epi_file    = None
-    is_aparc    = False
-    skip_prf_info = False
-
-    try:
-        opts = getopt.getopt(argv,"fuhd:s:t:r:o:b:v:m:n:p:",["help", "deriv=", "sub=", "roi=", "out=", "vert=", "use-prf", "no-freeview", "prf-file=", "use-epi", "srf", "srf-file=", "gallery", "manual", "ctx", "epi_file=", "aparc","skip-prf-info"])[0]
-    except getopt.GetoptError:
-        print("ERROR IN ARGUMENT HANDLING!")
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--sub"):
-            subject = arg       
-        elif opt in ("-r", "--roi"):
-            roi = arg
-        elif opt in ("-o", "--out"):
-            out = arg
-        elif opt in ("-d", "--deriv"):
-            deriv = arg
-        elif opt in ("-p", "--prf-file"):
-            prf_file = arg
-        elif opt in ("--epi_file"):
-            epi_file = arg            
-        elif opt in ("-e", "--use-epi"):
-            use_epi = True
-        elif opt in ("-u", "--use-prf"):
-            use_prf = True                        
-        elif opt in ("-f", "--no-freeview"):
-            open_fv = False
-        elif opt in ("--skip-prf-info"):
-            skip_prf_info = True            
-        elif opt in ("--vert"):
-            verts = arg
-        elif opt in ("--srf"):
-            srf_flag = True  
-        elif opt in ("--srf-file"):
-            srf_file = arg
-        elif opt in ("--gallery"):
-            gallery = True
-        elif opt in ("--manual"):
-            selection = "manual"
-        elif opt in ("--ctx"):
-            open_with = "ctx"        
-        elif opt in ("--aparc"):
-            is_aparc = True
-
-    if len(argv) < 1:
-        print("\nNEED AT LEAST A SUBJECT ID")
-        print(main.__doc__)
-        sys.exit()
+    subject = context.get("subject")
+    out = context.get("out")
+    verts = context.get("verts")
+    prf_file = context.get("prf_file")
+    selection = context.get("selection")
+    epi_file = context.get("epi_file")
+    srf_file = context.get("srf_file")
+    use_prf = context.get("use_prf")
+    use_epi = context.get("use_epi")
+    open_fv = context.get("open_fv")
+    srf_flag = context.get("srf_flag")
+    gallery = context.get("gallery")
+    is_aparc = context.get("is_aparc")
+    skip_prf_info = context.get("skip_prf_info")
+    roi = context.get("roi")
+    deriv = context.get("deriv")
+    open_with = context.get("open_with")
 
     #----------------------------------------------------------------------------------------------------------------
     # Set inputs
@@ -200,9 +170,8 @@ Notes
             out_comps = [subject]
 
         # check if we got a specified output file
-        out_dir = os.path.dirname(out)
+        output_dir = os.path.dirname(out)
         base_name = "_".join(out_comps)
-        out_file = opj(out_dir, base_name)
 
         # open cortex webviewer
         targ_obj.open_pycortex(
@@ -214,7 +183,7 @@ Notes
         # save elements, make figure, and add colormaps
         targ_obj.save_all(
             base_name=base_name,
-            fig_dir=out_dir,
+            fig_dir=output_dir,
             gallery=True,
             y=1.05,
             n_cols=5,
@@ -223,4 +192,91 @@ Notes
         )
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject = None
+    out = None
+    verts = None
+    prf_file = None
+    selection = None
+    epi_file = None
+    srf_file = None
+    use_prf = False
+    use_epi = False
+    open_fv = True
+    srf_flag = False
+    gallery = False
+    is_aparc = False
+    skip_prf_info = False
+    roi = "V1_exvivo.thresh"
+    deriv = os.environ.get("DIR_DATA_DERIV")
+    open_with = "fs"
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "fuhd:s:t:r:o:b:v:m:n:p:",
+            ["help", "deriv=", "sub=", "roi=", "out=", "vert=", "use-prf", "no-freeview", "prf-file=", "use-epi", "srf", "srf-file=", "gallery", "manual", "ctx", "epi_file=", "aparc","skip-prf-info"]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR IN ARGUMENT HANDLING!")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg       
+        elif opt in ("-r", "--roi"):
+            roi = arg
+        elif opt in ("-o", "--out"):
+            out = arg
+        elif opt in ("-d", "--deriv"):
+            deriv = arg
+        elif opt in ("-p", "--prf-file"):
+            prf_file = arg
+        elif opt in ("--epi_file"):
+            epi_file = arg            
+        elif opt in ("-e", "--use-epi"):
+            use_epi = True
+        elif opt in ("-u", "--use-prf"):
+            use_prf = True                        
+        elif opt in ("-f", "--no-freeview"):
+            open_fv = False
+        elif opt in ("--skip-prf-info"):
+            skip_prf_info = True            
+        elif opt in ("--vert"):
+            verts = arg
+        elif opt in ("--srf"):
+            srf_flag = True  
+        elif opt in ("--srf-file"):
+            srf_file = arg
+        elif opt in ("--gallery"):
+            gallery = True
+        elif opt in ("--manual"):
+            selection = "manual"
+        elif opt in ("--ctx"):
+            open_with = "ctx"        
+        elif opt in ("--aparc"):
+            is_aparc = True
+
+    main(context={
+        "subject": subject,
+        "out": out,
+        "verts": verts,
+        "prf_file": prf_file,
+        "selection": selection,
+        "epi_file": epi_file,
+        "srf_file": srf_file,
+        "use_prf": use_prf,
+        "use_epi": use_epi,
+        "open_fv": open_fv,
+        "srf_flag": srf_flag,
+        "gallery": gallery,
+        "is_aparc": is_aparc,
+        "skip_prf_info": skip_prf_info,
+        "roi": roi,
+        "deriv": deriv,
+        "open_with": open_with
+    })

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-# source helper functions
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -17,21 +18,45 @@ create a directory called INPUT/nifti and store the output there. Because parrec
 put a json side-car file by default, we'll attempt to create one based on the information found in
 the par-file; some information (e.g., RepetitionTime) could be missing.
 
-Parameters
-----------
-  --take-avg-tr       Take the average over all TRs from the par file, rather than the first in the
-                      sequence of TRs 
-  -i <input>          PAR-file or folder containing PAR-files to be processed. You can also specify
-                      the log-file from 'dcm2niix' to look for catastrophic errors. One of these 
-                      options is always needed!
-  -o <output folder>  output folder. If empty, it will use <input folder>/nifti
-  -c <compress>       create nii's ("n") or nii.gz's (default)
+Arguments:
+  -i <input>      PAR-file or folder containing PAR-files to be processed. You can also specify the
+                  log-file from 'dcm2niix' to look for catastrophic errors. One of these options is
+                  always needed!
+  -o <output>     output folder. If empty, it will use <input folder>/nifti
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The format
+                  should be as follows: different parameters comma-separated, and parameter-value pair
+                  separated by '='):
+                  
+                  "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-Example
-----------
-  call_parrec2nii -i /path/to/PARRECs       # call with folder
-  call_parrec2nii -i /path/to/file.par      # call with file
-  call_parrec2nii -i /path/to/PARRECs -c n  # don't compress
+                  E.g.,:
+                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  # parrec2nii
+                  cmd_args=(
+                    parrec2nii
+                    --scaling fp  # floating point
+                    --verbose     # make noise
+                    --compressed  # make nii.gz, suppressed with --no-compress
+                    --output-dir  # output directory      (-o flag)
+                  )
+
+Options:
+  -h|--help       print this help text
+  --take-avg-tr   Take the average over all TRs from the par file, rather than the first in the
+                  sequence of TRs 
+  --no-compress   create nii's instead of nii.gz's (default)
+  --force-exec    Force execution even though converted nifti already exists
+
+Examples:
+  call_parrec2nii -i /path/to/PARRECs                 # call with folder
+  call_parrec2nii -i /path/to/file.par                # call with file
+  call_parrec2nii -i /path/to/PARRECs --no-compress   # don't compress; generated '.nii'-file
+
+Notes:
+  see 'parrec2nii --help' for more information
 
 ---------------------------------------------------------------------------------------------------
 
@@ -42,14 +67,27 @@ USAGE
 # Allocate input arguments to variables
 #
 use_case="first"
-while getopts :-:i:o:c:v: argument
+compress="--compressed"
+kwargs=""
+force=0
+while getopts :-:hi:o:v:x: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in     
         take-avg-tr)
           use_case="average"
-          ;;            
+          ;;    
+        no-compress)
+          compress=""
+          ;;   
+        force-exec)
+          force=1
+          ;;                       
+        help)
+          Usage >&2
+          exit 1
+          ;;         
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -62,8 +100,11 @@ do
           ;;
     o)  pathOutput=${OPTARG}
           ;;
-    c)  compress=${OPTARG}
-          ;;
+    x)  kwargs=${OPTARG}
+          ;;          
+    h)  Usage >&2
+        exit 1
+          ;;          
   esac
 done
 
@@ -71,10 +112,6 @@ if [[ $# -lt 1 ]] ; then
   Usage >&2
   exit 1
 fi
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Check if we have parrec2nii installed
@@ -145,32 +182,51 @@ if [[ ! -d ${pathOutput} ]]; then
   mkdir -p ${pathOutput}
 fi
 
-# -z : gz compress images (y/o/i/n/3, default n) [y=pigz, o=optimal pigz, i=internal:zlib, n=no, 3=no,3D]
-if [[ -z ${compress} ]]; then
-  NIIGZ="o"
-  COMPR="--compress"
+#-----------------------------------------------------------------------------
+# Turn kwargs into space-separated array
+if [[ -n "${kwargs}" ]]; then
+  IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
 else
-  if [[ ${compress} == "n" ]]; then
-    COMPR=""
-  fi
+  user_args=()
 fi
+
+# Convert user_args into string for matching
+arg_str="${user_args[*]}"
+
+# Initialize base command
+cmd_args=(parrec2nii)
 
 #-----------------------------------------------------------------------------
 # Run it
 for par in ${par_files[@]}; do
   ext=$(fetch_extension ${par})
   orig_out=${pathOutput}/$(basename ${par} .${ext}).nii.gz
-  if [ ! -f ${orig_out} ]; then
-    cmd=(
-      parrec2nii
-      --scaling fp
-      --verbose
-      "${COMPR}"
-      -o "${pathOutput}"
-      "${par}"
-    )
+  if [[ ! -f ${orig_out} || ${force} -eq 1 ]]; then
 
-    eval "${cmd[@]}"
+    # Check for presence before adding default long flags
+    [[ ! "$arg_str" =~ "--scaling" ]] && cmd_args+=("--scaling" "fp")
+
+    if [[ ! "$arg_str" =~ (--verbose|-v) ]]; then
+      cmd_args+=("--verbose")
+    fi
+
+    if [[ ! "$arg_str" =~ (--output-dir|-o) ]]; then
+      cmd_args+=("--output-dir" "${pathOutput}")
+    fi
+
+    # add compression flag
+    if [[ ! -z ${compress} ]]; then
+      [[ ! "$arg_str" =~ "--compressed" ]] && cmd_args+=("${compress}")
+    fi
+
+    # Add user-specified options
+    cmd_args+=("${user_args[@]}")
+
+    # Final positional input (the directory/file)
+    cmd_args+=("${par}")    
+
+    print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
+    exit 1
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
@@ -198,18 +254,22 @@ for par in ${par_files[@]}; do
     # check whether image is anatomical; if vols/dyns > 2, we probably have anatomical images with 2x mag and 2x phase
     first_idx=0
     is_anat=$(( ${vols} / ${dyns} ))
-    if [[ ${is_anat} -eq 2 ]]; then
-      second_idx=1
-      anat=0
-      add_txt=" | I'm assuming we're dealing with ${BOLD_RED}BOLD+phase${RESET} data"
-    elif [[ ${is_anat} -eq 4 ]]; then
-      second_idx=2
-      anat=1
-      add_txt=" | I'm assuming we're dealing with ${BOLD_RED}MP2RAGE${RESET} data"
-    else
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): unknown number of image types in ${par}: ${is_anat}. Is this a sequence other than bold (M/P) or MP2RAGE (M/P for INV1/INV2)?"
-      exit 1
-    fi
+    case "${is_anat}" in
+      2)
+        anat=0
+        second_idx=1
+        add_txt=" | assuming ${BOLD_RED}BOLD+phase${RESET} data"
+        ;;
+      4)
+        anat=1
+        second_idx=2
+        add_txt=" | assuming ${BOLD_RED}MP2RAGE${RESET} data"
+        ;;
+      *)
+        echo -e "${BOLD_RED}ERROR:${RESET} Unknown image type count in ${par} (found: ${is_anat})"
+        exit 1
+        ;;
+    esac
 
     # check if phase data is interleaved or at the end by looking at the column of image_type in the par-file. 0=mag|3=phase.
     str="=== IMAGE INFORMATION ="
@@ -229,45 +289,28 @@ for par in ${par_files[@]}; do
     if [[ ${interleaved} -eq 1 ]]; then
       if [[ ${anat} -eq 0 ]]; then
         
-        PYTHON_CODE=$(cat <<END
-import nibabel as nb;
-import os;
-import numpy as np;
-opj = os.path.join;
-ff = '${orig_out}';
-img = nb.load(ff);
-data = img.get_fdata();
-mag = data[...,::2];
-pha = data[...,1::2];
-out = '${bids_out}';
-for dd,ext in zip([mag,pha],[".nii.gz","_ph.nii.gz"]):
-  new = nb.Nifti1Image(dd, affine=img.affine, header=img.header);
-  new.to_filename(f"{out}{ext}");
+        python - <<END
+import nibabel as nb, numpy as np
+img = nb.load("${orig_out}")
+data = img.get_fdata()
+for arr, ext in zip([data[...,::2], data[...,1::2]], [".nii.gz", "_ph.nii.gz"]):
+    nb.Nifti1Image(arr, img.affine, img.header).to_filename("${bids_out}" + ext)
 END
-)
       else
-
-        PYTHON_CODE=$(cat <<END
-import nibabel as nb;
-import os;
-import numpy as np;
-opj = os.path.join;
-ff = '${orig_out}';
-img = nb.load(ff);
-data = img.get_fdata();
-inv1_mag = data[...,0];
-inv1_pha = data[...,2];
-inv2_mag = data[...,1];
-inv2_pha = data[...,3];
-out = '${bids_out}';
-for dd,ext in zip([inv1_mag,inv1_pha,inv2_mag,inv2_pha],["_inv-1_part-mag","_inv-1_part-phase","_inv-2_part-mag","_inv-2_part-phase"]):
-  new = nb.Nifti1Image(dd, affine=img.affine, header=img.header);
-  new.to_filename(out+f"{ext}.nii.gz");
+        python - <<END
+import nibabel as nb, numpy as np
+img = nb.load("${orig_out}")
+data = img.get_fdata()
+out = "${bids_out}"
+names = ["_inv-1_part-mag", "_inv-1_part-phase", "_inv-2_part-mag", "_inv-2_part-phase"]
+slices = [0, 2, 1, 3]
+for slc, name in zip(slices, names):
+    arr = data[..., slc]
+    nb.Nifti1Image(arr, img.affine, img.header).to_filename(out + name + ".nii.gz")
 END
-)
 
       fi
-      python -c "$PYTHON_CODE"
+
       if [[ $? -ne 0 ]]; then
         echo
         print_line -

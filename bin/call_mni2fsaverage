@@ -1,6 +1,9 @@
 #!/bin/bash
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -12,15 +15,17 @@ Projects data in MNI152NLin6Asym (FSL-template) space directly to FSAverage spac
 terpolation step using the method described here:
 https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/registration/Wu2017_RegistrationFusion
 
-Args:
-  -o <out>    output directory
-  -p <prefix> decides 'prefix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
-  -s <suffix> decides 'suffix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
-  <-i interp> interpolation method (linear or nearest neighbour). Default is linear
-  input_file  file that needs to be transformed
-
 Usage:
   call_mni2fsaverage [options] <input_file> 
+
+Arguments:
+  -h|--help       print this help text
+  -p <prefix>     decides 'prefix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
+  -s <suffix>     decides 'suffix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
+  <-i interp>     interpolation method (linear or nearest neighbour). Default is linear
+
+Positional 
+  input_file      file that needs to be transformed
 
 Example:
   call_mni2fsaverage zstats1.nii.gz _desc-zstats1
@@ -31,10 +36,6 @@ Example:
 USAGE
     exit 1
 }
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
@@ -50,8 +51,9 @@ do
           set_tr=1
           ;;
         help)
-          HELP=1
-          ;;          
+          Usage >&2
+          exit 1
+          ;;            
         freeview)
           open_fv=1
           ;;           
@@ -75,7 +77,10 @@ do
     t)  trafos=${OPTARG}
           ;;        
     i)  interp=${OPTARG}
-          ;;            
+          ;;
+    h)  Usage >&2
+        exit 1
+          ;;              
   esac
 done
 

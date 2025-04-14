@@ -5,16 +5,16 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
 import os
 from lazyfmri import utils
 opj = os.path.join
-rb = utils.color.RED + utils.color.BOLD
-gb = utils.color.GREEN + utils.color.BOLD
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["inv2", "t1w", "t1map"])
-def main(argv, context):
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -23,23 +23,28 @@ call_nighresskullstrip
 This script is a wrapper for the mp2rage object that can calculate a Unified T1-weighted
 image and a quantitative T1 map, based on the magnitude and phase-information of the two
 volumes of a MP2RAGE-sequence (Marques et al., 2010). It can also further correct this map
-for B1 inhomogenieties using a B1 map (Marques et al., 2014)
+for B1 inhomogenieties using a B1 map (Marques et al., 2014).
 
-Args:
+Usage:
+  call_nighresskullstrip -i <inv2> -t <t1w> -m <t1map> [arguments] [options]
+
+Mandatory (required input):
     -i|--inv2       2nd inversion image
     -t|--t1w        T1-weighted image
     -m|--t1map      T1map
+
+Optional (flags with defaults):
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
-Outputs
-    taken from https://nighres.readthedocs.io/en/latest/brain/mp2rage_skullstripping.html
-    Dictionary collecting outputs under the following keys (suffix of output files in brackets)
+Options (extra):
+    -h|--help       print this help text
 
-    - brain_mask (niimg):   Binary brain mask (_strip-mask)
-    - inv2_masked (niimg):  Masked second inversion image (_strip-inv2)
-    - t1w_masked (niimg):   Masked T1-weighted image (_strip-t1w)
-    - t1map_masked (niimg): Masked T1 map (_strip-t1map)
+Outputs
+    - brain_mask (niimg):   Binary brain mask               (-strip_mask)
+    - inv2_masked (niimg):  Masked second inversion image   (-strip_inv2)
+    - t1w_masked (niimg):   Masked T1-weighted image        (-strip_t1w)
+    - t1map_masked (niimg): Masked T1 map                   (-strip_t1map)
 
 Example:
     call_nighresskullstrip \
@@ -48,18 +53,21 @@ Example:
         -m t1map.nii.gz \
         -o derivatives/nighres
 
+Notes:
+    docs: https://nighres.readthedocs.io/en/latest/brain/mp2rage_skullstripping.html
+
 ---------------------------------------------------------------------------------------------------
     """
 
-    inv2 = context["inv2"]
-    t1w = context["t1w"]
-    t1map = context["t1map"]
+    inv2 = context.get("inv2")
+    t1w = context.get("t1w")
+    t1map = context.get("t1map")
     output_dir = context.get("output_dir", opj(os.getcwd(), "skullstripping"))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
     #---------------------------------------------------------------------------------------------------
     # Run skull stripping
-    result = mp2rage_skullstripping(
+    mp2rage_skullstripping(
         inv2,
         t1w,
         t1map,
@@ -122,7 +130,7 @@ if __name__ == "__main__":
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    main(sys.argv[1:], context={
+    main(context={
         "inv2": inv2,
         "t1w": t1w,
         "t1map": t1map,

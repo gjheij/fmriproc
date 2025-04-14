@@ -17,12 +17,36 @@ Usage:
   call_bbregister.sh <subject number> <moving> <header | init> <FSL (0=no|1=yes)> <output>
 
 Arguments:
-  -i <header|init>  if you want to register based on header, type "header" here
-                    if you want to register based on initialization matrix, specify the path to
-                    the initialization matrix (either FSL .mat or ITK .txt file)
-  -f <FSL format>   no input required, but if flag is specified both LTA and FSL matrix will be
-                    outputted.
-  -c <contrast>     contrast to assume. Default = t1, but can be t2 to work with fMRI data
+  -i <type>       if you want to register based on header, type "header" here if you want to
+                  register based on initialization matrix, specify the path to the initialization
+                  matrix (either FSL .mat or ITK .txt file)
+
+  -c <contrast>   contrast to assume. Default = t1, but can be t2 to work with fMRI data
+  -x <kwargs>     Extra arguments that will be directly passed to 'bbregister'. The format should
+                  different parameters comma-separated, and parameter-value pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-x --t1,--int=/path/to/intermediate_file.nii.gz"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  # dcm2niix
+                  cmd_args=(
+                    bbregister
+                    --s <subject>     1st pos arg
+                    --mov <moving>    2nd pos arg
+                    --t1 # contrast   -c flag 
+                  )
+
+Options:
+  -h|--help       print this help text
+  -f|--fsl        if flag is specified both LTA and FSL matrix will be outputted.
+  --t1            contrast = T1 [default] | same as "-c t1" or "-x --t1"
+  --t2            contrast = T2           | same as "-c t2" or "-x --t2"
+  --bold          contrast = BOLD         | same as "-c bold" or "-x --bold"
+  --dti           contrast = DTI          | same as "-c dti" or "-x --dti"
 
 Positional
   <sub number>      number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
@@ -44,14 +68,54 @@ USAGE
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts fi:c: arg
+contrast="--t1"
+FSL=0
+kwargs=""
+init="hdr"
+while getopts :-:hfi:c:x: arg
 do
-    case ${arg} in
-      i)  INIT=${OPTARG}
-            ;;
-      c)  CONTRAST=${OPTARG}
-            ;;        
-    esac
+  case ${arg} in
+    -)
+      case "${OPTARG}" in     
+        fsl)
+          FSL=1
+          ;;   
+        t1)
+          contrast="--t1"
+          ;;   
+        t2)
+          contrast="--t2"
+          ;;   
+        bold)
+          contrast="--bold"
+          ;;   
+        dti)
+          contrast="--dti"
+          ;;                                                             
+        help)
+          Usage >&2
+          exit 1
+          ;;                   
+        *)
+          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+            Usage >&2
+            echo "Unknown option --${OPTARG}"
+            exit 1
+          fi
+          ;;
+      esac;;     
+    i)  init=${OPTARG}
+          ;;
+    c)  contrast="--${OPTARG}"
+          ;;
+    f)  FSL=1
+          ;;            
+    x)  kwargs=${OPTARG}
+          ;;              
+    h)  Usage >&2
+        exit 1
+          ;;              
+  esac
 done
 
 if [[ $# -lt 3 ]] ; then
@@ -63,67 +127,88 @@ SUBJECT=${@:$OPTIND:1}
 MOVING=${@:$OPTIND+1:1}
 OUTPUT=${@:$OPTIND+2:1}
 
-# check if we have to output FSL matrix
-if [[ "${@}" == *"-f"* ]]; then
-  FSL=1
-else
-  FSL=0
-fi
-
-if [[ -z ${CONTRAST} ]]; then
-  CONTRAST="--t1"
-else
-  CONTRAST="--${CONTRAST,,}"
-fi
-
-if [[ -z ${INIT} ]]; then
-  INIT="hdr"
+if [[ ! -d ${FS}/${SUBJECT} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Directory doesn't exist. Run FreeSurfer first.."
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # Start loop
 
 if [[ ! -f ${MOVING} ]]; then
-  echo "ERROR: could not find input image"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find moving image ${BOLD_GREEN}\"${MOVING}\"${RESET}"
   exit 1
 fi
 
-filename=$(basename -- "${INIT}")
+filename=$(basename -- "${init}")
 extension="${filename##*.}"
 filename="${filename%.*}"
 
 # echo $filename
 # echo $extension
 
-if [[ ${extension} == "txt" ]] || [[ ${extension} == "mat" ]] || [[ ${extension} == "lta" ]]; then
-  # we have an initialization matrix
-  init="--init-reg ${INIT}"
-elif [[ ${INIT,,} == "header" ]] || [[ ${INIT,,} == "hdr" ]]; then
-  # using header for initialization
-  init="--init-header"
+# Turn kwargs into space-separated array
+if [[ -n "${kwargs}" ]]; then
+  IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
 else
-  echo "Unknown option specified for registration initialization"
-  Usage
-  exit 1
+  user_args=()
 fi
 
-if [[ ${FSL} -eq 0 ]]; then
-  # don't output FSL-formatted matrix
-  format="--reg ${OUTPUT}.dat"
-elif [[ ${FSL} -eq 1 ]]; then
-  format="--fslmat ${OUTPUT}.mat --reg ${OUTPUT}.dat"
-else
-  echo "Unknown option specified for FSL/FS-matrix format"
-  Usage
-  exit 1
-fi
+# Convert user_args into string for matching
+arg_str="${user_args[*]}"
 
-cmd=(
+# initialize base command
+cmd_args=(
   bbregister
   --s "${SUBJECT}"
   --mov "${MOVING}"
-  "${CONTRAST}"
-  "${init}"
-  "${format}"
 )
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+# check the initialization
+if [[ ! "$arg_str" =~ (--init-reg|--init-header) ]]; then
+
+  if [[ ${extension} == "txt" ]] || [[ ${extension} == "mat" ]] || [[ ${extension} == "lta" ]]; then
+    # we have an initialization matrix
+    init="--init-reg ${init}"
+  elif [[ ${init,,} == "header" ]] || [[ ${init,,} == "hdr" ]]; then
+    # using header for initialization
+    init="--init-header"
+  else
+    echo "Unknown option specified for registration initialization"
+    Usage
+    exit 1
+  fi
+
+  cmd_args+=("${init}")
+fi
+
+# check reg output
+format="--reg ${OUTPUT}.dat"
+if [[ ! "$arg_str" =~ (--fslmat) ]]; then
+  if [[ ${FSL} -eq 1 ]]; then
+    format="--fslmat ${OUTPUT}.mat --reg ${OUTPUT}.dat"
+  fi
+  cmd_args+=("${format}")
+fi
+
+# check contrast
+if [[ ! "$arg_str" =~ (--t1|--t2|--bold|--dti) ]]; then
+  cmd_args+=("${contrast}")
+fi
+
+# Add user-specified options
+cmd_args+=("${user_args[@]}")
+
+# print and run
+print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" bbregister
+  exit 1
+fi

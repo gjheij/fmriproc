@@ -87,7 +87,11 @@ fi
 [[ ! "${arg_str}" =~ "-report" ]]  && extra_args+=("-report")
 
 # Build command
-cmd=(mcflirt -in "${input}" "${extra_args[@]}")
+cmd=(
+  mcflirt
+  -in "${input}" 
+  "${extra_args[@]}"
+)
 
 # Print and run
 echo "Running McFlirt with command:"

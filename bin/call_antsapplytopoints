@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
@@ -37,6 +39,7 @@ Arguments:
   <-d dimension>  image dimensions (default = 3)
 
 Options:
+  -h|--help       print this help text
   --ras           input coordinate is RAS (default)
   --lpi           input coordinate is LPI
   --coord         print the coordinate to the terminal
@@ -83,7 +86,7 @@ trafo_type="ras"
 return_coord=0
 verb=0
 keep_tmp=0
-while getopts :-:id: arg
+while getopts :-:hid: arg
 do
   case ${arg} in
     -)
@@ -106,6 +109,10 @@ do
         invert)
           INVERT=1
           ;;                  
+        help)
+          Usage >&2
+          exit 1
+          ;;                   
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -117,7 +124,10 @@ do
     i)  INVERT=1
           ;;
     d)  DIMENSION=${OPTARG}
-          ;;              
+          ;;     
+    h)  Usage >&2
+        exit 1
+          ;;
   esac
 done
 

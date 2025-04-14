@@ -5,7 +5,7 @@
 call_loadsetup
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -24,15 +24,17 @@ need to run autorecon2 and 3.
 Usage:
   call_freesurfer [arguments] [options]
 
-Arguments:
+Mandatory (required input):
   -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
   -t <t1 input>       T1-weighted image (not necessary if you're running debugging mode)
+
+Optional (flags with defaults):
   -p <t2 input>       T2-weighted image (not necessary, but recommended for better pial-surface
                       segmentation
   -r <recon stage>    Which stage of recon-all should be run; combinations are possible!
                       Possible options are:
                         'all' = all stages (Perform all reconstruction steps, including
-                                subcortical segmentation)
+                                subcortical segmentation) [default]
                         '1'   = autorecon1 (Motion correction through skull strip)
                         '2'   = autorecon2 (Subcortical segmentation through make final
                                 surfaces)
@@ -52,6 +54,7 @@ Arguments:
   -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
 
 Options:
+  -h|--help           print this help text
   --freeview          Open FreeView automatically (default is NO!)
   --force-exec        Force execution even though directory exists already
   --sge               Submit the script to a cluster using a template script
@@ -120,6 +123,7 @@ Notes:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
+    exit 1
 }
 
 #-----------------------------------------------------------------------------
@@ -133,6 +137,7 @@ EXPERT_FILE=""
 reuse_t2=1
 allowed_edits=("cp" "wm" "pial" "aseg")
 n_cpus=1
+stage="all"
 while getopts :-:hs:t:p:r:e:o:f:c:x:q:j: arg
 do
   case ${arg} in
@@ -165,6 +170,10 @@ do
         xopts-overwrite)
           XOPTS_="-xopts-overwrite"
           ;;              
+        help)
+          Usage >&2
+          exit 1
+          ;;         
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -190,7 +199,10 @@ do
     q)  SGE_QUEUE=${OPTARG}
           ;;  
     j)  n_cpus=${OPTARG}
-          ;;                                      
+          ;;
+    h)  Usage >&2
+        exit 1
+          ;;                                   
   esac
 done
 

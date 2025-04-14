@@ -7,7 +7,7 @@ import nibabel as nb
 import numpy as np
 from nilearn import image
 opj = os.path.join
-gb = utils.color.BOLD+utils.color.GREEN
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 def main(argv):
@@ -22,24 +22,22 @@ image, the corresponding values of the ACC (hemi-L = 1002; hemi-R = 2002), and a
 output image can be 1 hemisphere (specify one of the values) or both (specify both values like in 
 the format "[<value1>,<value2>]")
 
-Args:
-    <atlas img>         : str
-                        path to either an mgz-file or a nifti-file. The mgz-file will be converted
-                        to nifti
+Usage:
+  call_refit <atlas> <values> <output> [optional]
+
+Mandatory (required input):
+    <atlas img>     path to either an mgz-file or a nifti-file. The mgz-file will be converted
+                    to nifti
+    <values>        specify an integer for one hemisphere or a list in the format [<value1>,
+                    <value2>] for both hemispheres. You can look up the values by opening Free-
+                    view and load in the atlas of your choice and look for your ROI. Note down 
+                    the corresponding in the image (NOT THE LABELS IN THE LOOKUP TABLE ON THE 
+                    LEFT!). You can combine as many labels as you want.
+    <output img>    path to the output image
     
-    <values>            : int|list
-                        specify an integer for one hemisphere or a list in the format [<value1>,
-                        <value2>] for both hemispheres. You can look up the values by opening Free-
-                        view and load in the atlas of your choice and look for your ROI. Note down 
-                        the corresponding in the image (NOT THE LABELS IN THE LOOKUP TABLE ON THE 
-                        LEFT!). You can combine as many labels as you want.
-    
-    <output img>        : str
-                        path to the output image
-    
-    [OPTIONAL]
-    <resample img>      image to resample freesurfer segmentation to if you don't want the output 
-                        in FS-space, but in native space - for instance
+Optional:
+    <resample img>  image to resample freesurfer segmentation to if you don't want the output 
+                    in FS-space, but in native space - for instance
 
 Outputs:
     new image with the selected values set to 1
@@ -48,6 +46,7 @@ Example:
     call_fs2mask mri/aparc.DKTatlas+aseg.mgz 1002 example_hemi-L_roi-acc.nii.gz
     call_fs2mask mri/aparc.DKTatlas+aseg.mgz 2002 example_hemi-R_roi-acc.nii.gz    
     call_fs2mask mri/aparc.DKTatlas+aseg.mgz [1002,2002] example_roi-acc.nii.gz
+
 ---------------------------------------------------------------------------------------------------
     """
 
@@ -61,17 +60,10 @@ Example:
         print(main.__doc__)
         sys.exit()
 
-    # print(argv)
-
-    try:
-        atlas       = os.path.abspath(argv[0])
-        roi_values  = argv[1]
-        out_img     = os.path.abspath(argv[2])
-        resamp_img  = os.path.abspath(argv[3])
-    except:
-        atlas       = os.path.abspath(argv[0])
-        roi_values  = argv[1]
-        out_img     = os.path.abspath(argv[2])
+    atlas      = os.path.abspath(argv[0])
+    roi_values = argv[1]
+    out_img    = os.path.abspath(argv[2])
+    resamp_img = os.path.abspath(argv[3]) if len(argv) > 3 else None
 
     if not isinstance(atlas, str):
         raise ValueError("Please specify a string pointing to the desired atlas")
@@ -80,10 +72,10 @@ Example:
     if atlas.endswith('.mgz'):
         atlas_nii = '.'.join(atlas.split('.')[:-1])+'.nii.gz'
         try:
-            os.system(f'call_mriconvert {atlas}')
+            utils.run_shell_wrapper(f'call_mriconvert {atlas}')
         except:
             try:
-                os.system("mri_convert --in_type mgz --out_type nii {mgz} {nii}".format(mgz=atlas, nii=atlas_nii))
+                utils.run_shell_wrapper(f"mri_convert --in_type mgz --out_type nii {atlas} {atlas_nii}")
             except:
                 raise OSError('Could not find function mri_convert')
     else:
@@ -92,7 +84,11 @@ Example:
     # resample to tmpl image if specified
     if resamp_img:
         print(f"Resampling segmentation to {resamp_img}")
-        freesurfer_seg = image.resample_to_img(atlas_nii,resamp_img, interpolation='nearest')
+        freesurfer_seg = image.resample_to_img(
+            atlas_nii,
+            resamp_img,
+            interpolation='nearest'
+        )
     else:
         freesurfer_seg = nb.load(atlas_nii)
 
@@ -116,9 +112,12 @@ Example:
             empty_img[freesurfer_seg.get_fdata() == i] = 1
 
     # write file
-
-    print("Writing to "+gb+out_img+end)
-    nb.Nifti1Image(empty_img, affine=freesurfer_seg.affine, header=freesurfer_seg.header).to_filename(out_img)
+    print(f"Writing to {gb}{out_img}{end}")
+    nb.Nifti1Image(
+        empty_img,
+        affine=freesurfer_seg.affine,
+        header=freesurfer_seg.header
+    ).to_filename(out_img)
 
     print("Done\n")    
 

@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 
-##################################################################################################################
-#
-#   This script uses freeview to make screenshots of a freesurfer segmentation.
-#   These screenshots are then combined to a movie, for easy diagnosis of
-#   FreeSurfer segmentation problems. I have chosen for sagittal orientation,
-#   because this allows one to see whether the sagittal sinus is misclassified as V1 gray matter.
-#
-##################################################################################################################
 import subprocess as sb
 import os
-import glob
-import sys, getopt
+import sys
+import getopt
+from lazyfmri import utils
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_fsmovie
 
@@ -24,61 +18,37 @@ more free in specifying certain settings of the command, such as subject-specifi
 a subject list, the range to use, colors, etc.
 For original see: https://gist.github.com/tknapen/85d9a23a09c95d15f4b23ba1965fa54d
 
-Parameters
-----------
+Usage:
+  call_fsmovie [mandatory] [arguments] [options]
+
+Mandatory (required input):
     -s|--subject    subject number as used in the FreeSurfer directory
+
+Optional (flags with defaults):
     -r|--range      range of slices to use, generally [90, 240] suffices for the standard 0.7 MP2RAGE
     -f|--fsdir      FreeSurfer directory if SUBJECTS_DIR is not set
     -v|--view       View to use for the png's; could be one of "sagittal", "axial", "coronal", "all"
+
+Options (extra):
+    -h|--help       print this help text
     -o|--ow         Overwrite existing movie
 
-Returns
-----------
+Outputs:
     <fsdir>/<subject>/<movie> directory containing the png's and mp4-output
 
-Exammple
-----------
+Example
     call_fsmovie -s sub-001 (easiest form)
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject     = None
-    slice_range = [90,240]
-    fsdir       = os.environ['SUBJECTS_DIR']
-    slice_view  = "sagittal"
-    overwrite   = False
+    subject = context.get("subject")
+    slice_range = context.get("slice_range")
+    fsdir = context.get("fsdir")
+    slice_view = context.get("slice_view")
+    overwrite = context.get("overwrite")
 
-    try:
-        opts = getopt.getopt(argv,"ohs:r:f:v:",["subject=", "range=", "fsdir=", "view=","ow"])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subject"):
-            subject = arg
-        elif opt in ("-r", "--range"):
-            slice_range = arg
-        elif opt in ("-f", "--fsdir"):
-            fsdir = arg
-        elif opt in ("-v", "--view"):
-            slice_view = arg
-        elif opt in ("-o","--ow"):
-            overwrite = True
-
-    if len(argv) < 1:
-            print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-            print(main.__doc__)
-            sys.exit()
-
-    if subject == None:
-        print("Need at the bare minimum at subject ID")
-        sys.exit(1)
-
+    # define command
     freeview_command = 'freeview -cmd {cmd} '
     cmd_txt = """ -v {anatomy} -f {lh_wm}:color=yellow:edgecolor=yellow -f {rh_wm}:color=yellow:edgecolor=yellow -f {lh_pial}:color=blue:edgecolor=blue -f {rh_pial}:color=blue:edgecolor=blue
     -viewport {view}
@@ -168,4 +138,34 @@ Exammple
             sb.call(convert_command, shell=True)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject     = None
+    slice_range = [90,240]
+    fsdir       = os.environ.get('SUBJECTS_DIR')
+    slice_view  = "sagittal"
+    overwrite   = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "ohs:r:f:v:",
+            ["help", "subject=", "range=", "fsdir=", "view=", "ow"]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--subject"):
+            subject = arg
+        elif opt in ("-r", "--range"):
+            slice_range = arg
+        elif opt in ("-f", "--fsdir"):
+            fsdir = arg
+        elif opt in ("-v", "--view"):
+            slice_view = arg
+        elif opt in ("-o","--ow"):
+            overwrite = True

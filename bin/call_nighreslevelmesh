@@ -5,16 +5,16 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
 import os
 from lazyfmri import utils
 opj = os.path.join
-rb = utils.color.RED+utils.color.BOLD
-gb = utils.color.GREEN+utils.color.BOLD
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["levelset"], allow_input_dir=False)
-def main(argv, context):
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -23,27 +23,49 @@ call_nighreslevelmesh
 Creates a triangulated mesh from the distance to a levelset surface representation using a connec-
 tivity-consistent marching cube algorithm.
 
-Args:
+Mandatory (required input):
     -l|--levelset   levelset image. E.g., 
                         - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
                         - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
                         - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
+
+Optional (flags with defaults):                        
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'mesh'))
     -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
-    -x|--kwargs     Extra arguments that will be directly passed to 'levelset_to_mesh'. The format 
-                    should be: <parameter1>=<value1>,<parameter2>=<value2>,...
+    -x|--kwargs     Extra arguments that will be directly passed to 'profile_meshing' (see
+                    docs-link below for details). The format should be as follows: different para-
+                    meters comma-separated, and parameter-value pair separated by '='):
+                    
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                    E.g.,:
+                        "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+
+                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                    The kwargs specified in this flag take precedent over the default kwargs:
+
+                    defaults = {
+                        "overwrite": True,
+                        "save_data": True,
+                        "output_dir": "directory specified with -o|--outputdir",
+                        "file_name": "basename specified with -n|--name"
+                    }
+
+Options (extra):
+    -h|--help       print this help text
 
 Outputs:
-    (taken from https://nighres.readthedocs.io/en/latest/surface/levelset_to_mesh.html)
-    Dictionary collecting outputs under the following keys (suffix of output files in brackets)
-
-    result (niimg): result (mesh): Surface mesh dictionary of “points” and “faces” (_l2m-mesh)
+    result (mesh):  Surface mesh dictionary of “points” and “faces” (-l2m_mesh)
 
 Example:
     call_nighreslevelmesh \
         -l sub-001_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
         -o /path/to/output \
         -n sub-001_desc
+
+Notes:
+    docs: https://nighres.readthedocs.io/en/latest/surface/levelset_to_mesh.html
+
 ---------------------------------------------------------------------------------------------------
     """
 
@@ -89,8 +111,7 @@ if __name__ == "__main__":
         opts = getopt.getopt(
             sys.argv[1:],
             "hl:o:n:x:",
-            [
-            "help", "levelset=", "outputdir=", "name=", "kwargs="]
+            ["help", "levelset=", "outputdir=", "name=", "kwargs="]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__)
@@ -109,7 +130,7 @@ if __name__ == "__main__":
         elif opt in ("-x", "--kwargs"):
             kwargs = utils.parse_kwargs_to_dict(arg)
 
-    main(sys.argv[1:], context={
+    main(context={
         "levelset": levelset,
         "output_dir": output_dir,
         "output_base": output_base,

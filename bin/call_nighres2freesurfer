@@ -6,6 +6,7 @@ except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
 import sys
+import getopt
 from fmriproc.transform import fs2tkr
 import os
 import numpy as np
@@ -13,7 +14,7 @@ from lazyfmri import utils
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"], allow_input_dir=False)
-def main(argv, context):
+def main(context):
 
     """
 ---------------------------------------------------------------------------------------------------
@@ -27,7 +28,7 @@ https://github.com/nighres/nighres/issues/106. The steps are the following:
   4) Save faces and vertices as something FreeSurfer-like (e.g., lh.nighres.white)
   5) Overlay in FreeView
 
-Args:
+Mandatory (required input):
     <subject> subject ID as specified in the FreeSurfer directory.
     <mesh>    output from call_nighreslevelmesh, a mesh-representation of your levelset image
     <output>  output file
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     mesh_fn = opts[1]
     output = opts[2]
 
-    main(sys.argv[1:], context={
+    main(context={
         "subject": subject,
         "mesh": mesh_fn,
         "output": output

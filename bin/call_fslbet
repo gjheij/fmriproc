@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -30,6 +32,7 @@ Notes:
   - Uses BET2 for minimal output ('-m -s -n') if full output = n
   - Extra flags are passed directly to bet/bet2
   - BET options: https://fsl.fmrib.ox.ac.uk/fsl/fslwiki/BET/UserGuide
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE

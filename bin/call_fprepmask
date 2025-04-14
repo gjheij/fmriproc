@@ -4,7 +4,7 @@
 # check if there's is a setup file containing the major paths and source it if it exists
 call_loadsetup
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE

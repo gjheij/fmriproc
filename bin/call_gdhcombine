@@ -3,14 +3,16 @@
 import os
 from nilearn import image
 from scipy import ndimage
-import sys, getopt
+import sys
+import getopt
 from lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
-end = f"{utils.color.END}"
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject"])
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -21,17 +23,41 @@ we will also include CAT12-segmentations. These should be located in DIR_DATA_DE
 Also takes in manual edits that are weighted 5-times more than the segmentations from the other
 softwares. 
 
-Args:
-    -s|--sub        subject ID
-    -q|--cat        directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
-    -a|--fast       directory containing segmentations from FAST
-    -b|--fs         directory containing segmentations from FreeSurfer
-    -c|--nighres    directory containing segmentations from Nighres
+Usage:
+  call_gdhcombine [mandatory] [arguments] [options]
+
+Mandatory (required input):
+    --sub           subject ID
+    --fast          directory containing segmentations from FAST (either from spinoza_segmentfast,
+                    or an fMRIPrep folder with segmentations)
+    --nighres       directory containing segmentations from Nighres
+
+    OR:
+    --ses           session ID; if specified, we will aim to read the environmental variables poin-
+                    ting to the segmentations:
+                        - fast: DIR_DATA_DERIV/fmriprep/<subject>/<session>/anat
+                        - FreeSurfer: DIR_DATA_DERIV/freesurfer/<subject>
+                        - Nighres: DIR_DATA_DERIV/nighres/<subject>/<session>/region
+                        - CAT12: DIR_DATA_DERIV/cat12/<subject>/<session>
+
+                    In case you didn't use "ses" tag in your BIDS naming, use "--ses none"
+
+Optional (flags with defaults):
+    --fs            directory containing segmentations from FreeSurfer. Defaults to SUBJECT_DIR/
+                    <subject>
+    --cat           directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
     -d|--manual     directory containing manual edits
     -o|--outputdir  output directory (default is opj(os.getcwd(), 'masks'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+    -n|--name       basename for output (default is "<subject>_ses-<session>_acq-MP2RAGE_desc")
+
+Options (extra):
+    -h|--help       print this help text
 
 Example:
+    # simple call; let environmental variables do the work
+    call_gdhcombine --sub sub-01 --ses 1
+
+    # specify all inputs
     call_gdhcombine \
         --sub sub-01
         --cat cat12/sub-01/ses-1
@@ -42,68 +68,66 @@ Example:
         --outputdir manual_masks/sub-01/ses-1
         --name sub-01_ses-1_acq-MP2RAGE
 
-Notes:
-    if you only specify the subject ID, it will look for the files in the environmental variables
-    Nighres/FreeSurfer/fMRIprep are compulsory, manual edits & CAT12 are optional!
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject     = None
-    session     = None
-    fprep_prob  = None
-    fs          = None
-    nigh_prob   = None
-    cat_prob    = None
-    output_dir = opj(os.getcwd(), 'masks')
-    output_base = "subject_acq-MP2RAGE_desc"
-
-    try:
-        opts = getopt.getopt(argv,"hs:q:a:f:c:d:o:b:n:",["sub=", "ses=", "cat=", "fast=", "fs=", "nighres=", "manual=", "outputdir=", "name="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("--sub"):
-            subject = arg
-        elif opt in ("--ses"):
-            session = arg            
-        elif opt in ("-q", "--cat"):
-            cat_prob = arg            
-        elif opt in ("-a", "--fast"):
-            fprep_prob = arg
-        elif opt in ("-f", "--fs"):
-            fs = arg
-        elif opt in ("-c", "--nighres"):
-            nigh_prob = arg
-        elif opt in ("-d", "--manual"):
-            man_edit = arg
-        elif opt in ("-o", "--outputdir"):
-            output_dir = arg
-        elif opt in ("-n", "--name"):
-            output_base = arg
-
-    if len(argv) < 1:
-        utils.verbose("\nNEED AT LEAST A SUBJECT ID", True)
-        utils.verbose(main.__doc__, True)
-        sys.exit()
+    subject = context.get("subject")
+    session = context.get("session")
+    fprep_prob = context.get("fprep_prob")
+    fs = context.get("fs")
+    nigh_prob = context.get("nigh_prob")
+    cat_prob = context.get("cat_prob")
+    output_dir = context.get("output_dir", os.path.join(os.getcwd(), 'masks'))
+    output_base = context.get("output_base")
     
+    #-----------------------------------------------------------------------------
+    # set base path/name in case subject & ses are specified
+    acq = None
+    acq_tag = os.environ.get('DATA')
+    if isinstance(acq_tag, str):
+        acq = f"_acq-{acq_tag}"
+
+    if isinstance(session, (int, str)) and session != "none":
+        base_path = opj(subject, f"ses-{session}")
+        if not isinstance(output_base, str):
+            output_base = f"{subject}_ses-{session}{acq}"
+    else:
+        base_path = subject
+        if not isinstance(output_base, str):
+            output_base = f"{subject}{acq}"
+
+    #-----------------------------------------------------------------------------
     # At least fMRIprep/Nighres/FreeSurfer need to be specified. Manual & CAT12 are optional
+    deriv_dir = os.environ.get("DIR_DATA_DERIV")
     if not fprep_prob:
-        raise ValueError("Need an fmriprep-directory")
+        fprep_prob = opj(
+            deriv_dir,
+            "fmriprep",
+            base_path
+        )
 
     if not nigh_prob:
-        raise ValueError("Need a nighres-directory")
+        nigh_prob = opj(
+            deriv_dir,
+            "nighres",
+            base_path,
+            "region"
+        )
 
-    if not fs:
-        raise ValueError("Need a FreeSurfer-directory")
+    if not cat_prob:
+        cat_prob = opj(
+            deriv_dir,
+            "cat12",
+            base_path
+        )
 
+    if not isinstance(fs, str):
+        fs = opj(os.environ.get("SUBJECTS_DIR"), subject)
+
+    #-----------------------------------------------------------------------------
     # split ribbon.mgz into wm/gm components
     utils.verbose("Split FreeSurfer's ribbon files", True)
-    base_name= opj(man_edit, f"{subject}_ses-1_acq-{os.environ.get('DATA')}")
+    base_name= opj(man_edit, output_base)
     cmd = f"call_splitribbon {subject} {base_name}"
     utils.run_shell_wrapper(cmd)
 
@@ -199,7 +223,8 @@ Notes:
         )
         resampled.to_filename(img)
         freesurfer[key] = img
-
+    
+    #-----------------------------------------------------------------------------
     # combine segmentations
     utils.verbose("Combining segmentations", True)
     utils.verbose(f" {gb}wm{end}..", True)
@@ -249,6 +274,7 @@ Notes:
 
     utils.verbose("Calculating normalized tissue probability maps and writing output files...", True)
 
+    #-----------------------------------------------------------------------------
     # Normalize tissue probability maps
     tissue_maps = {
         'WM': image.math_img('wm / total_prob', wm=wm, total_prob=total_prob),
@@ -264,26 +290,80 @@ Notes:
         out_files[label] = out_file
         utils.verbose(f" wrote normalized {label}-probability map → {gb}{out_file}{end}", True)
 
-
+    #-----------------------------------------------------------------------------
     # set midbrain to one in WM and to zero in GM/CSF
     utils.verbose("Removing midbrain", True)
     utils.run_shell_wrapper(f"call_setmasktoone -i {out_files['WM']} -m {freesurfer['wm']}")
     utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['WM']} -m {out_files['CSF']}")
     utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['GM']} -m {freesurfer['wm']}")
     
+    #-----------------------------------------------------------------------------
     # get rid of outside stuff
     if isinstance(manual['outside'], str):
         utils.verbose("Set 'outside' mask to zero", True)
         utils.run_shell_wrapper(f"call_setmasktozero -i {out_files['GM']} -m {manual['outside']}")
 
+    #-----------------------------------------------------------------------------
     # make inside mask
     utils.verbose("Create 'inside' mask", True)
     inside_mask = image.math_img('wm > 0.45', wm=wm)
     inside_mask = image.largest_connected_component_img(inside_mask)
     inside_mask = image.new_img_like(inside_mask,ndimage.binary_closing(inside_mask.get_fdata(),iterations=3))
-    inside_mask.to_filename(opj(output_dir, output_base + '_desc-inside.nii.gz'))
+    inside_mask.to_filename(opj(output_dir, f"{output_base}_desc-inside.nii.gz"))
 
     utils.verbose("Done", True)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject = None
+    session = None
+    fprep_prob = None
+    fs = None
+    nigh_prob = None
+    cat_prob = None
+    output_dir = opj(os.getcwd(), 'masks')
+    output_base = None
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hs:m:o:n",
+            ["sub=", "ses=", "cat=", "fast=", "fs=", "nigh=", "nighres=", "manual=", "outputdir=", "name="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg  
+        elif opt in ("--ses"):
+            subject = arg                   
+        elif opt in ("--cat"):
+            cat_prob = arg            
+        elif opt in ("--fast"):
+            fprep_prob = arg
+        elif opt in ("--fs"):
+            fs = arg
+        elif opt in ("--nigh", "--nighres"):
+            nigh_prob = arg
+        elif opt in ("-m", "--manual"):
+            man_edit = arg
+        elif opt in ("-o", "--outputdir"):
+            output_dir = arg
+        elif opt in ("-n", "--name"):
+            output_base = arg
+
+    main(context={
+        "subject": subject,
+        "session": session,
+        "fprep_prob": fprep_prob,
+        "fs": fs,
+        "nigh_prob": nigh_prob,
+        "cat_prob": cat_prob,
+        "output_dir": output_dir,
+        "output_base": output_base
+    })

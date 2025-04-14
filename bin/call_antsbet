@@ -15,11 +15,10 @@ call_antsbet
   wrapper for brain extraction with ANTs algorithm
 
 Usage:
-  call_antsbet.sh <input file>
-                  <output file>
+  call_antsbet <input file> <output file>
 
 Example:
-  call_antsbet.sh /path/to/inputfile.nii.gz /path/to/outputfile.nii.gz
+  call_antsbet /path/to/inputfile.nii.gz /path/to/outputfile.nii.gz
   
 ---------------------------------------------------------------------------------------------------
 

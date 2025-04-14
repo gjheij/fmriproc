@@ -1,15 +1,23 @@
 #!/usr/bin/env python
 
 import os
-import sys, getopt
-from lazyfmri import utils, dataset
+import sys
+import getopt
+from lazyfmri import (
+    utils,
+    dataset
+)
 import pandas as pd 
 import shutil
 opj = os.path.join
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+end = utils.color.END
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_truncate
 
@@ -18,90 +26,55 @@ files. If you do not specify the fmriprep-directory, we'll default to the DIR_DA
 variable. If no output directory is specified, we'll default to the the DIR_DATA_DERIV/del<vols> 
 folder, where <vols> is the nr of volumes cut
 
-Args:
-    -s|--subject    subject ID used throughout the pipeline
-    -f|--fprep      fmriprep directory
-    -o|--output     output directory
+Usage:
+  call_truncate [mandatory] [arguments] [options]
+
+Mandatory (required input):
+    -s|--sub        subject ID used throughout the pipeline
+
+Optional (flags with defaults):
+    -f|--fprep      fmriprep directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), "fmriprep"))
+    -o|--output     output directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), f"del{cut_vols}"))
     -c|--cut-vols   nr of volumes to cut. Default = 5
     -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
     -t|--tr         set TimeStep field in the gifti's metadata (Repetition time in milliseconds!)
 
-Options
+Options (extra):
+    -h|--help       print this help text   
     --no-confounds  skip confounds even if you have them
     --fsaverage     use only fsaverage (default is to use both)
     --fsnative      use only fsnative (default is to use both)
     --verbose       print progress to terminal
-    --ow|--overwrite overwrite existing output files
+    --ow            overwrite existing output files
     --full-ow       delete output_folder/subject
     --conf-only     only do the confound files
 
 Example:
+    # simple call with 5 volumes to be removed
     call_truncate -s sub-001 -c 5
-    call_truncate -s sub-001 -f fmriprep_dir -o output_dir --fsaverage
+
+    # specify input/output and space
+    call_truncate \
+        -s sub-001 \
+        -f fmriprep_dir \
+        -o output_dir \
+        --fsaverage
+
 ---------------------------------------------------------------------------------------------------
     """
 
-    fprep_dir = None
-    subject = None
-    output = None
-    cut_vols = 5
-    search_list = ["space-"]
-    confounds = True
-    verbose = False
-    overwite = False
-    full_ow = False
-    filters = []
-    conf_only = False
-    overwrite = False
-    tr = None
-
-    try:
-        opts = getopt.getopt(argv,"hf:s:o:c:x:t:",["subject=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subject"):
-            subject = arg
-        elif opt in ("-f", "--fprep"):
-            fprep_dir = arg
-        elif opt in ("-c", "--cut-vols"):
-            cut_vols = int(arg)
-        elif opt in ("-o", "--output"):
-            output = arg
-        elif opt in ("-o", "--output"):
-            output = arg
-        elif opt in ("--fsaverage"):
-            search_list = ["space-fsaverage"]
-        elif opt in ("--fsnative"):
-            search_list = ["space-fsnative"]
-        elif opt in ("--no-confounds"):
-            confounds = False
-        elif opt in ("--verbose"):
-            verbose = True  
-        elif opt in ("--ow","--overwrite"):
-            overwrite = True
-        elif opt in ("--t","--tr"):
-            tr = float(arg)
-        elif opt in ("--full-ow"):
-            full_ow = True     
-        elif opt in ("--conf-only"):
-            conf_only = True             
-        elif opt in ("-x","--filters"):
-            filters = arg
-            if "," in filters:
-                filters = utils.string2list(filters)
-            else:
-                filters = [filters]
-
-    if len(argv) < 1:
-        print("\nNEED AT LEAST A SUBJECT ID")
-        print(main.__doc__)
-        sys.exit()
+    fprep_dir = context.get("fprep_dir")
+    subject = context.get("subject")
+    output = context.get("output")
+    cut_vols = context.get("cut_vols")
+    search_list = context.get("search_list")
+    confounds = context.get("confounds")
+    verbose = context.get("verbose")
+    overwrite = context.get("overwrite")
+    full_ow = context.get("full_ow")
+    filters = context.get("filters")
+    conf_only = context.get("conf_only")
+    tr = context.get("tr")
 
     # set default directories
     if not isinstance(fprep_dir, str):
@@ -110,20 +83,20 @@ Example:
     if not isinstance(output, str):
         output = opj(os.environ.get("DIR_DATA_DERIV"), f"del{cut_vols}")
 
-    utils.verbose(f"Input directory: {opj(fprep_dir, subject)}", verbose)
-    utils.verbose(f"Output directory: {opj(output, subject)}", verbose)
-    utils.verbose(f"Cutting {cut_vols} volumes", verbose)
+    utils.verbose(f"Input directory: {gb}{opj(fprep_dir, subject)}{end}", verbose)
+    utils.verbose(f"Output directory: {gb}{opj(output, subject)}{end}", verbose)
+    utils.verbose(f"Cutting {rb}{cut_vols}{end} volumes", verbose)
     
     if isinstance(tr, (str,float,int)):
-        utils.verbose(f"Setting TR to {tr}", verbose)
+        utils.verbose(f"Setting TR to {rb}{tr}{end}", verbose)
 
     if isinstance(filters, list):
-        utils.verbose(f"Extra filters: {filters}", verbose)
+        utils.verbose(f"Extra filters: {rb}{filters}{end}", verbose)
         search_list += filters
 
     if full_ow:
         if os.path.exists(opj(output, subject)):
-            utils.verbose(f"Removing old files in '{opj(output, subject)}'", verbose)
+            utils.verbose(f"Removing old files in '{gb}{opj(output, subject)}{end}'", verbose)
             shutil.rmtree(opj(output, subject))
 
     if not conf_only:
@@ -138,7 +111,7 @@ Example:
         if isinstance(filtered_gifti_list, str):
             filtered_gifti_list = [filtered_gifti_list]
 
-        utils.verbose(f"Found {len(filtered_gifti_list)} functional files", verbose)
+        utils.verbose(f"Found {rb}{len(filtered_gifti_list)}{end} functional files", verbose)
 
         # loop
         for ix,gii in enumerate(filtered_gifti_list):
@@ -168,7 +141,7 @@ Example:
 
             if execute:
                 obj_new.write_file(out_file)
-                utils.verbose(f"wrote ({ix+1}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={obj_new.TR_ms}: '{out_file}'", verbose)
+                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={rb}{obj_new.TR_ms}{end}: '{gb}{out_file}{end}'", verbose)
 
     # check confounds
     if confounds:
@@ -179,7 +152,7 @@ Example:
         if len(filters) > 0:
             all_tsv = utils.get_file_from_substring(filters, all_tsv)
 
-        utils.verbose(f"Found {len(all_tsv)} confound files", verbose)
+        utils.verbose(f"Found {rb}{len(all_tsv)}{end} confound files", verbose)
         for ix,tsv in enumerate(all_tsv):
 
             # find where subject occurs in string
@@ -201,7 +174,80 @@ Example:
             if execute:
                 new_csv = pd.read_csv(tsv, delimiter="\t").iloc[cut_vols:,:]
                 new_csv.to_csv(out_tsv, index=False, sep="\t")
-                utils.verbose(f"wrote ({ix+1}/{len(all_tsv)}) confs {new_csv.shape}: '{out_tsv}'", verbose)
+                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(all_tsv)}) confs {rb}{new_csv.shape}{rb}: '{gb}{out_tsv}{end}'", verbose)
     
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    fprep_dir = None
+    subject = None
+    output = None
+    cut_vols = 5
+    search_list = ["space-"]
+    confounds = True
+    verbose = False
+    overwite = False
+    full_ow = False
+    filters = []
+    conf_only = False
+    overwrite = False
+    tr = None
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hf:s:o:c:x:t:",
+            ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            subject = arg
+        elif opt in ("-f", "--fprep"):
+            fprep_dir = arg
+        elif opt in ("-c", "--cut-vols"):
+            cut_vols = int(arg)
+        elif opt in ("-o", "--output"):
+            output = arg
+        elif opt in ("--fsaverage"):
+            search_list = ["space-fsaverage"]
+        elif opt in ("--fsnative"):
+            search_list = ["space-fsnative"]
+        elif opt in ("--no-confounds"):
+            confounds = False
+        elif opt in ("--verbose"):
+            verbose = True  
+        elif opt in ("--ow","--overwrite"):
+            overwrite = True
+        elif opt in ("--t","--tr"):
+            tr = float(arg)
+        elif opt in ("--full-ow"):
+            full_ow = True     
+        elif opt in ("--conf-only"):
+            conf_only = True             
+        elif opt in ("-x","--filters"):
+            filters = arg
+            if "," in filters:
+                filters = utils.string2list(filters)
+            else:
+                filters = [filters]
+
+    main(context={
+        "fprep_dir": fprep_dir,
+        "subject": subject,
+        "output": output,
+        "cut_vols": cut_vols,
+        "search_list": search_list,
+        "confounds": confounds,
+        "verbose": verbose,
+        "overwrite": overwrite,
+        "full_ow": full_ow,
+        "filters": filters,
+        "conf_only": conf_only,
+        "tr": tr
+    })

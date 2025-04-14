@@ -1,6 +1,10 @@
 #!/bin/bash
 
 #---------------------------------------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#---------------------------------------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -16,7 +20,11 @@ Steps include:
     brain mask too; seems to work well.
   - Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
 
+Usage:
+  call_mprage [options] <input image> <output image>
+
 Options:
+  -h|--help       print this help text
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize
@@ -29,10 +37,11 @@ Options:
                     - if you specify a flag only | <flag>
 
                   combine as:
-                  "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
                   e.g.,
-                  "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+                    "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+
   --no-reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
                   packages such as Nighres. This allows you to generate layerification in 
                   voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-
@@ -50,7 +59,7 @@ Positional arguments
                   "*_T1w.nii.gz" and "*_desc-spm_mask" will be appended.
                   E.g., "DIR_DATA_DERIV/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MPRAGE"
 
-Usage:
+Examples:
  call_mprage sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE             # standard
  call_mprage --spm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE       # run with SPM
  call_mprage --no-sanlm sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # skip SANLM
@@ -91,6 +100,10 @@ do
         no-winsor)
           WINSORIZE_INTENSITIES=0
           ;;                 
+        help)
+          Usage >&2
+          exit 1
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -98,7 +111,7 @@ do
             exit 1
           fi
           ;;
-      esac;; 
+      esac;;
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
@@ -106,7 +119,10 @@ do
     s)  SPM=${OPTARG}
           ;;
     x)  kwargs=${OPTARG}
-          ;;             
+          ;;
+    h)  Usage >&2
+        exit 1
+          ;;            
   esac
 done
 
@@ -117,10 +133,6 @@ OUTPUT="${@:$OPTIND+1:1}"
 if [[ ! -z ${kwargs} ]]; then
   kwargs=$(echo ${kwargs} | tr '=' ' ' | tr ':' ' ')
 fi
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Define default SPM-path

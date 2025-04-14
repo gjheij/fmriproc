@@ -14,13 +14,12 @@ call_tsnr2
 Calculate the tSNR of an input image and save the tSNR map to a given output file name using FSL
 tools (should be quicker than python implementation)
 
-Args:
-  --clean             remove mean/std images
-  <input file>        string-like path to file to calculate tSNR from
-  <output file>       string-like path to output tSNR map (if empty, defaults to <input file>_tsnr)
+Positional:
+  <input file>    string-like path to file to calculate tSNR from
+  <output file>   string-like path to output tSNR map (if empty, defaults to <input file>_tsnr)
 
-Outputs
-    output file         new volume representing the tSNR map
+Options:
+  --clean         remove mean/std images
 
 Example:
     call_tsnr2 [options] func.nii.gz tsnr.nii.gz

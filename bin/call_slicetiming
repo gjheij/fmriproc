@@ -10,7 +10,9 @@ def main(argv):
 call_slicetiming
 
 Add slice timings to a given json file based on the multiband factor, repetition time, and 
-number of slices. 
+number of slices. Assumes ascending slice ordering per multiband excitation. For more exotic slice-
+ordering, you can check the 'fmriproc.image.slice_timings' function to see if you can implement
+your particular use case (or open an issue).
 
 Args:
     <json>      string pointing to an existing json file

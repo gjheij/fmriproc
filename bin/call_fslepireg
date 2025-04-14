@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -26,6 +26,9 @@ that. Generally it's more advisable to get the BOLD as close as the structural s
 then run this script. You can specify to use FreeSurfer using the '-s <subject>' flag, we will then
 take SUBJECTS_DIR/<subject>/mri as default folder.
 
+Usage:
+    call_fslepireg [arguments] <epi_file> <output file>
+
 Arguments:
     <-s subject>    subject ID as specified in FreeSurfer directory if you want to use the FreeSur-
                     fer as default inputs
@@ -40,11 +43,10 @@ Arguments:
                     be a matrix created by manually placing the BOLD file over the t1brain/head.
     <-q>            print this help
     <-a>            convert output matrix to ANTs format
+
+Positional:
     <epi file>      input BOLD image
     <output>        output file name
-
-Usage:
-  call_fslepireg <-s subject> <-t matrix> <-w wm> <-h t1head> <-b t1brain> <epi_file> <output file>
 
 Example:
   call_fslepireg -h wholehead_T1w.nii.gz -b brain_T1w.nii.gz bold.nii.gz bold_in_t1w.nii.gz

@@ -16,21 +16,28 @@ MRI (magnetic resonance imaging) data. There's also a bunch of other things you 
 to keep it as simple as possible without making it similar to the fmriprep call itself, see arguments 
 for customizable options.
 
+Usage:
+  call_mriqc [arguments] [options]
+
 Arguments:
---anat-only       Only include anatomical images in the process (default is everything it can find)
---func-only       Only include functional images in the process (default is everything it can find)
--s <sub number>   number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
+  -s <subject>    number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
                   enter "001"); use 'group' if you want group statistics
---fd              only get FD(VARS)-timecourse file(s) without initializing MRIqc
--n <ses number>   session ID (without 'ses-'); if not specified, all sessions will be checked for
+  -n <session>    session ID (without 'ses-'); if not specified, all sessions will be checked for
                   usable data
--j <cpus>         number of cores to use (default is 1)
--r <root>         project root directory from which to run fmriprep. Default is DIR_DATA_HOME
--d <derivatives>  derivatives directory. Default is DIR_DATA_DERIV
--i <simg>         singularity image that can be specified if -c flag is set to SGE
--b <binding>      binding point that can be specified if -c flag is set to SGE
--w <work>         working directory to store intermediate files. Default is PATH_HOME/programs/
-                  packages/mriqc             
+  -j <cpus>       number of cores to use (default is 1)
+  -r <root>       project root directory from which to run fmriprep. Default is DIR_DATA_HOME
+  -d <deriv>      derivatives directory. Default is DIR_DATA_DERIV
+  -i <simg>       singularity image that can be specified if -c flag is set to SGE
+  -b <binding>    binding point that can be specified if -c flag is set to SGE
+  -w <work>       working directory to store intermediate files. Default is PATH_HOME/programs/
+                  packages/mriqc     
+
+Options:
+  -h|--help       print this help text
+  --anat-only     Only include anatomical images in the process (default is everything it can find)
+  --func-only     Only include functional images in the process (default is everything it can find)
+  --fd            only get FD(VARS)-timecourse file(s) without initializing MRIqc
+
 Example:
   call_mriqc -s 001       (simplest form, runs the entire pipeline)
   call_mriqc -s 001 -n 1  (only include session 1 data)
@@ -47,7 +54,7 @@ USAGE
 mod_flag=""
 n_cpus=1
 fd_only=0
-while getopts :-:ts:n:r:d:i:b:w:j: arg
+while getopts :-:hts:n:r:d:i:b:w:j: arg
 do
   case ${arg} in
     -)
@@ -60,7 +67,11 @@ do
           ;;     
         fd)
           fd_only=1
-          ;;                              
+          ;;    
+        help)
+          Usage >&2
+          exit 1
+          ;;                                    
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             Usage >&2
@@ -84,6 +95,9 @@ do
     w)  WORK=${OPTARG}
           ;;  
     j)  n_cpus=${OPTARG}
+          ;;
+    h)  Usage >&2
+        exit 1
           ;;                      
   esac
 done

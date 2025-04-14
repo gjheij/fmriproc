@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-from lazyfmri import utils, dataset
+from lazyfmri import (
+    utils,
+    dataset
+)
 import os
 import pickle
 import sys
@@ -8,7 +11,7 @@ import numpy as np
 import nibabel as nb
 import pandas as pd
 opj = os.path.join
-gb = utils.color.BOLD+utils.color.GREEN
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 def fetch_filepath(func, skip_run_id=False):
@@ -63,7 +66,8 @@ def read_data(func):
             use_bids=True, 
             filter_strategy='raw', 
             standardization='raw', 
-            verbose=False)
+            verbose=False
+        )
 
         # get raw data
         raw = obj.fetch_fmri(dtype='raw')
@@ -137,7 +141,7 @@ def fetch_match_data(search_for, search_dir):
     if isinstance(match, list):
         raise ValueError(f"Found {len(match)} matches with filters {search_for}: {match}")
     
-    # print(f"found match: '{match}'")
+    # utils.verbose(f"found match: '{match}'", True)
     with open(match, 'rb') as in_file:
         data = pickle.load(in_file)
     
@@ -145,14 +149,15 @@ def fetch_match_data(search_for, search_dir):
 
 def write_pickle(data, fname):
     
-    # print(f"Writing {pkl_file}")
+    # utils.verbose(f"Writing {pkl_file}", True)
     f = open(fname, "wb")
     pickle.dump(data, f)
-    f.close()  
+    f.close()
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["subject", "session", "task"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_unzscore
 
@@ -165,82 +170,65 @@ as input for 'spinoza_fitprfs', use '--psc'. This will redirect the file searche
 folder, and convert the inputs to percent signal change following M. Aqil's strategy. See 'call_prf'
 docs for more information.
 
-Args:
-    -s|--sub <subject>  subject ID (e.g., "008")
-    -n|--ses <session>  session ID   
-    -f|--fprep <path>   path to fMRIPrep root folder (e.g., derivatives/fmriprep). Default is the environmental variable `DIR_DATA_DERIV/fmriprep`
-    -o|--out <path>     path to pybest output. Default is the environmental variable `DIR_DATA_DERIV/pybest`
-    -t|--task <task>    task ID
-    -p|--space <space>  space ID. Default is `fsnative`
-    --lh|--rh           Process a single hemisphere, default is to loop through both
-    -q|--help           print help text
-    --pre               use this *before* pybest; calculates the standard deviation and average and  stores it in <out>/<subject>/<ses>/tmp
-    --post              use this *after* pybest; undo the z-scoring using the output from `--tmp`
+Mandatory (required input):
+    -s|--sub        subject ID (e.g., "008")
+    -n|--ses        session ID  (e.g., "1")
+    -t|--task       task ID (e.g., "2R" or "pRF")
+
+Optional (flags with defaults):
+    -f|--fprep      path to fMRIPrep root folder (e.g., derivatives/fmriprep). Default is the 
+                    environmental variable `DIR_DATA_DERIV/fmriprep`
+    -o|--out        path to pybest output. Default is the environmental variable `DIR_DATA_DERIV/
+                    pybest`
+    -p|--space      space ID. Default is `fsnative`
+
+Options (extra):
+    -h|--help       print this help text  
+    --lh            only process left hemisphere files (default is to loop through both)
+    --rh            only process right hemisphere files (default is to loop through both)
+    --pre           use this *before* pybest; calculates the standard deviation and average and 
+                    stores it in <out>/<subject>/<ses>/tmp [default option]
+    --post          use this *after* pybest; undo the z-scoring using the output from '--tmp'. 
+                    Default is '--pre', so this flag tells the script to run the post-pybest
+                    version
 
 Example:
+    # simple pre-pybest call
     call_unzscore -s 999 -n 1 --pre
+
+    # simple post-pybest call
     call_unzscore -s 999 -n 1 --post
-    call_unzscore -s 999 -n 1 -f $DIR_DATA_DERIV/fmriprep -f $DIR_DATA_DERIV/pybest --pre
+    
+    # pre-pybest call with specified input/output folders
+    call_unzscore \
+        -s 999 \
+        -n 1 \
+        -f $DIR_DATA_DERIV/fmriprep \
+        -o $DIR_DATA_DERIV/pybest \
+        --pre
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    # set defaults
-    fprep_dir   = opj(os.environ.get("DIR_DATA_DERIV"), 'fmriprep')
-    out_dir     = opj(os.environ.get("DIR_DATA_DERIV"), 'pybest')
-    subject     = None
-    session     = None
-    task        = None
-    space       = "fsnative"
-    hemi_list   = ['L', 'R']
-    pre         = True
-    skip_run_id = False
-
-    try:
-        opts = getopt.getopt(argv,"qf:o:s:n:t:h:p:",["fprep=", "lh", "rh", "out=", "sub=", "ses=", "task=", "space=", "hemi=", "post", "pre", "help"])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-q', 'help'):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-f", "--fprep"):
-            fprep_dir = arg
-        elif opt in ("-o", "--out"):
-            out_dir = arg
-        elif opt in ("-s", "--sub"):
-            subject = arg
-        elif opt in ("-n", "--ses"):
-            session = arg
-        elif opt in ("-t", "--task"):
-            task = arg
-        elif opt in ("-p", "--space"):
-            space = arg
-        elif opt in ("--lh"):
-            hemi_list = ["L"]
-        elif opt in ("--rh"):
-            hemi_list = ["R"]
-        elif opt in ('--pre'):
-            pre = True
-        elif opt in ('--post'):
-            pre = False
-
-    if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
-        print(main.__doc__)
-        sys.exit(1)
+    subject = context.get("subject")
+    session = context.get("session")
+    task = context.get("task")
+    fprep_dir = context.get("fprep_dir")
+    out_dir = context.get("out_dir")
+    space = context.get("space")
+    hemi_list = context.get("hemi_list")
+    pre = context.get("pre")
+    skip_run_id = context.get("skip_run_id")
 
     # initiate search parameters
     base_dir = f'sub-{subject}'
     search_for = [f'sub-{subject}']
 
-    if session != None:
+    if session is not None:
         if session != "all":
             search_for += [f'ses-{session}_']
 
-    if task != None:
+    if task is not None:
         search_for += [f'task-{task}']
 
     # check if inputs are niftis
@@ -317,7 +305,7 @@ Example:
 
                 for func in funcs:
                     
-                    print(f" {func}")
+                    utils.verbose(f" {func}", True)
                     # construct output basename and base output dir
                     final_output, base_dir = fetch_filepath(func, skip_run_id=skip_run_id)
 
@@ -337,7 +325,7 @@ Example:
 
             for hemi in hemi_list:
 
-                if hemi != None:
+                if hemi is not None:
                     search_hemi = search_for + [f'hemi-{hemi}']    
 
                 if pre:
@@ -477,7 +465,7 @@ Example:
 
                     # sort nifti dimensions
                     fname = opj(output_dir, os.path.basename(func))
-                    print(" Writing "+gb+fname+end)
+                    utils.verbose(f" Writing {gb}{fname}{end}", True)
                     if extension == "nii.gz":
                         unzscored.to_filename(fname)
                     else:
@@ -516,11 +504,68 @@ Example:
 
                 # sort nifti dimensions
                 fname = opj(output_dir, os.path.basename(func))
-                print(" Writing "+gb+fname+end)
+                utils.verbose(f" Writing {gb}{fname}{end}", True)
                 if extension == "nii.gz":
                     unzscored.to_filename(fname)
                 else:
                     np.save(fname, unzscored.T)
                         
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    # set defaults
+    subject     = None
+    session     = None
+    task        = None
+    fprep_dir   = opj(os.environ.get("DIR_DATA_DERIV"), 'fmriprep')
+    out_dir     = opj(os.environ.get("DIR_DATA_DERIV"), 'pybest')
+    space       = "fsnative"
+    hemi_list   = ['L', 'R']
+    pre         = True
+    skip_run_id = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hf:o:s:n:t:h:p:",
+            ["fprep=", "lh", "rh", "out=", "sub=", "ses=", "task=", "space=", "hemi=", "post", "pre", "help"]
+        )[0]
+    except getopt.GetoptError:
+        utils.verbose(main.__doc__, True)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ('-h', 'help'):
+            utils.verbose(main.__doc__, True)
+            sys.exit()
+        elif opt in ("-f", "--fprep"):
+            fprep_dir = arg
+        elif opt in ("-o", "--out"):
+            out_dir = arg
+        elif opt in ("-s", "--sub"):
+            subject = arg
+        elif opt in ("-n", "--ses"):
+            session = arg
+        elif opt in ("-t", "--task"):
+            task = arg
+        elif opt in ("-p", "--space"):
+            space = arg
+        elif opt in ("--lh"):
+            hemi_list = ["L"]
+        elif opt in ("--rh"):
+            hemi_list = ["R"]
+        elif opt in ('--pre'):
+            pre = True
+        elif opt in ('--post'):
+            pre = False
+
+    main(context={
+        "subject": subject,
+        "session": session,
+        "task": task,
+        "fprep_dir": fprep_dir,
+        "out_dir": out_dir,
+        "space": space,
+        "hemi_list": hemi_list,
+        "pre": pre,
+        "skip_run_id": skip_run_id
+    })

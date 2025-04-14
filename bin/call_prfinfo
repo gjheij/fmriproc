@@ -1,14 +1,14 @@
 #!/usr/bin/env python
+
 from fmriproc import prf
 from lazyfmri import utils
-import sys, getopt
+import sys
+import getopt
 import os
-import numpy as np
 import nibabel as nb
-np.set_printoptions(precision=3, suppress=True)
 opj = os.path.join
 
-def main(argv):
+def main(context):
 
     """
 ---------------------------------------------------------------------------------------------------
@@ -17,14 +17,20 @@ call_prfinfo
 Fetch pRF-information about a given vertex. Fetches the information from *desc-prf_params.npy in 
 the derivatives/prf/<subject> folder
 
-Parameters
-----------
-    -s|--subject <subj name>    subject ID (e.g., sub-001)
-    -v|--vertex  <vertex>       vertex to extract information from
-    --lh|--rh                   find estimates for a given hemisphere; default = 'lh'
-    -d|--prfdir <prf dir>       path to pRF-directory; will default to derivatives/prf/<subject>
-    -p|--prf <prf_file>         if left empty, will default to derivatives/prf/<subject>/<ses-1>/
-                                model-norm_*desc-prf_params.npy
+Usage:
+  call_prfinfo [mandatory] [arguments] [options]
+
+Mandatory (required input):
+    -s|--subject    subject ID (e.g., sub-001)
+    -v|--vertex     vertex to extract information from
+
+Optional (flags with defaults):
+    -d|--prfdir     path to pRF-directory; will default to derivatives/prf/<subject>
+    -p|--prf        if left empty, will default to derivatives/prf/<subject>/<ses-1>/model-norm_*desc-prf_params.pkl
+
+Options (extra):
+    -h|--help       print this help text
+    --lh|--rh       find estimates for a given hemisphere; default = 'lh'
     --gauss                     Look for gaussian parameters instead of DN-parameters
     --css                       Look for CSS parameters instead of DN-parameters
     --dog                       Look for DoG parameters instead of DN-parameters
@@ -34,71 +40,23 @@ Parameters
     --verbose                   print some extra information to the terminal
     --v1                        use V1-only data
 
-Returns
-----------
-    array of pRF-parameters of requested vertex
-
-Example
-----------
-    call_prfinfo -s sub-001 -v 3386 -h lh
+Example:
+    call_prfinfo -s sub-001 -v 3386         # vertex 3386 in left hemisphere
+    call_prfinfo -s sub-001 -v 3386 --rh    # vertex 3386 in right hemisphere
 
 ---------------------------------------------------------------------------------------------------
     """
-
-    subject     = None
-    vertex      = None
-    prf_info    = None
-    prf_dir     = None
-    hemi        = 'lh'
-    model       = "norm"
-    stage       = "iter"
-    plot        = False
-    verbose     = False
-    v1_data     = False
-
-    try:
-        opts = getopt.getopt(argv,"qs:v:p:h:d:",["subject=", "prfdir=", "vertex=", "prf=", "lh", "rh", "gauss", "grid", "css", "dog", "norm", "plot", "verbose", "v1"])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-q':
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subject"):
-            subject = arg
-        elif opt in ("-v", "--vertex"):
-            vertex = int(arg)
-        elif opt in ("-d", "--prfdir"):
-            prf_dir = int(arg)
-        elif opt in ("-p", "--prf"):
-            prf_info = arg  
-        elif opt in ("--lh"):
-            hemi = "lh"
-        elif opt in ("--rh"):
-            hemi = "rh"
-        elif opt in ("--gauss"):
-            model = "gauss"     
-        elif opt in ("--norm"):
-            model = "norm"   
-        elif opt in ("--css"):
-            model = "css"   
-        elif opt in ("--dog"):
-            model = "dog"                                       
-        elif opt in ("--grid"):
-            stage = "grid"
-        elif opt in ("--plot"):
-            plot = True
-        elif opt in ("--verbose"):
-            verbose = True     
-        elif opt in ("--v1"):
-            v1_data = True                     
-
-    if len(argv) < 1:
-        print("\nNEED AT LEAST A SUBJECT ID")
-        print(main.__doc__)
-        sys.exit()
+                  
+    subject = context.get("subject")
+    vertex = context.get("vertex")
+    prf_info = context.get("prf_info")
+    prf_dir = context.get("prf_dir")
+    hemi = context.get("hemi")
+    model = context.get("model")
+    stage = context.get("stage")
+    plot = context.get("plot")
+    verbose = context.get("verbose")
+    v1_data = context.get("v1_data")
 
     if not prf_dir:
         prf_dir = opj(os.environ['PRF'], subject, 'ses-1')
@@ -193,4 +151,70 @@ Example
             save_as=fname)        
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    subject     = None
+    vertex      = None
+    prf_info    = None
+    prf_dir     = None
+    hemi        = 'lh'
+    model       = "norm"
+    stage       = "iter"
+    plot        = False
+    verbose     = False
+    v1_data     = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hs:v:p:d:",
+            ["help", "subject=", "prfdir=", "vertex=", "prf=", "lh", "rh", "gauss", "grid", "css", "dog", "norm", "plot", "verbose", "v1"]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--subject"):
+            subject = arg
+        elif opt in ("-v", "--vertex"):
+            vertex = int(arg)
+        elif opt in ("-d", "--prfdir"):
+            prf_dir = int(arg)
+        elif opt in ("-p", "--prf"):
+            prf_info = arg  
+        elif opt in ("--lh"):
+            hemi = "lh"
+        elif opt in ("--rh"):
+            hemi = "rh"
+        elif opt in ("--gauss"):
+            model = "gauss"     
+        elif opt in ("--norm"):
+            model = "norm"   
+        elif opt in ("--css"):
+            model = "css"   
+        elif opt in ("--dog"):
+            model = "dog"                                       
+        elif opt in ("--grid"):
+            stage = "grid"
+        elif opt in ("--plot"):
+            plot = True
+        elif opt in ("--verbose"):
+            verbose = True     
+        elif opt in ("--v1"):
+            v1_data = True   
+
+    main(context={
+        "subject": subject,
+        "vertex": vertex,
+        "prf_info": prf_info,
+        "prf_dir": prf_dir,
+        "hemi": hemi,
+        "model": model,
+        "stage": stage,
+        "plot": plot,
+        "verbose": verbose,
+        "v1_data": v1_data
+    })

@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#$ -j Y
-#$ -cwd
-#$ -V
 
 import mkl
 mkl.set_num_threads=1
@@ -9,14 +6,16 @@ mkl.set_num_threads=1
 from fmriproc import prf
 from lazyfmri import utils
 import os
-import sys, getopt
+import sys
+import getopt
 import pandas as pd
 import ast
 opj = os.path.join
 
-def main(argv):
+@utils.validate_cli_inputs(required_keys=["in_file"])
+def main(context):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_sizeresponse
 
@@ -26,17 +25,17 @@ muli of growing holes starting from a full field stimulus. This is a proxy for s
 of a given pRF. You can choose to center the pRFs in the middle of the screen (= faster), or create
 a stimulus set specific for each pRF (= slower, but more accurate representation).
 
-Parameters
-----------
+Usage:
+  call_sizeresponse [mandatory] [arguments] [options]
+
+Mandatory (reguired input):
     -i|--in-file    file containing pRF estimates; if formatted according to BIDS, we can derive an 
                     output name from its elements
+
+Optional (flags with defaults):
     -o|--out-file   output dataframe indexed on subject, stimulus type, stimulus size, by nr of ver-
                     tices. If nothing is specified, we'll try to read the file components from `in_
                     file`, and append {"_desc-srfs_unique.csv"|"_desc-srfs_centered.csv"}
-    --unique        create unique stimulus sets for each pRF so that the simulation is more accurate. 
-                    Default is to center the pRF in the visual field
-    --act-only      Only create size-response functions (activation component)
-    --suppr-only    Only create hole-response functions (suppression component)
     --screen-dist   Distance viewer to screen (default = 196cm)
     --screen-cm     Screen sizes for x,y. Default is [70,39.8], representing the actual screen size.
                     If you want a square screen, specify 1 value
@@ -44,81 +43,58 @@ Parameters
                     square screen, specify 1 value
     --factor        stimulus factor; the lower the number, the larger the stimulus range. Default 
                     = 1, resulting in stimulus sizes of 20dva
+                    
+Options (extra):
+    -h|--help       print this help text
+    --unique        create unique stimulus sets for each pRF so that the simulation is more accurate. 
+                    Default is to center the pRF in the visual field
+    --act-only      Only create size-response functions (activation component)
+    --suppr-only    Only create hole-response functions (suppression component)
     --verbose       turn on verbosity; prints some stuff to the terminal along the way
     --parallel      run jobs in parallel
 
-Returns
-----------
+Returns:
     a *csv-file containing a  dataframe indexed on subject, stimulus type, stimulus size by nr of 
     vertices
 
-Example
-----------
+Examples:
+    # simple call
     call_sizeresponse -i sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
-    call_sizeresponse -i prf_estimates.pkl -o srfs.csv --unique
-    in-file /data1/projects/MicroFunc/Jurjen/projects/VE-SRF/derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl; qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered -q long.q -pe smp 20 -wd $(dirname ${in_file}) $DIR_SCRIPTS/bin/call_sizeresponse -i ${in_file} --verbose --parallel
+
+    # custom otput 
+    call_sizeresponse \
+        -i prf_estimates.pkl \
+        -o srfs.csv \
+        --unique
+    
+    # submit
+    in_file=derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
+    qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered \
+        -q long.q \
+        -pe smp 20 \
+        -wd $(dirname ${in_file}) \
+        $BIN_DIR/call_sizeresponse \
+        -i ${in_file} \
+        --verbose \
+        --parallel
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    in_file = None
-    out_file = None
-    center_prf = True
-    verbose = False
-    srf_act = True
-    srf_suppr = True
-    screen_distance_cm = 196
-    screen_size_cm = [70,39.8]
-    screen_size_px = [1920,1080]
-    stim_factor = 1
-    parallel = False
+    in_file = context.get("in_file")
+    out_file = context.get("out_file")
+    center_prf = context.get("center_prf")
+    verbose = context.get("verbose")
+    srf_act = context.get("srf_act")
+    srf_suppr = context.get("srf_suppr")
+    screen_distance_cm = context.get("screen_distance_cm")
+    screen_size_cm = context.get("screen_size_cm")
+    screen_size_px = context.get("screen_size_px")
+    stim_factor = context.get("stim_factor")
+    parallel = context.get("parallel")
 
-    try:
-        opts = getopt.getopt(argv,"hi:o:",["help", "in-file=", "out-file=", "unique", "act-only", "suppr-only", "screen-dist=", "screen-cm=", "screen-pix=", "factor=", "verbose", "parallel"])[0]
-    except getopt.GetoptError:
-        print("ERROR IN ARGUMENT HANDLING!")
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-h', "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ('-i', "--in-file"):
-            in_file = arg
-        elif opt in ('-o', "--out-file"):
-            out_file = arg
-        elif opt in ("--unique"):
-            center_prf = False
-        elif opt in ("--act-only"):
-            srf_act = True
-            srf_suppr = False
-        elif opt in ("--suppr-only"):
-            srf_act = False
-            srf_suppr = True
-        elif opt in ("--screen-dist"):
-            screen_distance_cm = arg
-        elif opt in ("--screen-cm"):
-            screen_size_cm = ast.literal_eval(arg)
-        elif opt in ("--screen-pix"):
-            screen_size_px = ast.literal_eval(arg)
-        elif opt in ("--factor"):
-            stim_factor = arg
-        elif opt in ("--verbose"):
-            verbose = True
-        elif opt in ("--parallel"):
-            parallel = True      
-
-    if len(argv) < 1:
-        print("\nNEED AT LEAST A FILE WITH PRF ESTIMATES")
-        print(main.__doc__)
-        sys.exit()
-
-    if not os.path.exists(in_file):
-        raise FileNotFoundError(f"Could not find file '{in_file}'..")
-    else:
-        in_file = os.path.abspath(in_file)
-        out_dir = os.path.dirname(in_file)
+    in_file = os.path.abspath(in_file)
+    out_dir = os.path.dirname(in_file)
 
     # read the input file into a dataframe
     df_for_srfs = prf.Parameters(in_file, model="norm").to_df()
@@ -215,4 +191,69 @@ Example
     utils.verbose("Done", verbose)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    in_file = None
+    out_file = None
+    center_prf = True
+    verbose = False
+    srf_act = True
+    srf_suppr = True
+    screen_distance_cm = 196
+    screen_size_cm = [70,39.8]
+    screen_size_px = [1920,1080]
+    stim_factor = 1
+    parallel = False
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:],
+            "hi:o:",
+            ["help", "in-file=", "out-file=", "unique", "act-only", "suppr-only", "screen-dist=", "screen-cm=", "screen-pix=", "factor=", "verbose", "parallel"]
+        )[0]
+    except getopt.GetoptError:
+        print("ERROR IN ARGUMENT HANDLING!")
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ('-h', "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ('-i', "--in-file"):
+            in_file = arg
+        elif opt in ('-o', "--out-file"):
+            out_file = arg
+        elif opt in ("--unique"):
+            center_prf = False
+        elif opt in ("--act-only"):
+            srf_act = True
+            srf_suppr = False
+        elif opt in ("--suppr-only"):
+            srf_act = False
+            srf_suppr = True
+        elif opt in ("--screen-dist"):
+            screen_distance_cm = arg
+        elif opt in ("--screen-cm"):
+            screen_size_cm = ast.literal_eval(arg)
+        elif opt in ("--screen-pix"):
+            screen_size_px = ast.literal_eval(arg)
+        elif opt in ("--factor"):
+            stim_factor = arg
+        elif opt in ("--verbose"):
+            verbose = True
+        elif opt in ("--parallel"):
+            parallel = True
+
+    main(context={
+        "in_file": in_file,
+        "out_file": out_file,
+        "center_prf": center_prf,
+        "verbose": verbose,
+        "srf_act": srf_act,
+        "srf_suppr": srf_suppr,
+        "screen_distance_cm": screen_distance_cm,
+        "screen_size_cm": screen_size_cm,
+        "screen_size_px": screen_size_px,
+        "stim_factor": stim_factor,
+        "parallel": parallel
+    })

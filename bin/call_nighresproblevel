@@ -5,16 +5,16 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
-import sys, getopt
+import sys
+import getopt
 import os
 from lazyfmri import utils
 opj = os.path.join
-rb = utils.color.RED + utils.color.BOLD
-gb = utils.color.GREEN + utils.color.BOLD
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["probability"])
-def main(argv, context):
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
@@ -24,16 +24,18 @@ Creates a levelset surface representations from a probabilistic map or a mask. T
 each voxel's distance to the closest boundary. It takes negative values inside and positive values 
 outside of the object.
 
-Args:
+Mandatory (required input):
     -p|--probability    File representing the probability image
-    -o|--outputdir      output directory (default is opj(os.getcwd(), 'region'))
-    -n|--name           basename for output (default is "subject_acq-MP2RAGE_desc")
+
+Optional (flags with defaults):
+    -o|--outputdir  output directory (default is opj(os.getcwd(), 'region'))
+    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+
+Options (extra):
+    -h|--help       print this help text
 
 Outputs:
-    (taken from https://nighres.readthedocs.io/en/latest/surface/probability_to_levelset.html)
-    Dictionary collecting outputs under the following keys (suffix of output files in brackets)
-
-    result (niimg): Levelset representation of surface (_p2l-surf)
+    result (niimg): Levelset representation of surface (-p2l_surf)
 
 Example:
     call_nighresproblevel \
@@ -44,7 +46,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    probability = context["probability"]
+    probability = context.get("probability")
     output_dir = context.get("output_dir", opj(os.getcwd(), 'region'))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
@@ -69,6 +71,7 @@ Example:
     print("Done")
 
 if __name__ == "__main__":
+
     probability = None
     output_dir = opj(os.getcwd(), 'region')
     output_base = "subject_acq-MP2RAGE_desc"
@@ -94,7 +97,7 @@ if __name__ == "__main__":
         elif opt in ("-n", "--name"):
             output_base = arg
 
-    main(sys.argv[1:], context={
+    main(context={
         "probability": probability,
         "output_dir": output_dir,
         "output_base": output_base
