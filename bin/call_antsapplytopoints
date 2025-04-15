@@ -133,7 +133,7 @@ do
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 IN_CSV=${@:$OPTIND:1}

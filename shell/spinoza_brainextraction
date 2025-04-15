@@ -100,7 +100,7 @@ do
 done
 
 if [[ $# -lt 4 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 INPUT=${@:$OPTIND:1}
@@ -337,6 +337,10 @@ for subID in ${search}; do
         if [[ ! -f ${fs_nii} ]]; then
           if [[ -f ${fs_anat} ]]; then
             call_mriconvert ${fs_anat}
+            if [[ $? -ne 0 ]]; then
+              print_error_msg "$(basename ${0})" "call_mriconvert"
+              exit 1
+            fi              
           fi
         else
           print_directory_not_exist "${sub_name}" "${fs_anat}"

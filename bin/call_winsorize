@@ -14,15 +14,20 @@ This scripts makes the call to ImageMath Windorize a little easier, as you'll on
 the input image
 
 Usage:
-  call_winsorize [options] <input> <output>
+  call_winsorize [arguments] [options] <input> <output>
 
 Arguments:
-  --verbose   echo command to terminal
-  -l <lower>  lower percentile (default = 0.01)
-  -u <upper>  upper percentile (default = 0.99)
-  -b <bins>   number of bins to use (default = 256)
-  <input>     input image to be resample
-  <output>    output name of resampled image
+  -l <lower>      lower percentile (default = 0.01)
+  -u <upper>      upper percentile (default = 0.99)
+  -b <bins>       number of bins to use (default = 256)
+
+Options:
+  -h|--help       print this help text
+  --verbose       echo command to terminal
+
+Positional:
+  <input>         input image to be resample
+  <output>        output name of resampled image
 
 Example:
   call_winsorize input.nii.gz output.nii.gz                 # use all defaults
@@ -41,7 +46,7 @@ VERB=0
 lower=0.01
 upper=0.99
 n_bins=256
-while getopts :-:vl:u:t:b: argument
+while getopts :-:hvl:u:t:b: argument
 do
   case ${argument} in
     -)
@@ -50,13 +55,16 @@ do
           VERBOSE="--verbose 1"
           VERB=1
           ;;
+        help)
+          Usage && exit 0
+          ;;                   
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;        
+      esac
+      ;;    
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
@@ -65,12 +73,14 @@ do
           ;;                
     v)  VERBOSE="--verbose 1"
         VERB=1
-          ;;          
+          ;;    
+    h)  Usage && exit 0
+          ;;                  
   esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # set input/output

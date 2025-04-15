@@ -21,7 +21,7 @@ Usage:
 
     if len(argv)==0:
         print(main.__doc__)
-        sys.exit(1)
+        sys.exit()
     else:
         json_file = os.path.abspath(argv[0])
 

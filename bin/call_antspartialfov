@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -33,19 +37,26 @@ USAGE
 }
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
+dtype="float"
 while getopts sfdi:c: arg
 do
-    case ${arg} in
-      i)  INIT=${OPTARG}
-            ;;
-      c)  CONTRAST=${OPTARG}
-            ;;        
-    esac
+  case ${arg} in
+    i)  INIT=${OPTARG}
+          ;;
+    c)  CONTRAST=${OPTARG}
+          ;;     
+    f)  dtype="float"
+          ;;
+    s)  dtype="short"
+          ;;
+    d)  dtype="double"
+          ;;
+  esac
 done
 
 REF=${@:$OPTIND:1}
@@ -73,34 +84,58 @@ fi
 # 2) register partial FOV to whole-brain with mask
 echo " Register partial FOV to whole-brain with mask"
 XFM=$(dirname ${OUT})/$(basename ${OUT} .nii.gz)_desc-
-call_antsregistration --lin -x ${MASK} ${REF} ${MOV} ${XFM}
 
+cmd=(
+  call_antsregistration
+  --lin
+  -x "${MASK}"
+  "${REF}"
+  "${MOV}"
+  "${XFM}"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsregistration exited with non-zero status"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_antsregistration"
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # 3) apply registration
 echo " Apply transformation to moving image"
-call_antsapplytransforms ${REF} ${MOV} ${OUT} ${XFM}genaff.mat
+cmd=(
+  call_antsapplytransforms
+  "${REF}"
+  "${MOV}"
+  "${OUT}"
+  "${XFM}genaff.mat"
+)
 
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with non-zero status"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_antsapplytransforms"
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # 4) convert back to specified data format
-if [[ "${@}" == *"-f"* ]]; then
-  echo " Convert back to FLOAT32"
-  fslmaths ${OUT} ${OUT} -odt float
-elif [[ "${@}" == *"-s"* ]]; then
-  echo " Convert back to INT16"
-  fslmaths ${OUT} ${OUT} -odt short
-elif [[ "${@}" == *"-d"* ]]; then
-  echo " Convert back to FLOAT64"
-  fslmaths ${OUT} ${OUT} -odt double
+cmd=(
+  fslmaths
+  ${OUT}
+  ${OUT}
+  -odt ${dtype}
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslmaths"
+  exit 1
 fi
 
 echo "Done"

@@ -52,7 +52,7 @@ USAGE
 
 # Check minimum required arguments
 if [[ $# -lt 4 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 # Required inputs

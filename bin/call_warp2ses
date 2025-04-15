@@ -10,7 +10,10 @@ This script warps the content of an input directory to the second session given 
 matrix warping session 1 to session 2 (should be obtained with spinoza_lineplanning). It assumes a
 relatively BIDS-ified file structure, where you have /derivatives/<software>/<subject>/<ses->/...
 
-Arguments:
+Usage:
+  call_warp2ses -s <subject> -f <from ses> -t <to ses> -d <input dir> -w <warp file> -r <ref>
+  
+Mandatory:
   -s <subject>    subject ID, e.g., sub-001
   -f <from ses>   which files to warp (integer, e.g., '1'; 'ses-' is automatically appended)
   -t <to ses>     where to warp files to (integer, e.g., '2'; 'ses-' is automatically appended)
@@ -18,16 +21,18 @@ Arguments:
                   cortex (call_ctxsurfmove) or FreeSurfer (call_resample)
   -d <input dir>  root directory with files to warp; assumes <input dir>/<subject>/<from ses>
                   kind of structure
-  -o <output dir> output directory; if empty, <input dir>/ses-<to-ses> will be used
   -w <warp file>  affine transformation matrix created with e.g., ANTs (should've been created
+  -r <reference>  reference image to which to warp the files from <input dir> to
+
+Optional:                  
+  -o <output dir> output directory; if empty, <input dir>/ses-<to-ses> will be used
                   during spinoza_lineplanning)
   -i <invert>     should we invert the <warp file> (0=no|1=yes, default = no)
-  -r <reference>  reference image to which to warp the files from <input dir> to
   -a <appendix>   specify here a subdirectory within <input dir>/<subject>/<session>
   -q <search>     specify any additional substring to look in the files for
 
-Usage:
-  call_warp2ses -s <subject> -f <from ses> -t <to ses> -d <input dir> -w <warp file> r <ref>
+Options:
+  -h|--help       print this help text
 
 Example:
   call_warp2ses -s sub-001 -f 1 -t 2 -d derivatives/nighres -w genaff.mat -r anat_ses-2.nii.gz
@@ -45,8 +50,20 @@ USAGE
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts s:f:t:d:w:i:o:r:a:q: arg; do
+while getopts :-:hs:f:t:d:w:i:o:r:a:q: arg; do
   case $arg in
+    -)
+      case "${OPTARG}" in             
+        help)
+          Usage && exit 0
+          ;;                   
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;  
     s)  sub=${OPTARG}
           ;;
     f)  from_ses=${OPTARG}
@@ -67,48 +84,46 @@ while getopts s:f:t:d:w:i:o:r:a:q: arg; do
           ;;
     q)  search=${OPTARG}
           ;;
+    h)  Usage && exit 0
+          ;;                     
   esac
 done
 
 if [[ $# -lt 6 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # Check some directories/files
 if [[ -z ${in_dir} ]]; then
-  echo "ERROR: please specify input directory.."
-  Usage
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Please specify input folder with '-d <path>'.."
+  exit 1
 fi
 
 if [[ -z ${warp_file} ]]; then
   # check in planning folder
   warp_file=$(find ${DIR_DATA_SOURCE}/${sub}/ses-2/planning/nifti -type f -name "*genaff.mat" 2>/dev/null)
-  if [[ -z ${warp_file} ]]; then
-    echo "ERROR: could not find warp-file.."
-    Usage
-    exit 1
-  fi
 fi
 
 if [[ ! -f ${warp_file} ]]; then
-  echo "ERROR: could not find warp-file.."
-  Usage
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Could not find warp-file.."
+  exit 1
 fi
 
 # check in DIR_DATA_HOME/<sub>/ses-<to_ses>/anat
 if [[ -z ${ref_img} ]]; then
   ref_img=$(find ${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat -type f -name "*acq-${space^^}*" -and -not -name "*space-*" -and -name "*.nii.gz" 2>/dev/null)
-  if [[ -z ${ref_img} ]]; then
-    echo "ERROR: could not find reference image.."
-    Usage
-    exit 1
-  fi
 fi
 
 if [[ ! -f ${ref_img} ]]; then
-  echo "ERROR: could not find reference-file.."
-  Usage
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Could not find reference-file.."
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
@@ -134,8 +149,9 @@ fi
 
 if [[ ! -d ${input} ]]; then
   echo
-  echo "ERROR: could not fine input directory: \"${input}\""
-  Usage
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Could not find input directory: \"${input}\""
+  exit 1
 fi
 
 # set output directory
@@ -184,28 +200,44 @@ for f in ${fn[@]}; do
       if [[ ${to_ses,,} == "fs" ]]; then
         # got fs, use call_resample
 
-        call_resample ${f} ${ref_img} ${newf}
+        cmd=(
+          call_resample
+          "${f}"
+          "${ref_img}"
+          "${newf}"
+        )
 
         if [[ $? -eq 0 ]]; then
           echo " wrote $(basename ${newf})"
         else
-          echo "ERROR: call_resample did not execute cleanly"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_resample"
           exit 1
         fi
 
       elif [[ ${to_ses,,} == "ctx" ]]; then
         # got ctx, use call_ctxsurfmove
 
-        call_ctxsurfmove ${sub} ${f} ${newf}
+        cmd=(
+          call_ctxsurfmove
+          "${sub}"
+          "${f}"
+          "${newf}"
+        )
 
         if [[ $? -eq 0 ]]; then
           echo " wrote $(basename ${newf})"
         else
-          echo "ERROR: call_ctxsurfmove did not execute cleanly"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_ctxsurfmove"
           exit 1
         fi
       else
-        echo "ERROR: unknown option ${to_ses} was specifed. Either use integers, or \"ctx\" or \"fs\" in special cases"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "input" "Unknown option ${to_ses} was specifed. Either use integers, or \"ctx\" or \"fs\" in special cases"
         exit 1
       fi
     fi
@@ -213,12 +245,21 @@ for f in ${fn[@]}; do
 
     newf=${out_dir}/${sub}_ses-${to_ses}_$(basename ${f} | cut -d "_" -f3-)
     if [[ ! -f ${newf} ]]; then
-      call_antsapplytransforms -i ${invert} ${ref_img} ${f} ${newf} ${warp_file}
+      cmd=(
+        call_antsapplytransforms
+        -i ${invert}
+        "${ref_img}"
+        "${f}"
+        "${newf}"
+        "${warp_file}"
+      )
 
       if [[ $? -eq 0 ]]; then
         echo " wrote $(basename ${newf})"
       else
-        echo "ERROR: call_antsapplytransforms did not execute cleanly"
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "call_antsapplytransforms"
         exit 1
       fi
     fi

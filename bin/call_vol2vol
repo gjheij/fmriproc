@@ -29,31 +29,38 @@ USAGE
 }
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # Run it
-if [[ -f $1 && -f $2 ]]; then
+if [[ -f "${1}" && -f "${2}" ]]; then
+  cmd=(
+    mri_vol2vol
+    --mov "${1}"
+    --targ "${2}"
+    --regheader
+    --o "${3}"
+    --save-reg
+  )
 
-  if [[ ! -f $3 ]]; then
-
-    cmd=(command -v mri_vol2vol)
-    if [[ ! -z "${CMD}" ]]; then
-      "${CMD}" \
-        --mov "${1}" \
-        --targ "${2}" \
-        --regheader \
-        --o "${3}" \
-        --save-reg
-    else
-      echo "mri_vol2vol is not on your path.. Make sure FreeSurfer is added to your path"
-      exit 1
-    fi
-  else
-    echo "Output exists, won't overwrite"
-  fi
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "dcm2niix"
+    exit 1
+  fi 
 else
-  echo "Missing SOURCE and TARGET images"
+  echo
+  print_line -
+  if [[ ! -f "${1}" ]]; then
+    print_error_msg "$(basename ${0})" "input" "Missing MOVING file"
+  fi
+  
+  if [[ ! -f "${2}" ]]; then
+    print_error_msg "$(basename ${0})" "input" "Missing TARGET file"
+  fi
+
   exit 1
 fi

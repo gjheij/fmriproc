@@ -40,7 +40,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -63,7 +63,7 @@ do
             ;;
     s)  SPM=${OPTARG}
             ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;            
   esac
 done
@@ -98,6 +98,12 @@ if [[ -z ${SPM} ]]; then
   fi
 else
   SPM_PATH=${SPM}
+fi
+
+# double check if directory exists
+if [[ ! -d ${SPM_PATH} ]]; then
+  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+  exit 1
 fi
 
 # if file specified is in current directory, add entire path

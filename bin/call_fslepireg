@@ -61,7 +61,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
@@ -111,6 +111,10 @@ if [[ ! -z ${subject} ]]; then
     for ii in ${wm_file} ${t1head} ${t1brain}; do
         if [[ ! -f ${ii} ]]; then
             call_mriconvert $(dirname ${ii})/$(basename ${ii} .nii.gz).mgz
+            if [[ $? -ne 0 ]]; then
+                print_error_msg "$(basename ${0})" "call_mriconvert"
+                exit 1
+            fi  
         fi
     done
 

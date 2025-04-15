@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
-# source setup and helper functions
-call_loadsetup
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -35,14 +35,15 @@ if [[ ${#@} -eq 0 ]]; then
 else
   fprep_dir=${1}
   if [[ ${fprep_dir} == "help" || ${fprep_dir} == "--help" ]]; then
-    Usage
-    exit 1
+    Usage && exit 0
   fi
 fi
 
 funcs=($(find ${fprep_dir} -type f -name "*preproc_bold.nii.gz" | sort))
 if [ ${#funcs[@]} -eq 0 ]; then
-  echo "Could not find files with \"*preproc_bold.nii.gz\" in \"${fprep_dir}\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find files with \"*preproc_bold.nii.gz\" in \"${fprep_dir}\""
   exit 1
 fi
 
@@ -53,12 +54,23 @@ for f in ${funcs[@]}; do
   mask_file=${base_name}brain_mask.nii.gz
   if [ -f ${mask_file} ]; then
     echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
+    
+    # define output
     out=${base_name}masked_bold.nii.gz
-    cmd="fslmaths ${f} -mas ${mask_file} ${out}"
-    eval "${cmd}"
+    
+    # define command
+    cmd=(
+      "fslmaths"
+      ${f}
+      -mas "${mask_file}"
+      "${out}"
+    )
+    eval "${cmd[@]}"
 
     if [ $? -ne 0 ]; then
-      echo "fslmaths exited with non-zero status"
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "fslmaths"
       exit 1
     else
       ((ct++))

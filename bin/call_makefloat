@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -29,16 +33,38 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # Start loop
 
-if [[ ! -z $2 ]]; then
-  out=$2
+if [[ ! -f ${1} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find ${BOLD_GREEN}${1}${RESET}"
+  exit 1
 else
-  out=$1
+  input=$(readlink -f "${1}")
 fi
 
-fslmaths $1 ${out} -odt float
+if [[ ! -z "$2" ]]; then
+  out="$2"
+else
+  out="${input}"
+fi
+
+cmd=(
+  fslmaths 
+  "${input}"
+  "${out}"
+  -odt float
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslmaths"
+  exit 1
+fi  

@@ -12,30 +12,53 @@ opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["subject", "coord", "hemi", "output"], allow_input_dir=False)
 def main(argv, context):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_vox2vert
 
-This function returns a vertex given a voxel coordinate in orig.mgz space using functions inside the 
-'optimal.py'-class. It will return the vertex number associated with a given coordinate and you can
-save the vertex-map as an .npz array that you can use to view it in Pycortex.
+Convert a voxel coordinate (in FreeSurfer's `orig.mgz` space) to the corresponding surface vertex 
+using `fsaverage`-style surface mappings and tools inside `fmriproc.transform.fs2vert`. The output 
+vertex can be printed or stored in a `.npy` file for later use, e.g., with Pycortex for visualization.
 
-Args:
-    -s|--subj   subject name (e.g., sub-xxx)
-    -c|--coord  voxel coordinate (CRS) in orig.mgz space; should be formatted like [x,y,z]
-    -h|--hemi   hemisphere to use
-    -o|--output output npz-file containing vertex object        
+This utility is helpful when a location in volumetric space (like an ROI center or peak activation) 
+needs to be projected to the cortical surface for visualization or analysis.
+
+Mandatory arguments:
+    -s | --subj     Subject name (e.g., "sub-001") as present in FreeSurfer's SUBJECTS_DIR
+    -c | --coord    Voxel coordinate (C-R-S) in orig.mgz space. Must be formatted like: [x,y,z]
+                    Use Python-style list with square brackets, comma-separated (no spaces).
+    -h | --hemi     Hemisphere to search in. Valid values: "lh" (left hemisphere), "rh" (right).
+    -o | --output   Output path to save the full vertex mask as `.npy`. If not specified, result 
+                    is printed only.
+
+Options (extra):
+    -h|--help       print this help text
+
+Returns:
+    - Vertex number corresponding to the voxel coordinate
+    - Optionally, an `.npy` file with a full binary vertex mask (`vert_obj['whole_roi']`) saved
+      to disk
+
+Behavior:
+    - Parses the input voxel coordinate
+    - Projects it to surface space using FreeSurfer geometry
+    - Retrieves the closest matching vertex number
+    - If requested, exports a `.npy` file containing a binary mask of the vertex's cortical region
 
 Example:
     call_vox2vert -s sub-001 -c [187,177,40] -h lh -o vert.npy
+    call_vox2vert --subj sub-101 --coord [156,181,49] --hemi rh
+
+Note:
+    Coordinate must be in `orig.mgz` voxel space. You can use `call_ras2vox` or similar to convert
+    scanner RAS coordinates if needed.
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    if len(argv) == 1:
+    if len(argv)<1:
         print(main.__doc__)
-        sys.exit(1)
+        sys.exit()
 
     subject = context["subject"]
     coord = context["coord"]

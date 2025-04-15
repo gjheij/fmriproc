@@ -39,6 +39,10 @@ check_and_copy_anat() {
       local fs_rawavg="${fs_dir}/${sub_name}/mri/rawavg.mgz"
       if [[ -f "${fs_rawavg}" ]]; then
         call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
+        if [[ $? -ne 0 ]]; then
+          print_error_msg "$(basename ${0})" "call_mriconvert"
+          exit 1
+        fi          
       else
         print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${anat_dir}" "Please copy a file containing \"_T1w.nii.gz\" to \""${anat_dir}"\"."
         exit 1
@@ -280,7 +284,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -391,7 +395,7 @@ case ${argument} in
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 INPUT=${@:$OPTIND:1}

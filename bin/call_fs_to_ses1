@@ -32,21 +32,21 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-  exit 1
+
 }
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
 while getopts s: arg
 do
-    case ${arg} in
-      s)  SOFTWARE=${OPTARG}
-            ;;      
-    esac
+  case ${arg} in
+    s)  SOFTWARE=${OPTARG}
+          ;;      
+  esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 if [[ -z ${SOFTWARE} ]]; then
@@ -65,21 +65,44 @@ fi
 
 if [[ ${SOFTWARE,,} == "ants" ]]; then
   orig=${FS}/${SUBJECT}/mri/orig.nii.gz
-  ses1=$(find ${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1 -type f -name "${SUBJECT}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+  ses1=$(find "${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1" \
+    -type f \
+    -name "${SUBJECT}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
   # convert mgz to nifti
   if [[ ! -f ${orig} ]]; then
-    call_mriconvert $(dirname ${orig})/$(basename ${orig} .nii.gz).mgz
+    cmd=(
+      call_mriconvert
+      "$(dirname ${orig})/$(basename ${orig} .nii.gz).mgz"
+    )
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      print_error_msg "$(basename ${0})" "call_mriconvert"
+      exit 1
+    fi  
   fi
 
   if [[ -z ${ses1} ]]; then
     ses1=${FS}/${SUBJECT}/mri/rawavg.nii.gz
     # convert mgz to nifti
     if [[ ! -f ${ses1} ]]; then
-      call_mriconvert $(dirname ${ses1})/$(basename ${ses1} .nii.gz).mgz
+      cmd=(
+        call_mriconvert
+        "$(dirname ${ses1})/$(basename ${ses1} .nii.gz).mgz"
+      )
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        print_error_msg "$(basename ${0})" "call_mriconvert"
+        exit 1
+      fi   
     fi
   else
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find ses-1 anatomy and could not use rawavg.mgz"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "find" "Could not find ses-1 anatomy and could not use rawavg.mgz"
     exit 1
   fi
 
@@ -97,6 +120,12 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
       rigid
     )
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_antsregistration"
+      exit 1
+    fi  
   else
     echo "Found outdated file; remove and run again to overwrite"
   fi
@@ -108,6 +137,20 @@ elif [[ ${SOFTWARE,,} == "fs" ]]; then
     mkdir -p $(dirname ${aff})
   fi
 
-  tkregister2 --mov ${FS}/${SUBJECT}/mri/rawavg.mgz --targ ${FS}/${SUBJECT}/mri/orig.mgz --reg ${aff} --noedit --regheader
+  cmd=(
+    tkregister2
+    --mov "${FS}/${SUBJECT}/mri/rawavg.mgz"
+    --targ "${FS}/${SUBJECT}/mri/orig.mgz"
+    --reg "${aff}"
+    --noedit
+    --regheader
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "dcm2niix"
+    exit 1
+  fi  
 fi

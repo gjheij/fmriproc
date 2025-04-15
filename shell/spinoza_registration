@@ -74,7 +74,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 run_local=1
@@ -142,7 +142,7 @@ do
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 INPUT=${@:$OPTIND:1}

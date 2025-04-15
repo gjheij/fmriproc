@@ -21,13 +21,14 @@ Usage:
   call_feat [arguments] [options] <fsf file>
 
 Arguments:
-  -n <name>   custom name for job (default = 'feat')
-  -j <cpus>   number of cores to use (default is 1)
-  -q <queue>  submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-              must be used with '--sge', otherwise it'll run locally still
+  -n <name>       custom name for job (default = 'feat')
+  -j <cpus>       number of cores to use (default is 1)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+                  must be used with '--sge', otherwise it'll run locally still
 
 Options:
-  --sge       submit the script to a cluster using a template script
+  -h|--help       print this help text
+  --sge           submit the script to a cluster using a template script
 
 Positional:
   <fsf file>
@@ -49,7 +50,7 @@ run_local=1
 n_cpus=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
 job_name="feat"
-while getopts :-:j:q:n: argument
+while getopts :-:hj:q:n: argument
 do
   case ${argument} in
     -)
@@ -61,25 +62,30 @@ do
             mkdir -p ${DIR_LOGS} 2>/dev/null
           fi
           ;;
-    *)
-      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-        echo "Unknown option --${OPTARG}. Did you mean \"--full\"?"
-        exit 1
-      fi
+        help)
+          Usage && exit 0
+          ;;                  
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
       ;;
-      esac;;    
     q)  SGE_QUEUE=${OPTARG}
           ;;  
     j)  n_cpus=${OPTARG}
           ;; 
     n)  job_name=${OPTARG}
-          ;;           
+          ;;     
+    h)  Usage && exit 0
+          ;;       
   esac
 done
 
 fsf_file=$(readlink -f "${@:$OPTIND:1}")
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # delete previously existing file
@@ -94,6 +100,15 @@ echo "#!/bin/bash"
 echo "feat ${fsf_file}"
 ) > ${fsf_script}
 
-job="$(decide_job_type "call_feat" "${base_name}" "${run_local}" "${DIR_LOGS} "${n_cpus}" "${SGE_QUEUE}")"
+job="$(
+  decide_job_type \
+  "call_feat" \
+  "${base_name}" \
+  "${run_local}" \
+  "${DIR_LOGS} \
+  "${n_cpus}" \
+  "${SGE_QUEUE}" \
+)"
+
 cmd="${job} ${fsf_script}"
 eval "${cmd}

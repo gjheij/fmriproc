@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -12,19 +16,22 @@ wrapper for reorientating a given warp file from RAS to FSL, i.e., to MNI space 
 sa. The default for the script is to use 'ras2fsl', but we can also do 'fsl2ras' by specifying the 
 '-i' flag. A specified output name will be used, otherwise the input file will be overwritten.
 
-Args:
-  <-i>      use fsl2ras, instead of ras2fsl
-  <fixed>   reference image used to create the transformation file
-  <moving>  moving image used to create the transformation file
-  <affine>  transformation file
-  <output>  converted transformation file
-
 Usage:
-  call_ras2fsl <-i fsl2ras> <fixed> <moving> <affine matrix> <output>
+  call_ras2fsl [options] <fixed> <moving> <tfm> <output>
+
+Mandatory:
+  <fixed>         reference image used to create the transformation file
+  <moving>        moving image used to create the transformation file
+  <tfm>           transformation file in ANTs format (see -f|--fsl below)
+  <output>        converted transformation file
+
+Options:
+  -h|--help       print this help text
+  -f|--fsl        tfm file represents FSL file and needs to be converted to ANTs
 
 Example:
-  call_ras2fsl fixed.nii.gz moving.nii.gz ants_affine.mat fsl_affine.mat
-  call_ras2fsl -i fixed.nii.gz moving.nii.gz fsl_affine.mat ants_affine.mat
+  call_ras2fsl fixed.nii.gz moving.nii.gz ants_tfm.mat fsl_tfm.mat
+  call_ras2fsl --fsl fixed.nii.gz moving.nii.gz fsl_tfm.mat ants_tfm.mat
   
 ---------------------------------------------------------------------------------------------------
 
@@ -33,33 +40,98 @@ USAGE
 }
 
 # Check for subject flag
-while getopts it: argument
+to_fsl=0
+while getopts :-:ft: argument
 do
-    case ${argument} in
-      t)  interp=${OPTARG}
-            ;;
-    esac
+  case ${argument} in
+    -)
+      case "${OPTARG}" in             
+        help)
+          Usage && exit 0
+          ;; 
+        fsl)
+          to_fsl=1
+          ;;                             
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;  
+    t)  interp=${OPTARG}
+          ;;
+    f)  to_fsl=1
+          ;;      
+    h)  Usage && exit 0
+          ;;                
+  esac
 done
 
 if [[ $# -lt 4 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-AFF=${@:$OPTIND+2:1}
-OUT=${@:$OPTIND+3:1}
-
-if [[ "${@}" == *"-i"* ]]; then
-  to_fsl=1
+# check reference image
+if [[ -f "${@:$OPTIND:1}" ]]; then
+  REF=$(readlink -f "${@:$OPTIND:1}")
 else
-  to_fsl=0
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify FIXED/REF image"
+  exit 1
 fi
+
+# check target image
+if [[ -f "${@:$OPTIND+1:1}" ]]; then
+  MOV=$(readlink -f "${@:$OPTIND+1:1}")
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify MOVING/TRG image"
+  exit 1
+fi
+
+# check tfm file
+if [[ -f "${@:$OPTIND+2:1}" ]]; then
+  AFF=$(readlink -f "${@:$OPTIND+2:1}")
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify AFFINE file"
+  exit 1
+fi
+
+# output
+OUT=${@:$OPTIND+3:1}
 
 #-----------------------------------------------------------------------------
 # How to convert fsl transform matrix to itk:
 if [[ ${to_fsl} -eq 0 ]]; then
-  c3d_affine_tool -itk ${AFF} -ref ${REF} -src ${MOV} -ras2fsl -o ${OUT}
+  cmd=(
+    c3d_affine_tool
+    -itk 
+    "${AFF}"
+    -ref "${REF}"
+    -src "${MOV}"
+    -ras2fsl
+    -o "${OUT}"
+  )
 else
-  c3d_affine_tool -ref ${REF} -src ${MOV} ${AFF} -fsl2ras -oitk ${OUT}
+  cmd=(
+    c3d_affine_tool
+    -ref "${REF}"
+    -src "${MOV}"
+    "${AFF}"
+    -fsl2ras
+    -oitk "${OUT}"
+  )
 fi
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "c3d_affine_tool"
+  exit 1
+fi  

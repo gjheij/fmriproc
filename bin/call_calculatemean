@@ -27,7 +27,7 @@ USAGE
 if [[ $# -lt 3 ]] ; then
   echo "Need at least 2 input images and an output name"
   echo
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
@@ -51,10 +51,30 @@ if [[ ! -f ${output} ]]; then
     # Execute command
     COMMAND "${output}" "${inputs[@]}"
 
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "fslmerge"
+      exit 1
+    fi
   fi
 
   echo "Calculating mean"
-  fslmaths $(dirname ${output})/tmp_$(basename ${output}) -Tmean ${output}
-  rm $(dirname ${output})/tmp_$(basename ${output})
+  cmd=(
+    fslmaths
+    $(dirname ${output})/tmp_$(basename ${output})
+    -Tmean
+    "${output}"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "dcm2niix"
+    exit 1
+  fi
+
+  rm $(dirname ${output})/tmp_$(basename ${output}) 2>/dev/null
 
 fi

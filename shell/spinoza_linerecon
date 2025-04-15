@@ -64,7 +64,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags

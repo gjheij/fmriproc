@@ -248,7 +248,7 @@ Notes:
     see docs: https://fmriproc.readthedocs.io/en/latest/classes/prf.html#fmriproc.prf.pRFmodelFitting
 
 ---------------------------------------------------------------------------------------------------
-"""
+    """
 
     sub = context.get("sub")
     input_dir = context.get("input_dir")
@@ -363,9 +363,7 @@ Notes:
                 comps = utils.split_bids_components(ff)
                 ses.append(comps["ses"])
             unique_ses = list(np.unique(np.array(ses, dtype=int)))
-
         else:  
-
             if isinstance(ses, int):
                 unique_ses = [ses]
             else:
@@ -541,7 +539,8 @@ Notes:
                 search_list, 
                 output_dir, 
                 return_msg=None, 
-                exclude=exclude)
+                exclude=exclude
+            )
             
             if old_params is not None:
                 if isinstance(old_params, list):

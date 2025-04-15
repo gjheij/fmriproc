@@ -71,7 +71,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 OW=0
@@ -117,7 +117,7 @@ do
           ;;
     x)  kwargs=${OPTARG}
           ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;            
   esac
 done
@@ -168,10 +168,12 @@ cmd=(
 echo " Generating brain mask with SPM.."
 eval "${cmd[@]}"
 
-if [[ ! -f "${mask_file}" ]]; then  
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_spmmask failed, mask-file not created"
+if [[ $? -ne 0 || ! -f "${mask_file}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "call_spmmask" "Mask ${BOLD_GREEN}${mask_file}${RESET} not created"
   exit 1
-fi
+fi  
 
 #-----------------------------------------------------------------------------
 # Run bias correction
@@ -199,7 +201,7 @@ echo " Bias correction with ${software}.."
 eval "${cmd[@]}"
 
 if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
-  print_error_msg "$(basename ${0})" "${cmd})"
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
 fi
 
@@ -305,7 +307,7 @@ if [[ ! -z ${t1map} ]]; then
     cmd=(
       call_antsapplytransforms
       "${final_file}"
-      "$"{t1map}
+      "${t1map}"
       "${t1_reg}"
       "${genaff}"
     )

@@ -12,17 +12,14 @@ Set the TR of a nifti-image. Useful if you're converting with parrec2nii, which 
 ly set this field. You can also do `fsledithd`, but this opens a GUI for each file, which can be
 somewhat cumbersome
 
-Parameters
-----------
-    <input>     image to be manipulated
-    <TR>        new TR
-
-Usage
-----------
+Usage:
     call_settr <file> <tr>
 
-Example
-----------
+Optional (flags with defaults):
+    <input>         image to be manipulated
+    <TR>            new TR
+
+Example:
     call_settr sub-001_bold.nii.gz 1.32
 
 ---------------------------------------------------------------------------------------------------
@@ -44,7 +41,11 @@ Example
     hdr["pixdim"][4] = float(TR)
 
     # write image with new header
-    nb.Nifti1Image(data, affine=img.affine, header=hdr).to_filename(input)
+    nb.Nifti1Image(
+        data,
+        affine=img.affine,
+        header=hdr
+    ).to_filename(input)
             
 if __name__ == "__main__":
     main(sys.argv[1:])

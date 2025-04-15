@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -19,10 +23,8 @@ Usage:
   call_stats2surf -s <subj_ID> -f <fsdir> -w <warpfile> -t <threshold> -q <added flag> -a <search>
                   -r <reference>
 
-Args:
+Mandatory:
   -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
-  -f <fsdir>          path to freesurfer directory; if left empty > reads SUBJECTS_DIR
-  -o <output dir>     by default in 'freesurfer/fsaverage/volumes'
   -i <input dir/file> Input file or path to FEAT-directory (can also be group-directory, but in that 
                       case it should be specified up to the dir.gfeat/cope?.feat-directory). Whatever 
                       you named the stats-map; make sure you have something with "zstat?" in it.. If 
@@ -33,11 +35,15 @@ Args:
                       warp the group-file to the surface:
                         - warp zstat to sub-xxx (-s sub-xxx)
                         - warp zstat_space-subxxx to surface of fsaverage
+  -w <warp file>      h5 (or other) warp file mapping your stats file to T1w-space.
+
+Optional:
+  -f <fsdir>          path to freesurfer directory; if left empty > reads SUBJECTS_DIR
+  -o <output dir>     by default in 'freesurfer/fsaverage/volumes'
   -r <reference>      reference file on which the <warp file> is based. If not specified, it will look
                       for the preprocessed anatomical file from fMRIPrep in the folder from <warp file>.
                       If that's empty, I'll assume the input is a FEAT-directory, in which case it will
                       look for the highres.nii.gz file in <FEAT>/reg.
-  -w <warp file>      h5 (or other) warp file mapping your stats file to T1w-space.
   -a <str>            here you can specify substring to look for the statistical image. If you do not 
                       want to use the standard rendered_thresh_zstat1.nii.gz, add some more search cri-
                       teria. For now, please use only 1 extra search parameter.. (leave this empty if 
@@ -46,8 +52,11 @@ Args:
                       show both the negative and positive values of the zstat-image on the surface
   -q <some suffix>    string to add to the .gii files to differentiate?
 
+Options:
+  -h|--help       print this help text
+
 Example:
-  call_stats2surf -s sub-001 -f /path/to/freesurfer -i <featdir> -w /path/to/warp.h5 -t 3.1
+  call_stats2surf -s sub-001 -i run-1.feat -w /path/to/warp.h5
   call_stats2surf -s sub-001 -f /path/to/freesurfer -i <gfeat/cope1.feat> -w /path/to/warp.h5
   call_stats2surf -s sub-001 -i some_file.nii.gz -w /path/to/warp.h5
 
@@ -59,9 +68,21 @@ USAGE
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts s:f:o:i:w:a:t:q:r: arg
+while getopts :-:hs:f:o:i:w:a:t:q:r: arg
 do
   case ${arg} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;              
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;  
     s)  subj_ID=${OPTARG}
           ;;
     f)  fsdir=${OPTARG}
@@ -79,21 +100,22 @@ do
     q)  thresh=${OPTARG}
           ;;
     r)  reference=${OPTARG}
-          ;;          
+          ;;
+    h)  Usage && exit 0
+          ;;            
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
-
-# source helper functions
-source call_bashhelper
 
 # we need SUBJECTS_DIR for mri_vol2surf
 if [[ -z ${fsdir} ]]; then
   if [[ -z ${SUBJECTS_DIR} ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): SUBJECTS_DIR variable not set and no new path specified.."
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "FreeSurfer" "SUBJECTS_DIR-variable not set.."
     exit 1
   else
     fsdir=${SUBJECTS_DIR}
@@ -104,12 +126,16 @@ fi
 
 # check if we have a valid subjects-directory
 if [[ ! -d ${fsdir} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Could not find FreeSurfer"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "FreeSurfer" "Could not find ${BOLD_GREEN}${fsdir}${RESET}"
   exit 1
 fi
 
 if [[ ! -f ${warp} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Please specify transformation file"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Please specify transformation file"
   exit 1
 fi
 
@@ -123,7 +149,9 @@ if [[ -f ${input} ]]; then
   elif [[ ${ext} == "nii" ]]; then
     search=$(basename ${input} .nii)
   else
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input file must end with \".nii.gz\" or \".nii\", not \".${ext}\""
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "extension" "input file must end with \".nii.gz\" or \".nii\", not \".${ext}\""
     exit 1
   fi
   
@@ -132,13 +160,30 @@ if [[ -f ${input} ]]; then
 elif [[ -d ${input} ]]; then
   set_zstat_id=1
   if [[ ! -z ${search} ]]; then
-    input=$(find "${input}" -maxdepth 1 -type f \( -name "*.nii.gz" -and -name "*${search}*" -and -not -name "*space-*" \) 2>/dev/null)
+    input=$(
+      find "${input}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*.nii.gz" \
+      -and -name "*${search}*" \
+      -and -not -name "*space-*" \
+      2>/dev/null
+    )
   else
-    input=$(find "${input}" -maxdepth 1 -type f \( -name "*rendered_thresh*" -and -name "*.nii.gz" \) 2>/dev/null)
+    input=$(
+      find "${input}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*rendered_thresh*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
     search="zstat"
   fi
 else
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Unknown input type. Must be a file or directory"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Unknown input type. Must be a file or directory"
   exit 1
 fi 
 
@@ -149,9 +194,21 @@ unset IFS
 # get the reference anatomy (in native space)
 if [[ -z ${reference} ]]; then
   if [[ ${input} == *".gfeat"* ]]; then
-    T1=$(find $(dirname ${warp}) -type f \( -name "*preproc_T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
+    T1=$(
+      find $(dirname ${warp}) \
+      -type f \
+      -name "*preproc_T1w.nii.gz" \
+      -and -not -name "*space-*" \
+      2>/dev/null
+    )
   else
-    T1=$(find "${input}" -type f \( -name "*highres*" -and -name "*.nii.gz" \) 2>/dev/null)
+    T1=$(
+      find "${input}" \
+      -type f \
+      -name "*highres*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
   fi
 else
   T1=${reference}
@@ -189,19 +246,41 @@ for i in ${inputs[@]}; do
   # warp to T1w-space
   if [[ ! -f ${new_warp} ]]; then
     echo "Warping $(basename ${i}) image to T1w-space"
-    call_antsapplytransforms ${T1} ${i} ${new_warp} ${warp}
+    cmd=(
+      call_antsapplytransforms
+      "${T1}"
+      "${i}"
+      "${new_warp}"
+      "${warp}"
+    )
+    
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_antsapplytransforms"
+      exit 1
+    fi
   fi
 
-  if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_antsapplytransforms exited with nonzero status"
-    exit 1
-  fi
-  
   # threshold zstat-images
   if [[ ! -z ${thresh} ]]; then
     if [[ $(fslstats ${i} -R | awk '{print $1}') != "0.000000" ]]; then
-      echo "  thresholding $(basename ${new_warp}) with z=${thresh}"
-      fslmaths ${new_warp} -thr ${thresh} ${new_warp}
+      echo "Thresholding $(basename ${new_warp}) with z=${thresh}"
+      cmd=(
+        fslmaths
+        "${new_warp}"
+        -thr "${thresh}"
+        "${new_warp}"
+      )
+
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "fslmaths"
+        exit 1
+      fi        
     fi
   fi
 
@@ -213,6 +292,20 @@ for i in ${inputs[@]}; do
   fi 
 
   # project to fsaverage through fsnative of subj_ID
-  call_vol2fsaverage ${out_flag} -p "group" ${subj_ID} ${new_warp} "${base_out}"
+  cmd=(
+    call_vol2fsaverage
+    "${out_flag}"
+    -p "group" 
+    "${subj_ID}"
+    "${new_warp}"
+    "${base_out}"
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_vol2fsaverage"
+    exit 1
+  fi  
 done

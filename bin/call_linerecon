@@ -85,17 +85,13 @@ do
           n_comps=0
         fi
           ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;             
   esac
 done
 
-if [[ "${@}" == *"-h"* ]]; then
-  Usage
-fi
-
 if [[ $# -lt 4 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 RAW=${@:$OPTIND:1}

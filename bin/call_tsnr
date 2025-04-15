@@ -5,20 +5,33 @@ import sys
 from fmriproc.image import tsnr
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_tsnr
 
-Calculate the tSNR of an input image and save the tSNR map to a given output file name. 
-Output will automatically be clipped at 100.
+Calculate the temporal signal-to-noise ratio (tSNR) from a 4D NIfTI image and optionally 
+save the resulting tSNR map to file.
 
-Positional:
-    <input file>        string-like path to file to calculate tSNR from
-    <output file>       string-like path to output tSNR map
+The tSNR is computed voxel-wise as the mean signal divided by the standard deviation 
+across time (i.e., over the 4th dimension). A high tSNR generally reflects higher-quality 
+BOLD signals. The resulting map is clipped at a maximum value of 100 by default to avoid 
+extreme outliers.
 
-Example:
-    call_tsnr func.nii.gz tsnr.nii.gz
+Mandatory (positional) arguments:
+  <input file>        Path to the 4D NIfTI file for which to compute the tSNR map.
+  
+Optional (positional) arguments:
+  <output file>       Optional full path where the resulting tSNR map will be saved.
+                      If omitted, only the mean tSNR value will be printed to the console.
+
+Behavior:
+  - Automatically clips tSNR values at 100.
+  - If output file is not specified, no image is saved but the mean tSNR is still printed.
+  - Prints the mean tSNR value to console.
+
+Example usage:
+  call_tsnr func.nii.gz tsnr_map.nii.gz
+  call_tsnr func_bold.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -26,24 +39,21 @@ Example:
     if len(argv) < 1:
         print("NEED AT LEAST AN INPUT IMAGE")
         print(main.__doc__)
-        sys.exit()
+        sys.exit(1)
 
     in_file = argv[0]
+    tsnr_map = argv[1] if len(argv) > 1 else None
 
-    # check if we got output file
-    if len(argv) > 1:
-        tsnr_map = argv[1]
-    else:
-        tsnr_map = None
+    if not os.path.exists(in_file):
+        raise FileNotFoundError(f"Input file not found: {in_file}")
 
-    if os.path.exists(in_file):
-        mean_tsnr = tsnr(
-            in_file, 
-            file_name=tsnr_map,
-            clip=100
-        )
+    mean_tsnr = tsnr(
+        in_file,
+        file_name=tsnr_map,
+        clip=100
+    )
 
-        print(f"tSNR of {os.path.basename(in_file)} is {round(mean_tsnr,2)}", flush=True)
+    print(f"tSNR of {os.path.basename(in_file)} is {round(mean_tsnr, 2)}", flush=True)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

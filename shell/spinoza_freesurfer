@@ -160,7 +160,7 @@ do
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 T1=${@:$OPTIND:1}

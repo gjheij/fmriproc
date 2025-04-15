@@ -3,7 +3,9 @@
 import sys
 import nibabel as nb
 
-"""
+def main(argv):
+
+    """
 ---------------------------------------------------------------------------------------------------
 call_getsingleslice
 
@@ -22,15 +24,23 @@ Example:
     call_getsingleslice input.nii.gz output.nii.gz 0
 
 ---------------------------------------------------------------------------------------------------
+    """
 
-"""
+    if len(argv) < 3:
+        print(main.__doc__)
+        sys.exit()
 
-in_file = sys.argv[1]
-out_file = sys.argv[2]
-vol = sys.argv[3]
+    in_file = argv[1]
+    out_file = argv[2]
+    vol = argv[3]
 
-in_data = nb.load(in_file)
-real_slice = in_data.get_fdata()[:,:,:,int(vol)]
-img_real_slice = nb.Nifti1Image(real_slice, header=in_data.header, affine=in_data.affine)
+    in_data = nb.load(in_file)
+    real_slice = in_data.get_fdata()[:,:,:,int(vol)]
+    nb.Nifti1Image(
+        real_slice,
+        header=in_data.header,
+        affine=in_data.affine
+    ).to_filename(out_file)
 
-img_real_slice.to_filename(out_file)
+if __name__ == "__main__":
+    main(sys.argv[1:])

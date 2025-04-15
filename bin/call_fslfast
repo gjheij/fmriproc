@@ -28,7 +28,7 @@ Notes:
   - The input file must be a NIfTI file (.nii or .nii.gz)
   - The output root is used as the prefix for FAST output files
   - All other optional arguments are forwarded to FAST
-  - No validation is done on the extra options — make sure they’re valid FAST flags
+  - No validation is done on the extra options — make sure they're valid FAST flags
 
 Relevant FAST options:
   - -n <int>       Number of tissue classes (default=3)
@@ -49,7 +49,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # check if input exists

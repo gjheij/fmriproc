@@ -6,37 +6,54 @@ import sys
 
 def main(argv):
 
-    """
+"""
 ---------------------------------------------------------------------------------------------------
 call_setdtype
 
-Set the data_type in the header of an input image.
+Utility to change the data type (dtype) of a NIfTI image using nibabel. This can be useful when 
+standardizing data types across workflows (e.g., ensuring consistency for ANTs, FSL, or FreeSurfer), 
+reducing file size, or meeting input format requirements of downstream tools.
 
-Args:
-    <input file>  file that needs to be edited
+This script will overwrite the input image unless otherwise modified.
+
+Usage:
+  call_setdtype <input_image> [dtype]
+
+Mandatory (required input):
+  <input_image>     Path to a NIfTI file (.nii or .nii.gz) whose data type should be changed
+
+Optional
+  [dtype]           Target NumPy-compatible data type (default = uint16). Examples:
+                      - uint16
+                      - float32
+                      - int16
+                      - int64
 
 Example:
-    call_setdtype func.nii.gz   # defaults to np.uint16
+  call_setdtype sub-001_desc-brain_mask.nii.gz
+  call_setdtype sub-001_bold.nii.gz float32
+
+Notes:
+    - If the dtype is not specified, the script will default to `np.uint16`
+    - The input image will be overwritten in place
+    - You can verify the result using: `fslhd <input_image>` or `nib-ls <input_image>`
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    if len(argv) < 1:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
+    if not argv:
         print(main.__doc__)
         sys.exit()
-    # elif len(argv) == 2:
-    #     input_image = argv[0]
-    #     set_dtype   = argv[0]
-    elif len(argv) == 1:
-        input_image = argv[0]
-        set_dtype   = np.uint16   
-    else:
-        raise ValueError(f"Unknown number of arguments ({len(argv)}) specified. Just specify an input file..")
 
-    img = nb.load(input_image)
-    img.set_data_dtype(set_dtype)
-    nb.save(img, input_image)
+    input_image = argv[0]
+    set_dtype = np.dtype(argv[1]) if len(argv) > 1 else np.uint16
+
+    try:
+        img = nb.load(input_image)
+        img.set_data_dtype(set_dtype)
+        nb.save(img, input_image)
+    except Exception as e:
+        raise RuntimeError(f"Failed to convert dtype: {e}")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

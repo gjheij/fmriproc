@@ -31,14 +31,13 @@ Optional (flags with defaults):
 Options (extra):
     -h|--help       print this help text
     --lh|--rh       find estimates for a given hemisphere; default = 'lh'
-    --gauss                     Look for gaussian parameters instead of DN-parameters
-    --css                       Look for CSS parameters instead of DN-parameters
-    --dog                       Look for DoG parameters instead of DN-parameters
-    --grid                      Look for grid fit parameters, rather than iterative fit
-                                parameters
-    --plot                      create a plot of the pRF+timecourse+prediction
-    --verbose                   print some extra information to the terminal
-    --v1                        use V1-only data
+    --gauss         Look for gaussian parameters instead of DN-parameters
+    --css           Look for CSS parameters instead of DN-parameters
+    --dog           Look for DoG parameters instead of DN-parameters
+    --grid          Look for grid fit parameters, rather than iterative fit parameters
+    --plot          create a plot of the pRF+timecourse+prediction
+    --verbose       print some extra information to the terminal
+    --v1            use V1-only data
 
 Example:
     call_prfinfo -s sub-001 -v 3386         # vertex 3386 in left hemisphere
@@ -148,7 +147,8 @@ Example:
             axis_type="time",
             resize_pix=270,
             title="pars",
-            save_as=fname)        
+            save_as=fname
+        )        
 
 if __name__ == "__main__":
 

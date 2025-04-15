@@ -8,7 +8,7 @@ import os
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_setmasktoval
 
@@ -16,11 +16,16 @@ This script is a wrapper that sets the values in a given mask to one in a given 
 the opposite of regular 'making', where values in the mask are retained in the input image. See also
 call_setmasktoone and call_setmasktozero
 
-Args:
+Mandatory (required input):
     -i|--input      input image
     -m|--mask       mask image
-    -o|--output     output image|optional)
     -v|--val        value
+
+Optional (flags with defaults):
+    -o|--output     output image, set to <input image> if empty
+
+Options (extra):
+    -h|--help       print this help text
 
 Outputs
     same as input image but with values from mask image set to a specified value
@@ -37,13 +42,17 @@ Example:
     val = None
 
     try:
-        opts = getopt.getopt(argv,"hi:m:o:v:",["input=", "mask=", "output=", "val="])[0]
+        opts = getopt.getopt(
+            argv,
+            "hi:m:o:v:",
+            ["help", "input=", "mask=", "output=", "val="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-i", "--input"):
@@ -74,7 +83,12 @@ Example:
 
     if anat_data.shape != mask_data.shape:
         print(f"Input shape {anat_data.shape} does not match mask shape {mask_data.shape}. Resampling..")
-        res_img = image.resample_to_img(mask_img, input_img, interpolation='nearest')
+        res_img = image.resample_to_img(
+            mask_img,
+            input_img,
+            interpolation='nearest'
+        )
+
         mask_data = res_img.get_fdata()
 
     # set corresponding voxels from mask in input to zero and save new image

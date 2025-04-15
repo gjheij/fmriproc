@@ -23,7 +23,7 @@ output image can be 1 hemisphere (specify one of the values) or both (specify bo
 the format "[<value1>,<value2>]")
 
 Usage:
-  call_refit <atlas> <values> <output> [optional]
+  call_fs2mask <atlas> <values> <output> [optional]
 
 Mandatory (required input):
     <atlas img>     path to either an mgz-file or a nifti-file. The mgz-file will be converted

@@ -33,13 +33,17 @@ Example:
     unit    = "mm"
 
     try:
-        opts = getopt.getopt(argv,"hl:o:u:",["label=", "out=", "unit="])[0]
+        opts = getopt.getopt(
+            argv,
+            "hl:o:u:",
+            ["help", "label=", "out=", "unit="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-l", "--label"):
@@ -58,7 +62,11 @@ Example:
     # Convert label to volume table
 
     if os.path.exists(input):
-        vol_file = massp_to_table(input, out=output, unit=unit)
+        vol_file = massp_to_table(
+            input,
+            out=output,
+            unit=unit
+        )
         print(f"\nwrote {vol_file}")
     else:
         raise FileNotFoundError(f"Could not find file {input}")

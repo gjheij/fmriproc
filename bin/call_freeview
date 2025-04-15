@@ -58,7 +58,7 @@ SUBJECT=${@:$OPTIND:1}
 TYPE=${@:$OPTIND+1:1:-surf}
 TYPE=${TYPE:-surf}
 
-[[ -z "$SUBJECT" ]] && Usage
+[[ -z "$SUBJECT" ]] && Usage && exit 0
 
 #---------------------------------------------------------------------------------------------------------
 # File detection

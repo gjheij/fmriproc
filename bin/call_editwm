@@ -40,7 +40,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -74,19 +74,15 @@ fi
 if [[ -d ${FS_DIR} ]]; then
   cmd="call_mriconvert ${FS_DIR}/mri/rawavg.mgz"
   print_cmd "${cmd}" && eval "${cmd}"
-  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "call_mriconvert" "File ${BOLD_GREEN}${FS_DIR}/mri/rawavg.nii.gz${RESET} was not created"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
   fi  
 
   cmd="call_mriconvert ${FS_DIR}/mri/wm.mgz"
   print_cmd "${cmd}" && eval "${cmd}"
-  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "call_mriconvert" "File ${BOLD_GREEN}${FS_DIR}/mri/wm.nii.gz${RESET} was not created"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
   fi  
 

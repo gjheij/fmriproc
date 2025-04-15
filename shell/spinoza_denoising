@@ -165,7 +165,7 @@ do
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 if [[ ! -z ${ses} ]]; then

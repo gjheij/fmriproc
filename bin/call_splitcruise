@@ -8,19 +8,37 @@ opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_splitcruise
 
-Split the CRUISE segmentation into its gray/white matter parts.
+Split a CRUISE cortical segmentation image into binary gray matter (GM) and white matter (WM) masks.
 
-Args:
-    <CRUISE seg>    path to CRUISE cortical segmentation
-    <output>        basename output for CRUISE's segmentations + FULL path! (_desc-cruise_?.nii.gz)
-                    will be appended
+The CRUISE segmentation format uses the following voxel values:
+  - 1: Gray Matter
+  - 2: White Matter
+This script will generate two separate binary masks for each tissue type and save them as individual
+NIfTI files. This is useful for surface reconstruction or mask refinement in further analysis.
+
+Mandatory arguments:
+  <CRUISE seg>      Full path to the input CRUISE cortical segmentation NIfTI file (e.g., .nii or
+                    .nii.gz)
+  <output>          Basename (including full path) to use for the output files. The script will 
+                    append `_desc-cruise_gm.nii.gz` and `_desc-cruise_wm.nii.gz` for gray and
+                    white matter masks respectively.
+
+Notes:
+  - If the output directory does not exist, it will be created automatically.
+  - Output files will be written in the same format and affine as the input CRUISE segmentation.
 
 Example:
-    call_splitcruise  /path/to/cruise.nii.gz /derivatives/sub-999/ses-1/sub-999_desc-cruise_?.nii.gz
+  call_splitcruise \
+    /project/derivatives/nighres/sub-999/ses-1/sub-999_desc-cruise.nii.gz \
+    /project/derivatives/manual_masks/sub-999/ses-1/sub-999
+
+This will produce:
+  /project/derivatives/manual_masks/sub-999/ses-1/sub-999_desc-cruise_gm.nii.gz
+  /project/derivatives/manual_masks/sub-999/ses-1/sub-999_desc-cruise_wm.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -29,7 +47,6 @@ Example:
     output  = None
 
     if len(argv) < 2:
-        print("\nNEED AT LEAST A SUBJECT ID")
         print(main.__doc__)
         sys.exit()
 
@@ -45,7 +62,10 @@ Example:
     for ix,ii in enumerate(['gm', 'wm']):
         empty_data = np.zeros_like(cruise_data)
         empty_data[cruise_data == (ix+1)] = 1
-        nb.Nifti1Image(empty_data, affine=cruise_img.affine).to_filename(output+f"_desc-cruise_{ii}.nii.gz")
+        nb.Nifti1Image(
+            empty_data,
+            affine=cruise_img.affine
+        ).to_filename(output+f"_desc-cruise_{ii}.nii.gz")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

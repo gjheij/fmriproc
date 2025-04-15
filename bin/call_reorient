@@ -74,7 +74,7 @@ if __name__ == "__main__":
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print(main.__doc__)
-            sys.exit(1)
+            sys.exit()
         elif opt in ("-i", "--infile"):
             infile = arg
         elif opt in ("-c", "--code"):

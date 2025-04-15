@@ -671,7 +671,7 @@ function Usage {
 if [[ $# -lt 2 ]] ; then
   echo
   echo "NEED AT LEAST ONE MODULE. echoING HELP AND EXITING"
-  Usage
+  Usage && exit 0
 fi
 
 #---------------------------------------------------------------------------------------------------

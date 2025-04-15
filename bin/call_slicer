@@ -33,7 +33,7 @@ USAGE
 }
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags

@@ -311,7 +311,7 @@ do
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 INPUT=${@:$OPTIND:1}

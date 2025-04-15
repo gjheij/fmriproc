@@ -62,14 +62,13 @@ while getopts :-:hr arg; do
       esac;;    
     r)  recursive=1
         ;;
-    h)  Usage
-        exit 1
+    h)  Usage && exit 0
         ;;        
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 search_for=${@:$OPTIND:1}

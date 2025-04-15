@@ -39,7 +39,11 @@ Example:
     except:
       raise ValueError(f"You used '{coord}'. Make sure to use '[x,y,z]' (comma-separated and no spaces)")
     
-    vox = native_to_scanner(ref, coord=coord, inv=True)
+    vox = native_to_scanner(
+        ref,
+        coord=coord,
+        inv=True
+    )
 
     print(vox[:3])
 

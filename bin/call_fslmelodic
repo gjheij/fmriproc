@@ -46,7 +46,7 @@ USAGE
 
 # Check for minimum arguments
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # check if input exists

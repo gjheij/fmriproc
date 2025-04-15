@@ -14,7 +14,7 @@ call_dilate
 
 Dilate a binary mask with ndimage
 
-Args:
+Arguments:
     <input img>     path to input image
     <output img>    path to output image
     <iterations>    number of iterations
@@ -32,20 +32,13 @@ Example:
     nr_iter = 2
     mask    = None
 
-    if len(argv) < 2:
-        print("\nPLEASE SPECIFY INPUT AND OUTPUT IMAGE")
-        print(main.__doc__)
-        sys.exit()
+    if len(argv) < 3:
+        raise ValueError("Expected at least 3 arguments: input, output, nr_iter")
 
-    try:
-        input   = argv[0]
-        output  = argv[1]
-        nr_iter = int(argv[2])
-        mask    = argv[3]
-    except:
-        input   = argv[0]
-        output  = argv[1]
-        nr_iter = int(argv[2])
+    input   = argv[0]
+    output  = argv[1]
+    nr_iter = int(argv[2])
+    mask    = argv[3] if len(argv) > 3 else None
 
     img = nb.load(input)
 
@@ -53,10 +46,18 @@ Example:
         mask = nb.load(mask).get_fdata()
 
     # cmd
-    dilated = ndimage.binary_dilation(img.get_fdata(), iterations=nr_iter, mask=mask)
+    dilated = ndimage.binary_dilation(
+        img.get_fdata(),
+        iterations=nr_iter,
+        mask=mask
+    )
     
     # write to file
-    nb.Nifti1Image(dilated, affine=img.affine, header=img.header).to_filename(output)
+    nb.Nifti1Image(
+        dilated,
+        affine=img.affine,
+        header=img.header
+    ).to_filename(output)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

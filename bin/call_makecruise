@@ -31,7 +31,6 @@ Example:
     output      = None
 
     if len(argv) < 3:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 
@@ -47,7 +46,11 @@ Example:
     cruise_img[gm_data > 0] = 1
     cruise_img[wm_data > 0] = 2
 
-    nb.Nifti1Image(cruise_img, affine=gm_img.affine, header=gm_img.header).to_filename(output)
+    nb.Nifti1Image(
+        cruise_img,
+        affine=gm_img.affine,
+        header=gm_img.header
+    ).to_filename(output)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

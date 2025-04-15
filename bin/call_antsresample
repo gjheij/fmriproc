@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -29,7 +33,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 if [[ -z $3 ]]; then
@@ -57,6 +61,21 @@ if [[ ! -f ${output} ]]; then
  #  6  :  float (default)
  #  7  :  double
  #
-  ResampleImage 3 ${1} ${output} ${2} 3 2
+  cmd=(
+    ResampleImage
+    3 
+    "${1}"
+    "${output}" 
+    "${2}"
+    3
+    2
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "ResampleImage"
+    exit 1
+  fi  
 fi

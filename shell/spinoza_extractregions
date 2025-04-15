@@ -69,7 +69,7 @@ USAGE
 
 if [[ $# -lt 4 ]] ; then
   echo NOT ENOUGH ARGUMENTS SPECIFIED
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -112,7 +112,7 @@ do
 done
 
 if [[ $# -lt 4 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 INPUT=${@:$OPTIND:1}

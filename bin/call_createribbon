@@ -13,8 +13,7 @@ call_createribbon
 
 This super short script creates a nifti image of the ribbon-contours based on the `beam`-image (created with `call_createline`).
 
-Parameters
-----------
+Arguments:
     <input>     input beam image based on which to create the ribbon image
     <output>    output image representing the ribbon voxels
     <range>     range of voxels to color in

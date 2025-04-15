@@ -18,7 +18,7 @@ call_exptools2fsl
 Convert a file obtained with Exptools2 to FSL-compatible 3-column files. Uses internally 'lazyfmri.
 dataset.ParseExpToolsFile'.
 
-Optional (flags with defaults):
+Mandatory (required input):
     -t|--tsv        string-like path as obtained with Exptools2
     -o|--out        string representing the basename of output files (if not spec ified, the files
                     will be created based on the event-names as specified in the file). Should
@@ -81,8 +81,8 @@ if __name__ == "__main__":
             ["help", "tsv=", "out=", "duration=", "verbose=", "no-bids"]
         )[0]
     except getopt.GetoptError:
-        print("AN ERROR OCCURRED WHILE READING THE ARGUMENTS")
         print(main.__doc__)
+        print("AN ERROR OCCURRED WHILE READING THE ARGUMENTS")
         sys.exit(2)
 
     for opt, arg in opts:

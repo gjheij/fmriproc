@@ -15,10 +15,10 @@ call_prfmaps
 Create maps of polar angle, eccentricity, and r2 from the output of call_prf
 
 Args:
-    <subject>           subject ID
-    <output file>       if empty it will default to derivatives/<subject>/<subject>_desc-<polarangle>
-                        |<eccentricity>|<R2>.npy; specify a different basename if desired, but the 
-                        <polarangle>|<eccentricity>|<R2>.npy will be appended anyway
+    <subject>       subject ID
+    <output file>   if empty it will default to derivatives/<subject>/<subject>_desc-<polarangle>
+                    |<eccentricity>|<R2>.npy; specify a different basename if desired, but the 
+                    <polarangle>|<eccentricity>|<R2>.npy will be appended anyway
 
 Outputs
     3x numpy array containing maps for polar angle, eccentricity and R2
@@ -34,7 +34,6 @@ Example:
     out     = None
 
     if len(argv) < 1:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

@@ -11,18 +11,33 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_tsnr2
 
-Calculate the tSNR of an input image and save the tSNR map to a given output file name using FSL
-tools (should be quicker than python implementation)
+Calculate the temporal signal-to-noise ratio (tSNR) from a 4D NIfTI image and optionally 
+save the resulting tSNR map to file using FSL.
 
-Positional:
-  <input file>    string-like path to file to calculate tSNR from
-  <output file>   string-like path to output tSNR map (if empty, defaults to <input file>_tsnr)
+The tSNR is computed voxel-wise as the mean signal divided by the standard deviation 
+across time (i.e., over the 4th dimension). A high tSNR generally reflects higher-quality 
+BOLD signals. The resulting map is clipped at a maximum value of 100 by default to avoid 
+extreme outliers.
+
+Mandatory (positional) arguments:
+  <input file>    Path to the 4D NIfTI file for which to compute the tSNR map.
+  
+Optional (positional) arguments:
+  <output file>   Optional full path where the resulting tSNR map will be saved.
+                  If omitted, only the mean tSNR value will be printed to the console.
 
 Options:
-  --clean         remove mean/std images
+  -h|--help       print this help text
+  -k|--keep       keep intermediate files
 
-Example:
-    call_tsnr2 [options] func.nii.gz tsnr.nii.gz
+Behavior:
+  - Automatically clips tSNR values at 100.
+  - If output file is not specified, no image is saved but the mean tSNR is still printed.
+  - Prints the mean tSNR value to console.
+
+Example usage:
+  call_tsnr2 func.nii.gz tsnr_map.nii.gz
+  call_tsnr2 func_bold.nii.gz
 
 ---------------------------------------------------------------------------------------------------
 
@@ -30,38 +45,50 @@ USAGE
 
 }
 
-clean_up=0
-while getopts :-:i:o: argument
+clean_up=1
+while getopts :-:hi:o: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in
-        clean)
-          clean_up=1
+        keep)
+          clean_up=0
           ;;   
-        *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
-          ;;
-      esac;;   
-    i)  input=${OPTARG}
-          ;;  
-    o)  output=${OPTARG}
+        help)
+          Usage && exit 0
           ;;              
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    k)  clean_up=0
+          ;;   
+    h)  Usage && exit 0
+          ;;                                
   esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi      
 
-input=${@:$OPTIND:1}
+# read input
+if [[ ! -f "${@:$OPTIND:1}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "File does not exist"
+  exit 1
+else
+  input=$(readlink -f "${@:$OPTIND:1}")
+fi
+
+# output
 output=${@:$OPTIND+1:1}
 
 # define output
-input=$(fetch_filepath ${input})
 if [[ -z ${output} ]]; then
   output=$(dirname ${input})/$(basename ${input} .nii.gz)_tsnr.nii.gz
 fi
@@ -73,6 +100,13 @@ std_img=$(dirname ${input})/$(basename ${input} .nii.gz)_std.nii.gz
 fslmaths ${input} -Tmean ${mean_img}
 fslmaths ${input} -Tstd ${std_img}
 fslmaths ${mean_img} -div ${std_img} -thr 0 ${output}
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslmaths"
+  exit 1
+fi
 
 # clean up
 if [ ${clean_up} -eq 1 ]; then

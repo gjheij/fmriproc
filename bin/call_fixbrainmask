@@ -17,7 +17,7 @@ Sometimes the brainmask.mgz image contains remnants of the skull around the mout
 entirely sure where this comes from and to what extent this affects the surface reconstruction, but 
 this script can be used to get rid of that by using a binary mask to mask that stuff out.
 
-Args:
+Arguments
     <FreeSurfer>  directory containing segmentations from FreeSurfer
     <Man seg>     directory containing manual segmentation edits or the path to a mask image
 
@@ -57,13 +57,22 @@ Example:
         spm_mask = manseg
             
     brainmask = opj(fsdir, 'mri', 'brainmask.mgz')
+    mask_img = image.resample_to_img(
+        spm_mask,
+        brainmask,
+        interpolation='nearest'
+    )
 
-    mask_img = image.resample_to_img(spm_mask, brainmask, interpolation='nearest')
-    mask_img = nb.freesurfer.MGHImage(mask_img.get_fdata().astype(np.float32), affine=mask_img.affine)
+    mask_img = nb.freesurfer.MGHImage(
+        mask_img.get_fdata().astype(np.float32),
+        affine=mask_img.affine
+    )
 
-    new_brainmask = image.math_img('brain * (mask > 0)',
-                                brain=brainmask,
-                                mask=mask_img)
+    new_brainmask = image.math_img(
+        'brain * (mask > 0)',
+        brain=brainmask,
+        mask=mask_img
+    )
 
     new_brainmask.to_filename(opj(fsdir, 'mri', 'brainmask.mgz'))
     new_brainmask.to_filename(opj(fsdir, 'mri', 'brain.finalsurfs.manedit.mgz'))

@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-#$ -S /bin/bash
-#$ -j Y
-#$ -cwd
-#$ -V
 
-source ${SETUP_FILE}
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -23,35 +21,69 @@ best in it. Check for instruction this page https://github.com/lukassnoek/pybest
 tested, it only works with surface files. Volumetric data outputs pepper corn noise pattern.
 
 Usage:
-  call_pybest -r <subject number> -n <session number> -o <output directory> -s <space>
-              -f <fprep dir> -c <slots>
+  call_pybest [mandatory] [optional] [options]
 
-Arguments:
-  -s <sub number>     number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
-                      for "sub-001", enter "001"). If left empty pybest will process everything it
-                      can find in the fmriprep folder
-  -n <ses number>     session number. If left empty or 'all', pybest will process everything it 
-                      can find in the fmriprep folder.
-  -o <output dir>     path to output directory. By default it will create a subject-specific folder,
-                      but you can set where that subject folder is going to go. By default this
-                      script will output to /projectroot/derivatives/pybest
-  -r <space>          the space to process. fMRIprep outputs several kinds of standard spaces such
-                      as the MNI152NLin2009cAsym, or FSL-templates, but also fsnative. The latter
-                      is the default, because we want to project the results in pycortex.
-  -f <fprep dir>      path to fmriprep derivatives directory. Will look by default in the /project/
-                      derivatives/fmriprep
-  -c <n_slots>        number of slots to use when we're on a cluster
-  -p <n_comps>        number of components to use for decomposition. Default = 10
-  -x <kwargs>         other arguments that should be passed to pybest
-  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_IDS
-                      in the spinoza_setup-file Can also be comma-separated list: task1,task2  
+Mandatory:
+  -s <sub number> number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
+                  for "sub-001", enter 001). If left empty pybest will process everything it
+                  can find in the fmriprep folder
+
+Optional:    
+  -n <ses number> session number. If left empty or 'all', pybest will process everything it 
+                  can find in the fmriprep folder.
+  -o <output dir> path to output directory. By default it will create a subject-specific folder,
+                  but you can set where that subject folder is going to go. By default this
+                  script will output to DIR_DATA_DERIV/pybest
+  -r <space>      the space to process. fMRIprep outputs several kinds of standard spaces such
+                  as the MNI152NLin2009cAsym, or FSL-templates, but also fsnative. The latter
+                  is the default, because we want to project the results in pycortex.
+  -f <fprep dir>  path to fmriprep derivatives directory. Will look by default in the DIR_DATA_
+                  DERIV/fmriprep
+  -c <n_slots>    number of slots to use when we're on a cluster
+  -p <n_comps>    number of components to use for decomposition. Default = 20 (as per Marco's
+                  investigations for 3D-EPI, TR=1.32 BOLD data)
+  -x <kwargs>     Extra arguments that will be directly passed to 'pybest'. The format
+                  should be as follows: different parameters comma-separated, and parameter-value
+                  pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-x --start-from=noiseproc,--ricor-dir=/some/directory,--skip-tr"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  cmd_args=(
+                    pybest
+                    --subject     # subject ID            (-s flag)
+                    --session     # session ID            (-n flag)
+                    --n-cpus      # number of slots       (-c flag)
+                    --task        # TASK_IDS-variable     (see '${CONFIG_FILE}')
+                    --space       # PYBEST_SPACE-variable (-r flag or see '${CONFIG_FILE}')
+                    --hemi        # both; (if surface)
+                    --out-dir     # output dir            (-o flag)
+                    --n-comps     # PYBEST_COMPS-variable (-p flag or see '${CONFIG_FILE}')
+                    --verbose ERROR
+                    --save-all
+                    input_dir     # input directory       (-f flag)     
+                  )
+
+  -t <task ID>    limit pybest processing to a specific task. Default is all tasks in TASK_IDS
+                  in the spinoza_setup-file Can also be comma-separated list: task1,task2  
 
 Options:
-  --raw               undo the z-scoring done by pybest (call_unzscore)
+  -h|--help       print this help text
+  --raw           undo the z-scoring done by pybest (call_unzscore)
+  --fsaverage     utilize FSAverage space
+  --fsnative      utilize FSNative space
+  --post-only     only run un-zscoring AFTER pybest
+  --pre-only      only store AVG/STD BEFORE pybest
+  --pyb-only      only run pybest (does not run 'call_unzscore' at all)
 
 Example:
-  call_pybest -s "001" -n "1" -o /derivatives/pybest -r "fsnative" -f /derivatives/fmriprep -c 10
-  call_pybest -s "001" -n "1" -o /derivatives/pybest -p 25 -f /derivatives/fmriprep -c 10
+  call_pybest -s 001
+  call_pybest -s 001 -n 1 -o /derivatives/pybest -r "fsnative" -f /derivatives/fmriprep -c 10
+  call_pybest -s 001 -n 1 -o /derivatives/pybest -p 25 -f /derivatives/fmriprep -c 10
 
 ---------------------------------------------------------------------------------------------------
 
@@ -68,12 +100,12 @@ ses_raw=""
 output_dir=${DIR_DATA_DERIV}/pybest
 input_dir=${DIR_DATA_DERIV}/fmriprep
 raw=1
-n_comps=10
+n_comps=20
 post_only=0
 pre_only=0
 pyb_only=0
 kwargs=""
-while getopts :-:s:n:o:f:c:v:r:t:p:x: arg; do
+while getopts :-:hs:n:o:f:c:v:r:t:p:x: arg; do
   case $arg in
     -)
       case "${OPTARG}" in
@@ -94,7 +126,10 @@ while getopts :-:s:n:o:f:c:v:r:t:p:x: arg; do
           ;;
         pyb-only)
           pyb_only=1
-          ;;                    
+          ;;        
+        help)
+          Usage && exit 0
+          ;;                        
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
@@ -119,19 +154,31 @@ while getopts :-:s:n:o:f:c:v:r:t:p:x: arg; do
     p)  n_comps=${OPTARG}
           ;;              
     x)  kwargs=${OPTARG}
-          ;;                   
+          ;;       
+    h)  Usage && exit 0
+          ;;                       
   esac
 done
 
-# sort out kwargs
-if [[ ! -z ${kwargs} ]]; then
-  kwargs=$(echo $kwargs | tr ',' ' ' | tr '=' ' ')
+#-----------------------------------------------------------------------------
+# just exist if call_pybest is called
+if [[ $# -lt 1 ]] ; then
+  Usage && exit 0
 fi
 
-if [[ $# -lt 4 ]] ; then
-  Usage
+#-----------------------------------------------------------------------------
+# Turn kwargs into space-separated array
+if [[ -n "${kwargs}" ]]; then
+  IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
+else
+  user_args=()
 fi
 
+# Convert user_args into string for matching
+arg_str="${user_args[*]}"
+
+#-----------------------------------------------------------------------------
+# read tasks
 if [[ -z ${task_ids} ]]; then
   task_ids=${TASK_IDS[@]}
 else
@@ -141,24 +188,25 @@ else
   unset IFS
 fi
 
-# Make sure we run the specified subject or all subjects pybest can find will be
-# processed
+#-----------------------------------------------------------------------------
+# read subject
 if [[ ! -z ${sub} ]]; then
   sub_input="--subject ${sub}"
 fi
 
-# Make sure we run the specified session or all sessions pybest can find will be
-# processed
+#-----------------------------------------------------------------------------
+# check session input
 base_dir="sub-${sub}/"
 if [[ ! -z ${ses} ]]; then
   if [[ ${ses} != "all" ]]; then
     ses_input="--session ${ses}"
-    ses_raw="-n ${ses}"
+    ses_raw="--ses ${ses}"
     base_dir+="ses-${ses}"
   fi
 fi
 
-# Set output directory if specified, otherwise default to /derivatives/pybest
+#-----------------------------------------------------------------------------
+# Default paths
 if [[ ! -z ${outputdir} ]]; then
   output_dir=${outputdir}
 fi
@@ -168,17 +216,14 @@ if [[ ! -z ${fprepdir} ]]; then
   input_dir=${fprepdir}
 fi
 
-# Make sure we run with the specified amount of slots
-if [[ ! -z ${n_slots} ]]; then
-  cpu_input="--n-cpus ${n_slots}"
-fi
-
-#
+#-----------------------------------------------------------------------------
+# make directory
 if [[ ! -d ${output_dir}/sub-${sub} ]]; then
   mkdir -p ${output_dir}/sub-${sub}
 fi 
 
-# define rules
+#-----------------------------------------------------------------------------
+# define execution rules
 execute_pre=1
 if [[ ${post_only} -eq 1 || ${pyb_only} -eq 1 ]]; then
   execute_pre=0
@@ -194,6 +239,34 @@ if [[ ${pyb_only} -eq 1 || ${pre_only} -eq 1 ]]; then
   execute_post=0
 fi    
 
+#-----------------------------------------------------------------------------
+# define base command
+cmd_args=(pybest)
+
+# Add defaults only if not already specified
+[[ ! "$arg_str" =~ "--subject" ]] && cmd_args+=(${sub_input})
+[[ ! "$arg_str" =~ "--session" ]] && cmd_args+=(${ses_input})
+[[ ! "$arg_str" =~ "--out-dir" ]] && cmd_args+=(--out-dir "${outputdir}")
+[[ ! "$arg_str" =~ "--n-comps" ]] && cmd_args+=(--n-comps "${n_comps}")
+[[ ! "$arg_str" =~ "--space" ]] && cmd_args+=(--space "${in_space}")
+[[ ! "$arg_str" =~ "--verbose" ]] && cmd_args+=(--verbose ERROR)
+[[ ! "$arg_str" =~ "--save-all" ]] && cmd_args+=(--save-all)
+
+# number of slots
+if [[ ! -z ${n_slots} ]]; then
+  [[ ! "$arg_str" =~ "--n-cpus" ]] && cmd_args+=("--n-cpus ${n_slots}")
+fi
+
+# cmd to call_unzscore
+base_cmd=(
+  call_unzscore
+  --sub "${sub}"
+  "${ses_raw}"
+  --out "${outputdir}"
+  --fprep "${input_dir}"
+  --space "${in_space}"
+)
+
 # loop through tasks; I know pybest can do ALL tasks at once, but it's nice to have a limiter in here
 for task_id in ${task_ids[@]}; do
   echo "Running pybest on task: \"${task_id}\""
@@ -203,23 +276,22 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        cmd=(
-          call_unzscore
-          -s "${sub}"
-          "${ses_raw}"
-          -o "${outputdir}"
-          -f "${input_dir}"
-          -t "${task_id}"
-          -p "${in_space}"
+        
+        # copy base command and add --pre
+        this_cmd=(
+          "${base_cmd[@]}"
+          --task "${task_id}"
           --pre
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
+        # run
+        print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
         if [[ $? -ne 0 ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_unzscore (--pre) existed with non-zero status"
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"pre\""
           exit 1
-        fi
+        fi 
       fi
     fi
 
@@ -228,31 +300,27 @@ for task_id in ${task_ids[@]}; do
       for hemi in "L" "R"; do
 
         echo "Dealing with hemi-${hemi}"
-        cmd=(
-          pybest
-          "${sub_input}"
-          "${ses_input}"
-          "${cpu_input}"
-          "${input_dir}"
-          ${kwargs}
+        
+        # Clone command args to avoid mutating the original
+        this_cmd=(
+          "${cmd_args[@]}"
           --task "${task_id}"
-          --space "${in_space}"
-          --hemi "${hemi}"
-          --verbose ERROR
-          --save-all
-          --out-dir "${outputdir}"
-          --n-comps "${n_comps}"
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        # update hemi-flag
+        [[ ! "$arg_str" =~ "--hemi" ]] && this_cmd+=(--hemi "${hemi}")
+        
+        # final input
+        this_cmd+=("${input_dir}")
 
+        # run
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
           print_error_msg "$(basename ${0})" "pybest"
           exit 1
-        fi  
-
+        fi
       done
     fi
     
@@ -261,25 +329,21 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        cmd=(
-          call_unzscore
-          -s "${sub}"
-          "${ses_raw}"
-          -o "${output_dir}"
-          -f "${input_dir}"
-          -t "${task_id}"
-          -p "${in_space}"
+        # copy base command and add --pre
+        this_cmd=(
+          "${base_cmd[@]}"
+          --task "${task_id}"
           --post
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
+        # run
+        print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
           print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
           exit 1
-        fi
+        fi 
       fi
     fi
     echo "Done"
@@ -290,46 +354,37 @@ for task_id in ${task_ids[@]}; do
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
         echo "Saving average/standard deviation"
-        cmd=(
-          call_unzscore
-          -s "${sub}"
-          "${ses_raw}"
-          -o "${outputdir}"
-          -f "${input_dir}"
-          -t "${task_id}"
-          -p "${in_space}"
+        
+        # copy base command and add --pre
+        this_cmd=(
+          "${base_cmd[@]}"
+          --task "${task_id}"
           --pre
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
+        # run
+        print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
           print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"pre\""
           exit 1
-        fi  
+        fi 
       fi
     fi
 
+    # we got volumetric data, so stuff gets a bit more exotic
     if [[ ${execute_pyb} -eq 1 ]]; then
-      # we got volumetric data, so stuff gets a bit more exotic
-      cmd=(
-        pybest
-        "${sub_input}"
-        "${ses_input}"
-        "${input_dir}"
-        "${kwargs}"
-        --out-dir "${outputdir}"
+
+      # Clone command args to avoid mutating the original
+      this_cmd=(
+        "${cmd_args[@]}"
         --task "${task_id}"
-        --space "${in_space}"
-        --verbose ERROR
-        --save-all
-        --n-comps "${n_comps}"
+        "${input_dir}"
       )
 
+      # run
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
@@ -343,25 +398,21 @@ for task_id in ${task_ids[@]}; do
       if [ ${raw} -eq 1 ]; then
         echo "Un-zcoring output from pybest"
 
-        cmd=(
-          call_unzscore
-          -s "${sub}"
-          "${ses_raw}"
-          -o "${output_dir}"
-          -f "${input_dir}"
-          -t "${task_id}"
-          -p "${in_space}"
+        # copy base command and add --pre
+        this_cmd=(
+          "${base_cmd[@]}"
+          --task "${task_id}"
           --post
         )
 
-        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
+        # run
+        print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
           print_error_msg "$(basename ${0})" "call_unzscore" "Stage=\"post\""
           exit 1
-        fi  
+        fi 
       fi
       echo "Done"    
     fi       
@@ -370,9 +421,27 @@ for task_id in ${task_ids[@]}; do
     out_dir=${output_dir}/${base_dir}
 
     if [[ ${in_space} == "func" ]]; then
-      mask=($(find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*desc-preproc_mask.nii.gz" -and -not -name "*space-*" 2>/dev/null))
+      mask=(
+        $(
+          find -L ${out_dir}/preproc \
+          -type f \
+          -name "*task-${task_id}*" \
+          -and -name "*desc-preproc_mask.nii.gz" \
+          -and -not -name "*space-*" \
+          2>/dev/null
+        )
+      )
     else
-      mask=($(find -L ${out_dir}/preproc -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-preproc_mask.nii.gz" 2>/dev/null))
+      mask=(
+        $(
+          find -L ${out_dir}/preproc \
+          -type f \
+          -name "*task-${task_id}*" \
+          -and -name "*space-${in_space}*" \
+          -and -name "*desc-preproc_mask.nii.gz" \
+          2>/dev/null
+        )
+      )
     fi
 
     n_masks=${#mask[@]}
@@ -392,9 +461,27 @@ for task_id in ${task_ids[@]}; do
 
         # search for bold files
         if [[ ${in_space} == "func" ]]; then
-          bold_files=($(find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null))
+          bold_files=(
+            $(
+              find -L ${out_dir}/${ddir} \
+              -type f \
+              -name "*task-${task_id}*" \
+              -and -name "*desc-denoised_bold.nii.gz" \
+              -and -not -name "*space-*" \
+              2>/dev/null
+            )
+          )
         else
-          bold_files=($(find -L ${out_dir}/${ddir} -type f -name "*task-${task_id}*" -and -name "*space-${in_space}*" -and -name "*desc-denoised_bold.nii.gz" 2>/dev/null))
+          bold_files=(
+            $(
+              find -L ${out_dir}/${ddir} \
+              -type f \
+              -name "*task-${task_id}*" \
+              -and -name "*space-${in_space}*" \
+              -and -name "*desc-denoised_bold.nii.gz" \
+              2>/dev/null
+            )
+          )
         fi
 
         echo "Applying \"${mask}\" to ${#bold_files[@]} nifti-files"
@@ -408,8 +495,13 @@ for task_id in ${task_ids[@]}; do
 
             # define and run cmd
             echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
-            cmd=(fslmaths ${bold} -mas ${mask} ${masked_bold})
-            "${cmd[@]}"
+            cmd=(
+              fslmaths 
+              "${bold}"
+              -mas "${mask}"
+              "${masked_bold}"
+            )
+            eval "${cmd[@]}"
 
             # check if execution was ok
             if [[ $? -ne 0 ]]; then
@@ -422,7 +514,9 @@ for task_id in ${task_ids[@]}; do
           done
           echo "Done"
         else
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\"" 
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "find" "could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\""
           exit 1
         fi
       fi

@@ -2,32 +2,40 @@
 
 import os
 import sys
-from fmriproc.transform import native_to_scanner
 import numpy as np
 import ast
+from fmriproc.transform import native_to_scanner
 
 opj = os.path.join
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_ras2vox
 
-Convert an RAS coordinate to voxel-coordinate
+Convert a spatial RAS coordinate to voxel space using a reference image. The RAS coordinate 
+must be given in scanner space and will be transformed to voxel indices using the inverse 
+of the reference image's affine.
 
-Args:
-    <coord>     coordinate in the format [C,R,S] (comma-separated & no spaces!)
-    <ref>       reference image to base the vox2ras affine on
+Mandatory arguments:
+  <coord>       Coordinate in RAS space, formatted as a list: [x,y,z]
+                Must be comma-separated, no spaces (e.g., [187,177,40])
+
+  <ref>         Path to a NIfTI or MGZ file used to extract the voxel-to-RAS affine
+
+Behavior:
+  - Parses the input coordinate using Python's literal evaluation
+  - Uses the inverse affine from the reference image to convert to voxel indices
+  - Prints the voxel-space coordinate (first 3 values)
 
 Example:
-    call_ras2vox [187,177,40] orig.mgz
+  call_ras2vox [187,177,40] orig.mgz
+  call_ras2vox [12.3,45.2,78.0] T1w.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 
@@ -35,13 +43,12 @@ Example:
     ref   = argv[1]
 
     try:
-      coord = np.array(ast.literal_eval(coord))
-    except:
-      raise ValueError(f"You used '{coord}'. Make sure to use '[x,y,z]' (comma-separated and no spaces)")
-    
-    ras = native_to_scanner(ref, coord=coord)
+        coord = np.array(ast.literal_eval(coord))
+    except Exception:
+        raise ValueError(f"Could not parse coordinate '{coord}'. Make sure to use '[x,y,z]' with no spaces.")
 
-    print(ras[:3])
+    ras = native_to_scanner(ref, coord=coord)
+    print(ras[:3])  # Only print spatial indices (i,j,k)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

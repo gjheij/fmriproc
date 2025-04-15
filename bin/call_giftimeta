@@ -32,7 +32,6 @@ Example:
     """
 
     if len(argv) < 1:
-        print("NEED AT LEAST AN INPUT IMAGE")
         print(main.__doc__)
         sys.exit()
 

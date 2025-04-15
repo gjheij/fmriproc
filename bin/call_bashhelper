@@ -1222,7 +1222,18 @@ function dykstra_distance {
     print_line -
     echo
   else
-    dist=$(mris_pmake --subject ${1} --hemi ${2} --surface ${3} --mpmProg pathFind --mpmArgs vertexStart:${4},vertexEnd:${5} --mpmOverlay distance | sed -n '2p' | cut -d"[" -f2 | cut -d" " -f2)
+    dist=$(
+      mris_pmake \
+        --subject "${1}" \
+        --hemi "${2}" \
+        --surface "${3}" \
+        --mpmProg pathFind \
+        --mpmArgs vertexStart:${4},vertexEnd:${5} \
+        --mpmOverlay distance | \
+      sed -n '2p' | \
+      cut -d "[" -f2 | \
+      cut -d " " -f2
+    )
 
     # write output to json file
     if [[ ! -z ${6} ]]; then

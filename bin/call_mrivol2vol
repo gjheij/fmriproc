@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -20,7 +24,7 @@ Arguments:
   <moving>        image to be moved
   <target>        image to move to
   <output>        output name
-  <vol/seg>       type input image
+  <vol/seg>       type input image (default = 'vol')
 
 Options:
   -h|--help       print this help text
@@ -36,6 +40,7 @@ USAGE
 
 }
 
+IN_TYPE="vol"
 while getopts :-:ht: argument; do
   case $argument in
     -)
@@ -52,13 +57,13 @@ while getopts :-:ht: argument; do
       ;;    
     t)  tname=${OPTARG}
           ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;             
   esac
 done
 
-if [[ $# -lt 4 ]]; then
-  Usage
+if [[ $# -lt 3 ]]; then
+  Usage && exit 0
 fi
 
 TAR=${@:$OPTIND:1}
@@ -70,22 +75,30 @@ IN_TYPE=${@:$OPTIND+3:1}
 # Start loop
 
 if [[ ! -f ${MOV} ]]; then
-  echo " ERROR: could not find moving image"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find MOVING image"
   exit 1
 fi
 
 if [[ ! -f ${TAR} ]]; then
-  echo " ERROR: could not find target image"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find FIXED image"
   exit 1
 fi
 
 if [[ -z ${OUT} ]]; then
-  echo " ERROR: please specify an output name"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Specify output name"
   exit 1
 fi
 
 if [[ -z ${IN_TYPE} ]]; then
-  echo " ERROR: could not find moving image type: \"seg\"or \"vol\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "type" "MOVING must be of type \"seg\"or \"vol\""
   exit 1
 fi
 
@@ -96,13 +109,41 @@ else
 fi
 
 if [[ ${IN_TYPE} == "vol" ]]; then
-  cmd="mri_vol2vol --mov ${MOV} --targ ${TAR} --regheader --o ${OUT} ${reg_flag}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  cmd=(
+    mri_vol2vol
+    --mov "${MOV}"
+    --targ "${TAR}"
+    --regheader
+    --o "${OUT}"
+    "${reg_flag}"
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "mri_vol2vol"
+    exit 1
+  fi  
 elif [[ ${IN_TYPE} == "seg" ]]; then
-  cmd="mri_label2vol --seg ${MOV} --temp ${TAR} --o ${OUT} --regheader ${MOV}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  cmd=(
+    mri_label2vol
+    --seg "${MOV}"
+    --temp "${TAR}"
+    --o "${OUT}"
+    --regheader "${MOV}"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "mri_label2vol"
+    exit 1
+  fi  
 else
-  echo "invalid option ${IN_TYPE}"
-  Usage
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "type" "MOVING must be of type \"seg\"or \"vol\", not \"${IN_TYPE}\""
+  exit 1
 fi

@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 
-from lazyfmri.utils import color, get_file_from_substring, reverse_sign
+from lazyfmri import utils
 from fmriproc import scanner
 import sys
 import getopt
 import os
-opj = os.path.join
 
 try:
     from cxutils import optimal
 except ImportError:
     print("Could not import cxutils. Please install from https://github.com/gjheij/cxutils")
 
-def main(argv):
+opj = os.path.join
+gb = f"{utils.color.GREEN}{utils.color.BOLD}"
+rb = f"{utils.color.RED}{utils.color.BOLD}"
+end = utils.color.END
+
+@utils.validate_cli_inputs(required_keys=["subject"])
+def main(context):
 
     """
 ---------------------------------------------------------------------------------------------------
@@ -28,7 +33,10 @@ exists.
 Utilizes the same strategy as in spinoza_lineplanning, but instead of using a registration matrix
 between two sessions, orig.nii.gz and an identity matrix are used to "warp" the coordinate.
 
-Args:
+Usage:
+  call_createlinefs [mandatory] [optional] [options]
+
+Mandatory (required input):
     -s|--subject    name of the directory as specified in the pycortex filestore directory
     -f|--fsdir      FreeSurfer directory; if left empty, SUBJECTS_DIR will be used 
     -l|--line-ctx   file containing the information about placement of the line. If left empty
@@ -51,72 +59,48 @@ Example:
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject     = None
-    session     = 2
-    line_ctx    = None
-    fs_dir      = os.environ.get('SUBJECTS_DIR')
-    output      = None
-    hemi        = 'lh'
-    freeview    = True
+    subject     = context["subject"]
+    session     = context.get("session", 2)
+    line_ctx    = context.get("line_ctx")
+    fs_dir      = context.get("fs_dir", os.environ.get("SUBJECTS_DIR"))
+    output      = context.get("output")
+    hemi        = context.get("hemi", "lh")
+    freeview    = context.get("freeview", True)
 
-    try:
-        opts = getopt.getopt(argv,"hs:f:h:l:o:n:",["help", "subject=", "line-ctx=", "fsdir=", "lh", "rh", "output=", "no-freeview", "session="])[0]
-    except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ("-h", "--help"):
-            print(main.__doc__)
-            sys.exit()
-        elif opt in ("-s", "--subject"):
-            subject = arg
-        elif opt in ("-n", "--session"):
-            session = arg
-        elif opt in ("-f", "--fsdir"):
-            fs_dir = arg  
-        elif opt in ("-l", "--line-ctx"):
-            line_ctx = arg               
-        elif opt in ("-o", "--output"):
-            output = arg
-        elif opt in ("--no-freeview"):
-            freeview = False
-        elif opt in ("--lh"):
-            hemi = "lh"
-        elif opt in ("--rh"):
-            hemi = "rh"
-
-    if len(argv) < 1:
-        print("\nNEED AT LEAST A SUBJECT ID")
-        print(main.__doc__)
-        sys.exit()
-
-    if not output:
+    # define output if not given
+    if not isinstance(output, str):
         if hemi.lower() == "lh":
             tag = "hemi-L"
         elif hemi.lower() == "rh":
             tag = "hemi-R"
         else:
             raise ValueError(f"Invalid hemisphere {hemi} specified. Please use 'lh' or 'rh'")
-        output = opj(fs_dir, subject, 'mri', f'{subject}_ses-{session}_space-fsnative_{tag}_desc-beam_template.nii.gz')        
+        
+        output = opj(
+            fs_dir,
+            subject,
+            'mri',
+            f'{subject}_ses-{session}_space-fsnative_{tag}_desc-beam_template.nii.gz'
+        )
 
+    # create beam based on orig.mgz
     orig = opj(fs_dir, subject, 'mri', 'orig.mgz')
-    os.system(f'call_createbeamfs {subject}')
-    beam = get_file_from_substring("space-fs_desc-template_beam", os.path.dirname(orig))
+    utils.run_shell_wrapper(f'call_createbeamfs {subject}')
+    beam = utils.get_file_from_substring("space-fs_desc-template_beam", os.path.dirname(orig))
 
     # apply similar strategy as in spinoza_lineplanning, but then with an identity matrix
-    anat2 = opj(
-        os.environ.get('FS'), 
-        subject, 
-        'mri', 
-        'orig.nii.gz'
-    )
-
+    anat2 = orig.split(".")[0]+".nii.gz"
     if not os.path.exists(anat2):
-        os.system(f"call_mriconvert {orig} 2>/dev/null")
+        utils.run_shell_wrapper(f"call_mriconvert {orig} 2>/dev/null")
 
+    # define file with coordinate/normal vector
     if not isinstance(line_ctx, str):
-        line_ctx = opj(os.environ['CTX'], subject, f"ses-{session}", f"{subject}_ses-{session}_desc-coords.csv")
+        line_ctx = opj(
+            os.environ.get('CTX'),
+            subject,
+            f"ses-{session}",
+            f"{subject}_ses-{session}_desc-coords.csv"
+        )
 
     if not os.path.exists(line_ctx):
         raise FileExistsError(f"Could not find file with coordinates: {line_ctx}")
@@ -147,9 +131,9 @@ Example:
     # 2.67 from that, giving an angle of 87.33 in FH/SI direction
     flip = False
     if fold['value'][0].lower() == "sagittal":
-        txt = "Orientation is {sag}; first enter 90 in FH/SI-direction".format(sag=color.BOLD + color.RED + fold['value'][0] + color.END)
+        txt = f"Orientation is {rb}{fold['value'][0]}{end}; first enter 90 in FH/SI-direction"
     else:
-        txt = "Orientation is {sag}".format(sag=color.BOLD + color.RED + fold['value'][0] + color.END)
+        txt = f"Orientation is {rb}{fold['value'][0]}{end}"
         flip = True
 
     # LR is useless for FreeView
@@ -160,9 +144,9 @@ Example:
     
     # encoding is different for FreeView/scanner in coronal orientation
     if flip:
-        ap_angle = reverse_sign(ap_angle)
+        ap_angle = utils.reverse_sign(ap_angle)
 
-    print("\n---------------------------------------------------------------------------------------------------")
+    utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print("Enter the following angles (in this order!!):")
     print(txt)
     print(f" FH: {round(fold['value'][5],2)}")
@@ -175,18 +159,63 @@ Example:
 
     if freeview:
         print(f"\nOpening Freeview; make sure to highlight 'space-fs_desc-template_beam'!")
-        print(f"Save image as: '{output}'")        
-        os.system("freeview -v {orig} {beam}:colormap=Heat -f {fid}:edgecolor=green --ras {x} {y} {z} tkreg --transform-volume 2>/dev/null".format(
-            orig=orig, 
-            beam=beam, 
-            fid=opj(fs_dir, subject, 'surf', f"{hemi}.fiducial"),
-            x=round(tkr_coords[0],2),
-            y=round(tkr_coords[1],2),
-            z=round(tkr_coords[2],2)))
+        print(f"Save image as: '{output}'")
+
+        fid = opj(fs_dir, subject, 'surf', f"{hemi}.fiducial")
+        x,y,z = [round(tkr_coords[i],2) for i in tkr_coords]
+        cmd = f"launch_freeview \
+            -v {orig} {beam}:colormap=Heat \
+            -f {fid}:edgecolor=green \
+            --ras {x} {y} {z} tkreg \
+            --transform-volume 
+            2>/dev/null"
+        utils.run_shell_wrapper(cmd)
     else:
         print("Not opening FreeView..")
         
     print("Done")
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    context = {
+        "subject": None,
+        "session": 2,
+        "fs_dir": os.environ.get("SUBJECTS_DIR"),
+        "line_ctx": None,
+        "output": None,
+        "hemi": "lh",
+        "freeview": True
+    }
+
+    try:
+        opts = getopt.getopt(
+            sys.argv[1:], 
+            "hs:f:l:o:n:", 
+            ["help", "sub=", "fsdir=", "line-ctx=", "output=", "no-freeview", "lh", "rh", "ses="]
+        )[0]
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-s", "--sub"):
+            context["subject"] = arg
+        elif opt in ("-n", "--ses"):
+            context["session"] = arg
+        elif opt in ("-f", "--fsdir"):
+            context["fs_dir"] = arg
+        elif opt in ("-l", "--line-ctx"):
+            context["line_ctx"] = arg
+        elif opt in ("-o", "--output"):
+            context["output"] = arg
+        elif opt == "--no-freeview":
+            context["freeview"] = False
+        elif opt == "--lh":
+            context["hemi"] = "lh"
+        elif opt == "--rh":
+            context["hemi"] = "rh"
+
+    main(context=context)

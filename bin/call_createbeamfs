@@ -34,8 +34,8 @@ Example:
     sub = None
 
     if len(argv) < 1:
-        print("NEED A SUBJECT ID")
         print(main.__doc__)
+        print("NEED A SUBJECT ID")
         sys.exit()
 
     sub = argv[0]

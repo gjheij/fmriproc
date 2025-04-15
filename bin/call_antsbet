@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
-# source setup and helper functions
-call_loadsetup
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -27,7 +27,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------

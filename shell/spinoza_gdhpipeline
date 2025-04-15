@@ -83,7 +83,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Allocate input arguments to variables
@@ -124,7 +124,7 @@ done
 
 if [[ -z ${subject} ]]; then
   echo "Always need at least a starting point"
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------

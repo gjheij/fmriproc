@@ -48,7 +48,7 @@ USAGE
 
 # Require at least 4 arguments
 if [[ $# -lt 4 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Required inputs

@@ -276,7 +276,19 @@ process_lowres_mp2rage() {
       min=$(fslstats "${anat_lowres}" -R | awk '{print $1}')
       if [[ ${min} != "0.000000" ]]; then
         echo " Rescaling lowres MP2RAGE-file"
-        call_maskmp2rage "${anat_lowres}" "${anat_t1map}" "${anat_lowres}"
+        cmd=(
+          call_maskmp2rage
+          "${anat_lowres}"
+          "${anat_t1map}"
+          "${anat_lowres}"
+        )
+        eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_maskmp2rage"
+          exit 1
+        fi
       fi
     fi
 
@@ -286,12 +298,12 @@ process_lowres_mp2rage() {
 
     echo " Relocating lowres MP2RAGE-file as ${base}${acq_flag}_T1w.nii.gz"
 
-    cp "${anat_lowres}" "${bids_dir}/anat/${base}${acq_flag}_T1w.nii.gz"
+    cp "${anat_lowres}" "${bids_dir}/anat/${base}${acq_flag}_T1w.nii.gz" 2>/dev/null
 
     local json_file
     json_file="$(dirname "${anat_lowres}")/$(basename "${anat_lowres}" .nii.gz).json"
     if [[ -f "${json_file}" ]]; then
-      cp "${json_file}" "${bids_dir}/anat/${base}${acq_flag}_T1w.json"
+      cp "${json_file}" "${bids_dir}/anat/${base}${acq_flag}_T1w.json" 2>/dev/null
     else
       echo "  WARNING: Could not find JSON sidecar for ${anat_lowres}"
     fi
@@ -563,16 +575,18 @@ process_linescanning_bold_lab() {
 
     if [[ -f ${slice_template} ]]; then
       if [[ ! -f ${line_img} || ${OW} -eq 1 ]]; then
-        call_createline \
-          -i "${slice_template}" \
-          -o "${line_img}" \
-          --width 16 \
+        cmd=(
+          call_createline
+          -i "${slice_template}"
+          -o "${line_img}"
+          --width 16
           --"${fold,,}"
-
+        )
+        eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename "$0"): call_createline exited with non-zero status"
+          print_error_msg "$(basename ${0})" "call_createline"
           exit 1
         fi
 
@@ -861,7 +875,7 @@ Notes:
 ---------------------------------------------------------------------------------------------------------
 
 EOF
-    exit 1
+
 }
 
 #---------------------------------------------------------------------------------------------------------
@@ -971,13 +985,13 @@ do
           ;;     
     x)  kwargs="-x ${OPTARG}"
           ;;                        
-    h)  Usage
+    h)  Usage && exit 0
           ;;                                                           
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # sort out runs

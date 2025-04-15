@@ -39,8 +39,8 @@ Example:
         --mask derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_desc-spm_mask.nii.gz \
         --inv2 sub-01/ses-1/anat/sub-01_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz \
         --output derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_T1w.nii.gz
----------------------------------------------------------------------------------------------------
 
+---------------------------------------------------------------------------------------------------
     """
 
     t1w_fn  = None
@@ -49,10 +49,14 @@ Example:
     output  = None
 
     try:
-        opts = getopt.getopt(argv,"ht:m:i:o:",["help", "t1w=", "mask=", "inv=", "output="])[0]
+        opts = getopt.getopt(
+            argv,
+            "ht:m:i:o:",
+            ["help", "t1w=", "mask=", "inv=", "output="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
-        sys.exit(2)
+        sys.exit()
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -73,12 +77,12 @@ Example:
         sys.exit()
 
     mask = image.math_img('(t1w_mask > 0)', t1w_mask=mask)
-
     new_t1w = image.math_img(
         't1w * t1w_mask * np.mean(inv2[t1w_mask == 1]/np.max(inv2)) + t1w * inv2/np.max(inv2) * (1-t1w_mask)',
         t1w=t1w_fn,
         t1w_mask=mask,
-        inv2=inv2)
+        inv2=inv2
+    )
 
     new_t1w.to_filename(output)
 

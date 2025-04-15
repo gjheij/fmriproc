@@ -198,13 +198,13 @@ do
           ;;  
     j)  n_cpus=${OPTARG}
           ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;                                   
   esac
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 if [[ -z ${SUBJECTS_DIR} ]]; then

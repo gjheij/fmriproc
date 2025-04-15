@@ -24,7 +24,7 @@ table with nibabel). This will attempt to put the correct information in an acco
 car (not produced by parrec2nii); some information (e.g., RepetitionTime) could be missing.
 
 Usage:
-  call_dcm2niix [arguments] [options]
+  call_dcm2niix [mandatory] [optional] [options]
 
 Mandatory:
   -i <input>      folder containing the files to be processed. Always needed!
@@ -111,8 +111,7 @@ do
           compress_flag=""
           ;;             
         help)
-          Usage
-          exit 0
+          Usage && exit 0
           ;;
         force-exec)
           force_flag="--force-exec"
@@ -139,15 +138,13 @@ do
     x)  kwargs=${OPTARG}
         kwargs_flag="-x ${kwargs}"
           ;;              
-    h)  Usage
-        exit 0
+    h)  Usage && exit 0
           ;;                
   esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage
-  exit 0
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------

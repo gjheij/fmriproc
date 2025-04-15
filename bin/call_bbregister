@@ -110,13 +110,13 @@ do
           ;;            
     x)  kwargs=${OPTARG}
           ;;              
-    h)  Usage
+    h)  Usage && exit 0
           ;;              
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 SUBJECT=${@:$OPTIND:1}

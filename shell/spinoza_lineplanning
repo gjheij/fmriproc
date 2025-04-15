@@ -58,7 +58,7 @@ USAGE
 }
 
 if [[ $# -le 8 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 # Allocate input arguments to variables
@@ -128,12 +128,10 @@ if [[ ! -f ${anat_session1} ]]; then
   echo "Converting orig.mgz to nifti to use as session 1 anatomy"
   call_mriconvert $(dirname ${anat_session1})/$(basename ${anat_session1} .nii.gz).mgz
 
-  if [[ $? != 0 ]]; then
-    echo
-    print_line -
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_mriconvert exited with non-zero status"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
-  fi
+  fi  
 
 else
   echo -e "Session 1 input                    = ['${BOLD_RED}$(basename ${anat_session1})${RESET}']"

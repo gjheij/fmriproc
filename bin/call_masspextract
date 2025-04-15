@@ -33,13 +33,17 @@ Example:
     output  = "label.json"
 
     try:
-        opts = getopt.getopt(argv,"hl:m:o:",["label=", "out=", "mask="])[0]
+        opts = getopt.getopt(
+            argv,
+            "hl:o:u:",
+            ["help", "label=", "out=", "mask="]
+        )[0]
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-l", "--label"):
@@ -54,12 +58,15 @@ Example:
         print(main.__doc__)
         sys.exit()
 
-
     #---------------------------------------------------------------------------------------------------
     # Convert label to volume table
 
     if os.path.exists(input) and os.path.exists(mask):
-        _ = massp_mask_img(input, mask, out=output)
+        _ = massp_mask_img(
+            input,
+            mask,
+            out=output
+        )
         # print(f"wrote {vol_file}")
     else:
         raise FileNotFoundError(f"Could not find input file or to-be-masked image")

@@ -34,8 +34,8 @@ Example:
     out_file     = None
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
+        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         sys.exit()
 
     try:

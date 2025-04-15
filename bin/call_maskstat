@@ -28,7 +28,7 @@ Arguments:
   --tstat       mask the t-stats instead of the zstats
 
 Example:
->>> call_maskstat --feat $DIR_DATA_DERIV/feat/level1/sub-001/ses-1/run1.feat
+    call_maskstat --feat $DIR_DATA_DERIV/feat/level1/sub-001/ses-1/run1.feat
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -57,7 +57,11 @@ Example:
         sys.exit()
 
     # fetch all stat files
-    stat_files = utils.get_file_from_substring([stat_type,".nii.gz"], opj(ft_dir, "stats"), exclude="space")
+    stat_files = utils.get_file_from_substring(
+        [stat_type,".nii.gz"],
+        opj(ft_dir, "stats"),
+        exclude="space"
+    )
 
     if not isinstance(stat_files, (str,list)):
         raise ValueError(f"No files found")
@@ -86,7 +90,11 @@ Example:
 
         # save
         fname = opj(os.path.dirname(stat), f"{stat_type}{stat_id}_desc-var_masked.nii.gz")
-        nb.Nifti1Image(new_stat, affine=niimg_stat.affine, header=niimg_stat.header).to_filename(fname)
+        nb.Nifti1Image(
+            new_stat,
+            affine=niimg_stat.affine,
+            header=niimg_stat.header
+        ).to_filename(fname)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

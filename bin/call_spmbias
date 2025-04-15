@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -19,7 +23,7 @@ Options:
   -h|--help       print this help text
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
-  -d <delete>     don't delete intermediate files such as the bias field etc.
+  -k|--keep       keep intermediate files
 
 Positional:
   <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
@@ -28,7 +32,8 @@ Positional:
   <output base>	  directory+basename of output image
 
 Example:
- call_spmmask -d inv2.nii.gz mask_inv2
+  call_spmmask inv2.nii.gz mask_inv2
+  call_spmmask --keep inv2.nii.gz mask_inv2
 
 ---------------------------------------------------------------------------------------------------
 
@@ -37,19 +42,22 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
-while getopts :-:hdl:s: argument
+RM=1
+while getopts :-:hkl:s: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in       
         help)
-          Usage
-          exit 0
+          Usage && exit 0
           ;;
+        keep)
+          RM=0
+          ;;        
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -61,23 +69,15 @@ do
             ;;
     s)  SPM=${OPTARG}
             ;;
-    h)  Usage
-          ;;            
+    h)  Usage && exit 0
+          ;;
+    k)  RM=0
+          ;;                      
   esac
 done
 
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
-
-if [[ "${@}" == *"-d"* ]]; then
-  RM=0
-else
-  RM=1
-fi
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Define default LOG-path
@@ -99,13 +99,21 @@ fi
 # Define default SPM-path
 if [[ -z ${SPM} ]]; then
   if [[ -z ${SPM_PATH} ]]; then
-    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Set accordingly or use '-s <spm_path>' input.."
     exit 1
   else
     SPM_PATH=${SPM_PATH}
   fi
 else
   SPM_PATH=${SPM}
+fi
+
+# double check if directory exists
+if [[ ! -d ${SPM_PATH} ]]; then
+  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+  exit 1
 fi
 
 # if file specified is in current directory, add entire path

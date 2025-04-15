@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
@@ -42,28 +48,20 @@ USAGE
 }
 
 if [[ $# -le 0 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
-while getopts s: argument
+FSL=0
+while getopts fs: argument
 do
   case ${argument} in
     s)  sub=${OPTARG}
+          ;;   
+    f)  FSL=1
           ;;         
   esac
 done
-
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
-
-if [[ "${@}" == *"-o"* ]]; then
-  FSL=1
-else
-  FSL=0
-fi
 
 fname=${@:$OPTIND:1}
 image=${@:$OPTIND+1:1}
@@ -96,7 +94,21 @@ else
     echo "FixedParameters: 0 0 0"
     ) >> $(dirname ${fname})/$(basename ${fname} .mat).txt
 
-    ConvertTransformFile 3 $(dirname ${fname})/$(basename ${fname} .mat).txt ${fname} --convertToAffineType
+    cmd=(
+      ConvertTransformFile
+      3
+      "$(dirname ${fname})/$(basename ${fname} .mat).txt"
+      "${fname}"
+      --convertToAffineType
+    )
+
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "ConvertTransformFile"
+      exit 1
+    fi  
     rm -r $(dirname ${fname})/$(basename ${fname} .mat).txt 2>/dev/null
 
   elif [[ ${ext} == "txt" ]]; then

@@ -53,7 +53,7 @@ USAGE
 }
 
 if [[ $# -le 1 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 while getopts hs:y:o:i: arg
@@ -153,12 +153,10 @@ if [[ ! -f ${fs_ref} ]]; then
   echo -e "Converting ${BOLD_RED}orig.mgz${RESET} to ${BOLD_RED}orig.nii.gz${RESET} to use as FS-reference"
   call_mriconvert $(dirname ${fs_ref})/$(basename ${fs_ref} .nii.gz).mgz ${fs_ref} 2>/dev/null
 
-  if [[ $? != 0 ]]; then
-    echo
-    print_line -
+  if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
-  fi
+  fi  
 
 else
   echo -e "FreeSurfer reference: ${BOLD_GREEN}$(basename ${fs_ref})${RESET}"

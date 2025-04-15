@@ -8,8 +8,36 @@ from lazyfmri import utils
 import sys
 opj = os.path.join
 
-def main(argv):
 
+def resample_and_convert_to_mgh(
+    src,
+    trg,
+    **kwargs
+    ):
+
+    kwargs = utils.update_kwargs(
+        kwargs,
+        "interpolation",
+        "nearest"
+    )
+
+    # resample to FreeSurfer
+    res  = image.resample_to_img(
+        src,
+        trg, 
+        **kwargs
+    )
+    
+    # read into MGH
+    res_mgh = nb.freesurfer.MGHImage(
+        res.get_fdata().astype(np.float32),
+        affine=res.affine
+    )
+
+    return res_mgh
+
+@validate_cli_inputs(required_keys=["subject", "wmseg"])
+def main(subject=None, wmseg=None, cortex=None):
     """
 ---------------------------------------------------------------------------------------------------
 call_fixwm
@@ -20,7 +48,7 @@ gions. We just give it the FreeSurfer subject and the path to CAT12's white matt
 tried inserting the CAT12 segmentation as manualsegwm in call_gdhinject, but then you get similar
 cerebellum issues.
 
-Args:
+Arguments:
     <subject>       subject ID as used in the FreeSurfer directory
     <WM seg>        path to WM-segmentation from CAT12
     <cortex seg>    path to cortex mask to eliminate cerebellum > created during spinoza_cortexre-
@@ -37,55 +65,99 @@ Example:
     cortex  = None
 
     if len(argv) < 2:
-        print("\nNEED AT LEAST A SUBJECT ID")
         print(main.__doc__)
         sys.exit()
 
-    try:
-        subject = argv[0]
-        wmseg   = argv[1]
-        cortex  = argv[2]
-    except:
-        subject = argv[0]
-        wmseg   = argv[1]    
-
-    fsdir = opj(os.environ['SUBJECTS_DIR'], subject)
+    subject, wmseg = argv[:2]
+    cortex = argv[2] if len(argv) > 2 else None
+    
+    # define FreeSurfer path
+    fsdir = opj(os.environ.get("SUBJECTS_DIR"), subject)
     if not os.path.exists(fsdir):
         raise ValueError(f"Could not find {subject} in SUBJECTS_DIR. Is it set correctly?")
     
-             
+    # find WM
     fswm = opj(fsdir, 'mri', 'wm.mgz')
+    if not os.path.exist(fswm):
+        raise FileNotFoundError(f"Could not find {fswm}-file. Did FreeSurfer run properly?")
 
-    if cortex == None:
-        cortex = utils.get_file_from_substring("cruise_mask", opj(os.environ['DIR_DATA_DERIV'], 'manual_masks', subject, 'ses-1'))
+    # define CRUISE file
+    if cortex is None:
+        cortex = utils.get_file_from_substring(
+            "cruise_mask", 
+            opj(
+                os.environ.get("DIR_DATA_DERIV"),
+                "manual_masks",
+                subject,
+                "ses-1"
+            )
+        )
 
-    catwm = image.resample_to_img(wmseg, fswm, interpolation='nearest')
-    cortex = image.resample_to_img(cortex, fswm, interpolation='nearest')
+    # Resample CAT12/nighres segmentations to match FreeSurfer's white matter image
+    catwm = resample_and_convert_to_mgh(
+        wmseg,
+        fswm
+    )
 
-    catwm_img = nb.freesurfer.MGHImage(catwm.get_fdata().astype(np.float32), affine=catwm.affine)
-    cortex = nb.freesurfer.MGHImage(cortex.get_fdata().astype(np.float32), affine=cortex.affine)
-    
-    manual_inside_mask = image.math_img('(cat * cortex) > 0',
-                                        cat=catwm_img,
-                                        cortex=cortex)
+    cortex = resample_and_convert_to_mgh(
+        cortex,
+        fswm
+    )
 
-    freesurfer_wm_new = image.math_img('(freesurfer_wm + manual_inside_mask > 0)',
-                                        manual_inside_mask=manual_inside_mask,
-                                        freesurfer_wm=fswm)
+    # Create manual white matter mask within cortex
+    manual_mask = image.math_img(
+        '(a * b) > 0',
+        a=catwm,
+        b=cortex
+    )
 
-    freesurfer_wm_new = nb.freesurfer.MGHImage(freesurfer_wm_new.get_fdata().astype(np.float32), affine=freesurfer_wm_new.affine)
-    freesurfer_wm_new = image.math_img('freesurfer_wm * 110', 
-                                       freesurfer_wm=freesurfer_wm_new)
+    # Combine FreeSurfer and manual white matter masks
+    fs_wm_combined = image.math_img(
+        '(a + b) > 0',
+        a=fswm,
+        b=manual_mask
+    )
 
-    # remove weird small components
-    largest_component = image.largest_connected_component_img(freesurfer_wm_new)
-    largest_component = nb.MGHImage(largest_component.get_data(), freesurfer_wm_new.affine, freesurfer_wm_new.header)
+    # Convert to binary mask with label 110
+    fs_wm_labeled = image.math_img('a * 110', a=fs_wm_combined)
 
-    freesurfer_wm_new = image.math_img('freesurfer_wm * largest_component',
-                                        freesurfer_wm=freesurfer_wm_new,
-                                        largest_component=largest_component)                                                           
+    # Keep only the largest connected component
+    largest = image.largest_connected_component_img(fs_wm_labeled)
+    largest = nb.MGHImage(
+        largest.get_data(),
+        fs_wm_labeled.affine,
+        fs_wm_labeled.header
+    )
 
-    freesurfer_wm_new.to_filename(opj(fsdir, 'mri', 'wm.mgz'))
+    # Apply the largest component mask
+    image.math_img(
+        'a * b',
+        a=fs_wm_labeled,
+        b=largest
+    ).to_filename(opj(fsdir, 'mri', 'wm.mgz'))
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+
+    # Defaults
+    context = {
+        "subject": None,
+        "wmseg": None,
+        "cortex": None
+    }
+
+    # Parse args
+    argv = sys.argv[1:]
+    if len(argv) < 2:
+        print(main.__doc__)
+        sys.exit()
+
+    # Unpack mandatory arguments
+    context["subject"] = argv[0]
+    context["wmseg"]   = argv[1]
+
+    # Optional 3rd arg
+    if len(argv) > 2:
+        context["cortex"] = argv[2]
+
+    # Run main with unpacked context
+    main(**context)

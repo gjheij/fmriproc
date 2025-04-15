@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -73,22 +77,18 @@ while getopts :-:hmv:u:l: arg; do
           ;;
     u)  upper=${OPTARG}
           ;;
-    h)  Usage
-          ;;          
+    h)  Usage && exit 0
+          ;;
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 IMG_MAGN="${@:$OPTIND:1}"
 fn_phase="${@:$OPTIND+1:1}"
 fn_nordic="${@:$OPTIND+2:1}"
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Add entire path if just filename is specified

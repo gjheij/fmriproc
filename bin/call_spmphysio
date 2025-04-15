@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -47,7 +51,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 N_SLICES=1
@@ -95,7 +99,7 @@ do
             ;;
     v)  VOLS=${OPTARG}
             ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;                           
   esac
 done
@@ -104,14 +108,12 @@ INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
-
-#-----------------------------------------------------------------------------
 # Define default SPM-path
 if [[ -z ${SPM} ]]; then
   if [[ -z ${SPM_PATH} ]]; then
-    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Set accordingly or use '-s <spm_path>' input.."
     exit 1
   else
     SPM_PATH=${SPM_PATH}
@@ -122,7 +124,7 @@ fi
 
 # double check if directory exists
 if [[ ! -d ${SPM_PATH} ]]; then
-  echo "ERROR: Could not find SPM-directory \"${SPM_PATH}\""
+  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
   exit 1
 fi
 

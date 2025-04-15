@@ -248,8 +248,8 @@ do
     v)  VERBOSE="--verbose 1"
         VERB=1
           ;;
-    h)  Usage
-          ;;              
+    h)  Usage && exit 0
+          ;;   
   esac
 done
 
@@ -316,11 +316,11 @@ function validate_extension {
     # convert mgz to nii.gz
     if [[ ${ext_file} == "mgz" ]]; then
 
-      call_mriconvert ${in_file}
+      call_mriconvert "${in_file}"
       if [[ $? -ne 0 ]]; then
-        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_mriconvert exited with non-zero status"
+        print_error_msg "$(basename ${0})" "call_mriconvert"
         exit 1
-      fi
+      fi  
 
       in_file=$(dirname ${in_file})/$(basename ${in_file} .${ext_file}).nii.gz
     else
@@ -357,7 +357,7 @@ fi
 
 if [[ $# -lt 3 ]] ; then
   echo "NOT ENOUGH ARGUMENTS SPECIFIED"
-  Usage
+  Usage && exit 0
 fi
 
 REF=${@:$OPTIND:1}
@@ -367,14 +367,14 @@ OUT=${@:$OPTIND+2:1}
 if [[ ! -f ${REF} ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 fi
 
 if [[ ! -f ${MOV} ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 fi  
 
@@ -470,7 +470,7 @@ if [[ ! -z ${initial} ]]; then
   
   ext=$(fetch_extension ${initial})
   if [[ $ext != "txt" ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${initial}\" is not a text file. It should be if it's an initial moving transform file"
+    print_error_msg "$(basename ${0})" "ext" "\"${initial}\" is not a text file. It should be if it's an initial moving transform file"
     exit 1
   else
     # If we have an initial moving transform matrix, insert this line in the command
@@ -564,7 +564,7 @@ elif [[ ${TYPE,,} == "syn" ]]; then
   fi
 else
   echo "Unknown registration type \"${TYPE}\" specified"
-  Usage
+  Usage && exit 0
 fi
 
 if [[ ${VERB} -eq 1 ]]; then
@@ -607,20 +607,22 @@ if [[ -f ${OUT}0Rigid.mat ]]; then
   
   # convert to FSL
   if [[ ${fsl_fmt} -eq 1 ]]; then
-    cmd="call_ras2fsl ${FIXED} ${MOVING} ${OUT}rigid.mat ${OUT}fsl.mat"
-  fi
-fi
+    cmd=(
+      call_ras2fsl
+      "${FIXED}"
+      "${MOVING}"
+      "${OUT}rigid.mat"
+      "${OUT}fsl.mat"
+    )
+    if [[ ${VERB} -eq 1 ]]; then
+      echo "ras2fsl call:"
+      print_line -
+      print_cmd "${cmd}"
+      echo
+    fi
 
-# run ras2fsl
-if [[ ${fsl_fmt} -eq 1 ]]; then
-  if [[ ${VERB} -eq 1 ]]; then
-    echo "ras2fsl call:"
-    print_line -
-    print_cmd "${cmd}"
-    echo
+    eval "${cmd[@]}"
   fi
-
-  "${cmd}"
 fi
 
 # remove temporary file
@@ -635,8 +637,12 @@ fi
 # open ITK-Snap for verification
 if [[ ${open_itk} -eq 1 ]]; then
   echo "Opening ITK-Snap. Load \"${OUT}genaff.mat\""
-  cmd="launch_itksnap -g ${FIXED} -o ${MOVING}"
-  print "${cmd}" && "${cmd}"
+  cmd=(
+    launch_itksnap
+    -g "${FIXED}"
+    -o "${MOVING}"
+  )
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 fi
 
 # reset threads

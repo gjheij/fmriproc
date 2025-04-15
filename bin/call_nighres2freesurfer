@@ -13,7 +13,7 @@ import numpy as np
 from lazyfmri import utils
 opj = os.path.join
 
-@utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"], allow_input_dir=False)
+@utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"])
 def main(context):
 
     """
@@ -56,7 +56,6 @@ Example:
     mesh['points'] = ras_coords
     nighres.io.save_mesh_geometry(output, mesh)
 
-
 if __name__ == "__main__":
     subject = None
     mesh_fn = None
@@ -65,7 +64,8 @@ if __name__ == "__main__":
     try:
         opts = sys.argv[1:]
         if len(opts) < 3:
-            raise getopt.GetoptError("Not enough arguments")
+            print(main.__doc__)
+            sys.exit()
     except getopt.GetoptError:
         print(main.__doc__)
         sys.exit(2)

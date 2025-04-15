@@ -1,4 +1,6 @@
-#!/bin/bash
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -12,18 +14,26 @@ WSD stands for [W]insorizing Re[s]caling [D]atatype. This script takes an input,
 image intensities, rescales them to a certain range (e.g., [0,4095]), and sets the datatype to
 uint16.
 
+Usage:
+  call_winsorize [arguments] [options] <input> <output>
+
+Arguments:
+  -l <lower>      lower percentile (default = 0.01)
+  -u <upper>      upper percentile (default = 0.99)
+  -b <bins>       number of bins to use (default = 256)
+  -d <dtype>      set file to particular data type (default is uint16, see 'call_setdtype')
+  -m <max val>    rescale to this maximum value. Defaults to 4095 for T1w
+
 Options:
-    -l <lower>      lower percentile (default = 0.01) for call_winsorize
-    -u <upper>      upper percentile (default = 0.99) for call_winsorize
-    -m <max val>    rescale to this maximum value. Defaults to 4095 for T1w
-    -b <bins>       number of bins to use (default = 256)
+  -h|--help       print this help text
+  --verbose       echo command to terminal
 
 Positional arguments
-    <input image>   input image
+  <input>         input image
 
 Usage:
- call_wsd sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE                   # standard
- call_wsd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE  # aggressive
+  call_wsd sub-01_acq-MPRAGE_T1w.nii.gz                                     # standard
+  call_wsd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE   # aggressive
 
 ---------------------------------------------------------------------------------------------------
 
@@ -32,7 +42,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 lower=0.01
@@ -40,10 +50,23 @@ upper=0.99
 min_value=0
 max_value=4095
 n_bins=256
+dtype="uint16"
 # Check for subject & session flags
-while getopts hm:u:l:b: argument
+while getopts :-:hm:u:l:b:d: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in                  
+        help)
+          Usage && exit 0
+          ;;                      
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
@@ -51,23 +74,23 @@ do
     b)  n_bins=${OPTARG}
           ;;                    
     m)  max_value=${OPTARG}
-          ;;      
+          ;;    
+    d)  dtype=${OPTARG}
+          ;;                
   esac
 done
 
-in="${@:$OPTIND:1}"
-in_file=$(readlink -f ${in})
-if [[ ! -f ${in_file} ]]; then
+tmp="${@:$OPTIND:1}"
+if [[ -f "${tmp}" ]]; then
+  in_file=$(readlink -f "${tmp}")
+else
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "File \"${in_file}\" does not exist"
+  print_error_msg "$(basename ${0})" "find" "File \"${tmp}\" does not exist"
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
-
 # truncate image intensities
 echo -e "Winsorizing image intensities with [${BOLD_RED}${lower}${RESET},${BOLD_RED}${upper}${RESET}] and ${n_bins} bins"
 cmd=(
@@ -84,6 +107,7 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # rescale clipped image
 echo -e "Rescaling image to [${BOLD_RED}0${RESET},${BOLD_RED}${max_value}${RESET}]"
 cmd=(
@@ -101,9 +125,14 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # make integer to reduce file size
-echo -e "Set dtype to ${BOLD_RED}UINT16${RESET}"
-cmd="call_setdtype ${in_file}"
+echo -e "Set dtype to ${BOLD_RED}${dtype}${RESET}"
+cmd=(
+  call_setdtype
+  "${in_file}"
+  "${dtype}"
+)
 print_cmd "${cmd}" && eval "${cmd}"
 
 if [[ $? -ne 0 ]]; then

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-call_loadsetup
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -188,7 +190,7 @@ do
           ;; 
     a)  keep_runs=${OPTARG}
           ;;       
-    h)  Usage
+    h)  Usage && exit 0
           ;;                      
   esac
 done
@@ -204,9 +206,6 @@ if [[ ! -z ${keep_runs} ]]; then
   IFS=', ' read -r -a keep_runs <<< "${keep_runs}"
   unset IFS
 fi
-
-#-----------------------------------------------------------------------------
-source call_bashhelper # gives access to default fMRIprep container
 
 # check kwargs file
 if [[ ! -z ${KWARGS_FILE} ]]; then
@@ -240,7 +239,7 @@ fi
 #-----------------------------------------------------------------------------
 if [[ -z ${subj_ID} ]]; then
   echo "Need at least a subject ID!"
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------

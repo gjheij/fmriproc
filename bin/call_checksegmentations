@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -28,7 +32,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -42,38 +46,47 @@ do
   esac
 done
 
-if [[ -z ${ses} ]]; then
-    base_dir=${sub}
-    base="${sub}"
-else
-    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
-    base="${sub}_ses-${nr}"
-    base_dir=${sub}/ses-${nr}
-fi
+#-----------------------------------------------------------------------------
+# collect subject name
+read base_path base <<< "$(collect_session_info "$ses" "$sub")"
 
 #-----------------------------------------------------------------------------
 # Run it
 
-declare -a SEG=("label-GM" 'label-WM' 'label-CSF' 'cruise_cortex' 'ribbon_wm' 'ribbon_gm' 'ribbon_mask' 'cruise_mask')
+declare -a SEG=(
+  "label-GM"
+  "label-WM"
+  "label-CSF"
+  "cruise_cortex"
+  "ribbon_wm"
+  "ribbon_gm"
+  "ribbon_mask"
+  "cruise_mask"
+
+)
 ARRAY=()
 j=0
 for r in ${SEG[@]}; do
-    file=$(find "${MASKS}/${base_dir}" -type f \( -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
-    if [[ -f ${file} ]]; then
+  file=$(find "${MASKS}/${base_path}" -type f \( -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
+  if [[ -f ${file} ]]; then
 
-        if [[ ${j} -eq 0 ]]; then
-            ADD_SEG=$(echo "-o ${file}")
-        else
-            ADD_SEG=$(echo " ${file}")
-        fi
-        ARRAY+=("${ADD_SEG}")
-        ((j++))
+    if [[ ${j} -eq 0 ]]; then
+        ADD_SEG=$(echo "-o ${file}")
     else
-        echo "${sub}: Could not find \"${r}\" image in directory"
+        ADD_SEG=$(echo " ${file}")
     fi
+    ARRAY+=("${ADD_SEG}")
+    ((j++))
+  else
+    echo "${sub}: Could not find \"${r}\" image in directory"
+  fi
 done
 
-ANAT=$(find "${DIR_DATA_DERIV}/cat12/${base_dir}" -type f \( -name "${sub}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-cmd="launch_itksnap -g ${ANAT} ${ARRAY[@]}"
-print_cmd "${cmd}" && eval "${cmd}"  
+ANAT=$(find "${DIR_DATA_DERIV}/cat12/${base_path}" -type f \( -name "${sub}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+cmd=(
+  launch_itksnap
+  -g "${ANAT}"
+  "${ARRAY[@]}"
+)
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
 

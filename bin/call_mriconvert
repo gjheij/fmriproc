@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -29,7 +31,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
@@ -38,16 +40,29 @@ fi
 if [[ ! -f $1 ]]; then
   echo
   print_line -
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); could not find input image"
+  print_error_msg "$(basename ${0})" "find" "Could not find input image ${BOLD_GREEN}${1}${RESET}"
   exit 1
 fi
 
-if [[ -z $2 ]]; then
-  out=$(dirname $1)/$(basename $1 .mgz).nii.gz
+input=$(readlink -f "${1}")
+if [[ -z "${2}" ]]; then
+  out=$(dirname "${input}")/$(basename "${input}" .mgz).nii.gz
 else
-  out=$2
+  out="${2}"
 fi
 
-if [[ -f $1 ]]; then
-  mri_convert --in_type mgz --out_type nii ${1} ${out}
+cmd=(
+  mri_convert
+  --in_type mgz
+  --out_type nii
+  ${1} 
+  ${out}
+)
+
+eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "mri_convert"
+  exit 1
 fi

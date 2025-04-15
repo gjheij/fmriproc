@@ -100,33 +100,25 @@ do
           ;;
     x)  kwargs=${OPTARG}
           ;;          
-    h)  Usage
-          ;;          
+    h)  Usage && exit 0
+          ;;       
   esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we have parrec2nii installed
-
-fn_exists()
-{
-  FN=`type -t $1`
-
-  if [[ -z ${FN} ]]; then
-    echo "Didn't find parrec2nii, please install nibabel"
-    exit 1
-  fi
-}
+check_python_package "nibabel"
 
 #-----------------------------------------------------------------------------
 # Set default inputs/outputs
 if [[ -z ${pathInput} ]]; then
-  echo "ALWAYS NEED AT LEAST AN INPUT FOLDER/FILE"
   Usage
+  print_error_msg "$(basename ${0})" "find" "Please specify an input folder with '-i <path>'"
+  exit 1
 fi
 
 # check if input is directory or loose file
@@ -152,7 +144,9 @@ elif [[ -f ${pathInput} ]]; then
     ff=${pathInput}
   fi
 else
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): input \"${pathInput}\" does not exist. Please specify a PAR-file, the log.txt from dcm2niix, or a directory containing PAR-files"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Invalid input: \"${pathInput}\" does not exist. Please specify a PAR-file, the log.txt from dcm2niix, or a directory containing PAR-files"
   exit 1
 fi
 

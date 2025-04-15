@@ -44,7 +44,7 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
@@ -73,7 +73,7 @@ do
             ;;
     m)  MODE=${OPTARG}
             ;;
-    h)  Usage
+    h)  Usage && exit 0
           ;;               
   esac
 done
@@ -100,7 +100,9 @@ if [[ -z ${MODE} ]]; then
   MODE='brain'
 else
   if [[ ${MODE,,} != 'full' && ${MODE,,} != 'brain' ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in basename ${0}: MODE must be \"full\" or \"brain\", got \"${MODE}\""
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "mode" "Must be \"full\" or \"brain\", not \"${MODE}\""
     exit 1
   fi
 fi
@@ -154,7 +156,7 @@ if [[ -d "${OUTPUT}/mri" ]]; then
   fi
 else
   if [[ -d $(dirname "${in_file}")/mri ]]; then
-    if [[ `ls $(dirname "${in_file}")/mri | wc -l` -eq 0 ]]; then
+    if [[ $(ls $(dirname "${in_file}")/mri | wc -l) -eq 0 ]]; then
       RUN=1
       verdict="Running CAT12"
       reason="input folder contains empty \"mri\"-folder"
@@ -213,7 +215,9 @@ if [[ ${RUN} -eq 1 ]]; then
   ff=$(cat "${log_file}" | grep "Failed: CAT12: Segmentation" | cut -d"." -f2 | xargs | sed 's/\r$//')
   if [[ ! -z ${ff} ]]; then
     mv "${log_file}" $(dirname "${in_file}")/$(basename "${in_file}" .nii)_error.log
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): matlab exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "matlab"
     exit 1
   else
     mv "${log_file}" $(dirname "${in_file}")/$(basename "${in_file}" .nii).log
@@ -262,8 +266,13 @@ done
 img_for_mask=$(find ${OUTPUT} -type f -name "p0*") 2>/dev/null
 if [ ! -z ${img_for_mask} ]; then
   echo "Create mask from brain extracted segmentation image \"p0\""
-  cmd="fslmaths ${img_for_mask} -bin ${OUTPUT}/mask$(basename ${img_for_mask})"
-  eval "${cmd}"
+  cmd=(
+    fslmaths
+    "${img_for_mask}"
+    -bin
+    "${OUTPUT}/mask$(basename ${img_for_mask})"
+  )
+  eval "${cmd[@]}"
   
   if [[ $? -ne 0 ]]; then
     echo 

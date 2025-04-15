@@ -31,7 +31,7 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 SPINOZA_SETUP=${DIR_SCRIPTS}/shell/spinoza_setup

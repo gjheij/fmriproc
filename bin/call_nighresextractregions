@@ -66,6 +66,7 @@ Optional (flags with defaults):
 
 Outputs:
     See: https://nighres.readthedocs.io/en/latest/brain/extract_brain_region.html
+
 ---------------------------------------------------------------------------------------------------
     """
 

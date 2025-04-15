@@ -13,7 +13,7 @@ call_stackgifti
 Stack two gifti's vertically into a numpy array so we can load it in with Pycortex. This function
 is especially used in combination with call_vol2fsaverage.
 
-Args:
+Arguments:
     <gifti 1>       first gifti-image   (ideally left-hemisphere data)
     <gifti 2>       second gifti image  (ideally right-hemisphere data)
     <output file>   output name for the numpy array, no extension needed

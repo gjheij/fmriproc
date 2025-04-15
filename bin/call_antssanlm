@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------
-# call_antsbias - Wrapper for ANTs N4BiasFieldCorrection with flexible options passthrough
-#---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
@@ -56,7 +58,7 @@ shift $((OPTIND-1))
 #---------------------------------------------------------------------------------------------------
 # Required arguments
 if [[ $# -lt 1 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 input="$(readlink -f "$1")"
@@ -74,18 +76,24 @@ done
 #---------------------------------------------------------------------------------------------------
 # Run N4BiasFieldCorrection
 if [[ ! -f "$input" ]]; then
-  echo "Error: Input file does not exist: $input" >&2
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
   exit 1
 fi
 
 if [[ -z "$output" ]]; then
-  echo "Error: please specify output file" >&2
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify an output file"
   exit 1
 fi
 
 dim=$(fslval "$input" dim0)
 if [[ -z "$dim" ]]; then
-  echo "Error: Unable to determine image dimensionality with fslval." >&2
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslval"
   exit 1
 fi
 
@@ -103,9 +111,10 @@ if [[ ${verbose} -eq 1 ]]; then
 fi
 
 eval "${cmd[@]}"
-
 if [[ $? -ne 0 ]]; then
-  echo "Error: DenoiseImage failed." >&2
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "DenoiseImage"
   exit 1
 fi
 

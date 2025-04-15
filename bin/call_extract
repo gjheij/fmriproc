@@ -353,8 +353,8 @@ if __name__ == "__main__":
             ["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="]
         )[0]
     except getopt.GetoptError:
-        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts: 

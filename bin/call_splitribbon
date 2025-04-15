@@ -9,19 +9,43 @@ opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_splitribbon
 
-Split FreeSurfer's ribbon into its gray/white matter parts.
+Split FreeSurfer's `ribbon.mgz` into binary gray matter (GM), white matter (WM), and combined cortex
+masks in NIfTI format.
 
-Args:
-    <subject>       subject ID as used in the FreeSurfer directory
-    <output>        basename output for CRUISE's segmentations + FULL path! ("_desc-ribbon_?.nii.gz")
-                    will be appended
+This script extracts key tissue regions from the `ribbon.mgz` file created by FreeSurfer. It uses the
+default FreeSurfer labeling:
+  - 2: Left-White-Matter
+  - 41: Right-White-Matter
+  - 3: Left-Cortex (Gray Matter)
+  - 42: Right-Cortex (Gray Matter)
+
+Outputs include binary masks for:
+  - Gray Matter (`_desc-ribbon_gm.nii.gz`)
+  - White Matter (`_desc-ribbon_wm.nii.gz`)
+  - Combined Cortical Mask (`_desc-ribbon_mask.nii.gz`)
+
+Arguments:
+  <subject>         FreeSurfer subject ID (used to locate SUBJECTS_DIR/<subject>/mri/ribbon.mgz)
+  <output>          Basename path where output files will be saved. The script will append:
+                     _desc-ribbon_gm.nii.gz
+                     _desc-ribbon_wm.nii.gz
+                     _desc-ribbon_mask.nii.gz
+
+Notes:
+  - If the output directory does not exist, it will be created automatically.
+  - Ribbon is converted to NIfTI using the `mgz2nii` utility from `fmriproc.image`.
 
 Example:
-    call_splitribbon  sub-001 /derivatives/sub-999/ses-1/sub-999_desc-ribbon_?.nii.gz
+  call_splitribbon sub-001 /project/derivatives/manual_masks/sub-001/ses-1/sub-001
+
+This will generate:
+  /project/derivatives/manual_masks/sub-001/ses-1/sub-001_desc-ribbon_gm.nii.gz
+  /project/derivatives/manual_masks/sub-001/ses-1/sub-001_desc-ribbon_wm.nii.gz
+  /project/derivatives/manual_masks/sub-001/ses-1/sub-001_desc-ribbon_mask.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -34,35 +58,45 @@ Example:
         print(main.__doc__)
         sys.exit()
 
-    subject  = argv[0]
-    output   = argv[1]
+    # gather inputs
+    subject = argv[0]
+    output_base = argv[1]
 
-    if not os.path.exists(os.path.dirname(output)):
-        os.makedirs(os.path.dirname(output), exist_ok=True)
+    # set output
+    output_dir = os.path.dirname(output_base)
+    os.makedirs(output_dir, exist_ok=True)
 
+    # fetch ribbon file
     ribbon_mgz = opj(os.environ['SUBJECTS_DIR'], subject, 'mri', 'ribbon.mgz')
     ribbon_nii = mgz2nii(ribbon_mgz)
 
-    segmentation = nb.load(ribbon_nii)
-    segmentation_data = segmentation.get_fdata().astype(int)
+    ribbon_img = nb.load(ribbon_nii)
+    ribbon_data = ribbon_img.get_fdata().astype(int)
 
-    # create an empty image with same dimensions
-    wm_segmentation = np.zeros_like(segmentation_data)
-    gm_segmentation = np.zeros_like(segmentation_data)
-    cortex_mask = np.zeros_like(segmentation_data)
+    # Define label mapping
+    label_map = {
+        'gm': [3, 42],
+        'wm': [2, 41]
+    }
+    
+    # convert
+    mask_combined = np.zeros_like(ribbon_data)
+    for label_name, label_values in label_map.items():
+        mask = np.isin(ribbon_data, label_values).astype(np.uint8)
+        nb.Nifti1Image(
+            mask,
+            affine=ribbon_img.affine,
+            header=ribbon_img.header
+        ).to_filename(f"{output_base}_desc-ribbon_{label_name}.nii.gz")
+        mask_combined += mask
 
-    # switch values
-    gm_segmentation[segmentation_data == 42] = 1
-    gm_segmentation[segmentation_data == 3] = 1
-    wm_segmentation[segmentation_data == 41] = 1
-    wm_segmentation[segmentation_data == 2] = 1
-
-    cortex_mask[gm_segmentation == 1] = 1
-    cortex_mask[wm_segmentation == 1] = 1
-
-    nb.Nifti1Image(wm_segmentation, affine=segmentation.affine, header=segmentation.header).to_filename(output + "_desc-ribbon_wm.nii.gz")
-    nb.Nifti1Image(gm_segmentation, affine=segmentation.affine, header=segmentation.header).to_filename(output + "_desc-ribbon_gm.nii.gz")
-    nb.Nifti1Image(cortex_mask, affine=segmentation.affine, header=segmentation.header).to_filename(output + "_desc-ribbon_mask.nii.gz")
+    # Save combined cortex mask
+    cortex_mask = (mask_combined > 0).astype(np.uint8)
+    nb.Nifti1Image(
+        cortex_mask,
+        affine=ribbon_img.affine,
+        header=ribbon_img.header
+    ).to_filename(f"{output_base}_desc-ribbon_mask.nii.gz")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

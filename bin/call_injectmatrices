@@ -48,7 +48,7 @@ do
           ;;
       esac
       ;;   
-    h)  Usage
+    h)  Usage && exit 0
           ;;            
     l)  L1_tag=${OPTARG}
           ;;
@@ -82,10 +82,10 @@ function fix_reg_dir {
     rm -r ${feat_dir}/reg/standard.nii.gz 2>/dev/null
 
     # echo " Copying identity matrix to reg directory"
-    cp $FSLDIR/etc/flirtsch/ident.mat ${feat_dir}/reg/example_func2standard.mat
+    cp $FSLDIR/etc/flirtsch/ident.mat ${feat_dir}/reg/example_func2standard.mat 2>/dev/null
 
     # echo " Renaming mean_func to standard to prevent interpolation"
-    cp ${feat_dir}/mean_func.nii.gz ${feat_dir}/reg/standard.nii.gz
+    cp ${feat_dir}/mean_func.nii.gz ${feat_dir}/reg/standard.nii.gz 2>/dev/null
 
     # updatefeatreg
     updatefeatreg ${feat_dir}
@@ -113,7 +113,9 @@ if [[ -z ${ft_dir} ]]; then
 fi
 
 if [[ ! -d ${ft_dir} ]]; then
-  echo "Directory \"${ft_dir}\" does not exist.."
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Directory \"${ft_dir}\" does not exist.."
   exit 1
 fi
 
@@ -121,6 +123,12 @@ fi
 all_feats=($(find ${ft_dir} -type d -name "*.feat"))
 for ft in ${all_feats[@]}; do
   fix_reg_dir ${ft}
+  if [[ ! -d ${ft_dir} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "fix_reg_dir"
+    exit 1
+  fi
 done
 
 echo "Done"

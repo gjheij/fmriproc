@@ -14,20 +14,17 @@ call_dcm
 
 Overwrite a key in the dcm file. For instance, if we want to change the 'PatientID' or 'ProtocolName`.
 
-Parameters
-----------
+Usage:
+    call_dcm <file> <key> <message>
+
+Arguments:
     <dcm file>  path representing a valid dcm-file or folder pointing to dcm-files
     <key>       string of the attribute that should be altered; use double+single quotes (see
                 example) for list-like input
     <messsage>  message that is linked to the key; use double+single quotes (see example) 
                 for list-like input. Order must match list-like input from <key>
 
-Usage
-----------
-    call_dcm <file> <key> <message>
-
-Example
-----------
+Examples:
     call_dcm sub-001_epi.dcm ProtocolName task-rest_bold
     call_dcm sub-001_epi.dcm "PatientName,ProtocolName" "sub-01_ses-1,task-rest_bold"
 

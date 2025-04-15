@@ -24,26 +24,29 @@ Usage:
   call_vol2fsaverage [arguments] [options] <subject> <in_file> <out_name>
 
 Arguments:
-  <-r file>   registration file; sometimes useful if you're warping partial FOVs and want to use
-              an identity matrix for instance.
-  <-o out>    output directory
-  <-p prefix> use custom prefix rather than <subject>
-  <-x frac>   projection fraction to use for mri_vol2surf (default = 0.5; fiducial surface)
-  <-f fs dur> custom FreeSurfer directory; will overwrite SUBJECTS_DIR
-  <-t trafo>  (list of) transformation file(s) to apply to get the data in FSNative space before
-              sampling them to the surface. Should a format that is compatible with call_ants-
-              applytransforms (comma-separated in order of application)
-  -i <invert> invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
-              warp files, specify a space-separated list between quotes as inversion tag; if not
-              everything will be set to 'do not invert'  
+  <-r file>       registration file; sometimes useful if you're warping partial FOVs and want to
+                  use an identity matrix for instance.
+  <-o out>        output directory
+  <-p prefix>     use custom prefix rather than <subject>
+  <-x frac>       projection fraction to use for mri_vol2surf (default = 0.5; fiducial surface)
+  <-f fs dur>     custom FreeSurfer directory; will overwrite SUBJECTS_DIR
+  <-t trafo>      (list of) transformation file(s) to apply to get the data in FSNative space be-
+                  fore sampling them to the surface. Should a format that is compatible with
+                  call_antsapplytransforms (comma-separated in order of application)
+  -i <invert>     invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
+                  warp files, specify a space-separated list between quotes as inversion tag; if
+                  not everything will be set to 'do not invert'  
   
-Options
-  --<interp>  interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
-              (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
-              (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
-              For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
-              '--gen'                                                  
-  <--tr>      set repetition time in .gii-files
+Options:
+  -h|--help       print this help text
+  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel),
+                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc),
+                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel);
+                  default = 'nn'.
+                  
+                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel',
+                  use '--gen'                                                  
+  <--tr>          set repetition time in .gii-files
 
 Positional:
   <subject>   subject ID as used in the FreeSurfer directory
@@ -66,7 +69,7 @@ USAGE
 }
 
 if [[ $# -lt 3 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 set_tr=0
@@ -76,7 +79,7 @@ proj_frac=0.5
 do_fsaverage=0
 exec_spaces=("fsnative" "fsaverage")
 # Check for subject & session flags
-while getopts :-:r:o:p:t:i:f:x: argument
+while getopts :-:hr:o:p:t:i:f:x: argument
 do
   case ${argument} in
     -)
@@ -121,14 +124,17 @@ do
         no-fsaverage)
           do_fsaverage=0
           exec_spaces=("fsnative")
-          ;;                            
+          ;;   
+        help)
+          Usage && exit 0
+          ;;                                      
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}, did you mean \"--lines\"?"
-            exit 1
-          fi
-          ;;  
-      esac;;    
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
     r)  reg_file=${OPTARG}
           ;;
     x)  proj_frac=${OPTARG}
@@ -142,7 +148,9 @@ do
     f)  fs_dir=${OPTARG}
           ;;                  
     i)  invert="-i ${OPTARG}"
-          ;;            
+          ;;     
+    h)  Usage && exit 0
+          ;;                    
   esac
 done
 
@@ -241,14 +249,22 @@ for ii in "lh" "rh"; do
 
   # project volume to subject-specific space
   fsnative=${fsnative_dir}/${PREF}_space-fsnative_${hemi}${SUFFIX}.gii
-  mri_vol2surf --src ${INPUT} --out ${fsnative} ${REG} --hemi ${ii} --projfrac ${proj_frac}
-
+  cmd=(
+    mri_vol2surf
+    --src "${INPUT}"
+    --out "${fsnative}"
+    "${REG}"
+    --hemi "${ii}"
+    --projfrac "${proj_frac}"
+  )
+  
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "mri_vol2surf"
     exit 1
-  fi
+  fi  
 
   if [[ ${do_fsaverage} -eq 1 ]]; then
     # project the output to fsaverage
@@ -257,19 +273,22 @@ for ii in "lh" "rh"; do
       mkdir -p ${fsaverage_dir}
     fi
 
-    mri_surf2surf \
-      --srcsubject ${SUBJECT} \
-      --trgsubject fsaverage \
-      --hemi ${ii} \
-      --sval ${fsnative} \
-      --tval ${fsaverage}
+    cmd=(
+      mri_surf2surf
+      --srcsubject "${SUBJECT}"
+      --trgsubject fsaverage
+      --hemi "${ii}"
+      --sval "${fsnative}"
+      --tval "${fsaverage}"
+    )
 
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "mri_surf2surf"
       exit 1
-    fi
+    fi  
   fi
 done
 
@@ -286,14 +305,20 @@ for space in ${exec_spaces[@]}; do
   lh=${output_path}/${PREF}_space-${space}_hemi-L${SUFFIX}.gii
   rh=${output_path}/${PREF}_space-${space}_hemi-R${SUFFIX}.gii
   both_hemis=${output_path}/${PREF}_space-${space}_hemi-LR${SUFFIX}.npy
-  call_stackgifti ${lh} ${rh} ${both_hemis}
+  cmd=(
+    call_stackgifti
+    "${lh}"
+    "${rh}"
+    "${both_hemis}"
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_stackgifti"
     exit 1
-  fi
+  fi  
 
   if [ ${VERB} -eq 1 ]; then
     echo "Wrote ${both_hemis}"

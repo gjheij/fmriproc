@@ -85,19 +85,14 @@ while getopts :-:hs:e:l: arg; do
         ;;      
     e)  end_v=${OPTARG}
         ;;
-    h)  Usage
-          ;;        
+    h)  Usage && exit 0
+          ;; 
   esac
 done
 
-print_line -
-start=$(date +%s)
-start_date=$(date)
-echo "call_distance; started @${start_date}"
-echo 
 
 if [[ $# -lt 1 ]]; then
-  Usage
+  Usage && exit 0
 fi
 
 SUB=${@:$OPTIND:1}
@@ -115,6 +110,7 @@ if [[ ${pial} -eq 1 ]]; then
   SURF="pial"
 fi
 
+start_timer "call_distance; distance estimation using Dykstra's algorithm"
 echo "sub   = ${SUB}"
 echo "surf  = ${SURF}"
 echo "hemi  = ${hemi}"
@@ -175,7 +171,15 @@ END
       ((count++))
       echo " Iter #${count}: ${#empty_verts[@]} vertices left"
       for vert in ${empty_verts[@]}; do
-        dykstra_distance ${SUB} ${hemi} ${SURF} ${start_v} ${vert} ${OUT}
+        dykstra_distance \
+          "${SUB}" \
+          "${hemi}" \
+          "${SURF}" \
+          "${start_v}" \
+          "${vert}" \
+          "${OUT}"
+        
+        # clean up
         clean
       done
     fi
@@ -187,7 +191,15 @@ END
 # Start loop
 if [[ ! -z ${end_v} ]]; then
   # dykstra_distance is in call_bashhelper
-  dykstra_distance ${SUB} ${hemi} ${SURF} ${start_v} ${end_v} ${OUT}
+  dykstra_distance \
+    "${SUB}" \
+    "${hemi}" \
+    "${SURF}" \
+    "${start_v}" \
+    "${end_v}" \
+    "${OUT}"
+
+  # clean up
   clean
 else
   # loop through label vertices
@@ -201,8 +213,16 @@ else
       echo "${hemi}.${label} contains ${#vertices[@]} vertices"
       for vert in ${vertices[@]}; do
         if [[ ${vert} != ${start_v} ]]; then
-          dykstra_distance ${SUB} ${hemi} ${SURF} ${start_v} ${vert} ${OUT}
+          dykstra_distance \
+            "${SUB}" \
+            "${hemi}" \
+            "${SURF}" \
+            "${start_v}" \
+            "${vert}" \
+            "${OUT}"
         fi
+
+        # clean up
         clean
       done
     fi
@@ -211,15 +231,5 @@ else
   fi 
 fi
 
-echo
-print_line -
-end=$(date +%s)
-end_date=$(date)
-printf "Done at ${end_date}\n"
-
-let deltatime=end-start
-let hours=deltatime/3600
-let minutes=(deltatime/60)%60
-let seconds=deltatime%60
-printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-print_line -
+# outro
+end_timer

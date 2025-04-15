@@ -36,7 +36,6 @@ Example
     """
 
     if len(argv) < 3:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit(1)
     

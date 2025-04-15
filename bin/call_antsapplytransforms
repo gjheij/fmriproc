@@ -177,12 +177,22 @@ REF_ext=$(fetch_extension ${REF})
 MOV_ext=$(fetch_extension ${MOV})
 
 if [[ ${REF_ext} == "mgz" ]]; then
-  call_mriconvert ${REF} && echo
+  call_mriconvert "${REF}"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_mriconvert"
+    exit 1
+  fi  
+  echo
   REF=$(dirname ${REF})/$(basename ${REF} .mgz).nii.gz
 fi
 
 if [[ ${MOV_ext} == "mgz" ]]; then
-  call_mriconvert ${MOV} && echo
+  call_mriconvert "${MOV}"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "call_mriconvert"
+    exit 1
+  fi
+  echo
   MOV=$(dirname ${MOV})/$(basename ${MOV} .mgz).nii.gz
 fi
 

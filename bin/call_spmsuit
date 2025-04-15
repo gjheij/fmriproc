@@ -23,6 +23,7 @@ Options:
   -h|--help       print this help text
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+  -k|--keep       keep intermediate files
 
 Positional:
   <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
@@ -41,12 +42,12 @@ USAGE
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage
+  Usage && exit 0
 fi
 
 # Check for subject & session flags
-RM=1
-while getopts :-:hds: argument
+CLEAN_UP=1
+while getopts :-:hks: argument
 do
   case ${argument} in      
     -)
@@ -54,6 +55,9 @@ do
         help)
           Usage && exit 0
           ;;
+        keep)
+          CLEAN_UP=0
+          ;;    
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -63,8 +67,8 @@ do
       ;;          
     s)  SPM=${OPTARG}
           ;;
-    d)  RM=0
-          ;;
+    k)  CLEAN_UP=0
+            ;;
     h)  Usage
           ;;              
   esac
@@ -84,6 +88,12 @@ if [[ -z ${SPM} ]]; then
   fi
 else
   SPM_PATH=${SPM}
+fi
+
+# double check if directory exists
+if [[ ! -d ${SPM_PATH} ]]; then
+  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+  exit 1
 fi
 
 # if file specified is in current directory, add entire path
@@ -139,7 +149,7 @@ if [[ ! -z ${mask_img} ]]; then
   fi
 fi
 
-if [[ ${RM} -eq 1 ]]; then
+if [[ ${CLEAN_UP} -eq 1 ]]; then
   rm -r $(dirname ${in_file})/c*$(basename ${in_file}) *.mat 2>/dev/null
   rm -r $(dirname ${in_file})/y_$(basename ${in_file}) 2>/dev/null
 fi 
