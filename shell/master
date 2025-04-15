@@ -612,7 +612,7 @@ done
 FLAG_executeModule="${MOD}"
 
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     # Read in your external files
@@ -671,8 +671,7 @@ function Usage {
 if [[ $# -lt 2 ]] ; then
   echo
   echo "NEED AT LEAST ONE MODULE. echoING HELP AND EXITING"
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 #---------------------------------------------------------------------------------------------------

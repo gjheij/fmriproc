@@ -12,38 +12,34 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_antsregistration
 
-This scripts makes the call to 'antsRegistration' a little easier, as you'll only have to provide the
-reference image, the moving image, the output-prefix, the type of registration and an initial trans-
-formation file (optional, will be included if specified, otherwise ignored).
+This scripts makes the call to 'antsRegistration' a little easier, as you'll only have to provide 
+the reference image, the moving image, the output-prefix, the type of registration and an initial
+transformation file (optional, will be included if specified, otherwise ignored).
 
 Usage:
   call_antsregistration [arguments] [options] <fixed> <moving> <output prefix>
 
 Arguments:
   -x <mask>       Image masks to limit voxels considered by the metric
-  -i <initial>    the initial moving transform(s) which get immediately incorporated into the compo-
-                  site transform
+  -i <initial>    the initial moving transform(s) which get immediately incorporated into the 
+                  composite transform
   -g <step>       gradient step for transformation (default is 0.1)
   -s <smooth>     smoothing kernels to use. Must match the number of stages you'd like to perform.
-                  With more stages, the moving image can more around more, so reduce the number of 
+                  With more stages, the moving image can move around more, so reduce the number of 
                   levels if you're interested in finer registrations. Defaults to '4x3x2x1' for a 4
-                  stage registration, and reduces with every stage not done. So for 3 stages, it de-
-                  faults to '3x2x1', down to '1' for 1 stage. Format must be identical to the examples
-                  above, so values separated by 'x', without spaces, with the number of values corres-
-                  ponding to the number of stages to perform
-  -c <converg>    convergence values to use. Must match the number of stages you'd like to perform (in
-                  concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' flags.
-                  Defaults to '1000x500x250x100' for a 4 stage registration, and reduces with every 
-                  stage not done. So for 3 stages, it defaults to '500x250x100', down to '100' for 1 
-                  stage. Format must be identical to the examples above, so values separated by 'x',
-                  without spaces, with the number of values corresponding to the number of stages to
-                  perform
-  -r <shrink>     shrink values to use. Must match the number of stages you'd like to perform (in
-                  concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' flags.
-                  Defaults to '8x4x2x1' for a 4 stage registration, and reduces with every stage not 
-                  done. So for 3 stages, it defaults to '4x2x1', down to '1' for 1 stage. Format must 
-                  be identical to the examples above, so values separated by 'x', without spaces, 
-                  with the number of values corresponding to the number of stages to perform            
+                  stage registration, and reduces with every stage not done. So for 3 stages, it 
+                  defaults to '3x2x1', down to '1' for 1 stage. Format must be identical to the 
+                  examples above, so values separated by 'x', without spaces, with the number of 
+                  values corresponding to the number of stages to perform
+  -c <converg>    convergence values to use. Must match the number of stages you'd like to perform 
+                  (in concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' 
+                  flags. Defaults to '1000x500x250x100' for a 4 stage registration, and reduces 
+                  with every stage not done. So for 3 stages, it defaults to '500x250x100', down 
+                  to '100' for 1 stage. Format must be identical to the examples above.
+  -r <shrink>     shrink values to use. Must match the number of stages you'd like to perform (in 
+                  concert with the optionally specified '-s <smooth>' kernels) or '-n <level>' 
+                  flags. Defaults to '8x4x2x1' for a 4 stage registration, and reduces with every 
+                  stage not done. So for 3 stages, it defaults to '4x2x1', down to '1' for 1stage.
   -j <cores>      number of cores to use; default = 1
   -n <levels>     number of levels to use (default = 4)
 
@@ -51,34 +47,35 @@ Options:
   -h|--help       print this help text
   -v|--verbose    Turn on verbose
   --<metric>      Flag to use a given metric. Available options are: 'cc' (cross-correlation), 'mi',
-                  (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' (glo-
-                  bal correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' (jensen-
-                  havrda-charvet-tsallis), 'igdm'
-                  For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, use 
-                  '--bspl5'.
-                  For now it's not possible to set the metrics for different stages separately (rigid>
-                  affine>SyN). The same metric is used for all stages. By default, 'Cross-correlation'
-                  is used for SyN-diffeomorphic registration (the final stage). The rigid-body and af-
-                  fine stages before the SyN-registration can be altered.
+                  (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' 
+                  (global correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' 
+                  (jensen-havrda-charvet-tsallis), 'igdm'
+                  For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, 
+                  use '--bspl5'. For now it's not possible to set the metrics for different stages 
+                  separately. The same metric is used for all stages. By default, 'Cross-correlation'
+                  is used for SyN-diffeomorphic registration (the final stage). The rigid-body and 
+                  affine stages before the SyN-registration can be altered.
   --fsl           also output the matrix in FSL-compatible format (not available for SyN)
   --itk           open ITK-Snap to verify how registration went
-  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
-                  (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
-                  (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default = 'nn'
-                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
-                  '--gen'
+  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), 
+                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), 
+                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); 
+                  default = 'nn'
+                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', 
+                  use '--gen'
+
   --rigid         use rigid-body registration
   --affine        use affine registration
   --syn           use SyN-diffeomorphic registration
   --as            run affine+SyN registration
   --ras           run rigid+affine+SyN [default if '--syn' is specified]
   --histo         maps to '--use-histogram-matching', sets it to True
-  --no-collapse   maps to '--collapse-output-transforms', sets it to False (default = True). safest 
-                  bet is to keep --collapse-output-transforms to 1 so you always get the same output 
-                  regardless of affine or rigid registration (with --no-collapse & rigid body, the
-                  output suffix is '0Rigid', rather than '0GenericAffine'). In the latter, all linear
-                  transformations are collapsed in the same file, which makes filenaming later on more
-                  predictable.
+  --no-collapse   maps to '--collapse-output-transforms', sets it to False (default = True). 
+                  Safest bet is to keep --collapse-output-transforms to 1 so you always get the 
+                  same output regardless of affine or rigid registration (with --no-collapse & 
+                  rigid body, the output suffix is '0Rigid', rather than '0GenericAffine'). In the 
+                  latter, all linear transformations are collapsed in the same file, which makes 
+                  filenaming later on more predictable.
   --no-winsor     don't winsorize the image prior to registration
 
 Positional:
@@ -95,8 +92,9 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
+
 
 #-----------------------------------------------------------------------------
 # Exit if we do not have enough arguments. The initial moving transform is optional, so we need at least 4 arguments
@@ -222,17 +220,15 @@ do
           as=0
           ;;                           
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;                   
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;
+      esac
+      ;;
     x)  mask=${OPTARG}
           ;;
     i)  initial=${OPTARG}
@@ -252,8 +248,7 @@ do
     v)  VERBOSE="--verbose 1"
         VERB=1
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;              
   esac
 done
@@ -362,8 +357,7 @@ fi
 
 if [[ $# -lt 3 ]] ; then
   echo "NOT ENOUGH ARGUMENTS SPECIFIED"
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 REF=${@:$OPTIND:1}
@@ -570,8 +564,7 @@ elif [[ ${TYPE,,} == "syn" ]]; then
   fi
 else
   echo "Unknown registration type \"${TYPE}\" specified"
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 if [[ ${VERB} -eq 1 ]]; then

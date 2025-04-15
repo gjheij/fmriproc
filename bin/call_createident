@@ -38,12 +38,11 @@ Notes:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -le 0 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # Check for subject & session flags
@@ -114,7 +113,7 @@ else
 
     if [[ -z ${sub} ]]; then
       echo "ERROR: this option requires the subject ID"
-      Usage >&2
+      Usage
       exit 1
     fi
 
@@ -151,7 +150,7 @@ else
 
   else
     echo "INVALID EXTENSION \"${ext^^}\" FOR OUTPUT FILE"
-    Usage >&2
+    Usage
     exit 1
   fi
 

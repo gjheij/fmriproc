@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source "${SETUP_FILE}"
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -67,7 +67,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Check for subject flag
@@ -120,7 +120,7 @@ do
           ;;                                      
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
+            Usage
             echo "Unknown option --${OPTARG}, did you mean \"--ow\", \"--full\", \"--ups\", \"--skip-bg\", \"--force-exec\", \"--sge\", \"--sge\", \"--spm\", or \"--no-reg\"?"
             exit 1
           fi
@@ -150,8 +150,7 @@ do
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 INPUT=${@:$OPTIND:1}

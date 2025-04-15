@@ -79,7 +79,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------
@@ -153,17 +153,15 @@ do
           crash_flag=""
           ;;                         
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;         
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;     
+      esac
+      ;;     
     s)  subj_ID=${OPTARG}
           ;;
     m)  MODE=${OPTARG}
@@ -190,14 +188,13 @@ do
           ;; 
     a)  keep_runs=${OPTARG}
           ;;       
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;                      
   esac
 done
 
 if [[ $# -lt 1 || -z ${subj_ID} ]] ; then
-  Usage >&2
+  Usage
   echo "Need at least a subject ID"
   exit 1
 fi
@@ -243,8 +240,7 @@ fi
 #-----------------------------------------------------------------------------
 if [[ -z ${subj_ID} ]]; then
   echo "Need at least a subject ID!"
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 #-----------------------------------------------------------------------------

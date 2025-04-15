@@ -41,13 +41,12 @@ Notes:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Check for minimum arguments
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # check if input exists

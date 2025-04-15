@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -38,7 +38,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------
@@ -58,32 +58,28 @@ while getopts :-:hmv:u:l: arg; do
           make_tsnr=1
           ;;
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;           
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;    
+      esac
+      ;;    
     m)  mag_only=1
         ;;
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;          
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 IMG_MAGN="${@:$OPTIND:1}"

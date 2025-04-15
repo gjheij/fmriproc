@@ -43,13 +43,12 @@ Notes:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Require at least 4 arguments
 if [[ $# -lt 4 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # Required inputs

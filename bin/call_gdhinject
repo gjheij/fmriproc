@@ -128,15 +128,15 @@ Example:
     
     if isinstance(manual_masks.get("-outside"), str):
         GOT_OUTSIDE = True
-        print(f" Outside: '{gb}{manual_masks.get("-outside")}{end}'")
+        print(f" Outside: '{gb}{manual_masks.get('-outside')}{end}'")
     
     if isinstance(manual_masks.get("manualseggm"), str):
         GOT_GM = True
-        print(f" GM edits: '{gb}{manual_masks.get("manualseggwm")}{end}'")
+        print(f" GM edits: '{gb}{manual_masks.get('manualseggwm')}{end}'")
 
     if isinstance(manual_masks.get("manualsegwm"), str):
         GOT_WM = True
-        print(f" WM edits: '{gb}{manual_masks.get("manualsegwm")}{end}'")
+        print(f" WM edits: '{gb}{manual_masks.get('manualsegwm')}{end}'")
 
     freesurfer_brainmask_auto = opj(fsdir, 'mri', 'brainmask.auto.mgz')
     freesurfer_brainmask = opj(fsdir, 'mri', 'brainmask.mgz')

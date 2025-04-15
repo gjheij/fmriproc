@@ -6,7 +6,7 @@
 
 source ${SETUP_FILE}
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -56,7 +56,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # set defaults that will be overwritten if flags are given
@@ -129,8 +129,7 @@ if [[ ! -z ${kwargs} ]]; then
 fi
 
 if [[ $# -lt 4 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 if [[ -z ${task_ids} ]]; then

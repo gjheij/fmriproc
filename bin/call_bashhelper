@@ -358,7 +358,7 @@ Usage:
 USAGE
 }
   if [[ $# -eq 0 ]]; then
-    Usage >&2
+    Usage
   else
     stage=${1}
 
@@ -448,7 +448,7 @@ USAGE
 }
 
   if [[ $# -lt 2 ]] ; then
-    Usage >&2
+    Usage
   else
 
     json_file=${1}
@@ -499,7 +499,7 @@ USAGE
 }
 
   if [[ $# -lt 1 ]] ; then
-    Usage >&2
+    Usage
   else
     # Check for subject & session flags
     read_lines=50
@@ -569,7 +569,7 @@ USAGE
 }
 
   if [[ $# -lt 1 ]] ; then
-    Usage >&2
+    Usage
   else
 
     PYTHON_CODE=$(cat <<END
@@ -714,7 +714,7 @@ USAGE
 }
 
   if [[ $# -lt 1 ]] ; then
-    Usage >&2
+    Usage
   else
 
     par=${1}
@@ -794,7 +794,7 @@ USAGE
 
   do_stuff=1
   if [[ $# -lt 1 ]] ; then
-    Usage >&2
+    Usage
     do_stuff=0
   elif [[ $# -eq 1 ]]; then
     pathInput=${1}
@@ -987,7 +987,7 @@ USAGE
 }
 
   if [[ $# -lt 1 ]] ; then
-    Usage >&2
+    Usage
   else
 
     MERGE=""
@@ -1728,7 +1728,7 @@ USAGE
   script_name=${5}
   
   if [[ ${HELP} -eq 1 || $# -lt 5 ]]; then
-    Usage >&2
+    Usage
   else
 
     # set default output directory

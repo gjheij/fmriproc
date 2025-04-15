@@ -44,8 +44,7 @@ do
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 if [[ -z ${SESSION} ]]; then

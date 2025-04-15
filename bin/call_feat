@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source "${SETUP_FILE}"
 source call_bashhelper
 
@@ -40,7 +40,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Check for subject & session flags
@@ -79,8 +79,7 @@ done
 
 fsf_file=$(readlink -f "${@:$OPTIND:1}")
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # delete previously existing file

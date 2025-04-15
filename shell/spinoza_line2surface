@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source "${SETUP_FILE}"
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -49,12 +49,11 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -le 1 ]]; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 while getopts hs:y:o:i: arg

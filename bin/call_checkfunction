@@ -23,13 +23,12 @@ Returns:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Show help if no args
 if [[ $# -lt 1 ]]; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # Loop through each argument and test if it's callable

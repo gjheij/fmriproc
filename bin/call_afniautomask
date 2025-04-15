@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
     cat <<USAGE
 
@@ -24,12 +30,11 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage && exit 0
 fi
 
 if [[ $# -eq 2 ]]; then
@@ -42,5 +47,13 @@ fi
 #-----------------------------------------------------------------------------
 # Run it
 if [[ -f ${1} && ! -f ${2} ]]; then
-  3dAutomask -dilate 1 -clfrac ${CLFRAC} -prefix ${2} ${1}
+  cmd=(
+    3dAutomask
+    -dilate 1
+    -clfrac "${CLFRAC}"
+    -prefix "${2}"
+    "${1}"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 fi

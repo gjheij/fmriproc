@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# source setup and helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -76,7 +80,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------
@@ -110,30 +114,26 @@ do
           INVERT=1
           ;;                  
         help)
-          Usage >&2
-          exit 1
-          ;;                   
-        *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage && exit 0
           ;;
-      esac;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
     i)  INVERT=1
           ;;
     d)  DIMENSION=${OPTARG}
           ;;     
-    h)  Usage >&2
-        exit 1
-          ;;
+    h)  Usage && exit 0
+          ;; 
   esac
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 IN_CSV=${@:$OPTIND:1}
@@ -178,7 +178,15 @@ cmd=(
 if [[ ${verb} -eq 1 ]]; then
   print_cmd "${cmd[@]}"
 fi
+
 eval "${cmd[@]}"
+
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" antsApplyTransformsToPoints
+  exit 1
+fi
 
 # return command
 if [[ ${return_coord} -eq 1 ]]; then
@@ -187,10 +195,5 @@ if [[ ${return_coord} -eq 1 ]]; then
     "${OUT_CSV}" \
     "${trafo_type}"
   )
-  echo $coord
+  echo ${coord}
 fi
-
-# # cleaning up tmp.csv
-# if [[ ${rm_file} -eq 1 ]]; then
-#   rm ${input_csv} 2>/dev/null
-# fi

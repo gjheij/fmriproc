@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source "${SETUP_FILE}"
 source call_bashhelper
 
@@ -45,7 +45,7 @@ launch_viewer() {
   fi
 }
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -92,7 +92,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 use_software="itk"
@@ -116,13 +116,12 @@ do
           OW=1
           ;;          
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;
+      esac
+      ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -135,8 +134,7 @@ do
 done
 
 if [[ $# -lt 3 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 ANAT=${@:$OPTIND:1}

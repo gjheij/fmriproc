@@ -34,7 +34,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------
@@ -51,8 +51,7 @@ do
           set_tr=1
           ;;
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;            
         freeview)
           open_fv=1
@@ -78,16 +77,14 @@ do
           ;;        
     i)  interp=${OPTARG}
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;              
   esac
 done
 
 # error msg
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # positional args

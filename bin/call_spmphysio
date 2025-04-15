@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -43,12 +43,11 @@ Examples:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 N_SLICES=1
@@ -75,17 +74,15 @@ do
           MAKE_PLOTS=""
           ;;
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;          
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;     
+      esac
+      ;;     
     s)  SPM=${OPTARG}
             ;;
     d)  DUMMY_VOLS=${OPTARG}
@@ -98,8 +95,7 @@ do
             ;;
     v)  VOLS=${OPTARG}
             ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;                           
   esac
 done

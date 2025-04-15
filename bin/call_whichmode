@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source ${SETUP_FILE}
 echo "Project home    : ${DIR_DATA_HOME}"
 echo "Nr acquisitions : ${#ACQ[@]} (${ACQ[@]})"

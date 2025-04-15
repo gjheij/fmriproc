@@ -43,7 +43,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # Deal with arguments
@@ -63,17 +63,15 @@ do
           do_nordic="off"
           ;;                                                                      
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;         
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;   
+      esac
+      ;;   
     m)  n_echos=${OPTARG}
           ;;       
     r)  run_id=${OPTARG}
@@ -87,20 +85,17 @@ do
           n_comps=0
         fi
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;             
   esac
 done
 
 if [[ "${@}" == *"-h"* ]]; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 if [[ $# -lt 4 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 RAW=${@:$OPTIND:1}

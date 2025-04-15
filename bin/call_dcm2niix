@@ -84,7 +84,7 @@ Examples:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 
@@ -111,20 +111,19 @@ do
           compress_flag=""
           ;;             
         help)
-          Usage >&2
-          exit 1
+          Usage
+          exit 0
           ;;
         force-exec)
           force_flag="--force-exec"
           ;;                       
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;   
+      esac
+      ;;
     i)  pathInput=${OPTARG}
           ;;
     d)  searchDepth=${OPTARG}
@@ -140,15 +139,15 @@ do
     x)  kwargs=${OPTARG}
         kwargs_flag="-x ${kwargs}"
           ;;              
-    h)  Usage >&2
-        exit 1
-          ;;                  
+    h)  Usage
+        exit 0
+          ;;                
   esac
 done
 
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
+  exit 0
 fi
 
 #-----------------------------------------------------------------------------
@@ -195,8 +194,8 @@ function fix_compression {
 #-----------------------------------------------------------------------------
 # Set default inputs/outputs
 if [[ -z ${pathInput} ]]; then
-  echo "ALWAYS NEED AT LEAST AN INPUT FOLDER"
-  Usage >&2
+  Usage
+  print_error_msg "$(basename ${0})" "find" "Please specify an input folder with '-i <path>'"
   exit 1
 fi
 

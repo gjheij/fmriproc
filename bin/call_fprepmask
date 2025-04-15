@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 call_loadsetup
 
 #-----------------------------------------------------------------------------
@@ -26,7 +26,7 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 # set default
@@ -35,7 +35,7 @@ if [[ ${#@} -eq 0 ]]; then
 else
   fprep_dir=${1}
   if [[ ${fprep_dir} == "help" || ${fprep_dir} == "--help" ]]; then
-    Usage >&2
+    Usage
     exit 1
   fi
 fi

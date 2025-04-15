@@ -4,7 +4,7 @@
 # Get bash helper functions
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -67,12 +67,11 @@ Examples:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 OW=0
@@ -101,17 +100,15 @@ do
           WINSORIZE_INTENSITIES=0
           ;;                 
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;
+      esac
+      ;;
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
@@ -120,8 +117,7 @@ do
           ;;
     x)  kwargs=${OPTARG}
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;            
   esac
 done

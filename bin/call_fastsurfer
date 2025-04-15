@@ -35,12 +35,11 @@ Example:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -lt 1 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # Check for subject & session flags

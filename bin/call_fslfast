@@ -45,12 +45,11 @@ Relevant FAST options:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # check if input exists

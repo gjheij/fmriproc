@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# check if there's is a setup file containing the major paths and source it if it exists
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 call_loadsetup
 source call_bashhelper
 
@@ -123,7 +123,7 @@ Notes:
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------
@@ -171,17 +171,15 @@ do
           XOPTS_="-xopts-overwrite"
           ;;              
         help)
-          Usage >&2
-          exit 1
+          Usage && exit 0
           ;;         
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage >&2
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;    
+      esac
+      ;;    
     s)  subj_ID=${OPTARG}
           ;;
     t)  T1=${OPTARG}
@@ -200,15 +198,13 @@ do
           ;;  
     j)  n_cpus=${OPTARG}
           ;;
-    h)  Usage >&2
-        exit 1
+    h)  Usage
           ;;                                   
   esac
 done
 
 if [[ $# -lt 2 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 if [[ -z ${SUBJECTS_DIR} ]]; then
@@ -544,7 +540,7 @@ else
 
       # check if specified edit stage is an allowed option
       if [[ ! " ${allowed_edits[*]} " =~ " ${edit} " ]]; then
-        Usage >&2
+        Usage
         echo 
         print_line -
         print_error_msg "$(basename ${0})" "mode" "To run this mode, you need to specify \"cp\", \"wm\", \"pial\", or \"aseg\" to let me know your type of edit.."

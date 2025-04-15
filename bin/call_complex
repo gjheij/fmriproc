@@ -34,8 +34,7 @@ EOF
 #---------------------------------------------------------------------------------------------------------
 # Deal with arguments
 if [[ $# -lt 3 ]] ; then
-  Usage >&2
-  exit 1
+  Usage
 fi
 
 # read full file paths
