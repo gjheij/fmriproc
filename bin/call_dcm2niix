@@ -110,12 +110,12 @@ do
           compress="n"
           compress_flag=""
           ;;             
-        help)
-          Usage && exit 0
-          ;;
         force-exec)
           force_flag="--force-exec"
           ;;                       
+        help)
+          Usage && exit 0
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -123,6 +123,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     i)  pathInput=${OPTARG}
           ;;
     d)  searchDepth=${OPTARG}
@@ -138,8 +140,6 @@ do
     x)  kwargs=${OPTARG}
         kwargs_flag="-x ${kwargs}"
           ;;              
-    h)  Usage && exit 0
-          ;;                
   esac
 done
 

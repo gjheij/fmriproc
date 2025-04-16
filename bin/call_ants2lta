@@ -12,13 +12,36 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_ants2lta
 
-Quick conversion between ANTs and FreeSurfer matrix files. Inputs can be either .mat or .txt files.
+This script converts transformation matrices from ANTs (.mat or .txt) format to FreeSurfer-compatible 
+`.lta` format using FreeSurfer's `lta_convert` tool. This is especially useful when combining ANTs 
+and FreeSurfer pipelines for alignment or resampling tasks.
+
+Inputs:
+  - ANTs transform file (.mat or .txt)
+  - Source image used to generate the transform
+  - Target image used to generate the transform
+
+Outputs:
+  - FreeSurfer-compatible .lta file (Linear Transform Array)
 
 Usage:
-  call_ants2lta <input file> <output file> <source file> <target file>
+  call_ants2lta <input_file> <output_file> <source_file> <target_file>
 
-Example:
-  call_ants2lta /path/to/genaff.mat /path/to/genaff.lta source.nii.gz target.nii.gz
+Positional arguments:
+  <input_file>    ANTs transform file (.mat or .txt). If a .mat is given, it will be internally 
+                  converted to a readable .txt before converting to .lta
+  <output_file>   Path to the output .lta file
+  <source_file>   Source image (e.g., native T1w or anatomical image)
+  <target_file>   Target image (e.g., FreeSurfer reference)
+
+Examples:
+  call_ants2lta /path/to/genaff.mat /path/to/genaff.lta T1w.nii.gz fsaverage.nii.gz
+  call_ants2lta /path/to/affine.txt /path/to/output.lta source.nii.gz target.nii.gz
+
+Notes:
+  - You must have ANTs and FreeSurfer loaded in your environment.
+  - For .mat inputs, ConvertTransformFile is used to convert to .txt before LTA conversion.
+  - If the script fails, check that all required input files exist and are readable.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -31,15 +54,42 @@ if [[ $# -lt 2 ]] ; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
-if [[ ${1} == *".mat"* ]]; then
-    in_file=$(dirname ${1})/$(basename ${1} .mat).txt
-    ConvertTransformFile 3 ${1} ${in_file}
+# check if input exists
+if [[ ! -f "${1}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input file ${BOLD_GREEN}${1}${RESET}"
+  exit 1
 else
-    in_file=${1}
+  input=$(readlink -f "${1}")
 fi
 
+#-----------------------------------------------------------------------------
+# convert if needed
+if [[ ${1} == *".mat"* ]]; then
+  in_file=$(dirname "${input}")/$(basename "${input}" .mat).txt
+  cmd=(
+    ConvertTransformFile
+    3
+    ${input}
+    ${in_file}
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" ConvertTransformFile
+    exit 1
+  fi
+else
+  in_file="${input}"
+fi
+
+# set output
 out_file=${2}
+
+# define command
 cmd=(
   "lta_convert"
   --initk "${in_file}"
@@ -48,8 +98,8 @@ cmd=(
   --trg "${4}"
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

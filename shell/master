@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-#
-# https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
-if [ -z $(echo ${BASH}) ]; then
-  echo "Make sure \"bash\" >v4.0 is installed"
-  exit 1
-else
-  if ((BASH_VERSINFO[0] < 4)); then 
-    echo "Sorry, you need at least bash-4.0 to run this script." >&2
-    exit 1
-  fi
-fi
 
-# source helper functions
+#-----------------------------------------------------------------------------
+# source setup and helper functions
 source ${SETUP_FILE}
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
+if [[ -z $(echo ${BASH}) ]]; then
+  echo "Make sure \"bash\" >v4.0 is installed"
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "bash" "Make sure \"bash\" >v4.0 is installed"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # Allocate input arguments to variables
 #
 KWARGS_FLAG=""
@@ -613,64 +614,61 @@ FLAG_executeModule="${MOD}"
 
 
 #-----------------------------------------------------------------------------
-# Create help text
+# Create help text | has to be with echo to make colors work from arguments/modules.txt
 function Usage {
-    # Read in your external files
-    ARGS_CONTENT=$(< "${REPO_DIR}/misc/arguments.txt")
-    MODULES_CONTENT=$(< "${REPO_DIR}/misc/modules.txt")
-    
-    echo ""
-    echo "==================================================================================================="
-    echo "                            MASTER SCRIPT FOR LINE SCANNING ANALYSIS"
-    echo "==================================================================================================="
-    echo ""
-    echo "Main script governing all (pre-)processing steps for high resolution anatomical data, as well as"
-    echo "whole-brain fMRI data analyses (specifically population receptive field [pRF]) and linescanning"
-    echo "data. All modules can be called with master -m <module>. You can also include an -s flag to"
-    echo "process a single subject. See below for additional settings."
-    echo ""
-    echo "Have fun!"
-    echo ""
+  # Read in your external files
+  ARGS_CONTENT=$(< "${REPO_DIR}/misc/arguments.txt")
+  MODULES_CONTENT=$(< "${REPO_DIR}/misc/modules.txt")
+  
+  echo ""
+  echo "==================================================================================================="
+  echo "                            MASTER SCRIPT FOR LINE SCANNING ANALYSIS"
+  echo "==================================================================================================="
+  echo ""
+  echo "Main script governing all (pre-)processing steps for high resolution anatomical data, as well as"
+  echo "whole-brain fMRI data analyses (specifically population receptive field [pRF]) and linescanning"
+  echo "data. All modules can be called with master -m <module>. You can also include an -s flag to"
+  echo "process a single subject. See below for additional settings."
+  echo ""
+  echo "Have fun!"
+  echo ""
 
-    # 🔹 Load and print the color-formatted arguments.txt
-    eval "printf \"%b\n\" \"$ARGS_CONTENT\""
+  # 🔹 Load and print the color-formatted arguments.txt
+  eval "printf \"%b\n\" \"$ARGS_CONTENT\""
 
-    echo ""
-    echo "Models for pRF fitting:"
-    echo "  --gauss           run standard Gaussian model (default) [Dumoulin & Wandell, 2008]"
-    echo "  --dog             run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]"
-    echo "  --css             run compressive spatial summation model (compression) [Kay, et al. 2013]"
-    echo "  --norm            run divisive normalization model (suppression+compression) [Aqil, et al. 2021]"
-    echo ""
-    echo "Usage:"
-    echo "  master -m <MODULES TO RUN>"
-    echo "  master -m 01,02,03,04           (run multiple modules in succession)"
-    echo "  master -m 00 -q                 (print help-text of module 00)"
-    echo "  master -l mgdm                  (get module number for mgdm)"
-    echo "  master -m 02 -n 2 --lines       (line-scanning session)"
-    echo "  master -m 15 -t func            (run fMRIPrep on available tasks)"
-    echo "  master -m 17 --norm --local     (DN-model, local execution)"
-    echo ""
-    echo "Additional options:"
-    echo "  -s <subject>      run single subject"
-    echo "  -h <hemi>         specify hemisphere"
-    echo "  -n <session>      session number"
-    echo "  -t <type|task>    e.g., 'func' or 'anat'"
-    echo ""
+  echo ""
+  echo "Models for pRF fitting:"
+  echo "  --gauss           run standard Gaussian model (default) [Dumoulin & Wandell, 2008]"
+  echo "  --dog             run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]"
+  echo "  --css             run compressive spatial summation model (compression) [Kay, et al. 2013]"
+  echo "  --norm            run divisive normalization model (suppression+compression) [Aqil, et al. 2021]"
+  echo ""
+  echo "Usage:"
+  echo "  master -m <MODULES TO RUN>"
+  echo "  master -m 01,02,03,04           (run multiple modules in succession)"
+  echo "  master -m 00 -q                 (print help-text of module 00)"
+  echo "  master -l mgdm                  (get module number for mgdm)"
+  echo "  master -m 02 -n 2 --lines       (line-scanning session)"
+  echo "  master -m 15 -t func            (run fMRIPrep on available tasks)"
+  echo "  master -m 17 --norm --local     (DN-model, local execution)"
+  echo ""
+  echo "Additional options:"
+  echo "  -s <subject>      run single subject"
+  echo "  -h <hemi>         specify hemisphere"
+  echo "  -n <session>      session number"
+  echo "  -t <type|task>    e.g., 'func' or 'anat'"
+  echo ""
 
-    eval "printf \"%b\n\" \"$MODULES_CONTENT\""
+  eval "printf \"%b\n\" \"$MODULES_CONTENT\""
 
-    echo ""
-    echo "--END--"
-    echo "---------------------------------------------------------------------------------------------------"
-    exit 1
+  echo ""
+  echo "--END--"
+  echo "---------------------------------------------------------------------------------------------------"
 }
 
 #---------------------------------------------------------------------------------------------------
 # Error handling
 if [[ $# -lt 2 ]] ; then
-  echo
-  echo "NEED AT LEAST ONE MODULE. echoING HELP AND EXITING"
   Usage && exit 0
 fi
 
@@ -686,21 +684,11 @@ if [[ ! -z ${WHICH_MOD} ]] && [[ "${@}" != *"-m"* ]]; then
 fi
 
 #---------------------------------------------------------------------------------------------------
-# Define default session/subject stuff
-if [[ -z ${SES} ]]; then
-  # Going to assume ses-1 here
-  SESSION="-n 1"
-elif [[ ${SES,,} == "none" ]]; then
-  SESSION=""
-else
-  SESSION="-n ${SES}"
-fi
+# Define default session/subject options
+SESSION=${SES:+-n ${SES}}
+[[ ${SES,,} == "none" ]] && SESSION=""
 
-if [[ -z ${SUB} ]]; then
-  SUBJECT=""
-else
-  SUBJECT="-s ${SUB}"
-fi
+SUBJECT=${SUB:+-s ${SUB}}
 
 #---------------------------------------------------------------------------------------------------
 # STEP 01: Optimal line planning procedure with registration of anat ses-1 to ms ses-2
@@ -712,21 +700,23 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_lineplanning
-    exit 1
+    exit 0
   fi
 
   # print module intro
   print_module_start "${module}" "Optimal line planning procedure with registration of anat ses-1 to ms ses-X"
 
   if [[ -z ${SUB} ]]; then
-    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
-    echo "  e.g., ./master -m 00 -s 001"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "input" "Need a subject number for this module. Specify with '-s' flag)"
     exit 1
   fi
 
   if [[ -z ${HEMI} ]] && [[ -z "${HEMI_FLAG}" ]]; then
-    echo "ERROR: Need a hemisphere for this module. Specify the subject number with the -h flag in the master script"
-    echo "  e.g., ./master -m 00 -s 001 {--lh|--rh}"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "input" "Need a hemisphere for this module. Specify with '-h' or '--lh'/'--rh' flag)"
     exit 1
   fi
 
@@ -745,7 +735,7 @@ if [[ $? -eq 0 ]]; then
       exit 1
     else
       echo "You selected \"no\". Quitting.. Use \"-n X\" to specify your desired session"
-      exit 1
+      exit 0
     fi
   else
     ses_nr=${SES}
@@ -801,7 +791,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_scanner2bids
-    exit 1
+    exit 0
   fi
 
   if [[ ! -z ${VERTICES} ]]; then
@@ -866,7 +856,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_mriqc
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -907,7 +897,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_linerecon
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -964,7 +954,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_lsprep
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1012,7 +1002,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_qmrimaps
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1076,7 +1066,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_registration
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1126,7 +1116,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_registration
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1176,7 +1166,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_averageanatomies
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1223,7 +1213,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_sinusfrommni
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1266,7 +1256,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_biassanlm
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1319,7 +1309,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_brainextraction
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1360,7 +1350,8 @@ if [[ $? -eq 0 ]]; then
       "${FS_FLAG}"
       "${INT_LOWER}"
       "${INT_UPPER}"
-      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12)
+      ${INPUT_DIR} ${DIR_DATA_DERIV}/cat12 ${DIR_DATA_DERIV}/manual_masks cat12
+    )
 
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
@@ -1386,7 +1377,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_nordic
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1427,7 +1418,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_dura
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1440,7 +1431,8 @@ if [[ $? -eq 0 ]]; then
 
   INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
-  cmd=(spinoza_dura
+  cmd=(
+    spinoza_dura
     "${SUBJECT}"
     "${SESSION}"
     "${OW}"
@@ -1469,15 +1461,11 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_sagittalsinus
-    exit 1
+    exit 0
   fi
 
   # print module intro
   print_module_start "${module}" "Create sagittal sinus mask from R2*-image"
-
-  # DATA = MP2RAGE    > arg1 = DIR_DATA_DERIV/pymp2rage
-  # DATA = MEMP2RAGE  > arg1 = DIR_DATA_DERIV/pymp2rage
-  # DATA = AVERAGE    > arg1 = DIR_DATA_DERIV/ants
 
   # check where inputs live
   if [[ -z ${ANAT_DEPTH} ]]; then
@@ -1517,7 +1505,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_masking
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1563,7 +1551,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_freesurfer
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1626,7 +1614,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_fmriprep
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1646,7 +1634,9 @@ if [[ $? -eq 0 ]]; then
       if [[ -f ${CONF} ]]; then
         confFile="-u ${CONF}"
       else
-        echo "ERROR: Could not find config file \"${confFile}\""
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" config "Could not find config file ${BOLD_GREEN}${confFile}${RESET}"
         exit 1
       fi
     fi
@@ -1714,7 +1704,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_denoising
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1786,7 +1776,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_fitprfs
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1885,7 +1875,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_bestvertex
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -1953,7 +1943,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_segmentfast
-    exit 1
+    exit 0
   fi
 
   # check for kwargs
@@ -1995,7 +1985,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_mgdm
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -2047,7 +2037,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_extractregions
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -2098,7 +2088,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_cortexrecon
-    exit 1
+    exit 0
   fi
 
   if [[ ! -z ${ROI} ]]; then
@@ -2152,7 +2142,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_layering
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -2165,7 +2155,9 @@ if [[ $? -eq 0 ]]; then
     SOFTWARE="surface"
     INPUT_DIR=${FS}
   else
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" input "Unknown flag \"${LAYER_FLAG}\". Must be \"nighres\" or \"surface\""
     exit 1
   fi
 
@@ -2206,7 +2198,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_subcortex
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -2254,15 +2246,16 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_line2surface
-    exit 1
+    exit 0
   fi
 
   # print module intro
   print_module_start "${module}" "Registration cascade to project line to surface"
 
   if [[ -z ${SUB} ]]; then
-    echo "ERROR: Need a subject number for this module. Specify the subject number with the -s flag in the master script"
-    echo "  e.g., ./master -m 24 -s 001"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "input" "Need a subject number for this module. Specify with '-s' flag)"
     exit 1
   fi
 
@@ -2306,7 +2299,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_profiling
-    exit 1
+    exit 0
   fi
 
   # print module intro
@@ -2349,9 +2342,11 @@ if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
     spinoza_suit
-    exit 1
+    exit 0
   fi
 
+  echo
+  print_line -
   print_error_msg "$(basename ${0})" "master" "This is not implemented in 'master' yet. Use ${BOLD_BLUE}call_spmsuit${RESET}."
   call_spmsuit
   

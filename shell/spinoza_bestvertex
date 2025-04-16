@@ -37,6 +37,7 @@ Arguments:
                   Automatically sets --use_epi.
 
 Options:
+  -h|--help       print this help text
   -o|--ow         rename existing file to numerically increasing (e.g., line_pycortex > line_pycor-
                   tex1.csv) so that a new line_pycortex.csv-file is created. Given that the original
                   file is NOT deleted, I consider this a soft-overwrite mode. You can always manual-
@@ -155,7 +156,7 @@ epi=1
 epi_file=""
 ls_ses=2
 skip_prf_info=""
-while getopts :-:fos:v:n:m:t:e:l: argument
+while getopts :-:hfos:v:n:m:t:e:l: argument
 do
   case ${argument} in
     -)
@@ -219,13 +220,18 @@ do
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
           ;;
+        help)
+          Usage && exit 0
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -281,35 +287,45 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set the paths
-  fs_dir=${DERIV}/freesurfer
-  cx_dir=${DERIV}/pycortex/${sub_name}/ses-${ls_ses}
-  prf_dir=${DERIV}/prf/${base_path}
+  fs_dir="${DERIV}/freesurfer"
+  cx_dir="${DERIV}/pycortex/${sub_name}/ses-${ls_ses}"
+  prf_dir="${DERIV}/prf/${base_path}"
 
   # make the pycortex directory if it doesn't exists; the others should exists already. If not, it will complain about it below
-  if [[ ! -d ${DERIV}/pycortex ]]; then
-    mkdir -p ${DERIV}/pycortex
+  if [[ ! -d "${DERIV}/pycortex" ]]; then
+    mkdir -p "${DERIV}/pycortex"
   fi
 
   # never really delete a line_pycortex file, but rename numerically, so that the highest number is the oldest file.
   # The file without any numbering will be the most recent one and also the one that will be used; unless otherwise
   # specified in the master script
-  line_orientation_file=${cx_dir}/${sub_name}_ses-${ls_ses}_desc-coords.csv
+  line_orientation_file="${cx_dir}/${sub_name}_ses-${ls_ses}_desc-coords.csv"
   if [[ ${FULL_OW} -eq 1 ]]; then
-    rm -r ${line_orientation_file} 2>/dev/null
+    rm -r "${line_orientation_file}" 2>/dev/null
   else
     if [[ ${OW} -eq 1 ]]; then
-      if [[ -f ${line_orientation_file} ]]; then
-        nr=$(find -L $(dirname ${line_orientation_file}) -type f -name "${base}*" -and -name "*desc-coords.csv" | wc -w)
-        fname=$(dirname ${line_orientation_file})/${base}_backup-${nr}_desc-coords.csv
-        mv ${line_orientation_file} ${fname}
+      if [[ -f "${line_orientation_file}" ]]; then
+        
+        # check number of coordinate files
+        nr=$(
+          find -L $(dirname "${line_orientation_file}") \
+          -type f \
+          -name "${base}*" \
+          -and -name "*desc-coords.csv" | \
+          wc -w
+        )
+
+        # make backup
+        backup="$(dirname "${line_orientation_file}")/${base}_backup-${nr}_desc-coords.csv"
+        mv "${line_orientation_file}" "${backup}" 2>/dev/null
       fi
     fi
   fi
 
   # start process
-  if [[ ! -f ${line_orientation_file} ]]; then
+  if [[ ! -f "${line_orientation_file}" ]]; then
 
-    if [[ ! -d ${fs_dir} ]]; then
+    if [[ ! -d "${fs_dir}" ]]; then
       print_directory_not_exist "${sub_name}" "${fs_dir}"
       continue
     fi
@@ -325,48 +341,63 @@ for subID in ${search}; do
     epi_flag=""
     pars_flag=""
     # use the --use-prf flag if the roi = V1. Otherwise exclude pRFs in the selecting of the vertex
-    if [[ ${roi} != "V1_exvivo.thresh" ]] && [[ ${roi} != "V2_exvivo.thresh" ]] && [[ ${roi} != "V1_custom" ]]; then
-      use_prfs=""
-      srf_file_flag=""
-      srf_flag=""
-    else
-      use_prfs="--use-prf"
+    case "${roi}" in
+      "V1_exvivo.thresh"|"V2_exvivo.thresh"|"V1_custom")
+        use_prfs="--use-prf"
 
-      if [[ -z ${epi_file} ]]; then
-        if [[ ${epi} -eq 1 ]]; then
-          epi_flag="--use-epi"
+        if [[ -z ${epi_file} ]]; then
+          [[ ${epi} -eq 1 ]] && epi_flag="--use-epi"
+          epi_file_flag=""
+        else
+          epi_file_flag="--epi_file ${epi_file}"
         fi
-        epi_file_flag=""
-      else
-        epi_file_flag="--epi_file ${epi_file}"
-      fi
 
-      # find prf parameters
-      if [[ ! -z ${search_pars} ]]; then
-        pars=$(find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -name "*${search_pars}*" \) 2>/dev/null)
-      else
-        pars=$(find -L ${prf_dir} -type f \( -name "*model-${model}*" -and -name "*stage-${stage}*" -and -name "*task-${task}*" -and -name "*prf_params.${prf_ext}" -and -not -name "*_roi-*" \) 2>/dev/null)
-      fi
+        # find prf parameters
+        search_expr=(
+          -name "*model-${model}*"
+          -and -name "*stage-${stage}*"
+          -and -name "*task-${task}*"
+          -and -name "*prf_params.${prf_ext}*"
+        )
 
-      if [[ -z ${pars} ]]; then
-        print_file_not_in_dir "${sub_name}" "*model-${model}*, *stage-${stage}*, *task-${task}*, *prf_params.${prf_ext}${txt}" "${prf_dir}"
-        continue
-      else
+        if [[ -n ${search_pars} ]]; then
+          search_expr+=(-and -name "*${search_pars}*")
+        else
+          search_expr+=(-and -not -name "*_roi-*")
+        fi
+
+        pars=$(
+          find -L "${prf_dir}" \
+          -type f \( "${search_expr[@]}" \) \
+          2>/dev/null
+        )
+
+        if [[ -z ${pars} ]]; then
+          print_file_not_in_dir "${sub_name}" "*model-${model}*, *stage-${stage}*, *task-${task}*, *prf_params.${prf_ext}${txt}" "${prf_dir}"
+          continue
+        fi
         pars_flag="-p ${pars}"
-      fi
 
-      if [[ ${srf_file} -eq 1 ]]; then
-        srf_file=$(find -L ${prf_dir} -type f \(  -name "*desc-srfs_centered.pkl" \) 2>/dev/null)
-        srf_file_flag="--srf-file ${srf_file}"
-        if [[ -z ${srf_file} ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"--srf-file\" was specified, but could find file with \"*desc-srfs_centered.pkl\" in \"${prf_dir}\". Please create it with \"call_sizeresponse\""
-          exit 1
+        if [[ ${srf_file} -eq 1 ]]; then
+          srf_file=$(find -L "${prf_dir}" -type f -name "*desc-srfs_centered.pkl" 2>/dev/null)
+          if [[ -z ${srf_file} ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" find "\"--srf-file\" was specified, but no \"*desc-srfs_centered.pkl\" found in ${BOLD_GREEN}${prf_dir}${RESET}. Create with ${BOLD_BLUE}call_sizeresponse${RESET}"
+            exit 1
+          fi
+          srf_file_flag="--srf-file ${srf_file}"
+        else
+          srf_file_flag=""
         fi
-      else
+        ;;
+      *)
+        use_prfs=""
         srf_file_flag=""
-      fi
-    fi
-    
+        srf_flag=""
+        ;;
+    esac
+
     # set srf flag if model is norm
     srf_flag=""
     if [[ ${model} == "norm" ]]; then

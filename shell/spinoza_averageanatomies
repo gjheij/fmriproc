@@ -22,15 +22,17 @@ Usage:
   spinoza_averagesanatomies [arguments] [options] <anat folder> <output folder>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
 
 Options:
-  -o|--ow             Overwrite existing output
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
 
 Positional:
-  <anat directory>    directory containing the files to be registered
-  <output>            path to directory where registration file/outputs should be stored
+  <input>         directory containing the files to be registered; generally the output from pymp2rage
+                  (see 'spinoza_qmrimaps')
+  <output>        path to directory where registration file/outputs should be stored
 
 Example:
   spinoza_averagesanatomies DIR_DATA_DERIV DIR_DATA_DERIV
@@ -47,7 +49,7 @@ if [[ $# -lt 2 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts :-:s:n: argument
+while getopts :-:hs:n: argument
 do
   case ${argument} in
     -)
@@ -55,13 +57,18 @@ do
         ow)
           OW=1
           ;;  
+        help)
+          Usage && exit 0
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
+      ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -88,7 +95,7 @@ fi
 
 #-----------------------------------------------------------------------------
 #intro
-start_timer "Averaging `for ii in ${ACQ[@]}; do echo $ii; done` images"
+start_timer "Averaging $(for ii in ${ACQ[@]}; do echo $ii; done) images"
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -100,15 +107,15 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # check if input directory was pymp2rage or not
-  if [[ ${INPUT} != *"pymp2rage"* ]]; then
-    input_dir=${INPUT}/${base_path}/anat
+  if [[ "$(basename ${INPUT})" != "pymp2rage" ]]; then
+    input_dir="${INPUT}/${base_path}/anat"
   else
-    input_dir=${INPUT}/${base_path}
+    input_dir="${INPUT}/${base_path}"
   fi
   
-  output_dir=${OUTPUT}/${base_path}
-
-  if [ ! -d ${input_dir} ]; then
+  # set output directory
+  output_dir="${OUTPUT}/${base_path}"
+  if [ ! -d "${input_dir}" ]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   fi
@@ -135,35 +142,98 @@ for subID in ${search}; do
     if [[ ! -f ${out} ]]; then
 
       # look for warped files
-      in_files=($(find "${input_dir}" -type f \( -name "*space-*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null))
+      in_files=(
+        $(
+          find "${input_dir}" \
+          -type f \
+          -name "*space-*" \
+          -and -name "*${i}.nii.gz" \ | 
+          sort \
+          2>/dev/null
+        )
+      )
+
       if [[ ! -z ${in_files} ]]; then
         # MP2RAGE+MP2RAGEME if number of "space-" files is 1
         if [[ ${#in_files[@]} -eq 1 ]]; then
-          in_1=$(find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null)
-          in_2=$(find "${input_dir}" -type f \( -name "*space-${ACQ[0]^^}*" -and -name "*acq-${ACQ[1]^^}_*" -and -name "*${i}.nii.gz" \) 2>/dev/null)
-          cmd="call_calculatemean ${in_1} ${in_2} ${out}"
+
+          # reference image (MP2RAGE)
+          in_1=$(
+            find "${input_dir}" \
+            -type f \
+            -name "*acq-${ACQ[0]^^}_*" \
+            -and -name "*${i}.nii.gz" \
+            2>/dev/null
+          )
+
+          # warped file (MP2RAGEME)
+          in_2=$(
+            find "${input_dir}" \
+            -type f \
+            -name "*space-${ACQ[0]^^}*" \
+            -and -name "*acq-${ACQ[1]^^}_*" \
+            -and -name "*${i}.nii.gz" \
+            2>/dev/null
+          )
+
+          # check if reference exists
+          if [[ ! -f "${in_1}" ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-${ACQ[0]^^}_*\" and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            exit 1
+          fi 
+
+          # check if warped exists
+          if [[ ! -f "${in_2}" ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" find "Could not find warped file with \"*space-${ACQ[0]^^}*\", \"*acq-${ACQ[0]^^}_*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            exit 1
+          fi 
+          
+          cmd=(
+            call_calculatemean
+            "${in_1}"
+            "${in_2}"
+            "${out}"
+          )
         else
           # Multiple MP(2)RAGE(S) if number of "space-" files >1
-          ref=$(find "${input_dir}" -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*run-1*" -and -name "*${i}.nii.gz" \) | sort 2>/dev/null)
-          cmd="call_calculatemean ${ref} ${in_files[@]} ${out}"
+          ref=$(
+            find "${input_dir}" \
+            -type f \
+            -name "*acq-${ACQ[0]^^}_*" \
+            -and -name "*run-1*" \
+            -and -name "*${i}.nii.gz" | \
+            sort \
+            2>/dev/null
+          )
+
+          if [[ -z ${ref} ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-${ACQ[0]^^}_*\", \"*run-1*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            exit 1
+          fi
+       
+          cmd=(
+            call_calculatemean
+            "${ref}"
+            "${in_files[@]}"
+            "${out}"
+          )
         fi
         
-        print_cmd "${cmd}" && eval "${cmd}"
-
-        if [[ $? != 0 ]]; then
-          echo
-          print_line -
+        # print and run
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 || ! -f ${out} ]]; then
           print_error_msg "$(basename ${0})" "call_calculatemean"
           exit 1
         fi
 
       else
         print_file_not_in_dir "${sub_name}" "*acq-${ACQ[0]^^}_*, *space-*, and *${i}.nii.gz" "${input_dir}"
-        exit 1
-      fi
-
-      if [[ ! -f ${out} ]]; then
-        echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): \"${out}\" not created.."
         exit 1
       fi
       
@@ -185,8 +255,21 @@ for subID in ${search}; do
         fi
 
         echo "Rescaling ${i}-image to [0, ${max}] with ImageMath"
-        call_rescale ${out} 0 ${max}
+        cmd=(
+          call_rescale
+          ${out}
+          0
+          ${max}
+        )
 
+        # print and run
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" lta_convert
+          exit 1
+        fi
       fi
     else
       print_output_exists "${sub_name}" "${out}"
@@ -194,8 +277,14 @@ for subID in ${search}; do
   done
 
   # check if we can copy SPM mask from MP2RAGE
-  spm_mask=$(find ${input_dir} -type f \( -name "*acq-${ACQ[0]^^}_*" -and -name "*desc-spm_mask.nii.gz" \) 2>/dev/null)
-  if [ ! -z ${spm_mask} ]; then
+  spm_mask=$(
+    find "${input_dir}" \
+    -type f \
+    -name "*acq-${ACQ[0]^^}_*" \
+    -and -name "*desc-spm_mask.nii.gz" \
+    2>/dev/null
+  )
+  if [[ ! -z "${spm_mask}" ]]; then
   
     # sort so we can verify there's only 1 file
     IFS=$'\n' spm_imgs=($(sort <<<"${spm_mask[*]}"))
@@ -209,11 +298,21 @@ for subID in ${search}; do
     cp "${spm}" "${final_spm}" 2>/dev/null
   fi
 
-  t2_newspace=$(find ${input_dir} -type f \( -name "*space*" -and -name "*T2w.nii.gz" \) 2>/dev/null)
-  if [ ! -z ${t2_newspace} ]; then
-    cp ${t2_newspace} ${output_dir}/${base}_acq-${DATA}_T2w.nii.gz 2>/dev/null
-  fi  
+  # look for T2w/FLAIR
+  for i in "T2w" "FLAIR"; do
+    new_space=$(
+      find "${input_dir}" \
+      -type f \
+      -name "*space*" \
+      -and -name "*${i}.nii.gz" \
+      2>/dev/null
+    )
 
+    out_name="${output_dir}/${base}_acq-${DATA}_${i}.nii.gz"
+    if [[ -f "${new_space}" ]]; then
+      cp "${new_space}" "${out_name}" 2>/dev/null
+    fi
+  done
 done
 
 #-----------------------------------------------------------------------------

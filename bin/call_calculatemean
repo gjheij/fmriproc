@@ -8,22 +8,36 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_calculatemean
 
-calculates the mean over all given input image. Important is the order: first all the image that
-need to be average, before the output image. Internally uses fslmerge and fslmaths to add all images
-together before calculating the mean over that image.
+Calculates the mean image across multiple input images. This is useful when you want to average
+multiple acquisitions (e.g., repeated scans) into a single representative image. Internally,
+the script uses FSL's fslmerge to concatenate the images into a 4D volume, and then fslmaths
+with the -Tmean flag to compute the temporal mean across that volume.
+
+IMPORTANT: 
+  - The output file must be the last argument.
+  - A temporary file will be created during the process and automatically removed after completion.
+  - If the output file already exists, the script will skip processing unless removed manually.
+
+Inputs:
+  <image_1> ... <image_n>    NIfTI files to average
+  <output>                   Output filename (must be last argument)
 
 Usage:
   call_calculatemean <image_1> <image_2> <image_3> <output>
 
 Example:
-  call_calculatemean img1.nii.gz img2.nii.gz img3.nii.gz out.nii.gz
+  call_calculatemean run-1_T1w.nii.gz run-2_T1w.nii.gz avg_T1w.nii.gz
+
+This will merge the input files into a temporary 4D volume and compute the mean over time,
+saving the result in 'avg_T1w.nii.gz'.
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-
 }
 
+#-----------------------------------------------------------------------------
+# Argument check
 if [[ $# -lt 3 ]] ; then
   echo "Need at least 2 input images and an output name"
   echo
@@ -31,30 +45,30 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 #-----------------------------------------------------------------------------
-# Find all inputs and output (last argument)
+# Define input/output
 output=${@: -1}
 inputs=${@:1:$#-1}
 
-# Fetch the command
+# Function for merge command
 COMMAND() {
-  fslmerge -a $(dirname $1)/tmp_$(basename $1) $2
+  fslmerge -a $(dirname "$1")/tmp_$(basename "$1") "${@:2}"
 }
 
+# Only proceed if output doesn't exist
 if [[ ! -f ${output} ]]; then
 
-  if [[ ! -f $(dirname ${output})/tmp_$(basename ${output}) ]]; then
+  # If temporary file doesn't exist, run merge
+  if [[ ! -f $(dirname "${output}")/tmp_$(basename "${output}") ]]; then
 
-    # Print which files we're concatenating
     echo "Merging the following files:"
-    for i in ${inputs[@]}; do echo " $(basename ${i})"; done
+    for i in ${inputs[@]}; do echo "  $(basename "$i")"; done
 
-    # Execute command
     COMMAND "${output}" "${inputs[@]}"
 
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "fslmerge"
+      print_error_msg "$(basename "$0")" "fslmerge"
       exit 1
     fi
   fi
@@ -62,7 +76,7 @@ if [[ ! -f ${output} ]]; then
   echo "Calculating mean"
   cmd=(
     fslmaths
-    $(dirname ${output})/tmp_$(basename ${output})
+    "$(dirname "${output}")/tmp_$(basename "${output}")"
     -Tmean
     "${output}"
   )
@@ -71,10 +85,9 @@ if [[ ! -f ${output} ]]; then
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "dcm2niix"
+    print_error_msg "$(basename "$0")" "fslmaths"
     exit 1
   fi
 
-  rm $(dirname ${output})/tmp_$(basename ${output}) 2>/dev/null
-
+  rm "$(dirname "${output}")/tmp_$(basename "${output}")" 2>/dev/null
 fi
