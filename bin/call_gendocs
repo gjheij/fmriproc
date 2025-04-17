@@ -1,35 +1,19 @@
 #!/usr/bin/env python
 
+import os
+import sys
 import requests
 from pathlib import Path
 from typing import Optional
 
-# Set your repo and branch
-GITHUB_USER = "gjheij"
-GITHUB_REPO = "fmriproc"
-GITHUB_BRANCH = "main"
-
-# Path in the repo where the bash scripts live
-SCRIPT_DIR = "shell"
-
-# Local output file
-OUTPUT_FILE = Path("../doc/source/generated_modules.rst")
-
-# GitHub API URL to list contents
-list_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{SCRIPT_DIR}?ref={GITHUB_BRANCH}"
-
-print(f"Fetching file list from {list_url}")
-response = requests.get(list_url)
-files = response.json()
-
-def extract_bash_usage_block(content: str) -> Optional[str]:
+def extract_bash_usage_block(content: str, prefix="spinoza_") -> Optional[str]:
     """Extracts the help section between dashes that precede and follow a line starting with spinoza_"""
     lines = content.splitlines()
     start_idx = None
     end_idx = None
 
     for i, line in enumerate(lines):
-        if "spinoza_" in line:
+        if prefix in line:
             start_idx = i - 1
             break
 
@@ -43,32 +27,103 @@ def extract_bash_usage_block(content: str) -> Optional[str]:
         return "\n".join(lines[start_idx + 1:end_idx]).strip()
     else:
         return None
+    
+def main(argv):
+    """
+---------------------------------------------------------------------------------------------------
+call_gendocs
 
-with OUTPUT_FILE.open("w") as out:
-    out.write(".. include:: links.rst\n\n")
-    out.write("------------\nBash modules\n------------\n")
+Generate a reStructuredText (.rst) file for bash module documentation by automatically fetching 
+help blocks from bash scripts hosted on GitHub. This script is designed to extract standardized 
+usage documentation by locating sections framed between long rows of dashes, typically surrounding 
+a line containing "spinoza_".
 
-    for file_info in files:
-        name = file_info["name"]
-        if not name.startswith("spinoza_"):
-            continue
+How it works:
+  - Connects to a GitHub repo and lists all files in a target folder (e.g., `shell`).
+  - Downloads each script that begins with `spinoza_`.
+  - Extracts the help documentation between two large rows of hyphens.
+  - Formats the output into an .rst-compatible code block under a named header.
 
-        script_url = file_info["download_url"]
-        print(f"Fetching {name} from {script_url}")
-        try:
-            content = requests.get(script_url).text
-            help_text = extract_bash_usage_block(content)
+Arguments:
+  <output.rst>    Path to the output .rst file (must end with `.rst`)
+  [prefix]        Optional: specify prefix to determine starting point. Default = "spinoza_", but
+                  I also have a lot of scripts with "call_*" for which I might want a doc page at
+                  some point.
 
-            out.write(f"\n{name}_\n{'=' * 100}\n\n")
-            out.write(".. code-block:: none\n\n")
+Notes:
+  - Scripts must include a line with "<prefix>" between two distinct rows of `-` to be parsed.
+  - If no help text is found in a script, a placeholder note will be added instead.
 
-            if help_text:
-                for line in help_text.splitlines():
-                    out.write(f"    {line.rstrip()}\n")
-            else:
-                out.write("    (No help text found)\n")
-        except Exception as e:
-            print(f"❌ Failed to fetch or process {name}: {e}")
-            out.write(f"\n{name}\n{'=' * 100}\n\n")
-            out.write(".. code-block:: none\n\n")
-            out.write("    (Error fetching or parsing help text)\n")
+Usage:
+  call_gendocs doc/source/generated_modules.rst
+
+Example output in .rst:
+  .. code-block:: none
+
+      spinoza_averagesanatomies
+      
+      This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the 
+      ...
+
+---------------------------------------------------------------------------------------------------
+    """
+
+    if len(argv) < 1:
+        print(main.__doc__)
+        sys.exit(1)
+
+    output_file = argv[0]
+    prefix = argv[1] if len(argv)>1 else "spinoza_"
+
+    if not output_file.endswith("rst"):
+        raise TypeError(f"File must end with 'rst', not {output_file}")
+
+    # Set your repo and branch
+    GITHUB_USER = "gjheij"
+    GITHUB_REPO = "fmriproc"
+    GITHUB_BRANCH = "main"
+
+    # Path in the repo where the bash scripts live
+    SCRIPT_DIR = "shell"
+
+    # Local output file
+    OUTPUT_FILE = Path(output_file)
+
+    # GitHub API URL to list contents
+    list_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{SCRIPT_DIR}?ref={GITHUB_BRANCH}"
+
+    print(f"Fetching file list from {list_url}")
+    response = requests.get(list_url)
+    files = response.json()
+
+    with OUTPUT_FILE.open("w") as out:
+        out.write(".. include:: links.rst\n\n")
+        out.write("------------\nBash modules\n------------\n")
+
+        for file_info in files:
+            name = file_info["name"]
+            if not name.startswith(prefix):
+                continue
+
+            script_url = file_info["download_url"]
+            print(f"Fetching {name} from {script_url}")
+            try:
+                content = requests.get(script_url).text
+                help_text = extract_bash_usage_block(content, prefix=prefix)
+
+                out.write(f"\n{name}_\n{'=' * 100}\n\n")
+                out.write(".. code-block:: none\n\n")
+
+                if help_text:
+                    for line in help_text.splitlines():
+                        out.write(f"    {line.rstrip()}\n")
+                else:
+                    out.write("    (No help text found)\n")
+            except Exception as e:
+                print(f"❌ Failed to fetch or process {name}: {e}")
+                out.write(f"\n{name}\n{'=' * 100}\n\n")
+                out.write(".. code-block:: none\n\n")
+                out.write("    (Error fetching or parsing help text)\n")
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
