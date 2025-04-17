@@ -61,23 +61,21 @@ your line not being perpendicular to the cortex.
 
 The final output will look something like this:
 
----------------------------------------------------------------------------------------------------
-ENTER THE FOLLOWING VALUES IN THE MR-CONSOLE
+  ENTER THE FOLLOWING VALUES IN THE MR-CONSOLE
 
-set orientation to coronal and foldover to FH
- FH: 18.69 deg
- AP: 37.14 deg
- RL: 0 deg
+  set orientation to coronal and foldover to FH
+  FH: 18.69 deg
+  AP: 37.14 deg
+  RL: 0 deg
 
-set translation to:
- AP: 104.74 mm
- RL: 19.75 mm
- FH: -20.92 mm
-Targeted hemisphere: left
-Vertex number:       968
-Isocenter RAS:       [ -19.7527 -104.742   -20.923 ]
-Isocenter LPS:       [ 19.7527 104.742  -20.923 ]
----------------------------------------------------------------------------------------------------
+  set translation to:
+  AP: 104.74 mm
+  RL: 19.75 mm
+  FH: -20.92 mm
+  Targeted hemisphere: left
+  Vertex number:       968
+  Isocenter RAS:       [ -19.7527 -104.742   -20.923 ]
+  Isocenter LPS:       [ 19.7527 104.742  -20.923 ]
 
 These values are to be entered in the console in the exact order as they are printed. This is be-
 cause angles will affect one another, so first the FH>AP>RL. As you really only need two angles to

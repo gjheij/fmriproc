@@ -1,14 +1,19 @@
-from lazyfmri import utils
 import os
-import pathlib
-import nibabel as nb
-import nipype.interfaces.freesurfer as fs
-import numpy as np
-import subprocess
 import sys
+import pathlib
+import subprocess
+import numpy as np
+import nibabel as nb
+from lazyfmri import utils
+import nipype.interfaces.freesurfer as fs
 opj = os.path.join
 
-def ants_registration(fixed=None, moving=None, reg_type="rigid", output=None):
+def ants_registration(
+    fixed=None,
+    moving=None,
+    reg_type="rigid",
+    output=None
+    ):
     """ants_registration
 
     python wrapper for call_antsregistration to perform registration with ANTs in the python
@@ -46,8 +51,7 @@ def ants_registration(fixed=None, moving=None, reg_type="rigid", output=None):
     if fixed and moving:
         try:
             cmd_txt = f"call_antsregistration {fixed} {moving} {output} {reg_type}"
-            print(cmd_txt, '\n')
-            os.system(cmd_txt)
+            utils.run_shell_wrapper(cmd_txt, verb=True)
         except:
             raise OSError("Could not execute call_antsregistration; check your distribution or install the linescanning repository")
 
@@ -124,7 +128,7 @@ def ants_applytrafo(
 
     # check if we got a list of trafo files; if so, transform it to the string format required by
     # call_antsapplytransforms
-    if trafo != None:
+    if trafo is not None:
         if isinstance(trafo, list):
             trafo_list = ",".join(trafo)
         else:
@@ -134,7 +138,7 @@ def ants_applytrafo(
 
     # check if we got a list of inversion values; if so, transform it to the string format required
     # by call_antsapplytransforms
-    if invert != None:
+    if invert is not None:
         if isinstance(invert, list) and isinstance(trafo, list):
             if len(invert) != len(trafo):
                 raise ValueError("list of inversion does not equal list of transformations: {} vs {}".format(len(invert), len(trafo)))
@@ -155,17 +159,12 @@ def ants_applytrafo(
         # raise ValueError("Please specify an output name if you want a file")
 
     # build command
-    try:
-        cmd_txt = f'call_antsapplytransforms -i "{inv_list}" --{interp} {fix} {mov} {output} "{trafo_list}"'
-        if verbose:
-            print(cmd_txt)
-        os.system(cmd_txt)
-    except:
-        raise OSError("Could not execute call_antsapplytransforms; check your distribution or install the linescanning repository")
+    cmd_txt = f'call_antsapplytransforms -i "{inv_list}" --{interp} {fix} {mov} {output} "{trafo_list}"'
+    utils.run_shell_wrapper(cmd_txt, verb=verbose)
     
     # copy geometry
-    cmd = f"fslcpgeom {fixed} {output}"
-    os.system(cmd)
+    cmd = f"call_copyheader {fixed} {output}"
+    utils.run_shell_wrapper(cmd, verb=verbose)
     
     # remove temporary files
     if os.path.exists("fixed.nii.gz"):
@@ -216,14 +215,14 @@ def ants_applytopoints(chicken_file, output_file, trafo_file, invert=1):
     if trafo_file == "identity":
         trafo_file = opj(os.path.dirname(output_file), 'identity.txt')
         cmd = f"call_createident {trafo_file}"
-        os.system(cmd)
+        utils.run_shell_wrapper(cmd)
 
     if isinstance(output_file, str):
         if not output_file.endswith("csv"):
             raise ValueError(f"{output_file} must have extension 'csv'..")
 
     cmd = f"antsApplyTransformsToPoints -d 3 -i {chicken_file} -o {output_file} -t [{trafo_file},{invert}]"
-    os.system(cmd)
+    utils.run_shell_wrapper(cmd, verb=True)
     # print(cmd)
 
     return output_file
@@ -280,7 +279,7 @@ def fs2tkr(subject, coord=None, ref="orig.mgz", fs_dir=None, strip_lead=True):
     """
 
     if fs_dir == None:
-        fs_dir = os.environ['SUBJECTS_DIR']
+        fs_dir = os.environ.get('SUBJECTS_DIR')
 
     torig = get_vox2ras_tkr(opj(fs_dir, subject, 'mri', ref))
 
@@ -468,7 +467,7 @@ def ctx2tkr(subject, img=None, coord=None, correct=True, hm=True, ret=True, pad_
 
     single = False
     offset = pycortex.get_ctxsurfmove(subject)
-    if hm == True:
+    if hm:
         # make homogenous matrix
         tmp = np.eye(4)
         tmp[:3,-1] = offset
@@ -477,7 +476,7 @@ def ctx2tkr(subject, img=None, coord=None, correct=True, hm=True, ret=True, pad_
     else:
         ctx_offset = offset
 
-    if correct == True:
+    if correct:
         if img:
             dim1,dim2 = ctx_offset.shape
             if dim1 != 4 and dim2 != 4:
@@ -504,20 +503,20 @@ def ctx2tkr(subject, img=None, coord=None, correct=True, hm=True, ret=True, pad_
     for i in coord:
         tkr_coords = i-offset
 
-        if pad_ones == True:
+        if pad_ones:
             if len(tkr_coords) == 3:
                 tkr_coords = np.append(tkr_coords,1)
 
         corr.append(tkr_coords)
 
-    if ret == True:
+    if ret:
         if single:
             return corr[0]
         else:
             return corr
 
     if not img and not coord:
-        if hm == True:
+        if hm:
             return tmp
         else:
             return offset
@@ -554,7 +553,7 @@ def tkr2fs(subject, coord=None, fs_dir=None, pad_ones=True):
     """
 
     if fs_dir == None:
-        fs_dir = os.environ['SUBJECTS_DIR']
+        fs_dir = os.environ.get('SUBJECTS_DIR')
 
     orig_mgz = opj(fs_dir, subject, 'mri', 'orig.mgz')
 
@@ -607,7 +606,7 @@ def rawavg2fs(subject, coord=None, fs_dir=None):
     """
 
     if fs_dir == None:
-        fs_dir = os.environ['SUBJECTS_DIR']
+        fs_dir = os.environ.get('SUBJECTS_DIR')
 
     orig = opj(fs_dir, subject, 'mri', 'orig.mgz')
     move = opj(fs_dir, subject, 'mri', 'rawavg.mgz')
@@ -644,7 +643,7 @@ def fs2rawavg(subject, coord=None, fs_dir=None):
     """
 
     if fs_dir == None:
-        fs_dir = os.environ['SUBJECTS_DIR']
+        fs_dir = os.environ.get('SUBJECTS_DIR')
 
     orig = opj(fs_dir, subject, 'mri', 'orig.mgz')
     move = opj(fs_dir, subject, 'mri', 'rawavg.mgz')
@@ -699,7 +698,7 @@ def tkr2rawavg(subject,matrix=None,coord=None,reg=True,fs_dir=None, inv=False, o
     mov = opj(fs_dir, subject, 'mri', 'rawavg.mgz')
     tar = opj(fs_dir, subject, 'mri', 'orig.mgz')
 
-    if reg == True:
+    if reg:
         m = get_tkrreg(subject, mov=mov, targ=tar, fs_dir=fs_dir, return_type='arr')
     else:
         if matrix:
@@ -763,7 +762,7 @@ def rawavg2lowres(fixed, moving, matrix, inv=False, out_file=None):
 
     if inv == False:
         do_invert = 0
-    elif inv == True:
+    elif inv:
         do_invert = 1
     else:
         raise ValueError(f"Unknown input {inv} for 'invert'-flag. Specify True (invert input matrix) or False (do not invert input matrix)")
@@ -809,7 +808,7 @@ def get_tkrreg(subject, mov=None, targ=None, out_file=None, fs_dir=None, return_
     """
 
     if fs_dir == None:
-        fs_dir = os.environ['SUBJECTS_DIR']
+        fs_dir = os.environ.get('SUBJECTS_DIR')
         
     if not targ:
         targ = opj(fs_dir, subject, 'mri', 'orig.mgz')
@@ -821,11 +820,7 @@ def get_tkrreg(subject, mov=None, targ=None, out_file=None, fs_dir=None, return_
         out_file = opj(os.path.dirname(targ), 'register.dat')
 
     cmd = f"tkregister2 --mov {mov} --targ {targ} --reg {out_file} --noedit --regheader"
-    try:
-        os.system(cmd)
-    except:
-        raise OSError("Could not run tkregister2")
-
+    utils.run_shell_wrapper(cmd, verb=True)
     if return_type.lower() == 'arr':
         return utils.read_fs_reg(out_file)
     else:
@@ -938,7 +933,7 @@ def native_to_scanner(anat, coord, inv=False, addone=True):
         coord = nb.affines.apply_affine(np.linalg.inv(anat_img.affine), coord)
         coord = [int(round(i, 0)) for i in coord]
 
-    if addone == True:
+    if addone:
         coord = np.append(coord, [1], axis=0)
 
     return coord

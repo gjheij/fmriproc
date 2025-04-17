@@ -1,14 +1,13 @@
-# pylint: disable=no-member,E1130,E1137
-import json
-from fmriproc import transform
-from lazyfmri import utils
-import matplotlib.pyplot as plt
-import nibabel as nb
-import numpy as np
 import os
+import json
 import platform
-from sklearn.preprocessing import MinMaxScaler
 import subprocess
+import numpy as np
+import nibabel as nb
+from lazyfmri import utils
+from fmriproc import transform
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 rb = utils.color.BOLD+utils.color.RED
 gb = utils.color.BOLD+utils.color.GREEN
 end = utils.color.END
@@ -465,17 +464,13 @@ def bin_fov(img, thresh=0,out=None, fsl=False):
     empty[img_data <= thresh] = 1
     img_bin_img = nb.Nifti1Image(empty, header=img_file.header, affine=img_file.affine)
 
-    if out != None:
+    if out is not None:
         img_bin_img.to_filename(out)
 
         # also run fslmaths for proper binarization
-        if fsl == True:
-            cmd_txt = "fslmaths {in_img} -bin {out_img}".format(in_img=out, out_img=out)
-
-            try:
-                os.system(cmd_txt)
-            except:
-                raise Exception(f"Could not execute command '{cmd_txt}'")
+        if fsl:
+            cmd_txt = f"fslmaths {out} -bin {out}"
+            utils.run_shell_wrapper(cmd_txt, verb=True)
     else:
         return img_bin_img
 
@@ -509,7 +504,7 @@ def reorient_img(img, code="RAS", out=None, qform="orig"):
     reorient_img("input.nii.gz", code="AIL", qform='orig')
     """
 
-    if out != None:
+    if out is not None:
         new = out
     else:
         new = img
@@ -630,7 +625,7 @@ def create_line_from_slice(
 
         if keep_input == False:
             empty_img[lower:upper] = beam
-        elif keep_input == True:
+        elif keep_input:
             empty_img[lower:upper] = beam*in_data[lower:upper]
 
     elif fold.lower() == "fh" or fold.lower() == "hf":
@@ -642,7 +637,7 @@ def create_line_from_slice(
 
         if keep_input == False:
             empty_img[:,lower:upper] = beam
-        elif keep_input == True:
+        elif keep_input:
             empty_img[:,lower:upper] = beam*in_data[:,lower:upper ]
             
     else:
@@ -650,7 +645,7 @@ def create_line_from_slice(
     
     if img:
         line = nb.Nifti1Image(empty_img, affine=in_img.affine,header=in_img.header)
-        if out_file != None:
+        if out_file is not None:
             line.to_filename(out_file)
         else:
             return line
@@ -693,7 +688,7 @@ def create_ribbon_from_beam(
 
     # save
     rib_img = nb.Nifti1Image(rib_beam, affine=beam_img.affine, header=beam_img.header)
-    if out_file != None:
+    if out_file is not None:
         rib_img.to_filename(out_file)
     else:
         return rib_img
@@ -837,17 +832,17 @@ def bin_fov(img, thresh=0, out=None, fsl=False):
     img_bin_img = nb.Nifti1Image(
         img_data, header=img_file.header, affine=img_file.affine)
 
-    if out != None:
+    if out is not None:
         img_bin_img.to_filename(out)
 
         # also run fslmaths for proper binarization
-        if fsl == True:
+        if fsl:
             cmd_txt = "fslmaths {in_img} -bin {out_img}".format(
                 in_img=out, out_img=out)
             place = utils.get_base_dir()[1]
 
             if place != "win":
-                os.system(cmd_txt)
+                utils.run_shell_wrapper(cmd_txt, verb=True)
 
     else:
         return img_bin_img
@@ -884,7 +879,7 @@ def nii2mgz(input, output=None, return_type='file'):
     if not output:
         output = input.split('.')[0]+'.mgz'
 
-    os.system(f'mri_convert --in_type nii --out_type mgz {input} {output}')
+    utils.run_shell_wrapper(f'mri_convert --in_type nii --out_type mgz {input} {output}', verb=True)
 
     if return_type == "file":
         return output

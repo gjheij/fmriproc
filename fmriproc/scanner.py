@@ -1,10 +1,9 @@
-# pylint: disable=no-member,E1130,E1137
+import os
+import numpy as np
+import nibabel as nb
+from lazyfmri import utils
 from datetime import datetime
 from fmriproc import transform, planning
-from lazyfmri import utils
-import nibabel as nb
-import numpy as np
-import os
 opj = os.path.join
 
 class Scanner(object):
@@ -75,7 +74,7 @@ class Scanner(object):
         debug=False):
 
         if fs_dir == None:
-            self.fs_dir = os.environ['SUBJECTS_DIR']
+            self.fs_dir = os.environ.get('SUBJECTS_DIR')
         else:
             self.fs_dir = fs_dir
             
@@ -159,7 +158,7 @@ class Scanner(object):
         self.ses2_vox = {side: self.to_vox(self.ses2_ras[side], self.new_anat) for side in ["lh", "rh"]}
 
         # warp the normal vector (= IN RAS SPACE!!)
-        if self.fs2ses != None:
+        if self.fs2ses is not None:
             print("Applying rotation matrix to normal vector")
             self.warp_normals(system="RAS")
         else:
@@ -303,7 +302,7 @@ class Scanner(object):
             }
             print("Done")
             
-        if hasattr(self, 'hemi') and self.hemi != None:
+        if hasattr(self, 'hemi') and self.hemi is not None:
             if print_to_console:
                 try:
                     self.print_to_console(hemi=self.hemi)

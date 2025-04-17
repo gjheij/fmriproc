@@ -1,36 +1,42 @@
-import fmriproc
 import ast
-from datetime import datetime, timedelta
+import fmriproc
+from datetime import (
+    datetime,
+    timedelta,
+)
 from lazyfmri import (
     utils, 
-    plotting, 
-    dataset, 
     fitting,
-    preproc
+    preproc,
+    dataset, 
+    plotting, 
 )
-import math
-import matplotlib.image as mpimg
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
-import numpy as np
 import os
+import math
+import random
+import numpy as np
 import pandas as pd
-from joblib import Parallel, delayed
-from past.utils import old_div
-from prfpy import rf, stimulus
 from prfpy.fit import *
 from prfpy.model import *
-import random
+from past.utils import old_div
+from prfpy import rf, stimulus
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 from scipy.ndimage import rotate
-from scipy import (
-    signal,
-    io,
-    interpolate
+import matplotlib.patches as patches
+from joblib import (
+    Parallel,
+    delayed, 
 )
-import subprocess
+from scipy import (
+    io,
+    signal,
+    interpolate,
+)
 import time
 import yaml
 import pickle
+import subprocess
 
 opj = os.path.join
 
@@ -1083,7 +1089,10 @@ def prf_neighbouring_vertices(subject, hemi='lh', vertex=None, prf_params=None, 
         raise ValueError("Must specify vertex from which to extract neighbours")
 
     # fetch the surface used for vertex extraction
-    surf = utils.get_file_from_substring(f"{hemi}.fiducial", opj(os.environ['SUBJECTS_DIR'], subject, 'surf'))
+    surf = utils.get_file_from_substring(
+        f"{hemi}.fiducial",
+        opj(os.environ.get('SUBJECTS_DIR'), subject, 'surf')
+    )
 
     # define the command to fetch neighbouring vertices
     cmd_2 = ('mris_info', '--vx', str(vertex), surf)
@@ -1880,7 +1889,7 @@ class ExtendedModel():
 
     def gridfit(self):
         
-        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------
 
         # get list of bounds
         self.grid_list, self.grid_bounds = self.define_grid_bounds(self.model)
@@ -2209,7 +2218,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                     self.verbose
                 )
 
-        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------
         # Fetch the settings
         self.define_settings()
 
@@ -2245,7 +2254,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         
         utils.verbose(f"Using constraint(s): {self.constraints} (gauss | extended)", self.verbose)
             
-        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------
         # whichever model you run, run the Gaussian first
 
         ## Define models
@@ -2348,7 +2357,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             GaussianModel.__init__(self)
             GaussianModel.gridfit(self)
 
-            #----------------------------------------------------------------------------------------------------------------------------------------------------------
+            #-----------------------------------------------------------------------------------------
             # Check if we should do Gaussian iterfit        
             if 'iter' in self.stage:
                 GaussianModel.iterfit(self)
@@ -2375,7 +2384,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 GaussianModel.iterfit(self)
                 self.previous_gaussian_fitter = self.gaussian_fitter
 
-        #----------------------------------------------------------------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------------------
         # Check if we should do DN-model
         if self.model.lower() != "gauss":
 
@@ -3164,7 +3173,7 @@ def find_most_similar_prf(reference_prf, look_in_params, verbose=False, return_n
     # filter indices with r2
     if r2_thresh is not None:
         filt = look_in_params[xysize_par][...,-1] > r2_thresh
-        true_idc = np.where(filt == True)
+        true_idc = np.where(filt)
         xysize_par = xysize_par[true_idc]
 
         utils.verbose(f"{xysize_par.shape} survived r2>{r2_thresh}", verbose)
@@ -4510,11 +4519,11 @@ class VertexInfo:
         if self.hemi == "both":
             # check if arrays are in string format
             for hemi in ["L", "R"]:
-                self.data['normal'][hemi]   = string2float(self.data['normal'][hemi])
-                self.data['position'][hemi] = string2float(self.data['position'][hemi])
+                self.data['normal'][hemi]   = utils.string2float(self.data['normal'][hemi])
+                self.data['position'][hemi] = utils.string2float(self.data['position'][hemi])
         else:
-            self.data['normal'][self.hemi]   = string2float(self.data['normal'][self.hemi])
-            self.data['position'][self.hemi] = string2float(self.data['position'][self.hemi])            
+            self.data['normal'][self.hemi]   = utils.string2float(self.data['normal'][self.hemi])
+            self.data['position'][self.hemi] = utils.string2float(self.data['position'][self.hemi])            
         
         self.subject = subject
 

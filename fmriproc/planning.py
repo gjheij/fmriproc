@@ -1,7 +1,7 @@
 import os
 import numpy as np
-from lazyfmri import utils
 import pandas as pd
+from lazyfmri import utils
 
 def correct_angle(x, verbose=False, only_angles=True):
     """correct_angle
@@ -49,7 +49,7 @@ def correct_angle(x, verbose=False, only_angles=True):
         # 3) Small X | Large Y > vector = center to top-right       (flip sign)
         # 4) Large X | Small Y > vector = center to bottom-left     (flip sign)
 
-        #-------------------------------------------------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------------------
         # deal with x-axis
         if 0 <= x[0] <= 45: # here we can decide on case 2 and 3 (small X's)
             # 1) angles living between 0 deg and 45 deg can freely do so, nothing to update > most likely coronal slice
@@ -139,7 +139,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                     
                     # decide on the direction of the sagittal slice, center-topleft or center-topright depending on what the 
                     # initial angle with the x-axis was. Big angle means center-topleft, small angle means center-topright
-                    if flip == True:
+                    if flip:
                         if verbose:
                             print(f" X angle was large ({round(x[0],2)}), inverting {round(scanner_angles[1],2)}")
                             print(f" Z angle = angle around RL-axis")
@@ -156,7 +156,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                     pass
 
 
-        #-------------------------------------------------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------------------
         # now, if we found a suitable angle for X, we can ignore Y because we only need one of the two to get our line
         # we could've obtained the Y-angle above if the X-angle was in the 45-90 range. In that case the first two positions
         # are already filled.
@@ -191,7 +191,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                 #    it from 180 degrees
                 scanner_angles[1] = 180-x[1]
 
-        #-------------------------------------------------------------------------------------------------------------------------------
+        #---------------------------------------------------------------------------------------------------
         # deal with z-axis > this is a special angle as it can reflect an angle around the Z-axis OR the Y-axis, depending on 
         # the slice orientation. If slice == coronal > z-axis = angle AROUND Y-axis. If slice == sagittal > z-axis is angle
         # around X-axis. Previously we've also flattened this angle to the YZ-plane, so it's now a planar angle.
@@ -220,7 +220,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                 # this means we got the angle proximal to the vector and Z-axis. We need to opposite one
                 scanner_angles[2] = 90-scanner_angles[2]
 
-                if flip == True:
+                if flip:
                     # depending on whether the initial angle was big, we need to invert the sign to be compatible
                     # with the scanner
                     scanner_angles[2] = utils.reverse_sign(scanner_angles[2])
@@ -229,7 +229,7 @@ def correct_angle(x, verbose=False, only_angles=True):
             scanner_angles[2] = x[2]
 
         # return the result
-        if only_angles == True:
+        if only_angles:
             return scanner_angles
         else:
             return scanner_angles, z_axis_represents_angle_around
@@ -452,7 +452,7 @@ def rotate_normal(norm, xfm, system="RAS"):
         if system.upper() == "RAS":
             if xfm != "identity":
                 xfm_tmp = xfm.split('.')[0]+"_ras.txt"
-                os.system(f"ConvertTransformFile 3 {xfm} {xfm_tmp} --ras --hm")
+                utils.run_shell_wrapper(f"ConvertTransformFile 3 {xfm} {xfm_tmp} --ras --hm", verb=True)
                 xfm = np.loadtxt(xfm_tmp)
             else:
                 xfm = np.eye(4)

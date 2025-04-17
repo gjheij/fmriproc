@@ -1,18 +1,20 @@
 from lazyfmri import (
-    fitting,
-    plotting,
     utils,
-    dataset
+    fitting,
+    dataset,
+    plotting,
 )
+import os
+import json
+import datetime
 import numpy as np
 import pandas as pd
-import os
 import nibabel as nb
-from joblib import Parallel,delayed
-import datetime
 import matplotlib.pyplot as plt
-import json
-
+from joblib import (
+    Parallel,
+    delayed, 
+)
 opj = os.path.join
 
 # subclass JSONEncoder
