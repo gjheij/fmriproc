@@ -25,9 +25,9 @@ Usage:
   call_antsbias [default_options] <input file> <output file> [extra_options]
 
 Options:
-  -o                Overwrite existing output file
-  -v                Make some noise
-  [extra_options]   anything after gets passed to N4BiasFieldCorrection
+  -o              Overwrite existing output file
+  -v              Make some noise
+  [extra_options] anything after gets passed to N4BiasFieldCorrection
 
 Example:
   call_antsbias -s 4 input.nii.gz output.nii.gz -x mask.nii.gz -r 1

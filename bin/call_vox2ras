@@ -2,8 +2,8 @@
 
 import os
 import sys
-import numpy as np
 import ast
+import numpy as np
 from fmriproc.transform import native_to_scanner
 
 opj = os.path.join
@@ -18,10 +18,9 @@ must be given in scanner space and will be transformed to voxel indices using th
 of the reference image's affine.
 
 Mandatory arguments:
-  <coord>       Coordinate in RAS space, formatted as a list: [x,y,z]
-                Must be comma-separated, no spaces (e.g., [187,177,40])
-
-  <ref>         Path to a NIfTI or MGZ file used to extract the voxel-to-RAS affine
+  <coord>         Coordinate in RAS space, formatted as a list: [x,y,z]
+                  Must be comma-separated, no spaces (e.g., [187,177,40])
+  <ref>           Path to a NIfTI or MGZ file used to extract the voxel-to-RAS affine
 
 Behavior:
   - Parses the input coordinate using Python's literal evaluation

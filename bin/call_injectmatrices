@@ -22,8 +22,14 @@ Options:
   -h|--help       print this help text
 
 Example:
-  call_injectmatrices # run script for all .feat-folders in DIR_DATA_HOME/derivatives/feat/<level1_tag>
-  call_injectmatrices -p feat_dir/sub-01 # run script for all feat-folders in 'feat_dir/sub-01'
+  # show this help
+  call_injectmatrices --help
+
+  # run script for all .feat-folders in DIR_DATA_HOME/derivatives/feat/<level1_tag>
+  call_injectmatrices 
+
+  # run script for all feat-folders in 'feat_dir/sub-01'
+  call_injectmatrices -p feat_dir/sub-01
 
 ---------------------------------------------------------------------------------------------------
 

@@ -31,16 +31,16 @@ Notes:
   - No validation is done on the extra options — make sure they're valid FAST flags
 
 Relevant FAST options:
-  - -n <int>       Number of tissue classes (default=3)
-  - -t <1|2|3>     Image type: 1=T1, 2=T2, 3=PD
-  - -B             Output bias-corrected image
-  - -b             Output estimated bias field
-  - -g             Output binary segment masks
-  - -p             Output individual probability maps
-  - -N             Do not remove bias field
-  - --nopve        Disable partial volume estimation
-  - -a <mat>       Initialise with FLIRT transform (use with -P)
-  - ...            See \`fast --help\` for full list of supported flags
+  - -n <int>      Number of tissue classes (default=3)
+  - -t <1|2|3>    Image type: 1=T1, 2=T2, 3=PD
+  - -B            Output bias-corrected image
+  - -b            Output estimated bias field
+  - -g            Output binary segment masks
+  - -p            Output individual probability maps
+  - -N            Do not remove bias field
+  - --nopve       Disable partial volume estimation
+  - -a <mat>      Initialise with FLIRT transform (use with -P)
+  - ...           See \`fast --help\` for full list of supported flags
 
 ---------------------------------------------------------------------------------------------------
 
@@ -52,6 +52,7 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
 # check if input exists
 input="${1}"
 if [[ ! -f ${input} ]]; then
@@ -66,6 +67,7 @@ fi
 # set output
 output="${2}"
 
+#-----------------------------------------------------------------------------
 # Shift away input & output arguments if present
 shift 2 || true
 
@@ -78,25 +80,19 @@ done
 
 #-----------------------------------------------------------------------------
 # Run it
-if [[ -f ${input} ]]; then
-  cmd=(
-    fast
-    "${extra_args[@]}"
-    "-o"
-    "${output}"
-    "${input}"
-  )
+cmd=(
+  fast
+  "${extra_args[@]}"
+  "-o"
+  "${output}"
+  "${input}"
+)
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "fast"
-    exit 1
-  fi  
-else
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  print_error_msg "$(basename ${0})" "fast"
   exit 1
 fi

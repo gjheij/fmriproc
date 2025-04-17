@@ -1,36 +1,50 @@
 #!/usr/bin/env python
 
-import json
 import os
 import sys
+import json
 from lazyfmri import utils
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_json
 
-Add a key an description to a given json file. 
+This script adds one or multiple key-value pairs to a `.json` sidecar file, typically used in BIDS-
+formatted datasets. The values can be string, float, or integer, and are interpreted accordingly. 
+You may optionally prevent overwriting of existing keys using the `--merge` flag. If the specified 
+file does not exist, a new JSON file will be created with the provided key(s) and value(s).
 
 Usage:
-    call_json [options] <file> <key> <message>
+  call_json [--merge] <json_file> <key> <message>
 
 Arguments:
-    <json file>     path representing a valid json-file
-    <key>           string of the key that should be added; use double+single quotes (see example) 
-                    for list-like input
-    <messsage>      message that is linked to the key; use double+single quotes (see example) 
-                    for list-like input. Order must match list-like input from <key>
+  <json_file>     Path to the JSON file to modify or create. Must end with '.json'.
+  <key>           Key to add to the JSON file. Accepts a single string or a comma-separated list 
+                  wrapped in quotes (e.g., "'key1','key2'")
+  <message>       Value(s) associated with the key(s). Accepts a single value or a list of values 
+                  (e.g., "'value1','value2'")
 
 Options:
-    --merge         don't overwrite existing keys/value pairings
+  --merge         Prevent overwriting of existing key/value pairs. Only adds keys that are not 
+                  already present in the file.
 
-Example
-----------
-    call_json sub-001_epi.json PhaseEncodingDirection j
-    call_json sub-001_epi.json Nordic True
-    call_json sub-001_epi.json "'Nordic','PhaseEncodingDirection'" "'True','j'"
+Outputs:
+  - If the file exists, the key/value pairs are added or merged.
+  - If the file does not exist, a new JSON file is created with the key/value pair(s).
+
+Examples:
+  call_json sub-001_epi.json PhaseEncodingDirection j
+    → Adds the key 'PhaseEncodingDirection' with value 'j' to sub-001_epi.json
+
+  call_json sub-001_epi.json Nordic True
+    → Adds the key 'Nordic' with boolean/integer value True
+
+  call_json sub-001_epi.json "'Nordic','PhaseEncodingDirection'" "'True','j'"
+    → Adds multiple keys in one command
+
+  call_json --merge sub-001_epi.json "'RepetitionTime','TaskName'" "'1.2','rest'"
+    → Only adds the keys if they are not already present
 
 ---------------------------------------------------------------------------------------------------
     """

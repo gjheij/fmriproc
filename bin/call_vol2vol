@@ -10,14 +10,20 @@ call_vol2vol
 
 this thing calls FreeSurfer's vol2vol function to convert the RAS FreeSurfer anatomy to the native
 space. We mainly use this for the planning of the line between session 1 and 2. We can estimate the
-position of where the line should be in the RAS space, but we need to know the position in the native
-space, so we can warp the line into the anatomy of the second session using the matrix earlier obtained.
+position of where the line should be in the RAS space, but we need to know the position in the 
+native space, so we can warp the line into the anatomy of the second session using the matrix 
+earlier obtained.
 
 Generates a warped image which we can load in with FreeView and a transform matrix file, from which
 we will extract the matrix and apply it to the coordinates obtained earlier.
 
 Usage:
   call_vol2vol <moving file> <target file> <output file>
+  
+Mandatory:
+  <moving>        source image to be moved
+  <target>        target image to register <moving> to
+  <output>        output name for warped val
 
 Example:
   call_vol2vol moving.nii.gz target.nii.gz output.nii.gz
@@ -33,34 +39,47 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
-if [[ -f "${1}" && -f "${2}" ]]; then
-  cmd=(
-    mri_vol2vol
-    --mov "${1}"
-    --targ "${2}"
-    --regheader
-    --o "${3}"
-    --save-reg
-  )
+# define inputs
+mov="${1}"
+targ="${2}"
+out="${3}"
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "dcm2niix"
-    exit 1
-  fi 
+#-----------------------------------------------------------------------------
+# check moving image
+if [[ -f "${mov}" ]]; then
+  mov=$(readlink -f "${mov}")
 else
   echo
   print_line -
-  if [[ ! -f "${1}" ]]; then
-    print_error_msg "$(basename ${0})" "input" "Missing MOVING file"
-  fi
-  
-  if [[ ! -f "${2}" ]]; then
-    print_error_msg "$(basename ${0})" "input" "Missing TARGET file"
-  fi
+  print_error_msg "$(basename ${0})" "find" "Please specify MOVING image"
+  exit 1
+fi
 
+# check ref image
+if [[ -f "${targ}" ]]; then
+  targ=$(readlink -f "${targ}")
+else
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Please specify TARGET image"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Run it
+cmd=(
+  mri_vol2vol
+  --mov "${mov}"
+  --targ "${targ}"
+  --regheader
+  --o "${out}"
+  --save-reg
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "mri_vol2vol"
   exit 1
 fi

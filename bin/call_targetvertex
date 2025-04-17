@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import ast
 import os
-import numpy as np
+import ast
 import sys
 import getopt
+import numpy as np
 from lazyfmri import utils
 opj = os.path.join
 
@@ -32,61 +32,60 @@ Usage:
   call_targetvertex [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -s|--sub        Subject name as defined in FreeSurfer directory
-    -o|--out        Output file containing translation and rotation values
+  -s|--sub        Subject name as defined in FreeSurfer directory
+  -o|--out        Output file containing translation and rotation values
 
 Optional (flags with defaults):
-    -d|--deriv      Path to all derivatives (e.g., freesurfer/pycortex/prf). Defaults to:
-                    'os.environ.get("DIR_DATA_DERIV")'
-    -r|--roi        ROI to be used; must be a label present in <fs_dir>/<subject>/label; default 
-                    = V1_exvivo.thresh. It should be following the nomenclature of FreeSurfer but 
-                    omitting the 'lh'/'rh' to include both hemispheresin the analysis
-    -v|--vert       list of manually specified vertices instead of based on surface calculation.
-                    use the format [5875,8872] with the first vertex in left hemisphere and se-
-                    cond in right hemisphere.
-    -p|--prf-file   File containing the pRF-estimates. Required if '--use-prf' is specified
-    --srf-file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
+  -d|--deriv      Path to all derivatives (e.g., freesurfer/pycortex/prf). Defaults to:
+                  'os.environ.get("DIR_DATA_DERIV")'
+  -r|--roi        ROI to be used; must be a label present in <fs_dir>/<subject>/label; default 
+                  = V1_exvivo.thresh. It should be following the nomenclature of FreeSurfer but 
+                  omitting the 'lh'/'rh' to include both hemispheresin the analysis
+  -v|--vert       list of manually specified vertices instead of based on surface calculation.
+                  use the format [5875,8872] with the first vertex in left hemisphere and se-
+                  cond in right hemisphere.
+  -p|--prf-file   File containing the pRF-estimates. Required if '--use-prf' is specified
+  --srf-file      specify custom .csv-file containing the SRFs. Otherwise SRFs are calculated
 
 Options (extra):
-    -h|--help       print this help text
-    -u|--use-prf    Include pRF in the calculation of the best vertex even if you have a pRF-para-
-                    meter file to only use surface (anatomical) information
-    -f|--freeview   Disable FreeView while verifying vertex location. Only do this if you already 
-                    know where it's located!
-    -e|--use-epi    Use EPI intensity data from fmriprep
-    --srf           Include size-response functions (SRFs) in criteria for the vertices that sur-
-                    vive the initial criterias
-    --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and 
-                    SRFs are included, this will yield in a 4x5 grid with brainmaps of various 
-                    kinds that were used in the selection process of the target vertex.
-    --manual        use manual selection of vertices using Freeview/pycortex
-    --ctx           open pycortex viewer for vertex selection if '--manual' is specified. Default 
-                    is FreeView because it also open a volumetric view
-    --aparc         specified ROI is part of the aparc.annot file (e.g., "lateralorbitofrontal").
-                    Use 'master -m 18 --help' to see which ROIs are included
+  -h|--help       print this help text
+  -u|--use-prf    Include pRF in the calculation of the best vertex even if you have a pRF-para-
+                  meter file to only use surface (anatomical) information
+  -f|--freeview   Disable FreeView while verifying vertex location. Only do this if you already 
+                  know where it's located!
+  -e|--use-epi    Use EPI intensity data from fmriprep
+  --srf           Include size-response functions (SRFs) in criteria for the vertices that sur-
+                  vive the initial criterias
+  --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and 
+                  SRFs are included, this will yield in a 4x5 grid with brainmaps of various 
+                  kinds that were used in the selection process of the target vertex.
+  --manual        use manual selection of vertices using Freeview/pycortex
+  --ctx           open pycortex viewer for vertex selection if '--manual' is specified. Default 
+                  is FreeView because it also open a volumetric view
+  --aparc         specified ROI is part of the aparc.annot file (e.g., "lateralorbitofrontal").
+                  Use 'master -m 18 --help' to see which ROIs are included
 
-Returns
-----------
-    a csv-file in the pycortex/sub-xxx directory specifying the orientation of the line in the
-    first session anatomy
+Outputs:
+  a csv-file in the pycortex/sub-xxx directory specifying the orientation of the line in the
+  first session anatomy
 
 Examples
 ----------
 # use pRF
 call_targetvertex \
-    -s sub-001 \
-    -p prf_params.pkl \
-    --use-prf
+  -s sub-001 \
+  -p prf_params.pkl \
+  --use-prf
 
 # use pRF & SRFs
 call_targetvertex \
-    --sub sub-001 \
-    --deriv /dir/to/derivatives \
-    --prf-file prf_params.pkl \
-    --use-prf \
-    --srf-file /dir/to/derivatives/prf/sub-001/srfs.pkl \
-    --srf \
-    --use-epi
+  --sub sub-001 \
+  --deriv /dir/to/derivatives \
+  --prf-file prf_params.pkl \
+  --use-prf \
+  --srf-file /dir/to/derivatives/prf/sub-001/srfs.pkl \
+  --srf \
+  --use-epi
 
 Notes
 ----------

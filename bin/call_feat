@@ -72,22 +72,34 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     q)  SGE_QUEUE=${OPTARG}
           ;;  
     j)  n_cpus=${OPTARG}
           ;; 
     n)  job_name=${OPTARG}
           ;;     
-    h)  Usage && exit 0
-          ;;       
   esac
 done
 
-fsf_file=$(readlink -f "${@:$OPTIND:1}")
-if [[ $# -lt 2 ]] ; then
+if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# define inputs
+tmp="${@:$OPTIND:1}"
+if [[ ! -f "${tmp}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${tmp}${RESET} does not exist"
+  exit 1
+else
+  fsf_file=$(readlink -f "${tmp}")
+fi
+
+#-----------------------------------------------------------------------------
 # delete previously existing file
 base_name=$(dirname ${fsf_file})/$(basename ${fsf_file} .fsf)
 fsf_script=${base_name}.sh
@@ -95,6 +107,8 @@ if [[ -f ${fsf_script} ]]; then
   rm -r ${fsf_script}
 fi
 
+#-----------------------------------------------------------------------------
+# define command
 (
 echo "#!/bin/bash"
 echo "feat ${fsf_file}"
@@ -110,5 +124,11 @@ job="$(
   "${SGE_QUEUE}" \
 )"
 
-cmd="${job} ${fsf_script}"
-eval "${cmd}
+cmd=(
+  "${job}"
+  "${fsf_script}"
+)
+
+#-----------------------------------------------------------------------------
+# run
+eval "${cmd[@]}"

@@ -14,19 +14,25 @@ call_createident
 
 Creates an identity transformation file in the style of FreeSurfer (lta/dat), ITK (mat/txt). Depen-
 ding on the extension specified in the output name the correct format will be inserted. If you want
-an FSL-matrix, use the '-f' flag
-
-Args:
-  -f        Make FSL-type identity matrix (kind of redundant as you can use the file shipped with 
-            FSL in $FSLDIR/src/flirt/flirtsch/ident.mat)
-  -s <sub>  Subject ID as used in FreeSurfer directory for FreeSurfer transformation file
-  <fname>   Output name of transformation file
-  <image>   If you specified a FreeSurfer file, we can insert the voxel dimensions in the transfor-
-            mation file, though this does not seem to be mandatory: 
-            see https://surfer.nmr.mgh.harvard.edu/fswiki/RegisterDat
+an FSL-matrix, use the '-f'/'--fsl' flag
 
 Usage:
   call_createident <-f> <fname> <moving image>
+
+Arguments:
+  -s <sub>        Subject ID as used in FreeSurfer directory for FreeSurfer transformation file
+
+Options:
+  -h|--help       print this help text
+  -f|--fsl        Make FSL-type identity matrix (kind of redundant as you can use the file shipped 
+                  with FSL in \$FSLDIR/src/flirt/flirtsch/ident.mat)
+
+Positional:
+  <fname>         Output name of transformation file
+  <image>         If you specified a FreeSurfer file, we can insert the voxel dimensions in the
+                  transformation file, though this does not seem to be mandatory: 
+                  see https://surfer.nmr.mgh.harvard.edu/fswiki/RegisterDat
+
 
 Example:
   call_createident sub-001_from-anat_to-9slice_desc-genaff.mat (ITK)
@@ -53,9 +59,26 @@ fi
 
 # Check for subject & session flags
 FSL=0
-while getopts fs: argument
+while getopts :-:hfs: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in                  
+        fsl)
+          FSL=1
+          ;;
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;   
     f)  FSL=1

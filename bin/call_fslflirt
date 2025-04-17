@@ -40,6 +40,7 @@ Example:
 Notes:
   - Default uses 6 DOF (rigid-body), normalized mutual information, and wide search angles
   - Will skip registration if matrix file already exists
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -85,7 +86,8 @@ if [[ -f "$ref" && -f "$in" ]]; then
       -omat "${omat}"
       "${extra_args[@]}"
     )
-
+    
+    # print and run
     echo "Running FLIRT with command:"
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then

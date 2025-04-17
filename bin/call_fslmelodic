@@ -16,8 +16,8 @@ This script is a short wrapper for FSL's MELODIC. It runs ICA decomposition with
 settings, but allows you to override or extend them by passing extra options after the main args.
 
 Arguments:
-  <input file>         path to 4D-NIfTI file
-  <output directory>   path to output directory ('.ica' will be added if missing)
+  <input file>    path to 4D-NIfTI file
+  <output dir>    path to output directory ('.ica' will be added if missing)
 
 Usage:
   call_fslmelodic my_bold.nii.gz /path/to/my_bold.ica [additional options]
@@ -27,11 +27,11 @@ Examples:
   call_fslmelodic bold.nii.gz out.ica --tr=1.2 --dim=20
 
 Defaults (unless overridden):
-  --nobet       # turn off BET
-  --report      # generate Melodic web report
-  --Oall        # output everything
-  -d 30         # number of components
-  --update_mask # Recalculates the brain mask after registration to standard space
+  --nobet         # turn off BET
+  --report        # generate Melodic web report
+  --Oall          # output everything
+  -d 30           # number of components
+  --update_mask   # Recalculates the brain mask after registration to standard space
 
 Notes:
   - All arguments after the first two are passed to MELODIC.
@@ -49,6 +49,7 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
 # check if input exists
 input="${1}"
 if [[ ! -f ${input} ]]; then
@@ -63,6 +64,7 @@ fi
 # set output
 output="${2}"
 
+#-----------------------------------------------------------------------------
 # Shift away input & output arguments if present
 shift 2 || true
 
@@ -83,6 +85,7 @@ has_flag() {
   return 1
 }
 
+#-----------------------------------------------------------------------------
 # Add defaults if not already specified
 ! has_flag "--nobet"         && extra_args+=("--nobet")
 ! has_flag "--report"        && extra_args+=("--report")
@@ -93,6 +96,7 @@ has_flag() {
 # Build command
 cmd=(melodic -i "${input}" -o "${output}" "${extra_args[@]}")
 
+#-----------------------------------------------------------------------------
 # Echo and run
 echo "Running MELODIC with command:"
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"

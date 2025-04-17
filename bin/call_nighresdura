@@ -5,9 +5,9 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-import os
 from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -24,29 +24,32 @@ image and a quantitative T1 map, based on the magnitude and phase-information of
 volumes of a MP2RAGE-sequence (Marques et al., 2010). It can also further correct this map
 for B1 inhomogenieties using a B1 map (Marques et al., 2014)
 
+Usage:
+  call_nighresdura [mandatory] [optional]
+
 Mandatory (required input):
-    -i|--inv2       2nd inversion image
-    -m|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
+  -i|--inv2       2nd inversion image
+  -m|--mask       binary mask of inv2 or other modality with the same coordinates/dimensions/space
 
 Optional (flags with defaults):
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'skullstripping'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs
-    result (niimg): Dura probability image (-dura_proba)
+  result (niimg): Dura probability image (-dura_proba)
 
 Example:
-    call_nighresdura \
-        -i inv2.nii.gz \
-        -m inv2_mask.nii.gz \
-        -o derivatives/nighres \
-        -n sub-001_desc
+  call_nighresdura \
+    -i inv2.nii.gz \
+    -m inv2_mask.nii.gz \
+    -o derivatives/nighres \
+    -n sub-001_desc
 
 Notes:
-    docs: https://nighres.readthedocs.io/en/latest/brain/mp2rage_dura_estimation.html
+  docs: https://nighres.readthedocs.io/en/latest/brain/mp2rage_dura_estimation.html
 
 ---------------------------------------------------------------------------------------------------
     """

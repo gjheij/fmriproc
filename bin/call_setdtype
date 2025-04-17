@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import nibabel as nb
-import numpy as np
 import sys
+import numpy as np
+import nibabel as nb
 
 def main(argv):
 
-"""
+    """
 ---------------------------------------------------------------------------------------------------
 call_setdtype
 
@@ -20,23 +20,23 @@ Usage:
   call_setdtype <input_image> [dtype]
 
 Mandatory (required input):
-  <input_image>     Path to a NIfTI file (.nii or .nii.gz) whose data type should be changed
+  <input_image>   Path to a NIfTI file (.nii or .nii.gz) whose data type should be changed
 
 Optional
-  [dtype]           Target NumPy-compatible data type (default = uint16). Examples:
-                      - uint16
-                      - float32
-                      - int16
-                      - int64
+  [dtype]         Target NumPy-compatible data type (default = uint16). Examples:
+                    - uint16
+                    - float32
+                    - int16
+                    - int64
 
 Example:
   call_setdtype sub-001_desc-brain_mask.nii.gz
   call_setdtype sub-001_bold.nii.gz float32
 
 Notes:
-    - If the dtype is not specified, the script will default to `np.uint16`
-    - The input image will be overwritten in place
-    - You can verify the result using: `fslhd <input_image>` or `nib-ls <input_image>`
+  - If the dtype is not specified, the script will default to `np.uint16`
+  - The input image will be overwritten in place
+  - You can verify the result using: `fslhd <input_image>` or `nib-ls <input_image>`
 
 ---------------------------------------------------------------------------------------------------
     """

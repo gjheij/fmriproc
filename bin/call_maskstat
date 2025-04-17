@@ -3,12 +3,12 @@
 import mkl
 mkl.set_num_threads=1
 
-from lazyfmri import utils
 import os
 import sys
 import getopt
 import numpy as np
 import nibabel as nb
+from lazyfmri import utils
 
 opj = os.path.join
 
@@ -19,16 +19,31 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_maskstat
 
-I have encountered cases where very bright spots close to the coil with 0 variance resulted in large
-z-statistics. This obscures real activation, so this script takes the filtered_func_data.nii.gz file
-and sets voxels with no variance to 0 in the statistical images.
+This script addresses an artifact occasionally observed in fMRI analyses, where very bright signal
+near the coil with near-zero variance leads to spurious and inflated statistical values (especially
+z- or t-stats). To remedy this, this script sets such voxels to zero in the relevant stat maps.
 
-Arguments:    
-  -f|--feat     1st-level FEAT directory to mask stats from
-  --tstat       mask the t-stats instead of the zstats
+It requires a first-level FEAT directory and works by masking the z- or t-stat maps using a variance
+map derived from the filtered_func_data.nii.gz file. Only voxels with non-zero variance are retained.
+
+Usage:
+  call_maskstat -f <feat_dir> [--tstat]
+
+Mandatory:
+  -f|--feat       Path to the 1st-level FEAT directory (must contain filtered_func_data.nii.gz)
+
+Options:
+  -h|--help       print this help text
+  --tstat         Apply variance masking to t-stats instead of z-stats [default: zstat]
+
+Outputs:
+  For each stat map found (e.g., zstat1.nii.gz), an output file is created:
+      zstat1_desc-var_masked.nii.gz (or tstat1_desc-var_masked.nii.gz)
+  located in the stats/ subdirectory.
 
 Example:
-    call_maskstat --feat $DIR_DATA_DERIV/feat/level1/sub-001/ses-1/run1.feat
+  call_maskstat -f /path/to/sub-01_task-rest_run1.feat
+  call_maskstat --feat /some/dir/sub-02.feat --tstat
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -37,7 +52,11 @@ Example:
     stat_type = "zstat"
     
     try:
-        opts = getopt.getopt(argv,"hf:",["help", "feat=", "tstat"])[0]
+        opts = getopt.getopt(
+            argv,
+            "hf:",
+            ["help", "feat=", "tstat"]
+        )[0]
     except getopt.GetoptError:
         print("ERROR while reading arguments; did you specify an illegal argument?")
         print(main.__doc__)

@@ -15,20 +15,25 @@ call_editgm
 Script to create a manual edit of gray matter segmentation based on CRUISE from Nighres. THe script
 will open ITK-Snap to create a manual edit file.
 
-Args:
-  -s <subject>  subject ID
-  -n <session>  session number
-  <t1 ref>      reference t1-weighted image
-  <cruise seg>  cruise cortical segmentation image (cruise_cortex.nii.gz)
-  <man seg fn>  output file name of manual segmentation
+Usage:
+  call_editgm -s [arguments] <t1w reference> <CRUISE cortex file> <segmentation file name>
+
+Arguments:
+  -s <subject>    subject ID
+  -n <session>    session number
+
+Options:
+  -h|--help       print this help text
+
+Positional:
+  <t1 ref>        reference t1-weighted image
+  <cruise seg>    cruise cortical segmentation image (cruise_cortex.nii.gz)
+  <man seg fn>    output file name of manual segmentation
 
 Specify only '-s' and/or 'n' if you've run the pipeline as it is without changing directories or 
 filenames; this option will look for all the default directories and files. If you want to edit
 your own things, specify the the paths to the required files and leave the '-s' and '-n' flag 
 empty.
-
-Usage:
-  call_editgm -s <subject> -n 1 <t1w reference> <CRUISE cortex file> <segmentation file name>
 
 Example:
   call_editgm t1w.nii.gz cruise_cortex.nii.gz sub-001_desc-manualseggm.nii.gz
@@ -46,9 +51,23 @@ fi
 
 # Check for subject & session flags
 anat_depth=4
-while getopts s:n:a: argument
+while getopts :-:hs:n:a: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;    
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -59,7 +78,7 @@ do
 done
 
 #-----------------------------------------------------------------------------
-# Run it
+# define inputs based on positional or flag arguments
 
 if [[ ! -z ${sub} ]]; then
 
@@ -93,34 +112,53 @@ else
   MAN=${@:$OPTIND+2:1}
 fi
 
+#-----------------------------------------------------------------------------
+# create empty
 if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
   print_create_img "${MAN}"
-  cmd="call_createimg ${REF} ${MAN}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  cmd=(
+    call_createimg
+    "${REF}"
+    "${MAN}"
+  )
 
+  # print and run
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 || ! -f ${MAN} ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"
     exit 1
-  fi    
+  fi   
 fi
 
+#-----------------------------------------------------------------------------
+# launch itksnap
 echo -e "T1w: ${BOLD_GREEN}${REF}${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
 # define command
 if [[ -f ${SEG} ]]; then
   echo -e "CRUISE: ${BOLD_GREEN}${SEG}${RESET}"
-  cmd="launch_itksnap -g ${REF} -o ${SEG} -s ${MAN}"
+  cmd=(
+    launch_itksnap
+    -g "${REF}"
+    -o "${SEG}"
+    -s "${MAN}"
+  )
 else
-  cmd="launch_itksnap -g ${REF} -s ${MAN}"
+  cmd=(
+    launch_itksnap
+    -g "${REF}"
+    "-s ${MAN}"
+  )
 fi
 
-print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}" 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -128,9 +166,16 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # copy header
-cmd="call_copyheader ${REF} ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}"
+cmd=(
+  call_copyheader
+  "${REF}"
+  "${MAN}"
+)
+
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

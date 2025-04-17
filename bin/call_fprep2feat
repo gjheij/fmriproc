@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-import pandas as pd
-from lazyfmri import utils
 import os
 import sys
+import pandas as pd
+from lazyfmri import utils
 
 opj = os.path.join
 
@@ -12,19 +12,42 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_fprep2feat
 
-Convert the confound regressor files from fMRIprep into FEAT-compatible text files. By default, only 
-motion parameters are included. You can also include anatomical CompCor regressors, or use the full 
-set (excluding 'global signal').
+Convert the confound regressor files from fMRIPrep into FEAT-compatible text files.
+
+This script takes the `desc-confounds_timeseries.tsv` output from fMRIPrep and extracts a subset 
+of the confound regressors based on the desired input type. The resulting files are saved in 
+tab-separated format and can be directly used in FSL's FEAT first-level analyses (e.g., via the 
+'custom confounds' feature).
+
+You can choose from a minimal motion-only model, anatomical CompCor components, a combination 
+of both, or the full set (excluding global signal, which is often discarded in recent analyses).
 
 Usage:
   call_fprep2feat <fprep_directory> <type>
 
-Arguments:
-  <fprep_directory>    Path to the subject/session-level output directory from fMRIprep.
-  <type>               Type of confounds to extract: motion [default], acomp, motion+acomp, or full
+Positional arguments:
+  <fprep_dir>     Path to the subject/session-level output directory from fMRIPrep.
+                  Should contain one or more `*_desc-confounds_timeseries.tsv` files.
+  <type>          Type of confounds to extract. Must be one of the following:
+                    - motion         > includes translation & rotation parameters only
+                    - acomp          > includes anatomical CompCor components (CSF, WM)
+                    - motion+acomp   > includes both motion and CompCor
+                    - full           > includes all regressors except global signal
 
-Example:
+Outputs:
+  A set of .tsv files, one per BOLD run, with the requested subset of regressors.
+  Output files are named according to the original file, replacing 'timeseries.tsv' with the 
+  selected type (e.g., 'motion.tsv', 'acomp.tsv', etc.).
+
+Examples:
   call_fprep2feat derivatives/fmriprep/sub-01/ses-1/func motion
+  call_fprep2feat derivatives/fmriprep/sub-05/func motion+acomp
+  call_fprep2feat derivatives/fmriprep/sub-02/ses-1/func full
+
+Notes:
+  - This script assumes fMRIPrep v20.2 or later with standard BIDS-compatible outputs.
+  - Global signal is excluded from the "full" option.
+  - Columns with only zeros are automatically dropped from the output.
 
 ---------------------------------------------------------------------------------------------------
     """

@@ -12,18 +12,32 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_mriconvert
 
-wrapper for FreeSurfer's mriconvert
+Wrapper for FreeSurfer's mri_convert command. Converts images from .mgz format to NIfTI (.nii.gz)
+format for compatibility with standard neuroimaging tools. The script provides a quick and safe
+conversion while preserving header and spatial information.
 
 Usage:
   call_mriconvert <input> <output>
 
 Arguments:
-  <input>       image to convert to .nii.gz
-  <output>      output image (can be left empty) > will default to <input>.nii.gz
+  <input>         path to input file (must be in .mgz format)
 
-Example:
-  call_mriconvert input.mgz output.nii.gz
-  
+Optional:
+  <output>        optional path to output file; if not specified, defaults to
+                  <input>.nii.gz in the same directory
+
+Examples:
+  call_mriconvert input.mgz
+    -> Will create input.nii.gz in the same directory
+
+  call_mriconvert input.mgz output_converted.nii.gz
+    -> Will write output to specified filename
+
+Notes:
+  - The input must be a valid .mgz file from FreeSurfer (e.g., orig.mgz, brain.mgz)
+  - This wrapper automatically handles file path resolution
+  - Output is written as a compressed NIfTI file (.nii.gz)
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -35,30 +49,35 @@ if [[ $# -lt 1 ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Start loop
-
-if [[ ! -f $1 ]]; then
+# check input
+if [[ ! -f ${1} ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find input image ${BOLD_GREEN}${1}${RESET}"
   exit 1
+else
+  input=$(readlink -f "${1}")
 fi
 
-input=$(readlink -f "${1}")
+#-----------------------------------------------------------------------------
+# define output
 if [[ -z "${2}" ]]; then
   out=$(dirname "${input}")/$(basename "${input}" .mgz).nii.gz
 else
   out="${2}"
 fi
 
+#-----------------------------------------------------------------------------
+# define command
 cmd=(
   mri_convert
   --in_type mgz
   --out_type nii
-  ${1} 
-  ${out}
+  "${input}" 
+  "${out}"
 )
 
+# run
 eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo

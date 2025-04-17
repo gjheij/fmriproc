@@ -1,34 +1,40 @@
 #!/usr/bin/env python
 
-import nibabel as nb
-import sys
 import os
+import sys
+import nibabel as nb
 from lazyfmri import utils
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_rescale
 
-This script is a wrapper for ANTs' ImageMath to rescale the intensity range of a given input
-image by the given min/max intensity range. If output is left empty, the input image will be
-overwritten
+Wrapper for ANTs' 'ImageMath' to rescale the intensity values of an input image to a new range 
+defined by a user-specified minimum and maximum. This is particularly useful for preparing images 
+for visualization or preprocessing pipelines that assume a consistent intensity range.
+
+The rescaling is performed using:
+  ImageMath <dim> <output> RescaleImage <input> <min> <max>
+
+Usage:
+  call_rescale <input_image> <min_value> <max_value> [<output_image>]
 
 Arguments:
-    input image (str)   image to be rescaled
-    lower border (int)  value of new lower border
-    upper border (int)  value of new upper border
+  <input_image>   Path to the image whose intensity range should be rescaled
+  <min_value>     New minimum intensity value (e.g., 0)
+  <max_value>     New maximum intensity value (e.g., 4095)
 
 Optional:
-    output image (str)  output image; optional > default is to overwrite input image
+  <output_image>  Output image path. If not specified, the input file will be overwritten
 
-Outputs
-    rescaled image
+Outputs:
+  A NIfTI image where intensity values have been rescaled to the specified range.
+  Header and affine are preserved from the input image.
 
 Example:
-    call_rescale t1w_image.nii.gz 0 4095
-    call_rescale t1w_image.nii.gz 0 4095 t1w_rescaled.nii.gz
+  call_rescale sub-01_T1w.nii.gz 0 4095
+  call_rescale sub-01_T1w.nii.gz 0 255 sub-01_T1w_rescaled.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -46,7 +52,7 @@ Example:
     utils.run_shell_wrapper(cmd_txt)
 
     # set code
-    utils.run_shell_wrapper(f"call_copyheader {input_image} {out}")
+    utils.run_shell_wrapper(f"call_copyheader {input_image} {output}")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -19,9 +19,10 @@ Usage:
   call_fslbet <input> <output> <full_output: y|n> [extra BET options]
 
 Arguments:
-  <input>           Input NIfTI file
-  <output>          Output base name (without suffix; _mask.nii.gz will be added automatically)
-  <full_output>     Set to 'y' to generate full outputs (bias corrected, skull image, etc), or 'n' to only generate mask
+  <input>         Input NIfTI file
+  <output>        Output base name (without suffix; _mask.nii.gz will be added automatically)
+  <full_output>   Set to 'y' to generate full outputs (bias corrected, skull image, etc), or 'n' 
+                  to only generate mask
 
 Examples:
   call_fslbet input.nii.gz output y
@@ -77,7 +78,6 @@ if [[ -f "${input}" && ! -f "${output}.nii.gz" ]]; then
   fi
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  
   if [[ $? -ne 0 ]]; then
     echo
     print_line -

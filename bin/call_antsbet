@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
+# source setup and helper functions
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -12,34 +12,147 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_antsbet
 
-  wrapper for brain extraction with ANTs algorithm
+Wrapper for brain extraction with the ANTs algorithm, optimized for 7T MP2RAGE T1-weighted data.
 
 Usage:
-  call_antsbet <input file> <output file>
+  call_antsbet [options] <input_image> <output_prefix>
+
+Options:
+  -c <conv>       Convergence parameters (default: [100x70x50x20,1e-6,10]). Determines number
+                  of iterations, convergence threshold, and window size.     
+  -s <shrink>     Shrink factors per level (default: 4x3x2x1). Controls downsampling per stage.
+  -f <smoot>      Gaussian smoothing sigmas in voxels (default: 3x2x1x0). Applied at each level.
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The
+                  format should be as follows: different parameters comma-separated, and parame-
+                  ter-value pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-x -k,-r=/some/initial_moving_tfm.txt,-c=3x1x2x3"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  cmd_args=(
+                    antsBrainExtraction.sh
+                    -c            # convergence           (-c flag)
+                    -s            # shrink factors        (-s flag)
+                    -f            # smoothing factors     (-f flag)
+                    -d            # dimensions; read with 'fslval <input> dim0'
+                  )
+
+Positional
+  <input_image>   Path to the input anatomical image (NIfTI format)
+  <output_prefix> Prefix used to name all output files
+
+Options:
+  -h|--help       print this help text
+
+Notes:
+  - Default settings are tailored for high-resolution 7T MP2RAGE images.
+  - Output includes brain mask and skull-stripped images.
+  - Script will skip execution if output already exists.
 
 Example:
-  call_antsbet /path/to/inputfile.nii.gz /path/to/outputfile.nii.gz
-  
+  call_antsbet input.nii.gz out_prefix
+  call_antsbet input.nii.gz out_prefix -x brain-template=T1.nii.gz,brain-mask=T1_mask.nii.gz
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-
 }
 
-if [[ $# -lt 2 ]] ; then
-  Usage && exit 0
+# Defaults
+dim=3
+convergence="100x70x50x20,1e-6,10"
+shrink="4x3x2x1"
+smoothing="3x2x1x0"
+kwargs=""
+
+# Parse options
+while getopts :-:hc:s:f:d:x: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in                  
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;
+    c) convergence=${OPTARG}
+          ;;
+    s) shrink=${OPTARG}
+          ;;          
+    f) smoothing=${OPTARG}
+          ;;
+    d) dim=${OPTARG}
+          ;;
+    x) kwargs=${OPTARG}
+          ;;
+  esac
+done
+
+# Positional arguments
+input=${@:$OPTIND:1}
+output=${@:$OPTIND+1:1}
+
+# check inputs
+if [[ ! -f ${input} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  exit 1
+else
+  input=$(readlink -f "${input}")
+fi
+
+# read dimensions
+dim=$(fslval "${input}" dim0)
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslval"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
-if [[ -f $1 && ! -f ${2}BrainExtractionBrain.nii.gz ]]; then
+# Turn kwargs into space-separated array
+if [[ -n "${kwargs}" ]]; then
+  IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
+else
+  user_args=()
+fi
 
-  antsBrainExtraction.sh \
-    -a $1 \
-    -e $DIR_DATA_ATLAS/T_template0_BrainCerebellum.nii.gz \
-    -m $DIR_DATA_ATLAS/T_template0_BrainCerebellumProbabilityMask.nii.gz \
-    -c 3x1x2x3 \
-    -f $DIR_DATA_ATLAS/T_template0_BrainCerebellumRegistrationMask.nii.gz \
-    -o $2
+# Initialize base command
+cmd_args=(
+  antsBrainExtraction.sh
+  -a "${input}"
+  -o "${output}"
+)
 
+#-----------------------------------------------------------------------------
+# Inject defaults if not specified
+[[ ! "${arg_str}" =~ "-c" ]] && cmd_args+=("-c" "${convergence}")
+[[ ! "${arg_str}" =~ "-s" ]] && cmd_args+=("-s" "${shrink}")
+[[ ! "${arg_str}" =~ "-f" ]] && cmd_args+=("-f" "${smoothing}")
+[[ ! "${arg_str}" =~ "-d" ]] && cmd_args+=("-d" "${dim}")
+
+# Add user-specified options
+cmd_args+=("${user_args[@]}")
+
+# Run brain extraction
+print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "dcm2niix"
+  exit 1
 fi

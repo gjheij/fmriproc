@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 from lazyfmri import (
     utils,
-    dataset
+    dataset,
 )
 import os
-import pickle
 import sys
+import pickle
 import getopt
 import numpy as np
-import nibabel as nb
 import pandas as pd
+import nibabel as nb
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
@@ -171,41 +171,41 @@ folder, and convert the inputs to percent signal change following M. Aqil's stra
 docs for more information.
 
 Mandatory (required input):
-    -s|--sub        subject ID (e.g., "008")
-    -n|--ses        session ID  (e.g., "1")
-    -t|--task       task ID (e.g., "2R" or "pRF")
+  -s|--sub        subject ID (e.g., "008")
+  -n|--ses        session ID  (e.g., "1")
+  -t|--task       task ID (e.g., "2R" or "pRF")
 
 Optional (flags with defaults):
-    -f|--fprep      path to fMRIPrep root folder (e.g., derivatives/fmriprep). Default is the 
-                    environmental variable `DIR_DATA_DERIV/fmriprep`
-    -o|--out        path to pybest output. Default is the environmental variable `DIR_DATA_DERIV/
-                    pybest`
-    -p|--space      space ID. Default is `fsnative`
+  -f|--fprep      path to fMRIPrep root folder (e.g., derivatives/fmriprep). Default is the 
+                  environmental variable `DIR_DATA_DERIV/fmriprep`
+  -o|--out        path to pybest output. Default is the environmental variable `DIR_DATA_DERIV/
+                  pybest`
+  -p|--space      space ID. Default is `fsnative`
 
 Options (extra):
-    -h|--help       print this help text  
-    --lh            only process left hemisphere files (default is to loop through both)
-    --rh            only process right hemisphere files (default is to loop through both)
-    --pre           use this *before* pybest; calculates the standard deviation and average and 
-                    stores it in <out>/<subject>/<ses>/tmp [default option]
-    --post          use this *after* pybest; undo the z-scoring using the output from '--tmp'. 
-                    Default is '--pre', so this flag tells the script to run the post-pybest
-                    version
+  -h|--help       print this help text  
+  --lh            only process left hemisphere files (default is to loop through both)
+  --rh            only process right hemisphere files (default is to loop through both)
+  --pre           use this *before* pybest; calculates the standard deviation and average and 
+                  stores it in <out>/<subject>/<ses>/tmp [default option]
+  --post          use this *after* pybest; undo the z-scoring using the output from '--tmp'. 
+                  Default is '--pre', so this flag tells the script to run the post-pybest
+                  version
 
 Example:
-    # simple pre-pybest call
-    call_unzscore -s 999 -n 1 --pre
+  # simple pre-pybest call
+  call_unzscore -s 999 -n 1 --pre
 
-    # simple post-pybest call
-    call_unzscore -s 999 -n 1 --post
-    
-    # pre-pybest call with specified input/output folders
-    call_unzscore \
-        -s 999 \
-        -n 1 \
-        -f $DIR_DATA_DERIV/fmriprep \
-        -o $DIR_DATA_DERIV/pybest \
-        --pre
+  # simple post-pybest call
+  call_unzscore -s 999 -n 1 --post
+  
+  # pre-pybest call with specified input/output folders
+  call_unzscore \
+      -s 999 \
+      -n 1 \
+      -f $DIR_DATA_DERIV/fmriprep \
+      -o $DIR_DATA_DERIV/pybest \
+      --pre
 
 ---------------------------------------------------------------------------------------------------
     """

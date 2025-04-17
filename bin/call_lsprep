@@ -6,7 +6,7 @@ import getopt
 from bids import BIDSLayout
 from lazyfmri import (
     utils,
-    dataset
+    dataset,
 )
 opj = os.path.join
 
@@ -25,53 +25,53 @@ Usage:
   call_lsprep [mandatory] [arguments] [options]
 
 Mandatory (required input):
-  -s|--sub          subject ID (full, including prefix e.g., 'sub-01')
-  -n|--ses          session ID (e.g., 2)
+  -s|--sub        subject ID (full, including prefix e.g., 'sub-01')
+  -n|--ses        session ID (e.g., 2)
 
 Optional (flags with defaults):
-    -r|--run        limit processing to a certain run ID; default is to do all runs
-    -b|--bids       project root folder; defaults to DIR_DATA_HOME + <subject>/<session>
-    -o|--output_dir output directory; defaults to DIR_DATA_DERIV/lsprep + <subject>/<session>
-    -c|--comps      number of components for ICA/PCA
-    --coil <value>  maps onto 'voxel_cutoff', which dictates which voxels are considered in the
-                    lazyfmri.preproc.Segmentations-class. Default = 300.
-    --phase-onset   phase index which denotes stimulus onsets (default = 1, but can be 0 too)
-    --tfm           transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
-                    _rec-motion1' in DIR_DATA_DERIV/pycortex/<subject>/transforms)
-    --filter-pca    cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
-    --first         delete number of volumes from beginning (default = 0)
-    --last          delete number of volumes from the end (default = 0)
-    --tr            set repetition time (default is 0.105)
-    --window        window length for low-pass filtering. Default is 7 TRs
-    --poly-order    order of polynomial for low-pass filtering. Default is 3
-    --filters       additional filters to search for functional files
-    --suff(ix)      custom suffix for h5-output file (default = "desc-preproc_bold.h5")
+  -r|--run        limit processing to a certain run ID; default is to do all runs
+  -b|--bids       project root folder; defaults to DIR_DATA_HOME + <subject>/<session>
+  -o|--output_dir output directory; defaults to DIR_DATA_DERIV/lsprep + <subject>/<session>
+  -c|--comps      number of components for ICA/PCA
+  --coil <value>  maps onto 'voxel_cutoff', which dictates which voxels are considered in the
+                  lazyfmri.preproc.Segmentations-class. Default = 300.
+  --phase-onset   phase index which denotes stimulus onsets (default = 1, but can be 0 too)
+  --tfm           transformation matrix from ses-1 to line-scanning session (defaults to 'ses{ses}
+                  _rec-motion1' in DIR_DATA_DERIV/pycortex/<subject>/transforms)
+  --filter-pca    cut off frequency for PCA components; default is 0.2Hz (~breathing frequency)
+  --first         delete number of volumes from beginning (default = 0)
+  --last          delete number of volumes from the end (default = 0)
+  --tr            set repetition time (default is 0.105)
+  --window        window length for low-pass filtering. Default is 7 TRs
+  --poly-order    order of polynomial for low-pass filtering. Default is 3
+  --filters       additional filters to search for functional files
+  --suff(ix)      custom suffix for h5-output file (default = "desc-preproc_bold.h5")
 
 Options (extra):
-    -h|--help       print this help text
-    -v|--verbose    turn on verbose
-    --ow            overwrite existing outputs
-    --no-report     do not create report (in case you already have one)
-    --no-acompcor   do not perform aCompCor even if you have all files
-    --ica           denoise with ICA rather than aCompCor
-    --force         force acompcor execution even if you do not have all files. E.g., you have mul-
-                    tiple functional runs but only 1 anatomical reference image. That same anato-
-                    mical image is then used for all functional runs
-    --no-button     do not add button responses to onset dataframe (default is to do so)
-    --lp            do low-pass filtering ontop of any other filtering
+  -h|--help       print this help text
+  -v|--verbose    turn on verbose
+  --ow            overwrite existing outputs
+  --no-report     do not create report (in case you already have one)
+  --no-acompcor   do not perform aCompCor even if you have all files
+  --ica           denoise with ICA rather than aCompCor
+  --force         force acompcor execution even if you do not have all files. E.g., you have mul-
+                  tiple functional runs but only 1 anatomical reference image. That same anato-
+                  mical image is then used for all functional runs
+  --no-button     do not add button responses to onset dataframe (default is to do so)
+  --lp            do low-pass filtering ontop of any other filtering
 
 Examples:
-    # simple call
-    call_lsprep -s sub-001 -n 1 --verbose
+  # simple call
+  call_lsprep -s sub-001 -n 1 --verbose
 
-    # acompcor
-    call_lsprep \
-        -s sub-001 \
-        -n 1 \
-        --verbose \
-        --filter-pca 0.18 \ # filter components at 0.18 Hz
-        --first 150 \       # remove first 150 volumes
-        --last 150          # remove last 150 volumes
+  # acompcor
+  call_lsprep \
+      -s sub-001 \
+      -n 1 \
+      --verbose \
+      --filter-pca 0.18 \ # filter components at 0.18 Hz
+      --first 150 \       # remove first 150 volumes
+      --last 150          # remove last 150 volumes
 
 ---------------------------------------------------------------------------------------------------
     """

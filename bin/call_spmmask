@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -9,16 +13,18 @@ function Usage {
 call_spmmask
 
 Creates an initial brain mask based on the second inversion magnitude image. This can guide the re-
-moval of noise using call_rmbackground, which enhances the result from CAT12. Uses spmBrainMask and 
-myGRE_BrainMask, which should be located in the data-folder.
+moval of noise using call_rmbackground, which enhances the result from CAT12. Uses spmBrainMask 
+and  myGRE_BrainMask, which should be located in the data-folder.
 
 Usage:
   call_spmsanlm [options] <input image> <output directory + basename>
 
-Options:
-  -h|--help       print this help text
+Optional:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
+Options:
+  -h|--help       print this help text
   -k|--keep       keep intermediate files
 
 Positional:

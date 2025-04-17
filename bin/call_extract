@@ -3,8 +3,8 @@
 import os
 import sys
 import getopt
-from lazyfmri import utils
 from fmriproc import roi
+from lazyfmri import utils
 
 opj = os.path.join
 opd = os.path.dirname
@@ -29,206 +29,206 @@ Usage:
   call_extract [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -r|--rois       comma-separated list of filenames representing masks/stat files or a directory
-                    with ROI-files.
-                    
+  -r|--rois       comma-separated list of filenames representing masks/stat files or a directory
+                  with ROI-files.
+                  
                     E.g., "--rois file1.nii.gz,file2.nii.gzfile3.nii.gz"
 
-                    REALLY NEEDS TO BE COMMA-SEPARATED WITHOUT SPACES!
+                  REALLY NEEDS TO BE COMMA-SEPARATED WITHOUT SPACES!
 
-    -b|--base       basename for output. Will also be used to create a subfolder in <output_dir>.
-                    "_desc-<description>" will be appended automatically
+  -b|--base       basename for output. Will also be used to create a subfolder in <output_dir>.
+                  "_desc-<description>" will be appended automatically
 
 Optional (flags with defaults):
-    -p|--proj       path to project (default = os.environ.get("DIR_DATA_HOME"))
-    -f|--ft         path to 1st level FEAT directory
-                    (default = opj(proj_dir, "derivatives", "feat", "level1")
-    -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
-    -o|--out        path to output directory
-                    (default = opj(proj_dir, "derivatives", "roi_extract"))
-    -n|--vox        number of highest/lowest voxels to select from a stats/covariate image (de-
-                    fault = 15 highest). To fetch "lowest" voxels, use "--loweset"
-    -j|--jobs       number of jobs/cpus to use for timecourse extraction. Default is however many
-                    subjects are included (generally about 8). 
-                    If you're submitting this script to a cluster, the number of cores requested
-                    should match the number of subjects to ensure transparancy about the used re-
-                    sources.
-    -t|--task       List or string representing task IDs to include in the processing. Default is
-                    to take everything it can find, but it's useful to have some control if you
-                    have multiple distinct paradigms in your session (e.g., HRF mapper & pRF map-
-                    per)
-    --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want
-                    custom colors, use the "--colors" flag. This function is used before
-                    "--colors" in case both as specified.
-    --filters       additional filters to search for ROI files. For instance, you have specified a
-                    directory with "--rois /path/to/ROIs", but that directory contains a bunch of
-                    ROIs that you're not necessarily interested in. If you're only interested in
-                    the files starting with "conv-*", you can specify that here.
-    --colors        custom colors for plotting. Should be comma-separated (similar to --rois) and
-                    should have the same number of elements as "--rois". For matplotlib conven-
-                    tions (e.g., 'r','b','g'), you can use "--color r,g,b". For Hex-codes, use
-                    this format to ensure they're parsed properly:
+  -p|--proj       path to project (default = os.environ.get("DIR_DATA_HOME"))
+  -f|--ft         path to 1st level FEAT directory
+                  (default = opj(proj_dir, "derivatives", "feat", "level1")
+  -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
+  -o|--out        path to output directory
+                  (default = opj(proj_dir, "derivatives", "roi_extract"))
+  -n|--vox        number of highest/lowest voxels to select from a stats/covariate image (de-
+                  fault = 15 highest). To fetch "lowest" voxels, use "--loweset"
+  -j|--jobs       number of jobs/cpus to use for timecourse extraction. Default is however many
+                  subjects are included (generally about 8). 
+                  If you're submitting this script to a cluster, the number of cores requested
+                  should match the number of subjects to ensure transparancy about the used re-
+                  sources.
+  -t|--task       List or string representing task IDs to include in the processing. Default is
+                  to take everything it can find, but it's useful to have some control if you
+                  have multiple distinct paradigms in your session (e.g., HRF mapper & pRF map-
+                  per)
+  --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want
+                  custom colors, use the "--colors" flag. This function is used before
+                  "--colors" in case both as specified.
+  --filters       additional filters to search for ROI files. For instance, you have specified a
+                  directory with "--rois /path/to/ROIs", but that directory contains a bunch of
+                  ROIs that you're not necessarily interested in. If you're only interested in
+                  the files starting with "conv-*", you can specify that here.
+  --colors        custom colors for plotting. Should be comma-separated (similar to --rois) and
+                  should have the same number of elements as "--rois". For matplotlib conven-
+                  tions (e.g., 'r','b','g'), you can use "--color r,g,b". For Hex-codes, use
+                  this format to ensure they're parsed properly:
 
-                        '--colors "#cccccc","#ffffff"'
+                      '--colors "#cccccc","#ffffff"'
 
-    --order         EV order for plotting (row-wise)
-    --func          Existing csv-file (<output_dir>/<base_name>/<base_name>_desc-tcs.csv)
-    --peak          Extract parameters from a particular peak of the curve (default = 1, first
-                    peak)
-    --dec           Set parameters for deconvolution. The defaults are set to:
+  --order         EV order for plotting (row-wise)
+  --func          Existing csv-file (<output_dir>/<base_name>/<base_name>_desc-tcs.csv)
+  --peak          Extract parameters from a particular peak of the curve (default = 1, first
+                  peak)
+  --dec           Set parameters for deconvolution. The defaults are set to:
 
-                        dec_defaults = {
-                            "interval": [-2,25],
-                            "basis_sets": "canonical_hrf_with_time_derivative_dispersion",
-                            "TR": 2
-                        }
+                    dec_defaults = {
+                        "interval": [-2,25],
+                        "basis_sets": "canonical_hrf_with_time_derivative_dispersion",
+                        "TR": 2
+                    }
 
-                    The format should be as follows (different parameters comma-separated, and pa-
-                    rameter-value pair separated by '='):
+                  The format should be as follows (different parameters comma-separated, and pa-
+                  rameter-value pair separated by '='):
 
-                        "--dec <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+                    "--dec <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-                    In case you want to change the interval over which the profiles are deconvol-
-                    ved, use "interval=t1>t2" (separated by '>').
+                  In case you want to change the interval over which the profiles are deconvol-
+                  ved, use "interval=t1>t2" (separated by '>').
 
-                    You can specify all parameters that the :class:`lazyfmri.fitting.NideconvFitter`
-                    -object accepts. For options, see this link:
-                    https://lazyfmri.readthedocs.io/en/latest/classes/fitting.html#lazyfmri.fitting.NideconvFitter
+                  You can specify all parameters that the :class:`lazyfmri.fitting.NideconvFitter`
+                  -object accepts. For options, see this link:
+                  https://lazyfmri.readthedocs.io/en/latest/classes/fitting.html#lazyfmri.fitting.NideconvFitter
 
-    --plot          Set parameters for plotting. The idea is similar to the "--dec" flag. The de-
-                    faults are set to:
+  --plot          Set parameters for plotting. The idea is similar to the "--dec" flag. The de-
+                  faults are set to:
 
-                        plot_defaults = {
-                            "line_width": 3,    # thickness of the lines of profiles
-                            "y_dec": 2,         # number of decimals on y-axes (ensures correct spacing)
-                            "add_hline": 0,     # horizontal line at 0
-                            "sns_offset": 4,    # distance between y-axis and first bar in bar plot
-                            "error": "se"       # error type (standard error of mean) for bar plot,
-                            "cmap": "Set1"      # colormap Set1
-                        }
+                    plot_defaults = {
+                        "line_width": 3,    # thickness of the lines of profiles
+                        "y_dec": 2,         # decimals on y-axes (ensures correct spacing)
+                        "add_hline": 0,     # horizontal line at 0
+                        "sns_offset": 4,    # distance between y-axis and first bar in bar plot
+                        "error": "se"       # error type (standard error of mean) for bar plot,
+                        "cmap": "Set1"      # colormap Set1
+                    }
 
-                    You can specify all parameters that the :class:`lazyfmri.plotting.Defaults`
-                    -object accepts. For options, see this link:
-                    https://lazyfmri.readthedocs.io/en/latest/classes/plotting.html#lazyfmri.plotting.Defaults
+                  You can specify all parameters that the :class:`lazyfmri.plotting.Defaults`
+                  -object accepts. For options, see this link:
+                  https://lazyfmri.readthedocs.io/en/latest/classes/plotting.html#lazyfmri.plotting.Defaults
 
-    --lut           Define colors for plotting in a categorical manner. If your ROIs contain cer-
-                    tain identifiers, e.g., "GS", "IC", these can be used to sort all ROIs in your
-                    list and shade them according to your requested color. By default, the follo-
-                    wing colors are used for different identifiers:
+  --lut           Define colors for plotting in a categorical manner. If your ROIs contain cer-
+                  tain identifiers, e.g., "GS", "IC", these can be used to sort all ROIs in your
+                  list and shade them according to your requested color. By default, the follo-
+                  wing colors are used for different identifiers:
 
-                        "--lut <identifier1>=<color1>,<identifier1>=<color1>,<identifierX>=<colorX>"
+                    "--lut <identifier1>=<color1>,<identifier1>=<color1>,<identifierX>=<colorX>"
 
-    --include_pars  List of parameters to plot as bar plots below the profiles. Can be any of the
-                    parameters present in the dataframe: 
-                    
-                    [
-                        'magnitude',
-                        'fwhm',
-                        'time_to_peak',
-                        'half_rise_time',
-                        'half_max',
-                        'rise_slope',
-                        'rise_slope_t',
-                        'positive_area',
-                        'undershoot'
-                    ].
-                    
-                    Must be comma-separated string e.g,. --include_pars magnitude,time_to_peak
+  --include_pars  List of parameters to plot as bar plots below the profiles. Can be any of the
+                  parameters present in the dataframe: 
+                  
+                  [
+                    'magnitude',
+                    'fwhm',
+                    'time_to_peak',
+                    'half_rise_time',
+                    'half_max',
+                    'rise_slope',
+                    'rise_slope_t',
+                    'positive_area',
+                    'undershoot'
+                  ].
+                  
+                  Must be comma-separated string e.g,. --include_pars magnitude,time_to_peak
 
-                    Defaults = [
-                        "magnitude",
-                        "time_to_peak",
-                        "1st_deriv_time_to_peak",
-                        "2nd_deriv_time_to_peak",
-                        "rise_slope",
-                        "positive_area"
-                    ]
+                  Defaults = [
+                    "magnitude",
+                    "time_to_peak",
+                    "1st_deriv_time_to_peak",
+                    "2nd_deriv_time_to_peak",
+                    "rise_slope",
+                    "positive_area"
+                  ]
 
-    --tr            Repetition time to use for the dataframe formation, by default 1
+  --tr            Repetition time to use for the dataframe formation, by default 1
 
 Options (extra):
-    -h|--help       print this help info
-    --lowest        Select lowest voxels in a given ROI. Use "--vox" to set the number of voxels
-                    to select (default = 15)
-    --verbose       turn on verbose
-    --subjects      Use the parameters from subject-specific profiles. These are more volatile,
-                    but do give insights in the distributions. 
-                    Default is to use the parameters extracted from the averaged profiles (same
-                    as line plot). Advantage of this is that they match the profiles much, but
-                    you lose the subject distribution
-    --no-fit        Do not perform deconvolution, just extract data and exit
-    --fprep         Default to DIR_DATA_DERIV/fmriprep as input directory
-    --pybest        Default to DIR_DATA_DERIV/fmriprep as input directory
-    --fsl_mni       Set space to MNI152NLin6Asym (FSL template)
-    --fprep_mni     Set space to MNI152NLin2009cAsym (fMRIprep template)
-    --func          Set space to native functional space (default for volumetric data)
-    --t1            Set space to T1w
+  -h|--help       print this help info
+  --lowest        Select lowest voxels in a given ROI. Use "--vox" to set the number of voxels
+                  to select (default = 15)
+  --verbose       turn on verbose
+  --subjects      Use the parameters from subject-specific profiles. These are more volatile,
+                  but do give insights in the distributions. 
+                  Default is to use the parameters extracted from the averaged profiles (same
+                  as line plot). Advantage of this is that they match the profiles much, but
+                  you lose the subject distribution
+  --no-fit        Do not perform deconvolution, just extract data and exit
+  --fprep         Default to DIR_DATA_DERIV/fmriprep as input directory
+  --pybest        Default to DIR_DATA_DERIV/fmriprep as input directory
+  --fsl_mni       Set space to MNI152NLin6Asym (FSL template)
+  --fprep_mni     Set space to MNI152NLin2009cAsym (fMRIprep template)
+  --func          Set space to native functional space (default for volumetric data)
+  --t1            Set space to T1w
 
 Outputs:
-    The following files are created:
-        - <output_dir>/<base_name>/<base_name>_desc-hrfs.csv
-            dataframe representing the deconvolved profiles for the full HRF and its individual
-            basis sets
+  The following files are created:
+    - <output_dir>/<base_name>/<base_name>_desc-hrfs.csv
+        dataframe representing the deconvolved profiles for the full HRF and its individual
+        basis sets
 
-        - <output_dir>/<base_name>/<base_name>_desc-onsets.csv
-            dataframe representing the onsets for all subjects
+    - <output_dir>/<base_name>/<base_name>_desc-onsets.csv
+        dataframe representing the onsets for all subjects
 
-        - <output_dir>/<base_name>/<base_name>_desc-pars_avg.csv:
-            dataframe representing the HRF parameters extracted after averaging over runs
+    - <output_dir>/<base_name>/<base_name>_desc-pars_avg.csv:
+        dataframe representing the HRF parameters extracted after averaging over runs
 
-        - <output_dir>/<base_name>/<base_name>_desc-pars_run.csv:
-            dataframe representing the HRF parameters extracted per run
+    - <output_dir>/<base_name>/<base_name>_desc-pars_run.csv:
+        dataframe representing the HRF parameters extracted per run
 
-        - <output_dir>/<base_name>/<base_name>_desc-plot*:
-            figure containing the profiles of the full HRF and its basis sets for each EV, color-
-            ed by ROI, with 'magnitude' as bar plots in parameters bar plots
+    - <output_dir>/<base_name>/<base_name>_desc-plot*:
+        figure containing the profiles of the full HRF and its basis sets for each EV, color-
+        ed by ROI, with 'magnitude' as bar plots in parameters bar plots
 
-        - <output_dir>/<base_name>/<base_name>_desc-settings.json:
-            json files containing some useful information about settings used in a given process
-        - <output_dir>/<base_name>/<base_name>_desc-tcs.csv:
-            dataframe representing the extracted percent-changed timecourses that were entered
-            in the deconvolution method
+    - <output_dir>/<base_name>/<base_name>_desc-settings.json:
+        json files containing some useful information about settings used in a given process
+    - <output_dir>/<base_name>/<base_name>_desc-tcs.csv:
+        dataframe representing the extracted percent-changed timecourses that were entered
+        in the deconvolution method
         
 Notes:
 This script is designed to do basic time series extraction using existing ROIs. If you want
 atlas extraction, you can use:
-    - https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiLabelsMasker.html
-    - https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiMapsMasker.html#nilearn.maskers.NiftiMapsMasker
-    - https://github.com/VU-Cog-Sci/nideconv/blob/master/nideconv/utils/roi.py#L140
+  - https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiLabelsMasker.html
+  - https://nilearn.github.io/dev/modules/generated/nilearn.maskers.NiftiMapsMasker.html#nilearn.maskers.NiftiMapsMasker
+  - https://github.com/VU-Cog-Sci/nideconv/blob/master/nideconv/utils/roi.py#L140
 
 Examples:
-    # change deconvolution parameters
-    call_extract --rois file1.nii.gz,file2.nii.gz --dec interval=-3>15
+  # change deconvolution parameters
+  call_extract --rois file1.nii.gz,file2.nii.gz --dec interval=-3>15
 
-    # specify colors for plot
-    call_extract \
-        --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
-        --base test7 \
-        --verbose \
-        --jobs 1 \
-        --colors "#1B9E77","#D95F02" \
-        --par time_to_peak
+  # specify colors for plot
+  call_extract \
+    --rois $roi_path/bin.thr.ACC_L.nii.gz,$roi_path/bin.thr.ACC_R.nii.gz \
+    --base test7 \
+    --verbose \
+    --jobs 1 \
+    --colors "#1B9E77","#D95F02" \
+    --par time_to_peak
 
-    # submit to SoGE
-    qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no-fit
+  # submit to SoGE
+  qsub -pe smp 8 -N call_extract --rois file1.nii.gz,file2.nii.gz --no-fit
 
-    # add filters for ROI-files
-    call_extract \
-        --ft /path/derivatives/feat/level1_motion \
-        --out /path/derivatives/roi_extract \
-        --base test \
-        --verbose \
-        --no-fit \
-        --rois /path/ROIs \
-        --filters conv-,integral-left
+  # add filters for ROI-files
+  call_extract \
+    --ft /path/derivatives/feat/level1_motion \
+    --out /path/derivatives/roi_extract \
+    --base test \
+    --verbose \
+    --no-fit \
+    --rois /path/ROIs \
+    --filters conv-,integral-left
 
-    # extract time courses from fMRIPrep without fitting HRF
-    call_extract \
-        --fprep \
-        --out /path/derivatives/roi_extract \
-        --base test \
-        --verbose \
-        --no-fit
+  # extract time courses from fMRIPrep without fitting HRF
+  call_extract \
+    --fprep \
+    --out /path/derivatives/roi_extract \
+    --base test \
+    --verbose \
+    --no-fit
 
 ---------------------------------------------------------------------------------------------------
     """

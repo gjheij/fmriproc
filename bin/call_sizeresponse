@@ -3,13 +3,13 @@
 import mkl
 mkl.set_num_threads=1
 
-from fmriproc import prf
-from lazyfmri import utils
 import os
 import sys
+import ast
 import getopt
 import pandas as pd
-import ast
+from fmriproc import prf
+from lazyfmri import utils
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["in_file"])
@@ -29,54 +29,55 @@ Usage:
   call_sizeresponse [mandatory] [arguments] [options]
 
 Mandatory (reguired input):
-    -i|--in-file    file containing pRF estimates; if formatted according to BIDS, we can derive an 
-                    output name from its elements
+  -i|--in-file    file containing pRF estimates; if formatted according to BIDS, we can derive an 
+                  output name from its elements
 
 Optional (flags with defaults):
-    -o|--out-file   output dataframe indexed on subject, stimulus type, stimulus size, by nr of ver-
-                    tices. If nothing is specified, we'll try to read the file components from `in_
-                    file`, and append {"_desc-srfs_unique.csv"|"_desc-srfs_centered.csv"}
-    --screen-dist   Distance viewer to screen (default = 196cm)
-    --screen-cm     Screen sizes for x,y. Default is [70,39.8], representing the actual screen size.
-                    If you want a square screen, specify 1 value
-    --screen-pix    Nr of pixels on the screen for x,y. Default is [1920,1080]. If you want a
-                    square screen, specify 1 value
-    --factor        stimulus factor; the lower the number, the larger the stimulus range. Default 
-                    = 1, resulting in stimulus sizes of 20dva
+  -o|--out-file   output dataframe indexed on subject, stimulus type, stimulus size, by nr of ver-
+                  tices. If nothing is specified, we'll try to read the file components from `in_
+                  file`, and append {"_desc-srfs_unique.csv"|"_desc-srfs_centered.csv"}
+  --screen-dist   Distance viewer to screen (default = 196cm)
+  --screen-cm     Screen sizes for x,y. Default is [70,39.8], representing the actual screen size.
+                  If you want a square screen, specify 1 value
+  --screen-pix    Nr of pixels on the screen for x,y. Default is [1920,1080]. If you want a
+                  square screen, specify 1 value
+  --factor        stimulus factor; the lower the number, the larger the stimulus range. Default 
+                  = 1, resulting in stimulus sizes of 20dva
                     
 Options (extra):
-    -h|--help       print this help text
-    --unique        create unique stimulus sets for each pRF so that the simulation is more accurate. 
-                    Default is to center the pRF in the visual field
-    --act-only      Only create size-response functions (activation component)
-    --suppr-only    Only create hole-response functions (suppression component)
-    --verbose       turn on verbosity; prints some stuff to the terminal along the way
-    --parallel      run jobs in parallel
+  -h|--help       print this help text
+  --unique        create unique stimulus sets for each pRF so that the simulation is more 
+                  accurate. 
+                  Default is to center the pRF in the visual field
+  --act-only      Only create size-response functions (activation component)
+  --suppr-only    Only create hole-response functions (suppression component)
+  --verbose       turn on verbosity; prints some stuff to the terminal along the way
+  --parallel      run jobs in parallel
 
 Returns:
     a *csv-file containing a  dataframe indexed on subject, stimulus type, stimulus size by nr of 
     vertices
 
 Examples:
-    # simple call
-    call_sizeresponse -i sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
+  # simple call
+  call_sizeresponse -i sub-01_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
 
-    # custom otput 
-    call_sizeresponse \
-        -i prf_estimates.pkl \
-        -o srfs.csv \
-        --unique
-    
-    # submit
-    in_file=derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
-    qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered \
-        -q long.q \
-        -pe smp 20 \
-        -wd $(dirname ${in_file}) \
-        $BIN_DIR/call_sizeresponse \
-        -i ${in_file} \
-        --verbose \
-        --parallel
+  # custom otput 
+  call_sizeresponse \
+    -i prf_estimates.pkl \
+    -o srfs.csv \
+    --unique
+  
+  # submit
+  in_file=derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
+  qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered \
+    -q long.q \
+    -pe smp 20 \
+    -wd $(dirname ${in_file}) \
+    $BIN_DIR/call_sizeresponse \
+    -i ${in_file} \
+    --verbose \
+    --parallel
 
 ---------------------------------------------------------------------------------------------------
     """

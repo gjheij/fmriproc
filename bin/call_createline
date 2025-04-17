@@ -3,46 +3,48 @@
 import os
 import sys
 import getopt
-from fmriproc.image import create_line_from_slice
 from lazyfmri import utils
+from fmriproc.image import create_line_from_slice
+
 
 @utils.validate_cli_inputs(required_keys=["in_file", "out_file"])
 def main(context):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_createline
 
 This super short script creates a nifti image of the line-contours based on the single slice image.
-It assumes your slice gap was 4mm, +2mm and -2mm from the middle. Given a voxel size of 0.25mm, this
-translates to 8 voxels above and below the center for a total gap of 16 voxels. It returns a nifti
-image with high values of where the box was.
+It assumes your slice gap was 4mm, +2mm and -2mm from the middle. Given a voxel size of 0.25mm, 
+this translates to 8 voxels above and below the center for a total gap of 16 voxels. It returns a 
+nifti image with high values of where the box was.
 
 Usage:
   call_createline [mandatory] [optional] [options]
 
 Mandatory (required input):
-    -i|--in <file>      string-like path to file to extract from
-    -o|--out <file>     string-like path to output new volume to
+  -i|--in <file>  string-like path to file to extract from
+  -o|--out <file> string-like path to output new volume to
 
 Optional (flags with defaults):    
-    -w|--width          int value of line thickness (default 4mm [=16 voxels], larger for visibility 
-                        purposes). It will add half of the <width> in both directions from the cen-
-                        ter, so <width> has to be a divideable by 2. Even numbers only!
+    -w|--width    int value of line thickness (default 4mm [=16 voxels], larger for visibility 
+                  purposes). It will add half of the <width> in both directions from the cen-
+                  ter, so <width> has to be a divideable by 2. Even numbers only!
 
 Options (extra):
-    -h|--help       print this help text                          
-    --fh|--lr|--ap  foldover direction (where the saturation slabs are positioned). Default is FH
+    -h|--help     print this help text                          
+    --fh          set foldover to FH [default]
+    --lr          set foldover to LR
+    --ap          set foldover AP
 
 Outputs
-    output file     new volume containing the extracted data from input file
+  output file     new volume containing the extracted data from input file
 
 Usage:
-    call_createline <input> <output> <width> <foldover direction>
+  call_createline <input> <output> <width> <foldover direction>
 
 Example:
-    call_createline -i input.nii.gz -o output.nii.gz -w 16 --fh
-    call_createline -i input.nii.gz -o output.nii.gz --width 16 --fh
+  call_createline -i input.nii.gz -o output.nii.gz -w 16 --fh
+  call_createline -i input.nii.gz -o output.nii.gz --width 16 --fh
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -55,13 +57,15 @@ Example:
 
     if os.path.exists(in_file):
         create_line_from_slice(
-            in_file, 
-            out_file=out_file, 
-            width=width, 
+            in_file,
+            out_file=out_file,
+            width=width,
             fold=fold,
-            shift=shift)
+            shift=shift
+        )
     else:
         raise FileNotFoundError(f"Could not find specified file: {in_file}")
+
 
 if __name__ == "__main__":
 
@@ -75,8 +79,8 @@ if __name__ == "__main__":
 
     try:
         opts = getopt.getopt(
-            sys.argv[1:], 
-            "hi:o:w:", 
+            sys.argv[1:],
+            "hi:o:w:",
             ["help", "in=", "out=", "width=", "fh", "lr", "ap"]
         )[0]
     except getopt.GetoptError:

@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Get bash helper functions
 source call_bashhelper
 
@@ -12,25 +12,30 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_spmsuit
 
-Cerebellum segmentation with SUIT. This can be useful if you're editing FreeSurfer segmentations and
-want to exclude the cerebellum again. Naturally also useful if you're interested specifically in the
-cerebellum. 
+Cerebellum segmentation with SUIT. This can be useful if you're editing FreeSurfer segmentations 
+and want to exclude the cerebellum again. Naturally also useful if you're interested specifically 
+in the cerebellum. 
 
 Usage:
   call_spmsuit [options] <input image> <output directory + basename>
 
+Optional:
+  -s <SPM_PATH>   path to SPM; should contain SUIT in toolbox directory
+  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
 Options:
   -h|--help       print this help text
-  -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
-  -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
   -k|--keep       keep intermediate files
 
 Positional:
   <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,
                   new *.nii-file will be created alongside of the *.nii.gz file, as SPM does
                   not like *.nii.gz files.
-  <output base>	  directory+basename of output image, including directory, '_desc-cereb_mask.nii[.gz]',
-                  '_desc-cereb-wm.nii[.gz]', and '_desc-cereb_gm.nii[.gz]' will be appended
+  <output base>	  directory+basename of output image, including directory. The suffixes:
+                    *_desc-cereb_mask.nii[.gz],
+                    *_desc-cereb-wm.nii[.gz]
+                    *_desc-cereb_gm.nii[.gz]
+                  will be appended
 
 Example:
  call_spmsuit t1w.nii.gz derivatives/suit/sub-01/ses-1/sub-01_acq-MP2RAGE

@@ -9,24 +9,30 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_giftimeta
 
-Add metadata to a gifti-file. In particular, add the repetition time to the metadata of a given gif-
-ti file. This is utilized to extract the TR when creating the model parameters for prfpy. This gif-
-ti file can be read with lazyfmri.dataset.ParseGiftiFile.
+This script adds metadata to a GIfTI file, specifically the repetition time (TR). The repetition 
+time is stored in the file's metadata, which allows tools like prfpy or LazyfMRI to access it 
+later when modeling or parsing the surface data. It modifies the input GIfTI file in-place.
 
-Args:
-    <gifti>     : str
-                string-like path to the gifti file 
-    
-    <TR>        : str
-                repetition time (e.g., 1.5). With the command line, this is automatically conside-
-                red a string, and will be used as such in the metadata (xml can't deal with float/
-                int)        
+Usage:
+  call_giftimeta <gifti_file> <TR>
 
-Outputs
-    <gifti>     input file + metadata
+Arguments:
+  <gifti_file>    Path to the GIfTI (.gii) file to modify. This should typically be a surface time 
+                  series file (e.g., func.gii) in GIfTI format.
+  <TR>            Repetition time in seconds. This is stored as a string in the XML metadata 
+                  because XML does not natively handle numeric types (e.g., use "1.5").
+
+Outputs:
+  Updated GIfTI file containing the TR metadata. The file is modified in-place.
 
 Example:
-    call_giftimeta func.gii 1.5
+  call_giftimeta func.gii 1.5
+    → Adds '1.5' as the TR metadata to func.gii
+
+Notes:
+  - The TR is stored in the metadata section of the GIfTI file under the key "TR"
+  - This script does not create a backup. If needed, make a copy of the input file beforehand
+  - The TR can later be read using lazyfmri.dataset.ParseGiftiFile
 
 ---------------------------------------------------------------------------------------------------
     """

@@ -16,12 +16,13 @@ Wrapper for the dcm2niix to make life a little easier. In theory, it'll only req
 rectory containing the files to be converted. If no output directory is specified, the script will
 create a directory called INPUT/nifti and store the output there. Settings are default, but you can
 edit the actual call to dcm2niix as you wish. By default, the output name will be a combination of 
-the "patient name" '%n' flag, and the "protocol name" '%p'. So, if you register you subjects in the 
-MR console as 'sub-xxx' or 'sub-xxx_ses-x' and your sequence (e.g., MP2RAGE) as 'acq-MP2RAGE_T1w', 
-then your output files will already have BIDS-names. In case dcm2niix breaks due to catastropic er-
-rors (happens with laaarge PAR/RECs), we'll attempt to convert with parrec2nii (comes as an execu-
-table with nibabel). This will attempt to put the correct information in an accompanying json side-
-car (not produced by parrec2nii); some information (e.g., RepetitionTime) could be missing.
+the "patient name" '%n' flag, and the "protocol name" '%p'. So, if you register you subjects in 
+the MR console as 'sub-xxx' or 'sub-xxx_ses-x' and your sequence (e.g., MP2RAGE) as 'acq-MP2RAGE_
+-T1w', then your output files will already have BIDS-names. In case dcm2niix breaks due to 
+catastropic errors (happens with laaarge PAR/RECs), we'll attempt to convert with parrec2nii 
+(comes as an executable with nibabel). This will attempt to put the correct information in an 
+accompanying json sidecar (not produced by parrec2nii); some information (e.g., RepetitionTime) 
+could be missing.
 
 Usage:
   call_dcm2niix [mandatory] [optional] [options]
@@ -38,14 +39,14 @@ Optional:
                   lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
   -c <input>      Maps onto the '-z' flag from 'dcm2niix': gz compress images (y/o/i/n/3, default
                   'o') [y=pigz, o=optimal pigz, i=internal:miniz, n=no, 3=no,3D]
-  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The format
-                  should be as follows: different parameters comma-separated, and parameter-value pair
-                  separated by '='):
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The 
+                  format should be as follows: different parameters comma-separated, and para-
+                  meter-value pair separated by '='):
                   
                     "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                   E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                    "-x -b=y=0.05,--ignore_trigger_times,-x=y"
 
                   The kwargs specified in this flag take precedent over the default args:
 

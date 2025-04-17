@@ -7,26 +7,37 @@ import nibabel as nb
 from lazyfmri import utils
 opj = os.path.join
 
-def main(argv):
 
+def main(argv):
     """
 ---------------------------------------------------------------------------------------------------
 call_createbeamfs
 
-This script will create a template beam in orig.mgz space that can be used to delineate the approxi-
-mate location of the line using call_createlinefs.
+This script creates a simple binary volume ("template beam") aligned with the native FreeSurfer 
+(orig.mgz) space for a given subject. The purpose is to mark a central location (along the 
+midsagittal plane) which can then be used for further line-based annotations, e.g., with 
+call_createlinefs.
 
-Args:
-    <subject ID>      subject ID as named in the SUBJECTS_DIR (e.g., sub-001)
-
-Outputs
-    output file       new volume with the same dimensions as reference image
+The created beam spans a narrow slab through the volume center, aligned along the anterior-
+posterior axis.
 
 Usage:
-    call_createbeamfs <subject>
+  call_createbeamfs <subject>
+
+Arguments:
+  <subject ID>    Subject ID as found in the FreeSurfer SUBJECTS_DIR (e.g., 'sub-001')
+
+Outputs:
+  space-fs_desc-template_beam.nii.gz     A 3D binary NIfTI image with a central beam
 
 Example:
-    call_createbeamfs sub-001
+  call_createbeamfs sub-001
+
+Notes:
+  - The beam is constructed by setting a central stripe of voxels to 1 in the orig.mgz space.
+  - If the required NIfTI version of orig.mgz (i.e., orig.nii.gz) does not exist, it will be 
+    created using call_mriconvert.
+  - Intended as a quick anatomical anchor for visual overlays or further geometric definitions.
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -35,12 +46,12 @@ Example:
 
     if len(argv) < 1:
         print(main.__doc__)
-        print("NEED A SUBJECT ID")
         sys.exit()
 
     sub = argv[0]
 
-    orig = opj(os.environ['SUBJECTS_DIR'], sub, 'mri', 'orig.nii.gz')
+    orig = opj(
+        os.environ.get('SUBJECTS_DIR'), sub, 'mri', 'orig.nii.gz')
 
     if not os.path.exists(orig):
         cmd = f"call_mriconvert {orig.split('.')[0]+'.mgz'}"
@@ -50,11 +61,17 @@ Example:
     data = img.get_fdata()
     center = data.shape[0]//2
     new = np.zeros_like(data)
-    new[:,center-2:center+1,center-2:center+2] = 1
+    new[:, center-2:center+1, center-2:center+2] = 1
 
     fnew = opj(os.path.dirname(orig), 'space-fs_desc-template_beam.nii.gz')
-    nb.Nifti1Image(new, affine=img.affine, header=img.header).to_filename(fnew)
+    nb.Nifti1Image(
+        new,
+        affine=img.affine,
+        header=img.header
+    ).to_filename(fnew)
 
     return fnew
+
+
 if __name__ == "__main__":
     main(sys.argv[1:])

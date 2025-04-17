@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import getopt
-import os
+import pathlib
 from nilearn import image
 from scipy import ndimage
-import pathlib
 from lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -28,29 +28,29 @@ sion>/anat', default mask folder is DIR_DATA_DERIV/manual_masks (see linescannin
 up) where these variables point to.
 
 Usage:
-    call_gdhmasking [mandatory] [arguments] [options]
+  call_gdhmasking [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -s|--subj         subject number
+  -s|--subj         subject number
 
 Optional (flags with defaults):  
-    -n|--ses        session number
-    -i|--inv        second inversion image (defaults to ["inv-2", "part-mag", ".nii.gz"] in DIR_
-                    DATA_HOME/<subject>/<session>/anat)
-    -t|--t1         T1-weighted image
-    -d|--masks      Directory containing the following masks:
-                        - Dura mask    '_desc-cat_dura'/'_desc-dura'/'_desc-dura_dil'
-                        - T1w mask     '_desc-bet_mask'
-                        - Sinus mask   '_desc_sagittalsinus'/'_desc-mni_sinus'
-    -o|--output     Output basename (leave empty to overwrite inputs = default). This will cause the 
-                    T1w-masked image to end up in the same folder as the mask itself! Just leave it 
-                    empty..
-                        - masked T1w: suffixed with _masked.nii.gz
-                        - mask:       suffixed with _brainmask.nii.gz
+  -n|--ses        session number
+  -i|--inv        second inversion image (defaults to ["inv-2", "part-mag", ".nii.gz"] in DIR_
+                  DATA_HOME/<subject>/<session>/anat)
+  -t|--t1         T1-weighted image
+  -d|--masks      Directory containing the following masks:
+                    - Dura mask    '_desc-cat_dura'/'_desc-dura'/'_desc-dura_dil'
+                    - T1w mask     '_desc-bet_mask'
+                    - Sinus mask   '_desc_sagittalsinus'/'_desc-mni_sinus'
+  -o|--output     Output basename (leave empty to overwrite inputs = default). This will cause the 
+                  T1w-masked image to end up in the same folder as the mask itself! Just leave it 
+                  empty..
+                    - masked T1w: suffixed with _masked.nii.gz
+                    - mask:       suffixed with _brainmask.nii.gz
 
 Options (extra):
-    -h|--help       print this help text
-    --no-manual     Do not do any further manual edits; use the masks as is
+  -h|--help       print this help text
+  --no-manual     Do not do any further manual edits; use the masks as is
 
 Outputs:
   - masked T1w image

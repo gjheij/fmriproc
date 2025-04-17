@@ -2,37 +2,44 @@
 
 import os
 import sys
-from lazyfmri import utils
 import pydicom
+from lazyfmri import utils
 from alive_progress import alive_bar
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_dcm
 
-Overwrite a key in the dcm file. For instance, if we want to change the 'PatientID' or 'ProtocolName`.
+Overwrite a DICOM metadata key with a new value (or multiple keys/values) in-place. This is useful
+for anonymizing data, adding BIDS-compatible labels, or adjusting fields like 'PatientID' or 
+'ProtocolName' prior to conversion or sharing.
 
 Usage:
-    call_dcm <file> <key> <message>
+    call_dcm <dcm_file_or_dir> <key> <message>
 
 Arguments:
-    <dcm file>  path representing a valid dcm-file or folder pointing to dcm-files
-    <key>       string of the attribute that should be altered; use double+single quotes (see
-                example) for list-like input
-    <messsage>  message that is linked to the key; use double+single quotes (see example) 
-                for list-like input. Order must match list-like input from <key>
+  <file/dir>      Path to a single DICOM file or a directory containing .dcm files
+  <key>           Key(s) to overwrite in the DICOM header. For multiple keys, pass as a comma-
+                  separated string in quotes (e.g., "PatientID,ProtocolName")
+  <message>       Value(s) to assign to the specified key(s). Must match order and count of
+                  <key>. Pass as a comma-separated string in quotes if using multiple keys.
 
 Examples:
-    call_dcm sub-001_epi.dcm ProtocolName task-rest_bold
-    call_dcm sub-001_epi.dcm "PatientName,ProtocolName" "sub-01_ses-1,task-rest_bold"
+  call_dcm sub-001_epi.dcm ProtocolName task-rest_bold
+  call_dcm sub-001_epi.dcm "PatientID,ProtocolName" "sub-01_ses-1,task-rest_bold"
+  call_dcm sourcedata/sub-001/ "PatientID,StudyDate" "anonymous,20240415"
+
+Notes:
+  - Numeric values (int or float) will be automatically inferred and converted when possible.
+  - This script modifies the DICOM files in-place. Use with care and make backups if needed.
+  - DICOM keys are case-sensitive and must exist in the file to be updated.
 
 ---------------------------------------------------------------------------------------------------
     """
 
     if len(argv) < 3:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit(1)
 

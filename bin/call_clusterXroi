@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
-# source bash helper functions
+# Get bash helper functions
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -12,43 +12,86 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_clusterXroi
 
-Multiplies cluster masks given a subject with a directory containing ROIs.
+Wrapper for computing cluster × ROI overlap and extracting time series. Given a subject and one
+or more cluster masks (from a group-level GLM), this script multiplies the cluster masks with
+a set of user-defined ROI masks, extracts the resulting signals, and outputs time series per ROI.
 
 Usage:
-  call_stats2surf -s <subj_ID> -f <featdir> -g <gfeatdir> -m <maskdir> -c 1,2,3,4 -z 1
+  call_clusterXroi -s <subj_ID> -f <featdir> -g <gfeatdir> -m <maskdir> -z <zstat> [-c <copes>] 
+  [-r <run>]
 
 Arguments:
-  -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
-  -f <featdir>        path to FEAT-directory
-  -g <gfeatdir>       which group analysis should I use for the cluster mask?
-  -m <maskdir>        path to directory containing the masks
-  -c <copes>          for which copes do we need to run this? Default is one, for H02, this should be 1,2,3,4, for H01 this is 1
-  -z <zstat>          which zstat to process? CONTROLS = zstat1; PATIENT = zstat2, for instance.
-  -r <run ID>         if multiple runs were acquired, add a 'run-' flag. Must be integer
+  -s <subj_ID>    BIDS-style subject ID (e.g., sub-001)
+  -f <featdir>    Path to subject-level FEAT directory (level1)
+  -g <gfeatdir>   Path to group-level analysis directory (GFEAT)
+  -m <maskdir>    Path to directory containing binary ROI masks (must be .nii.gz format)
+  -z <zstat>      Z-statistic index to use (e.g., 1 or 2)
+  -c <copes>      Comma-separated list of cope indices (e.g., 1,2,3); default is 1
+  -r <run_ID>     Optional: run ID (integer) for BIDS-style naming
+  -n <session>    Optional: session ID, added to BIDS-style output file names
+
+Options:
+  -h|--help       print this help text
+
+Functionality:
+  - Checks if ROI and cluster masks exist, otherwise skips/alerts
+  - Converts all cluster masks to binary if not yet done
+  - Computes cluster × ROI intersections and saves resulting masks
+  - Extracts mean time series using fslmeants from filtered_func_data*.nii.gz
+  - Outputs one combined file per subject with all extracted time series
+  - Generates a header file containing ROI names for clarity
+
+Assumptions:
+  - Cluster masks follow FSL's naming convention inside GFEAT directory (e.g.,
+    cluster_mask_zstat1.nii.gz)
+  - Binary masks in <maskdir> start with "bin.thr"
+  - Design.fsf is available and used to parse contrast names
 
 Example:
-  call_clusterXroi -s sub-001 -f <featdir> -m <dir with ROI masks> -z "1,2,3"
+  call_clusterXroi -s sub-001 -f /path/to/level1/sub-001.feat \
+                   -g /path/to/level2/task-shapes.gfeat \
+                   -m /path/to/rois -z 1 -c 1,2,3
 
-Example:
-  for i in 002 003 004 005; do \
-    qsub -N extract_${i} \
-    call_clusterXroi \
+Batch example:
+  for i in 002 003 004; do
+    qsub -N extract_${i} call_clusterXroi \
     -s sub-${i} \
-    -f /path/to/level1/sub-${i}.feat \
-    -g /path/to/level2/fixed_thres-3.1_space-MNI152NLin6Asym.gfeat;
+    -f /data/fmriprep/level1/sub-${i}.feat \
+    -g /data/fmriprep/level2/task-shapes.gfeat \
+    -m /data/rois -z 1;
   done
+
+Outputs:
+  - <featdir>/cluster_x_roi/<groupfolder>/*.nii.gz : Overlap masks
+  - <featdir>/cluster_x_roi/<groupfolder>/timecourses/ : Time series for each ROI
+  - <featdir>/cluster_x_roi/<groupfolder>/timecourses/*roi-all.txt : Combined time series table
+  - *roi-all_hd.txt : ROI header file for tracking columns in the .txt output
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-	exit 1
+
 }
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts s:f:g:m:c:z:r:n: arg
+while getopts :-:hs:f:g:m:c:z:r:n: arg
 do
 	case ${arg} in
+    -)
+      case "${OPTARG}" in                  
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;  
 	  s)  subj_ID=${OPTARG}
 			    ;;
 	  r)  run_ID=${OPTARG}
@@ -224,9 +267,7 @@ for mask in ${maskdir}/bin.thr*.nii.gz; do
     else
       printf " $(basename ${mask}): multiplied mask already present\n"
     fi
-
   done
-
 done
 
 #-----------------------------------------------------------------------------
@@ -251,10 +292,13 @@ for file in ${outdir}/${subj_ID}*.nii.gz; do
 
   if [[ ! -f ${out} ]]; then
     printf " Writing $(basename ${out})\n"
-    fslmeants \
-      -i ${in} \
-      -o ${out} \
-      -m ${file}
+    cmd=(
+      fslmeants
+      -i "${in}"
+      -o "${out}"
+      -m "${file}"
+    )
+    eval "${cmd[@]}"
 
   else
 	  printf " $(basename ${out}) already present\n"

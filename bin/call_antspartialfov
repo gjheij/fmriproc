@@ -12,29 +12,53 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_antspartialpov
 
-This script registers a partial FOV images to a whole-brain image via a few stages. First, a mask
-is created of the partial FOV, which is then injected in call_antsregistration. The resulting ma-
-trix is then applied to the input image.
+This script performs rigid/affine registration of a partial field-of-view (FOV) image to a whole-
+brain reference image using ANTs tools. The steps involve:
+  1) Creating a binary mask of the partial FOV image
+  2) Performing registration with the mask using call_antsregistration
+  3) Applying the resulting transform to the moving image
+  4) Casting the final output to a specific datatype (optional)
 
-Arguments:
-    <-s>        convert <output> to INT16
-    <-f>        convert <output> to FLOAT32
-    <-d>        convert <output> to FLOAT64
-    <reference> reference image (generally whole brain)
-    <moving>    moving image (partial FOV image)
-    <output>    output file name
+It is useful when aligning high-resolution partial scans (e.g., functional or slab acquisitions)
+to anatomical reference images for subsequent processing steps.
 
 Usage:
-  call_antspartialpov <reference> <partial> <output file>
+  call_antspartialpov [arguments] [options] <reference> <partial> <output>
+
+Arguments:
+  -i <file>       Initial transformation file (e.g., affine matrix from prior alignment)
+  -c <contrast>   Specify contrast type (e.g., t1, t2); passed to registration call
+
+Options:
+  -h | --help     Show this help text and exit
+  -h|--help       print this help text
+  -u|--int        convert <output> to INT16
+  -f|--single     convert <output> to FLOAT32 [default]
+  -d|--double     convert <output> to FLOAT64
+
+Positional:
+  <reference>     Reference image (typically a whole-brain structural scan, e.g., T1w)
+  <partial>       Moving image with a smaller field-of-view to register to the reference
+  <output>        Output filename (final registered image)
 
 Example:
-  call_antspartialpov reference.nii.gz partial.nii.gz partial_in_reference.nii.gz
+  call_antspartialpov ref.nii.gz partial.nii.gz partial_in_ref.nii.gz
+
+Notes:
+  - Internally creates a binary mask from the partial FOV image.
+  - Default transformation is affine (rigid+affine) unless modified via wrapper.
+  - Relies on:
+      * call_antsregistration
+      * call_antsapplytransforms
+      * FSL tools (fslmaths, fslroi)
+  - If the input image is 4D, the first volume is used for mask creation.
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
 
 }
+
 
 if [[ $# -lt 3 ]] ; then
   Usage && exit 0
@@ -43,16 +67,39 @@ fi
 #-----------------------------------------------------------------------------
 # Deal with arguments
 dtype="float"
-while getopts sfdi:c: arg
+while getopts :-:uhfdi:c: arg
 do
   case ${arg} in
+    -)
+      case "${OPTARG}" in                
+        int)
+          dtype="short"
+          ;;
+        single)
+          dtype="float"
+          ;;
+        double)
+          dtype="double"
+          ;;                    
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;  
     i)  INIT=${OPTARG}
           ;;
     c)  CONTRAST=${OPTARG}
           ;;     
     f)  dtype="float"
           ;;
-    s)  dtype="short"
+    u)  dtype="short"
           ;;
     d)  dtype="double"
           ;;
@@ -63,21 +110,61 @@ REF=${@:$OPTIND:1}
 MOV=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
+if [[ ! -f ${REF} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  exit 1
+else
+  REF=$(readlink "${REF}")
+fi
+
+if [[ ! -f ${MOV} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  exit 1
+else
+  MOV=$(readlink -f "${MOV}")
+fi  
+
 echo "Partial FOV > Whole brain"
 
 #-----------------------------------------------------------------------------
 # 1) mask binary FOV
 echo " Creating binary mask of partial FOV"
 MASK=$(dirname ${MOV})/$(basename ${MOV} .nii.gz)_mask.nii.gz
-fslmaths ${MOV} -bin ${MASK}
+cmd=(
+  fslmaths
+  "${MOV}"
+  -bin
+  "${MASK}"
+)
 
-if [[ $(fslval ${MASK} dim0) -eq 4 ]]; then
-  fslroi ${MASK} ${MASK} 0 1
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "fslmaths"
+  exit 1
 fi
 
-if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslmaths exited with non-zero status"
-  exit 1
+if [[ $(fslval ${MASK} dim0) -eq 4 ]]; then
+  cmd=(
+    fslroi
+    "${MASK}"
+    "${MASK}"
+    0
+    1
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "fslroi"
+    exit 1
+  fi  
 fi
 
 #-----------------------------------------------------------------------------

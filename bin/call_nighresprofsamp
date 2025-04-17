@@ -5,9 +5,9 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-import os
 from lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -25,17 +25,17 @@ The Profile Sampling module of CBS Tools was used to transform the 2-dimensional
 representations of any input data
 
 Mandatory (required input):
-    -l|--layerimg   4D image containing levelset representations of different intracortical 
-                    surfaces on which data should be sampled (the 4D output from call_nighres-
-                    layering; "-layering_boundaries")
-    -s|--samplefrom Image from which data should be sampled
+  -l|--layerimg   4D image containing levelset representations of different intracortical 
+                  surfaces on which data should be sampled (the 4D output from call_nighres-
+                  layering; "-layering_boundaries")
+  -s|--samplefrom Image from which data should be sampled
 
 Optional (flags with defaults):
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'profiling'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'profiling'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs:
   result (niimg): 4D profile image , where the 4th dimension represents the profile for each voxel
@@ -48,7 +48,7 @@ Example:
     -n sub-001_ses-1_acq-MP2RAGE_desc-profile_T1map
 
 Notes:
-    docs: https://nighres.readthedocs.io/en/latest/laminar/profile_sampling.html
+  docs: https://nighres.readthedocs.io/en/latest/laminar/profile_sampling.html
 
 ---------------------------------------------------------------------------------------------------
     """

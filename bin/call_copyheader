@@ -2,54 +2,69 @@
 
 import os
 import sys
-from lazyfmri.utils import copy_hdr
+from lazyfmri import utils
 opj = os.path.join
 
-def main(argv):
 
+def main(argv):
     """
 ---------------------------------------------------------------------------------------------------
 call_copyheader
 
-This super short script copies the header from a source image to a destination image. It has similar
-features as fslcpgeom, but then more rigorous: it copies EVERYTHING.
+This super short script copies the full NIfTI header from a source image to a destination image. It
+has similar functionality to 'fslcpgeom' but is more rigorous: it copies the full header rather 
+than just the geometric metadata. This is useful when you want to preserve full header consistency 
+across images for downstream analyses, including qform/sform matrices, data types, pixdim, intent, 
+etc.
 
-Args:
-    <src file>        string-like path to file to extract header from
-    <dest file>       string-like path to copy header to
-    <out file>        string-like path to output file (optional; if not specified <dest file> will
-                      be overwritten)
+Usage:
+  call_copyheader <source> <destination> [output]
 
-Outputs
-    output file       new volume with updated header
+Mandatory:
+  <src file>      Path to the file from which the header is extracted.
+  <dest file>     Path to the file that will receive the new header.
 
-Example:
-    call_copyheader source.nii.gz destination.nii.gz <output.nii.gz>
+Optional:
+  <out file>      Optional: path to the output file. If not specified, the <dest file> will be
+                  overwritten with the updated header.
+
+Outputs:
+  Output file     New NIfTI file with header copied from source file and image data from
+                  destination file.
+
+Examples:
+  call_copyheader source.nii.gz destination.nii.gz
+  call_copyheader source.nii.gz destination.nii.gz output.nii.gz
+
+Note:
+  - If the third argument (output file) is not provided, the destination image will be overwritten.
+  - Ensure that the source and destination image volumes have compatible shapes; otherwise,
+    downstream tools may fail.
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    src_file     = None
-    dest_file    = None
-    out_file     = None
+    src_file = None
+    dest_file = None
+    out_file = None
 
     if len(argv) < 2:
         print(main.__doc__)
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         sys.exit()
 
-    try:
-        src_file     = argv[0]
-        dest_file    = argv[1]
-        out_file     = argv[2]
-    except:
-        src_file     = argv[0]
-        dest_file    = argv[1]
-        out_file     = dest_file
+    src_file = argv[0]
+    dest_file = argv[1]
+    out_file = argv[2] if len(argv) > 2 else dest_file
 
+    # check if input exists
     if os.path.isfile(src_file):
-        new = copy_hdr(src_file,dest_file)
-        new.to_filename(out_file)
+        utils.copy_hdr(
+            src_file,
+            dest_file
+        ).to_filename(out_file)
+    else:
+        raise FileNotFoundError(f"Input file '{src_file}' is not a file?")
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

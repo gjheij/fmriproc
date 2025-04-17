@@ -5,10 +5,10 @@ import sys
 import getopt
 from lazyfmri import (
     utils,
-    dataset
+    dataset,
 )
-import pandas as pd 
 import shutil
+import pandas as pd 
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -30,35 +30,37 @@ Usage:
   call_truncate [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -s|--sub        subject ID used throughout the pipeline
+  -s|--sub        subject ID used throughout the pipeline
 
 Optional (flags with defaults):
-    -f|--fprep      fmriprep directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), "fmriprep"))
-    -o|--output     output directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), f"del{cut_vols}"))
-    -c|--cut-vols   nr of volumes to cut. Default = 5
-    -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
-    -t|--tr         set TimeStep field in the gifti's metadata (Repetition time in milliseconds!)
+  -f|--fprep      fmriprep directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), 
+                  "fmriprep"))
+  -o|--output     output directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), f"del
+                  {cut_vols}"))
+  -c|--cut-vols   nr of volumes to cut. Default = 5
+  -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
+  -t|--tr         set TimeStep field in the gifti's metadata (Repetition time in milliseconds!)
 
 Options (extra):
-    -h|--help       print this help text   
-    --no-confounds  skip confounds even if you have them
-    --fsaverage     use only fsaverage (default is to use both)
-    --fsnative      use only fsnative (default is to use both)
-    --verbose       print progress to terminal
-    --ow            overwrite existing output files
-    --full-ow       delete output_folder/subject
-    --conf-only     only do the confound files
+  -h|--help       print this help text   
+  --no-confounds  skip confounds even if you have them
+  --fsaverage     use only fsaverage (default is to use both)
+  --fsnative      use only fsnative (default is to use both)
+  --verbose       print progress to terminal
+  --ow            overwrite existing output files
+  --full-ow       delete output_folder/subject
+  --conf-only     only do the confound files
 
 Example:
-    # simple call with 5 volumes to be removed
-    call_truncate -s sub-001 -c 5
+  # simple call with 5 volumes to be removed
+  call_truncate -s sub-001 -c 5
 
-    # specify input/output and space
-    call_truncate \
-        -s sub-001 \
-        -f fmriprep_dir \
-        -o output_dir \
-        --fsaverage
+  # specify input/output and space
+  call_truncate \
+      -s sub-001 \
+      -f fmriprep_dir \
+      -o output_dir \
+      --fsaverage
 
 ---------------------------------------------------------------------------------------------------
     """

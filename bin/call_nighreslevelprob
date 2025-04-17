@@ -5,9 +5,9 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-import os
 from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -23,33 +23,33 @@ call_nighreslevelprob
 Creates a probability map from the distance to a levelset surface representation.
 
 Mandatory (required input):
-    -l|--levelset   levelset image. E.g., 
-                        - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
-                        - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
-                        - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
+  -l|--levelset   levelset image. E.g., 
+                    - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
+                    - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
+                    - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
 
 Optional (flags with defaults):                        
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'prob'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
-    -x|--kwargs     Extra arguments that will be directly passed to 'levelset_to_probability' (see
-                    docs-link below for details). The format should be as follows: different para-
-                    meters comma-separated, and parameter-value pair separated by '='):
-                    
-                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'prob'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+  -x|--kwargs     Extra arguments that will be directly passed to 'levelset_to_probability' (see
+                  docs-link below for details). The format should be as follows: different para-
+                  meters comma-separated, and parameter-value pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-                    E.g.,:
-                        "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                  E.g.,:
+                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
 
-                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                    The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                  The kwargs specified in this flag take precedent over the default kwargs:
 
-                    defaults = {
-                        "overwrite": True,
-                        "save_data": True,
-                        "distance_mm": 1,
-                        "output_dir": "directory specified with -o|--outputdir",
-                        "file_name": "basename specified with -n|--name"
-                    }
+                  defaults = {
+                    "overwrite": True,
+                    "save_data": True,
+                    "distance_mm": 1,
+                    "output_dir": "directory specified with -o|--outputdir",
+                    "file_name": "basename specified with -n|--name"
+                  }
 
 Options (extra):
     -h|--help       print this help text
@@ -58,17 +58,17 @@ Outputs:
     result (niimg): Probability map (output file suffix -l2p_proba)
 
 Example:
-    call_nighreslevelprob \
-        -l sub-01_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
-        -o $PWD \
-        -n sub-01_desc
+  call_nighreslevelprob \
+    -l sub-01_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
+    -o $PWD \
+    -n sub-01_desc
 
-    call_nighreslevelprob \
-        -l sub-01_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
-        -x output_dir="/some/directory",distance_mm=2
+  call_nighreslevelprob \
+    -l sub-01_ses-1_acq-MP2RAGE_desc-cruise_cgb.nii.gz \
+    -x output_dir="/some/directory",distance_mm=2
 
 Notes:
-    docs: https://nighres.readthedocs.io/en/latest/surface/levelset_to_probability.html
+  docs: https://nighres.readthedocs.io/en/latest/surface/levelset_to_probability.html
 
 ---------------------------------------------------------------------------------------------------
     """

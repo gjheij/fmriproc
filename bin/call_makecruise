@@ -7,21 +7,35 @@ import nibabel as nb
 opj = os.path.join
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_makecruise
 
-This script converts the ribbon.mgz file as created by FreeSurfer to the MrVista compatible segmen-
-tation file
+This script converts white matter (WM) and gray matter (GM) segmentations into a MrVista-compatible 
+segmentation file. The resulting file encodes tissue labels as:
+  - 0 for background
+  - 1 for gray matter
+  - 2 for white matter
 
-Args:
-    <wm file>       path to white matter segmentation
-    <gm file>       path to gray matter segmentation
-    <output>        path to output name
+It is commonly used for preparing segmentation volumes for tools that require a single labeled 
+image, like the CRUISE method or MrVista.
+
+Usage:
+  call_makecruise <wm_file> <gm_file> <output>
+
+Arguments:
+  <wm_file>       Path to white matter segmentation (typically from FreeSurfer ribbon or edited mask)
+  <gm_file>       Path to gray matter segmentation (same dimensions as WM image)
+  <output>        Output filename (e.g., cruise_mask.nii.gz)
+
+Outputs:
+  - A NIfTI file with voxel values representing:
+    0 = background
+    1 = gray matter
+    2 = white matter
 
 Example:
-    call_makecruise wm.nii.gz gm.nii.gz cruise.nii.gz
+  call_makecruise wm.nii.gz gm.nii.gz cruise_mask.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

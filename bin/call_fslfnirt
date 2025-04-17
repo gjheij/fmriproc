@@ -44,6 +44,7 @@ Example:
 Notes:
   - Requires that FLIRT has been run beforehand to estimate the affine matrix
   - All other optional arguments are forwarded directly to FNIRT
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE

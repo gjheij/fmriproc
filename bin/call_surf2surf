@@ -14,32 +14,32 @@ surface file from one subject to another via a spherical registration. Both the 
 subject must reside in your Subjects Directory, and they must have been processed with recon-all, 
 unless you are transforming to one of the icosahedron meshes.
 
-Args:
-    <src subj>      source subject; space to transform surface FROM
-    <trg subj>      target subject; space to transform surface TO
-    <src file>      file to transform
-    <out file>      output file for new surface
-    <hemisphere>    hemisphere ('lh' or 'rh')
+Mandatory:
+  <src subj>      source subject; space to transform surface FROM
+  <trg subj>      target subject; space to transform surface TO
+  <src file>      file to transform
+  <out file>      output file for new surface
+  <hemisphere>    hemisphere ('lh' or 'rh')
 
 Outputs
     output file     <src file> projected onto the surface of <trg subject>
 
 Example:
-    # fsaverage > fsnative
-    call_surf2surf \
-        fsaverage \
-        sub-001 \
-        lh.fsaverage.thresh.gii \
-        lh.fsnative.thresh.gii
-        lh
+  # fsaverage > fsnative
+  call_surf2surf \
+    fsaverage \
+    sub-001 \
+    lh.fsaverage.thresh.gii \
+    lh.fsnative.thresh.gii
+    lh
 
-    # fsnative > fsaverage
-    call_surf2surf \
-        sub-001 \
-        fsaverage \
-        lh.fsnative.thresh.gii \
-        lh.fsaverage.thresh \
-        lh
+  # fsnative > fsaverage
+  call_surf2surf \
+    sub-001 \
+    fsaverage \
+    lh.fsnative.thresh.gii \
+    lh.fsaverage.thresh \
+    lh
 
 ---------------------------------------------------------------------------------------------------
     """

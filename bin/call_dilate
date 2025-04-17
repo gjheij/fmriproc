@@ -1,28 +1,39 @@
 #!/usr/bin/env python
 
 import os
-from scipy import ndimage
-import nibabel as nb
 import sys
+import nibabel as nb
+from scipy import ndimage
 opj = os.path.join
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_dilate
 
-Dilate a binary mask with ndimage
+Dilate a binary mask using scipy.ndimage. This script performs a morphological dilation on the 
+input image, which is useful for extending labeled regions in a mask, such as brain regions or 
+tissue classes in neuroimaging analyses.
 
 Arguments:
-    <input img>     path to input image
-    <output img>    path to output image
-    <iterations>    number of iterations
-    <mask>          If a mask is given, only those elements with a True value at the corresponding 
-                    mask element are modified at each iteration [optional]
+  <input img>     path to input image (must be a binary mask, e.g. 0s and 1s)
+  <output img>    path to output image (dilated version of input)
+  <iterations>    number of iterations to apply the dilation (higher = more dilation)
+  <mask>          path to optional mask image that restricts dilation to certain areas.
+                  If provided, only voxels within the mask will be modified. This must be a 
+                  binary mask (same shape as input image)
+
+Usage:
+  call_dilate <input> <output> <iterations> [mask]
 
 Example:
-    call_dilate  input.nii.gz output.nii.gz
+  call_dilate input_mask.nii.gz output_mask_dilated.nii.gz 3
+  call_dilate input_mask.nii.gz output_mask_dilated.nii.gz 5 roi_mask.nii.gz
+
+Notes:
+  - The input image should be binary (0/1 values).
+  - The output will be written as a NIfTI file with the same affine and header as the input.
+  - If the optional mask is given, the dilation will only affect the region defined by the mask.
 
 ---------------------------------------------------------------------------------------------------
     """

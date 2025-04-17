@@ -16,14 +16,14 @@ Usage:
   call_replace [options] <search for> <replace with> <directory/file>
   
 Arguments:
-  <search for>      string to be replaced
-  <replace with>    replacement string
-  <dir/file>        directory or file to perform the operation on
+  <search for>    string to be replaced
+  <replace with>  replacement string
+  <dir/file>      directory or file to perform the operation on
 
 Options:
-  -h|--help         show this help text
-  -r|--recursive    run in recursive mode; use at own risk
-  --verbose         echo what is being replaced by what
+  -h|--help       show this help text
+  -r|--recursive  run in recursive mode; use at own risk
+  --verbose       echo what is being replaced by what
 
 Example:
   call_replace /home/heij@spinozacentre.knaw.nl /home/heij ~/.conda/envs/prfline/bin

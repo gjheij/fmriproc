@@ -15,34 +15,35 @@ call_antsapplytransforms
 This script is a wrapper that makes the call to antsApplyTransforms a little easier. You'll only
 need to specify the <fixed>/<moving> image, and output name, whether or not to invert the specified
 warp files (0=no; 1=yes), and the list of the warp files in order of application! It is important
-that the warp files are specified in the last argument, as that's what the script will create a list
-of warps from.
+that the warp files are specified in the last argument, as that's what the script will create a
+list of warps from.
 
 Usage:
   call_antsapplytransforms [arguments] [options] <ref> <moving> <output> <warp files>
 
 Arguments:
   -i <invert>     invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
-                  warp files, specify a comma-separated list between quotes as inversion tag (e.g., 
-                  '-i 0,1'); if not everything will be set to 'do not invert'
+                  warp files, specify a comma-separated list between quotes as inversion tag
+                  (e.g., '-i 0,1'); if not everything will be set to 'do not invert'
 
 Options:
   -h|--help       print this help text
   -v|--verbose    Turn on verbose
-  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), gau 
-                  (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), hws 
-                  (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); default =
-                  'nn'
-                  
-                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', use
-                  '--gen'
+  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel),   
+                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc),
+                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel);
+                  default = 'nn'
+
+                  For instance, to use:
+                    - 'Linear' interpolation, use '--lin'
+                    - 'GenericLabel', use '--gen'
 
 Positional:
   <ref>           space to warp file to
   <moving>        file to warp
   <output>        moving-in-ref output name
-  <warp files>    all warp files in order of application; specify a comma-separated list if multiple
-                  files need to be considerd (e.g., 'file1.mat,file2.mat')
+  <warp files>    all warp files in order of application; specify a comma-separated list if
+                  multiple files need to be considerd (e.g., 'file1.mat,file2.mat')
 
 Example:
   call_antsapplytransforms ref.nii.gz mov.nii.gz out.nii.gz genaff.mat
@@ -54,8 +55,6 @@ Example:
 USAGE
 
 }
-
-source call_bashhelper
 
 # Check for subject flag
 INT="Linear"
@@ -126,17 +125,26 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
-REF=$(fetch_filepath ${@:$OPTIND:1})
-MOV=$(fetch_filepath ${@:$OPTIND+1:1})
+REF=${@:$OPTIND:1}
+MOV=${@:$OPTIND+1:1}
 
+# check inputs
 if [[ ! -f ${REF} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
+else
+  REF=$(readlink -f "${REF}")
 fi
 
 if [[ ! -f ${MOV} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
+else
+  MOV=$(readlink -f "${MOV}")
 fi
 
 OUT=${@:$OPTIND+2:1}

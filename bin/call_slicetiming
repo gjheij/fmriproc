@@ -15,18 +15,19 @@ ordering, you can check the 'fmriproc.image.slice_timings' function to see if yo
 your particular use case (or open an issue).
 
 Mandatory (required input):
-    <json>          string pointing to an existing json file
-    <tr>            repetition time (in seconds)
-    <slices>        number of slices in the acquisition
+  <json>          string pointing to an existing json file
+  <tr>            repetition time (in seconds)
+  <slices>        number of slices in the acquisition
 
 Optional (flags with defaults):
-    <mb>            multiband factor (if present); default = 1 (no multiband)
+  <mb>            multiband factor (if present); default = 1 (no multiband)
 
 Outputs
-    <json>  existing json file with "SliceTiming" field populated
+  <json>  existing json file with "SliceTiming" field populated
 
 Example:
-    call_slicetiming func.json 1.5 57 3    # TR=1.5, 57 slices, MB=3
+  # TR=1.5, 57 slices, MB=3
+  call_slicetiming func.json 1.5 57 3
 
 ---------------------------------------------------------------------------------------------------
     """

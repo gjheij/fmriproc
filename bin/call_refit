@@ -3,12 +3,12 @@
 import mkl
 mkl.set_num_threads=1
 
-import getopt
-from fmriproc import prf
-from lazyfmri import utils
 import os
 import sys
 import yaml
+import getopt
+from fmriproc import prf
+from lazyfmri import utils
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["bold_file", "refit_file"])
@@ -27,64 +27,65 @@ Usage:
   call_refit [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    --in            path to BOLD data used for previous fitting
-    --old           pkl-file containing parameters that need refitting
+  --in            path to BOLD data used for previous fitting
+  --old           pkl-file containing parameters that need refitting
 
 Optional (flags with defaults):
-    -d|--dm         path to design matrix
-    -o|--outputdir  output directory containing pRF-stuff, defaults to dirname out bold data
-    -j|--jobs       number of jobs to parallellize over (default = 5)
-    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
-                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
-    -c|--constr     string or list representing the type of constraints to use for each stage
-                    (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
-                    but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
-                    specify a list, use the format: 
-                    
-                        '-c tc,bgfs'
-                        
-                    Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
-    --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
-                    but sometimes it's good to get rid of the initial transient
-    --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
-                    (if input = fMRIprep).
+  -d|--dm         path to design matrix
+  -o|--outputdir  output directory containing pRF-stuff, defaults to dirname out bold data
+  -j|--jobs       number of jobs to parallellize over (default = 5)
+  -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                  models with '--gauss', '--dog', '--css', or '--norm' (see below).
+  -c|--constr     string or list representing the type of constraints to use for each stage
+                  (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
+                  but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
+                  specify a list, use the format: 
+                  
+                    '-c tc,bgfs'
+                      
+                  Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
+  --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
+                  but sometimes it's good to get rid of the initial transient
+  --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
+                  (if input = fMRIprep).
 
 Options (extra):
-    -h|--help       print this help text
-    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
-                    Use the -x flag if you want different minimizers for both stages                   
-    --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
-                    will need to calculate how many pixels are to be set to zero given the visual 
-                    field of the subject in the scanner (with a screensize of [1920,1080]px and 
-                    height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
-                    ensure it's read in like a list. Negative values will be set to zero.
-    -g|--grid       only run a grid-fit with the specified model
-    --hrf           Fit the HRF during pRF-fitting. If `True`, the fitting will consist of two 
-                    stages: first, a regular fitting without HRF estimation. Then, the fitting 
-                    object of that fit is inserted as `previous_gaussian_fitter` into a new fitter 
-                    object with HRF estimation turned on. Default = False.
-                    This will ensure the baseline of periods without stimulus are set to zero.
-    --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
-                    bounds, causing 'inf' values. This is especially troublesome when fitting a
-                    single timecourse. If you trust your iterative fitter, you can turn off the 
-                    bounds and let the iterative take care of the parameters
-    --no-fit        only initiate object and do not execute fit; useful for debugging reasons
-    --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
-                    del. 
-                    Use the -x flag if you want different minimizers for both stages
-    -v|--verbose    print some stuff to a log-file
-    --transpose     transpose data for fitter object. Format needs to be (voxels,time). You'll get
-                    an error saying the shapes do not match up. In that case, try this flag
-    --skip-settings avoids overwriting of particular settings (e.g., screen_distance_cm), and takes
-                    them from the reference analysis file instead
+  -h|--help       print this help text
+  --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
+                  Use the -x flag if you want different minimizers for both 
+                    stages                   
+  --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
+                  will need to calculate how many pixels are to be set to zero given the visual 
+                  field of the subject in the scanner (with a screensize of [1920,1080]px and 
+                  height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
+                  ensure it's read in like a list. Negative values will be set to zero.
+  -g|--grid       only run a grid-fit with the specified model
+  --hrf           Fit the HRF during pRF-fitting. If `True`, the fitting will consist of two 
+                  stages: first, a regular fitting without HRF estimation. Then, the fitting 
+                  object of that fit is inserted as `previous_gaussian_fitter` into a new fitter 
+                  object with HRF estimation turned on. Default = False.
+                  This will ensure the baseline of periods without stimulus are set to zero.
+  --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
+                  bounds, causing 'inf' values. This is especially troublesome when fitting a
+                  single timecourse. If you trust your iterative fitter, you can turn off the 
+                  bounds and let the iterative take care of the parameters
+  --no-fit        only initiate object and do not execute fit; useful for debugging reasons
+  --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
+                  del. 
+                  Use the -x flag if you want different minimizers for both stages
+  -v|--verbose    print some stuff to a log-file
+  --transpose     transpose data for fitter object. Format needs to be (voxels,time). You'll get
+                  an error saying the shapes do not match up. In that case, try this flag
+  --skip-settings avoids overwriting of particular settings (e.g., screen_distance_cm), and takes
+                  them from the reference analysis file instead
 
 Models:
-    --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
-    --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
-    --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
-    --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
-    --abd           DN-model with fixed C-parameter [Aqil, et al. 2021]
-    --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
+  --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
+  --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
+  --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
+  --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+  --abd           DN-model with fixed C-parameter [Aqil, et al. 2021]
+  --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
 
 Example:
   call_refit \
@@ -182,7 +183,8 @@ if __name__ == "__main__":
 
     try:
         opts = getopt.getopt(
-            sys.argv[1:],"ghs:n:t:o:i:p:m:x:u:c:v:j:",
+            sys.argv[1:],
+            "ghs:n:t:o:i:p:m:x:u:c:v:j:",
             ["help", "sub=", "model=", "ses=", "task=", "outputdir=", "in=", "png=", "kwargs=", "grid", "space=", "hrf", "n-pix=", "clip=", "verbose", "file-ending=", "zscore", "overwrite", "constr=", "tc", "bgfs", "no-fit", "raw", "cut-vols=", "v1", "v2", "save-grid", "merge-ses", "jobs=", "gauss", "dog", "css", "norm", "abc", "abd", "tr=", "in=", "old=", "dm=", "transpose", "skip-settings", "nelder"]
         )[0]
     except getopt.GetoptError:

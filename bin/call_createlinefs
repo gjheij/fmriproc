@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from lazyfmri import utils
-from fmriproc import scanner
+import os
 import sys
 import getopt
-import os
+from lazyfmri import utils
+from fmriproc import scanner
 
 try:
     from cxutils import optimal
@@ -16,19 +16,19 @@ gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 end = utils.color.END
 
+
 @utils.validate_cli_inputs(required_keys=["subject"])
 def main(context):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_createlinefs
 
-This script allows you to get an idea of where the line will be positioned in the second session. You 
-have to manually fill in the RAS-coordinate and angles in the transform-window, resulting in a tem-
-plate slice being warped to the orientation it needs to get. It does so based on the line_pycortex
-file created with cxutils.optimal.CalcBestVertex. If you're using the left hemisphere, you'll 
-only need to specify a subject name, the rest will be taken care of, assuming a line_pycortex file
-exists.
+This script allows you to get an idea of where the line will be positioned in the second session. 
+You have to manually fill in the RAS-coordinate and angles in the transform-window, resulting in a 
+template slice being warped to the orientation it needs to get. It does so based on the 
+line_pycortex file created with cxutils.optimal.CalcBestVertex. If you're using the left 
+hemisphere, you'll only need to specify a subject name, the rest will be taken care of, assuming a 
+line_pycortex file exists.
 
 Utilizes the same strategy as in spinoza_lineplanning, but instead of using a registration matrix
 between two sessions, orig.nii.gz and an identity matrix are used to "warp" the coordinate.
@@ -37,35 +37,35 @@ Usage:
   call_createlinefs [mandatory] [optional] [options]
 
 Mandatory (required input):
-    -s|--subject    name of the directory as specified in the pycortex filestore directory
-    -f|--fsdir      FreeSurfer directory; if left empty, SUBJECTS_DIR will be used 
-    -l|--line-ctx   file containing the information about placement of the line. If left empty
-                    we'll look for <project>/derivatives/pycortex/<subject>/line_pycortex.csv.
-    -n|--session    session ID of line-scanning session to which `line-ctx` belongs. Default = 2
-    -o|--output     new nifti-image containing the beam with the correct orientation and dimensions
-                    of FreeSurfer
-    --lh|--rh       which hemisphere should we do? Use 'lh' for left, 'rh' for right (default = lh)
-    --no-freeview   prevent FreeView from opening. This is used if you just want to see how the
-                    angles are calculated without the hassle of waiting for FreeView.
+  -s|--subject    name of the directory as specified in the pycortex filestore directory
+  -f|--fsdir      FreeSurfer directory; if left empty, SUBJECTS_DIR will be used 
+  -l|--line-ctx   file containing the information about placement of the line. If left empty
+                  we'll look for <project>/derivatives/pycortex/<subject>/line_pycortex.csv.
+  -n|--session    session ID of line-scanning session to which `line-ctx` belongs. Default = 2
+  -o|--output     new nifti-image containing the beam with the correct orientation and dimensions
+                  of FreeSurfer
+  --lh|--rh       which hemisphere should we do? Use 'lh' for left, 'rh' for right (default = lh)
+  --no-freeview   prevent FreeView from opening. This is used if you just want to see how the
+                  angles are calculated without the hassle of waiting for FreeView.
 
 Outputs
     a new nifti image with the line at the specified location 
 
 Example:
-    call_createlinefs -s sub-001
-    call_createlinefs -s sub-001 --rh
-    call_createlinefs -s sub-001 --rh --no-freeview
+  call_createlinefs -s sub-001
+  call_createlinefs -s sub-001 --rh
+  call_createlinefs -s sub-001 --rh --no-freeview
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject     = context["subject"]
-    session     = context.get("session", 2)
-    line_ctx    = context.get("line_ctx")
-    fs_dir      = context.get("fs_dir", os.environ.get("SUBJECTS_DIR"))
-    output      = context.get("output")
-    hemi        = context.get("hemi", "lh")
-    freeview    = context.get("freeview", True)
+    subject = context["subject"]
+    session = context.get("session", 2)
+    line_ctx = context.get("line_ctx")
+    fs_dir = context.get("fs_dir", os.environ.get("SUBJECTS_DIR"))
+    output = context.get("output")
+    hemi = context.get("hemi", "lh")
+    freeview = context.get("freeview", True)
 
     # define output if not given
     if not isinstance(output, str):
@@ -74,8 +74,9 @@ Example:
         elif hemi.lower() == "rh":
             tag = "hemi-R"
         else:
-            raise ValueError(f"Invalid hemisphere {hemi} specified. Please use 'lh' or 'rh'")
-        
+            raise ValueError(
+                f"Invalid hemisphere {hemi} specified. Please use 'lh' or 'rh'")
+
         output = opj(
             fs_dir,
             subject,
@@ -86,7 +87,8 @@ Example:
     # create beam based on orig.mgz
     orig = opj(fs_dir, subject, 'mri', 'orig.mgz')
     utils.run_shell_wrapper(f'call_createbeamfs {subject}')
-    beam = utils.get_file_from_substring("space-fs_desc-template_beam", os.path.dirname(orig))
+    beam = utils.get_file_from_substring(
+        "space-fs_desc-template_beam", os.path.dirname(orig))
 
     # apply similar strategy as in spinoza_lineplanning, but then with an identity matrix
     anat2 = orig.split(".")[0]+".nii.gz"
@@ -103,23 +105,24 @@ Example:
         )
 
     if not os.path.exists(line_ctx):
-        raise FileExistsError(f"Could not find file with coordinates: {line_ctx}")
-    
+        raise FileExistsError(
+            f"Could not find file with coordinates: {line_ctx}")
+
     # get target vertex
     targ = optimal.TargetVertex(
         subject,
         out=line_ctx,
         deriv=os.environ.get("DIR_DATA_DERIV")
     )
-    
+
     # calculate angles
     scan = scanner.Scanner(
         targ,
-        fs_dir=os.environ.get("FS"), 
-        new_anat=anat2, 
-        fs2ses='identity', 
+        fs_dir=os.environ.get("FS"),
+        new_anat=anat2,
+        fs2ses='identity',
         hemi=hemi,
-        ses='fs', 
+        ses='fs',
         print_to_console=False
     )
 
@@ -141,7 +144,7 @@ Example:
         ap_angle = fold['value'][3]
     else:
         ap_angle = fold['value'][4]
-    
+
     # encoding is different for FreeView/scanner in coronal orientation
     if flip:
         ap_angle = utils.reverse_sign(ap_angle)
@@ -162,18 +165,19 @@ Example:
         print(f"Save image as: '{output}'")
 
         fid = opj(fs_dir, subject, 'surf', f"{hemi}.fiducial")
-        x,y,z = [round(tkr_coords[i],2) for i in tkr_coords]
+        x, y, z = [round(tkr_coords[i], 2) for i in tkr_coords]
         cmd = f"launch_freeview \
             -v {orig} {beam}:colormap=Heat \
             -f {fid}:edgecolor=green \
             --ras {x} {y} {z} tkreg \
-            --transform-volume 
+            --transform-volume \
             2>/dev/null"
         utils.run_shell_wrapper(cmd)
     else:
         print("Not opening FreeView..")
-        
+
     print("Done")
+
 
 if __name__ == "__main__":
 
@@ -189,9 +193,10 @@ if __name__ == "__main__":
 
     try:
         opts = getopt.getopt(
-            sys.argv[1:], 
-            "hs:f:l:o:n:", 
-            ["help", "sub=", "fsdir=", "line-ctx=", "output=", "no-freeview", "lh", "rh", "ses="]
+            sys.argv[1:],
+            "hs:f:l:o:n:",
+            ["help", "sub=", "fsdir=", "line-ctx=",
+                "output=", "no-freeview", "lh", "rh", "ses="]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__)

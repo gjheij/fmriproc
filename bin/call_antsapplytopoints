@@ -19,8 +19,8 @@ formation matrix. Very handy if you just want to warp coordinates instead of ima
 
 Steps to perform:
 Let's say you have a coordinate in space 1 and would like to get the coordinate in space 2:
-  1.) Create a warp-file with call_antsregistration with space 2 as <ref> and space 1 as <mov> (e.g.,
-      from-ses1_to-ses2.mat)
+  1.) Create a warp-file with call_antsregistration with space 2 as <ref> and space 1 as <mov> 
+      (e.g., from-ses1_to-ses2.mat)
   2.) Create a chicken-file with call_antsmakechicken coord point_in_space1.csv (if your point is 
       in LPS already, specify 'lps' after 'point_in_space1.csv')
   3.) Run call_antsapplytopoints point_in_space1.csv point_in_space2.csv from-ses1_to-ses2.mat
@@ -51,9 +51,9 @@ Options:
                   fault. Unless this flag is specified. Then the file is retained
 
 Positional:
-  <input csv>     file containing coordinate that we need to warp (NEEDS TO BE LPS!!). If your coor-
-                  dinate comes straight from FreeSurfer/Pycortex, it's in RAS convention. If that's
-                  the case, make sure to use 'call_antsmakechicken <coord> <filename> RAS'! 
+  <input csv>     file containing coordinate that we need to warp (NEEDS TO BE LPS!!). If your 
+                  coordinate comes straight from FreeSurfer/Pycortex, it's in RAS convention. If 
+                  that's the case, make sure to use 'call_antsmakechicken <coord> <filename> RAS'!
                   You can also specify a comma-separated coordinate in any space (use --ras/--lpi),
                   in which case a temporary chicken file is produced. The coordinate must be in 
                   the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO AVOID THAT THE
@@ -69,13 +69,24 @@ Example:
   call_antsapplytopoints -i point_in_space1.csv point_in_space2.csv from-space1_to-space2.mat
 
   # print output coordinate
-  call_antsapplytopoints --coord -i point_in_space1.csv point_in_space2.csv from-space1_to-space2.mat
+  call_antsapplytopoints \
+    --coord \
+    -i point_in_space1.csv \
+    point_in_space2.csv \
+    from-space1_to-space2.mat
   
   # input RAS coordinate (it assumes RAS-coordinate, unless --lps is specified)
-  call_antsapplytopoints -i \"-8.38654,-93.1835,-39.7082\" point_in_space2.csv from-space1_to-space2.mat  
+  call_antsapplytopoints \
+    -i \"-8.38654,-93.1835,-39.7082\" \
+    point_in_space2.csv \
+    from-space1_to-space2.mat  
 
   # input LPS coordinate
-  call_antsapplytopoints --lps -i \"8.38654,93.1835,-39.7082\" point_in_space2.csv from-space1_to-space2.mat  
+  call_antsapplytopoints \
+    --lps \
+    -i \"8.38654,93.1835,-39.7082\" \
+    point_in_space2.csv \
+    from-space1_to-space2.mat  
 
 ---------------------------------------------------------------------------------------------------
 

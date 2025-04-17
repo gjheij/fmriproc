@@ -12,24 +12,44 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_antsresample
 
-This scripts makes the call to ImageMath Resample a little easier, as you'll only have to provide
-the input image, the new matrix size, and the output image.
+Wrapper for ANTs' ResampleImage to simplify resampling of NIfTI images. You only need to specify
+the input image, the desired output matrix size (in voxels), and optionally an output file name.
+If no output filename is specified, the script will automatically append "_resampled" to the input
+filename and store it in the same directory.
+
+This script defaults to using:
+  - B-Spline interpolation (order=3)
+  - Float pixel type (type=6)
 
 Usage:
-  call_antsresample <input> <new matrix> <output>
+  call_antsresample <input> <new matrix> [output]
 
-Arguments:
-  <input>       input image to be resample
-  <new matrix>  matrix that <input> need to have
-  <output>      output name of resampled image
+Mandatory:
+  <input>         Input image to be resampled (e.g., NIfTI file)
+  <new matrix>    Target voxel matrix size, specified as string in format: MxNxO
+                  For example: "256x256x192"
+
+Optional:                  
+  <output>        Optional: Output filename for resampled image.
+                  If omitted, output will be named <input>_resampled.nii.gz
 
 Example:
-  call_antsresample input.nii.gz "283x353x353" output.nii.gz
+  call_antsresample sub-01_T1w.nii.gz "256x256x192"
+  -> Output: sub-01_T1w_resampled.nii.gz
+
+Notes:
+  - ResampleImage is called with the following parameters:
+      * Interpolation type: 3 (B-Spline, order 3)
+      * Pixel type: 6 (float)
+  - Other interpolation types can be used by editing this script manually.
+  - The image dimension is fixed to 3 (3D image).
+
+Reference:
+  https://github.com/ANTsX/ANTs/wiki/ResampleImage
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-
 }
 
 if [[ $# -lt 2 ]] ; then

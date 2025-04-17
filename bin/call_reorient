@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from fmriproc import image
-from lazyfmri import utils
 import sys
 import getopt
+from fmriproc import image
+from lazyfmri import utils
 
 @utils.validate_cli_inputs(required_keys=["infile"])
 def main(context):
@@ -18,23 +18,23 @@ nal orientation codes can be specified, in addition to 'nb' which specifically u
 definition (which corresponds to LPI in FSL terms)
 
 Mandatory (required input):
-    -i|--infile     path to nifti image
+  -i|--infile     path to nifti image
 
 Optional (flags with defaults):
-    -c|--code       orientation code (e.g., 'RAS', 'LPI', 'nb') [default = "nb" > RAS+]
-    -q|--qform      qform code; leave empty if we should use the same code as the input file
-    -o|--outfile    optional; input image is overwritten if left empty
+  -c|--code       orientation code (e.g., 'RAS', 'LPI', 'nb') [default = "nb" > RAS+]
+  -q|--qform      qform code; leave empty if we should use the same code as the input file
+  -o|--outfile    optional; input image is overwritten if left empty
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs
-    a new nifti image with specified orientation
+  a new nifti image with specified orientation
 
 Example:
-    call_reorient -i t1w.nii.gz                                 (Nibabel's RAS+ [LPI])
-    call_reorient -i t1w.nii.gz -c lpi -o t1w_new.nii.gz        (FSL's LPI)
-    call_reorient -i t1w.nii.gz -c nb -q 1 -o t1w_new.nii.gz    (RAS+ and use qform = 1)
+  call_reorient -i t1w.nii.gz                                 (Nibabel's RAS+ [LPI])
+  call_reorient -i t1w.nii.gz -c lpi -o t1w_new.nii.gz        (FSL's LPI)
+  call_reorient -i t1w.nii.gz -c nb -q 1 -o t1w_new.nii.gz    (RAS+ and use qform = 1)
 
 ---------------------------------------------------------------------------------------------------
     """

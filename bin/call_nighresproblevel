@@ -5,9 +5,9 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-import os
 from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -25,23 +25,23 @@ each voxel's distance to the closest boundary. It takes negative values inside a
 outside of the object.
 
 Mandatory (required input):
-    -p|--probability    File representing the probability image
+  -p|--probability    File representing the probability image
 
 Optional (flags with defaults):
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'region'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'region'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs:
-    result (niimg): Levelset representation of surface (-p2l_surf)
+  result (niimg): Levelset representation of surface (-p2l_surf)
 
 Example:
-    call_nighresproblevel \
-        -p sub-001_ses-1_acq-MP2RAGE_desc-l2p_proba.nii.gz \
-        -o $PWD \
-        -n sub-001_desc
+  call_nighresproblevel \
+    -p sub-001_ses-1_acq-MP2RAGE_desc-l2p_proba.nii.gz \
+    -o $PWD \
+    -n sub-001_desc
 
 ---------------------------------------------------------------------------------------------------
     """

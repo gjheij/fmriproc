@@ -19,13 +19,14 @@ https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/registration/Wu
 Usage:
   call_mni2fsaverage [arguments] <input_file> 
 
-Arguments:
+Optional:
   -p <prefix>     decides 'prefix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
   -s <suffix>     decides 'suffix' in <prefix>_space-fsaverage_hemi-<L|R>_<suffix>
-  <-i interp>     interpolation method (linear or nearest neighbour). Default is linear
+  -i <interp>     interpolation method (linear or nearest neighbour). Default is 'linear'
 
 Options:
   -h|--help       print this help text
+  --freeview      open FreeView for verification of output
 
 Positional 
   input_file      file that needs to be transformed
@@ -75,9 +76,7 @@ do
     p)  prefix=${OPTARG}
           ;;
     s)  suffix=${OPTARG}
-          ;;          
-    t)  trafos=${OPTARG}
-          ;;        
+          ;;               
     i)  interp=${OPTARG}
           ;;
     h)  Usage && exit 0
@@ -90,8 +89,17 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
-# positional args
-INPUT=$(readlink -f "${@:$OPTIND:1}")
+#-----------------------------------------------------------------------------
+# define inputs
+tmp="${@:$OPTIND:1}"
+if [[ ! -f "${tmp}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Specified file ${BOLD_GREEN}${tmp}${RESET} does not exist"
+  exit 1
+else
+  input_file=$(readlink -f "${tmp}")
+fi
 
 # set output directory
 if [[ -z ${out_dir} ]]; then
@@ -106,30 +114,46 @@ fi
 
 # set output name for ANTs-RF
 if [[ -z ${suffix} ]]; then
-  suffix=desc-$(basename ${INPUT} .nii.gz)
+  suffix="desc-$(basename ${input_file} .nii.gz)"
 fi
 
+#-----------------------------------------------------------------------------
 # make the script
-new_script=$(dirname ${INPUT})/$(basename ${INPUT} .nii.gz).m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
+new_script="$(dirname ${input_file})/$(basename ${input_file} .nii.gz).m"
+if [[ -f "${new_script}" ]]; then
+  rm -r "${new_script}"
 fi
 
-cmd="make_antsrf_script ${INPUT} ${interp} ${output_dir} ${suffix} ${new_script}"
+cmd=(
+  make_antsrf_script \
+  "${input_file}" \
+  "${interp}" \
+  "${output_dir}" \
+  "${suffix}" \
+  "${new_script}"
+)
+
 # call_matlab = in call_bashhelper
 if [ ${VERB} -eq 1 ]; then
   echo "creating script with:"
-  print_cmd "${cmd}"
+  print_cmd "${cmd[@]}"
 fi
-eval "${cmd}"
 
+eval "${cmd[@]}"
+if [[ $? -ne 0 || ! -f "${new_script}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "make_antsrf_script" "Script ${BOLD_GREEN}${new_script}${RESET} was not created"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # call_matlab = in call_bashhelper
 if [ ${VERB} -eq 1 ]; then
   echo "Initializing matlab.."
 fi
 
-call_matlab ${new_script}
-
+call_matlab "${new_script}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -137,6 +161,7 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi  
 
+#-----------------------------------------------------------------------------
 # stack output
 if [ ${VERB} -eq 1 ]; then
   echo "Stacking gifti's into numpy-array"
@@ -156,11 +181,12 @@ fi
 both_hemis=${output_dir}/${out_name}
 cmd=(
   call_stackgifti
-  ${lh}
-  ${rh}
-  ${both_hemis}
+  "${lh}"
+  "${rh}"
+  "${both_hemis}"
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
@@ -173,6 +199,8 @@ if [ ${VERB} -eq 1 ]; then
   echo "Wrote ${both_hemis}"
 fi
 
+#-----------------------------------------------------------------------------
+# verify in FreeView
 if [[ ${open_fv} -eq 1 ]]; then
   # Visualise lh results
   fs_dir="${SUBJECTS_DIR}/fsaverage/surf"

@@ -5,39 +5,47 @@ try:
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-from fmriproc.transform import fs2tkr
-import os
 import numpy as np
 from lazyfmri import utils
+from fmriproc.transform import fs2tkr
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"])
 def main(context):
-
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
-call_nighres2freesurfer (WIP!)
+call_nighres2freesurfer
 
-Convert nighres mesh to freesurfer-interpretable data following this thread: 
-https://github.com/nighres/nighres/issues/106. The steps are the following:
-  1) Resample levelset output from CRUISE to FS (e.g., with call_antsapplytransform)
-  2) Convert resampled levelset to a mesh with call_nighreslevelmesh
-  3) Convert voxel indexing to RAS-indexing with linescanning.transform.fs2tkr
-  4) Save faces and vertices as something FreeSurfer-like (e.g., lh.nighres.white)
-  5) Overlay in FreeView
+Convert a Nighres surface mesh to a FreeSurfer-compatible format. This script is useful when 
+integrating Nighres CRUISE cortical surface reconstructions with FreeSurfer tools (e.g., for 
+visualization or further processing in FreeView).
 
-Mandatory (required input):
-    <subject> subject ID as specified in the FreeSurfer directory.
-    <mesh>    output from call_nighreslevelmesh, a mesh-representation of your levelset image
-    <output>  output file
+The general pipeline assumes you've already:
+  1) Resampled the levelset output from Nighres to FreeSurfer space (e.g., using 'call_antsapplytransform')
+  2) Created a mesh from the resampled levelset using 'call_nighreslevelmesh'
+  3) Use this script to convert the mesh to FreeSurfer RAS coordinates and save it in FS-compatible format
+
+Usage:
+  call_nighres2freesurfer <subject> <mesh_file> <output_file>
+
+Mandatory:
+  <subject>       Subject ID, as defined in the FreeSurfer SUBJECTS_DIR
+  <mesh_file>     Path to a .vtk mesh created by 'call_nighreslevelmesh'
+  <output_file>   Desired output file (e.g., lh.nighres.white)
 
 Outputs:
-  FreeSurfer-readable nighres-output
+  - A mesh file in FreeSurfer RAS coordinate space
+  - Can be opened with FreeView for QC or visualization
+
+Dependencies:
+  - Requires Nighres
+  - Requires valid FreeSurfer setup (for RAS conversion via 'fmriproc.transform.fs2tkr')
 
 Example:
-    call_nighres2freesurfer sub-001 sub-001_desc-l2m_mesh.vtk lh.pial
+  call_nighres2freesurfer sub-001 sub-001_desc-l2m_mesh.vtk lh.nighres.white
 
 ---------------------------------------------------------------------------------------------------
     """

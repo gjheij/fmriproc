@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import getopt
-import os
 from nilearn import image
 opj = os.path.join
 
@@ -12,33 +12,48 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_rmbackground
 
-Remove background noise from an MP2RAGE-image using a brain mask and the second inversion image (1st
-echo).
+Remove background noise from an MP2RAGE image using a brain mask and the INV2 magnitude image.
 
-Mandatory (required input):
-    -t|--t1w    T1-weighted image with background noise
-    -m|--mask   Brain mask (e.g., from running FSL's BET on INV2)
-    -i|--inv2   Second inversion
-    -o|--output Output image
+This method leverages the assumption that the second inversion (INV2) in MP2RAGE provides a better
+representation of non-brain regions due to its noise profile. This script uses a binary mask to
+preserve brain regions from the T1-weighted image and fills the background (outside the mask) with 
+a normalized version of the INV2 image. This can suppress extreme background intensities that may
+interfere with processing or visualization.
 
-Options (extra):
-    -h|--help       print this help text
+The operation can be summarized as:
 
-Outputs
-    - masked T1w image
+      't1w * t1w_mask * np.mean(inv2[t1w_mask == 1]
+  -------------------------------------------------------
+  np.max(inv2)) + t1w * inv2/np.max(inv2) * (1-t1w_mask)'
 
-Example:
-    call_rmbackground \
-        -t t1w.nii.gz \
-        -m mask.nii.gz \
-        -i inv2.nii.gz \
-        -o masked.nii.gz
+Usage:
+  call_rmbackground -t <T1w image> -m <mask> -i <INV2 image> -o <output>
 
-    call_rmbackground \
-        --t1w derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_T1w.nii.gz \
-        --mask derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_desc-spm_mask.nii.gz \
-        --inv2 sub-01/ses-1/anat/sub-01_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz \
-        --output derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_T1w.nii.gz
+Mandatory arguments:
+  -t|--t1w        Path to the T1-weighted image (with noisy background)
+  -m|--mask       Binary brain mask image (non-zero = brain, 0 = background)
+  -i|--inv2       Second inversion image (e.g., INV2 magnitude)
+  -o|--output     Output image with cleaned background
+
+Options:
+  -h|--help       Print this help text
+
+Outputs:
+  A background-corrected T1-weighted image with noise replaced outside the mask using normalized 
+  INV2
+
+Examples:
+  call_rmbackground \
+    -t t1w.nii.gz \
+    -m mask.nii.gz \
+    -i inv2.nii.gz \
+    -o masked.nii.gz
+
+  call_rmbackground \
+    --t1w derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_T1w.nii.gz \
+    --mask derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_desc-spm_mask.nii.gz \
+    --inv2 sub-01/ses-1/anat/sub-01_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz \
+    --output derivatives/pymp2rage/sub-01/ses-1/sub-01_ses-1_acq-MP2RAGE_T1w_denoised.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

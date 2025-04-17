@@ -14,15 +14,15 @@ Stack two gifti's vertically into a numpy array so we can load it in with Pycort
 is especially used in combination with call_vol2fsaverage.
 
 Arguments:
-    <gifti 1>       first gifti-image   (ideally left-hemisphere data)
-    <gifti 2>       second gifti image  (ideally right-hemisphere data)
-    <output file>   output name for the numpy array, no extension needed
+  <gifti 1>       first gifti-image   (ideally left-hemisphere data)
+  <gifti 2>       second gifti image  (ideally right-hemisphere data)
+  <output file>   output name for the numpy array, no extension needed
 
 Outputs
-    output file     numpy array with the combined gifti-data
+  output file     numpy array with the combined gifti-data
 
 Example:
-    call_stackgifti lh.gii rh.gii lh+rh.npy
+  call_stackgifti lh.gii rh.gii lh+rh.npy
 
 ---------------------------------------------------------------------------------------------------
     """

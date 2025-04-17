@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-from fmriproc import prf
-from lazyfmri import utils
+import os
 import sys
 import getopt
-import os
 import nibabel as nb
+from fmriproc import prf
+from lazyfmri import utils
 opj = os.path.join
 
 def main(context):
@@ -21,27 +21,31 @@ Usage:
   call_prfinfo [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -s|--subject    subject ID (e.g., sub-001)
-    -v|--vertex     vertex to extract information from
+  -s|--subject    subject ID (e.g., sub-001)
+  -v|--vertex     vertex to extract information from
 
 Optional (flags with defaults):
-    -d|--prfdir     path to pRF-directory; will default to derivatives/prf/<subject>
-    -p|--prf        if left empty, will default to derivatives/prf/<subject>/<ses-1>/model-norm_*desc-prf_params.pkl
+  -d|--prfdir     path to pRF-directory; will default to derivatives/prf/<subject>
+  -p|--prf        if left empty, will default to derivatives/prf/<subject>/<ses-1>/
+                  model-norm_*desc-prf_params.pkl
 
 Options (extra):
-    -h|--help       print this help text
-    --lh|--rh       find estimates for a given hemisphere; default = 'lh'
-    --gauss         Look for gaussian parameters instead of DN-parameters
-    --css           Look for CSS parameters instead of DN-parameters
-    --dog           Look for DoG parameters instead of DN-parameters
-    --grid          Look for grid fit parameters, rather than iterative fit parameters
-    --plot          create a plot of the pRF+timecourse+prediction
-    --verbose       print some extra information to the terminal
-    --v1            use V1-only data
+  -h|--help       print this help text
+  --lh|--rh       find estimates for a given hemisphere; default = 'lh'
+  --gauss         Look for gaussian parameters instead of DN-parameters
+  --css           Look for CSS parameters instead of DN-parameters
+  --dog           Look for DoG parameters instead of DN-parameters
+  --grid          Look for grid fit parameters, rather than iterative fit parameters
+  --plot          create a plot of the pRF+timecourse+prediction
+  --verbose       print some extra information to the terminal
+  --v1            use V1-only data
 
 Example:
-    call_prfinfo -s sub-001 -v 3386         # vertex 3386 in left hemisphere
-    call_prfinfo -s sub-001 -v 3386 --rh    # vertex 3386 in right hemisphere
+  # vertex 3386 in left hemisphere
+  call_prfinfo -s sub-001 -v 3386
+
+  # vertex 3386 in right hemisphere
+  call_prfinfo -s sub-001 -v 3386 --rh
 
 ---------------------------------------------------------------------------------------------------
     """

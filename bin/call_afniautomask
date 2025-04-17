@@ -12,11 +12,11 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_afniautomask
 
-Wrapper for AFNI's automask function, taking in an input image, and output image, and a clfrac value
-From the AFNI doc: clfrac sets the 'clip level fraction' to 'cc', which must be a number between 0.1
-and 0.9. A small 'cc' means to make the initial threshold for clipping smaller, which will tend to
-make the mask larger. Input dataset is a skullstripped anatomical image or a 3D+time dataset, and the
-output dataset is a brainonly mask dataset.
+Wrapper for AFNI's automask function, taking in an input image, and output image, and a clfrac 
+value. From the AFNI doc: clfrac sets the 'clip level fraction' to 'cc', which must be a number
+between 0.1 and 0.9. A small 'cc' means to make the initial threshold for clipping smaller, which 
+will tend to make the mask larger. Input dataset is a skullstripped anatomical image or a 3D+time
+dataset, and the output dataset is a brainonly mask dataset.
 
 If you specify only an input image and and output image, but no clfrac value, the clfrac value will
 be set to 0.3 (AFNI's default is 0.5!)

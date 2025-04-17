@@ -18,11 +18,11 @@ BOLD signals. The resulting map is clipped at a maximum value of 100 by default 
 extreme outliers.
 
 Mandatory (positional) arguments:
-  <input file>        Path to the 4D NIfTI file for which to compute the tSNR map.
+  <input file>    Path to the 4D NIfTI file for which to compute the tSNR map.
   
 Optional (positional) arguments:
-  <output file>       Optional full path where the resulting tSNR map will be saved.
-                      If omitted, only the mean tSNR value will be printed to the console.
+  <output file>   Optional full path where the resulting tSNR map will be saved.
+                  If omitted, only the mean tSNR value will be printed to the console.
 
 Behavior:
   - Automatically clips tSNR values at 100.

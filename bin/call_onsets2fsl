@@ -5,7 +5,7 @@ import sys
 import getopt
 from lazyfmri import (
     utils,
-    dataset
+    dataset,
 )
 opj = os.path.join
 
@@ -23,36 +23,35 @@ Usage:
   call_refit [arguments] [options]
 
 Mandatory (required input):
-    -i|--in         path representing a *tsv output file from ExpTools or a directory containing
-                    such *tsv files.
+  -i|--in         path representing a *tsv output file from ExpTools or a directory containing
+                  such *tsv files.
 
 Optional (flags with defaults):
-                    Defaults to DIR_DATA_HOME as per spinoza_setup; can also by a tsv-file
-    -o|--out        output directory containing the topup'ed data. Easiest is to give the fMRIPrep
-                    folder, it will be formatted accordingly automatically.
-                    Defaults to <input_dir>/events
-    --phase-onset   flag to define the phase from which to extract the onset files. Usually, you
-                    have an experiment with 2 phases: stimulus (0) and inter-trial intervals (1).
-                    Sometimes these phases are swapped, so you can use this flag to tell the function
-                    which phase was the stimulus onset
+  -o|--out        output directory containing the topup'ed data. Easiest is to give the fMRIPrep
+                  folder, it will be formatted accordingly automatically.
+                  Defaults to <input_dir>/events
+  --phase-onset   flag to define the phase from which to extract the onset files. Usually, you
+                  have an experiment with 2 phases: stimulus (0) and inter-trial intervals (1).
+                  Sometimes these phases are swapped, so you can use this flag to tell the function
+                  which phase was the stimulus onset
 
 Options (extra):
-    -h|--help       print this help text
-    --verbose       turn on verbose
-    --ix            take number of ev as output name, rather than actual event name. This can be
-                    useful in cases where your events consist of long float numbers
+  -h|--help       print this help text
+  --verbose       turn on verbose
+  --ix            take number of ev as output name, rather than actual event name. This can be
+                  useful in cases where your events consist of long float numbers
     
 Examples:
-    # simple call
-    call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2
+  # simple call
+  call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2
 
-    # use event index as output name
-    call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2 --ix
+  # use event index as output name
+  call_onsets2fsl --in $DIR_DATA_HOME/sub-001/ses-2 --ix
 
-    # relevant onset time was in phase=0
-    call_onsets2fsl \
-        --in $DIR_DATA_HOME/sub-001/ses-2/sub-001_task-stim_run-1_events.tsv \
-        --phase-onset 0
+  # relevant onset time was in phase=0
+  call_onsets2fsl \
+      --in $DIR_DATA_HOME/sub-001/ses-2/sub-001_task-stim_run-1_events.tsv \
+      --phase-onset 0
 
 ---------------------------------------------------------------------------------------------------
 """

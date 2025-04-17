@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 try:
     from nighres import (
-        parcellation,
         data,
-        registration
+        parcellation,
+        registration,
     )
 except Exception:
     raise ImportError(f"Could not import 'nighres'.. Please install")
 
+import os
 import sys
 import getopt
-import os
 import pathlib
 from lazyfmri import utils
 from fmriproc import image
@@ -80,77 +80,78 @@ If you have these files, make sure you name them accordingly. The script will lo
 number)
 
 Mandatory (required input):
-    --r1            File representing the R1-map (= 1/T1-map)
-    --r2s           File representing the R2s-map (= 1/T2*-map)
-    --qsm           File representing the QSM map
+  --r1            File representing the R1-map (= 1/T1-map)
+  --r2s           File representing the R2s-map (= 1/T2*-map)
+  --qsm           File representing the QSM map
 
-    OR:
-    -i|--inputdir   automatically search for files in the anatomy folder. Files should have the 
-                    following suffixes:
+  OR:
+  -i|--inputdir   automatically search for files in the anatomy folder. Files should have the 
+                  following suffixes:
 
-                    pattern_map = {
-                        "qr1": "R1.nii.gz",
-                        "qr2s": "R2s.nii.gz",
-                        "qsm": "QSM.nii.gz",
-                    }
+                  pattern_map = {
+                    "qr1": "R1.nii.gz",
+                    "qr2s": "R2s.nii.gz",
+                    "qsm": "QSM.nii.gz",
+                  }
 
-                    Alternatively, individual files can be specified with --r1, --r2s, and --qsm
+                  Alternatively, individual files can be specified with --r1, --r2s, and --qsm
 
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'massp'))
-    -b|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
-    -x|--kwargs     Extra arguments that will be directly passed to 'embedded_antspy_multi'. The
-                    format should be as follows: different parameters comma-separated, and
-                    parameter-value pair separated by '='):
-                    
-                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+Optional:
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'massp'))
+  -b|--name       basename for output (default is "subject_acq-MP2RAGE_desc")
+  -x|--kwargs     Extra arguments that will be directly passed to 'embedded_antspy_multi'. The
+                  format should be as follows: different parameters comma-separated, and
+                  parameter-value pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-                    E.g.,:
-                        "-x rigid_iterations=10000,ignore_affine=False"
+                  E.g.,:
+                    "-x rigid_iterations=10000,ignore_affine=False"
 
-                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                    The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                  The kwargs specified in this flag take precedent over the default kwargs:
 
-                    defaults = {
-                        "run_rigid": True,
-                        "run_affine": True,
-                        "run_syn": True,
-                        "rigid_iterations": 1000,
-                        "affine_iterations": 500,
-                        "coarse_iterations": 180,
-                        "medium_iterations": 60,
-                        "fine_iterations": 30,
-                        "cost_function": "MutualInformation",
-                        "interpolation": "NearestNeighbor",
-                        "regularization": "High",
-                        "ignore_affine": True,
-                        "save_data": True
-                    }
+                  defaults = {
+                    "run_rigid": True,
+                    "run_affine": True,
+                    "run_syn": True,
+                    "rigid_iterations": 1000,
+                    "affine_iterations": 500,
+                    "coarse_iterations": 180,
+                    "medium_iterations": 60,
+                    "fine_iterations": 30,
+                    "cost_function": "MutualInformation",
+                    "interpolation": "NearestNeighbor",
+                    "regularization": "High",
+                    "ignore_affine": True,
+                    "save_data": True
+                  }
 
-    -p|--mkwargs    Extra arguments that will be directly passed to 'massp'. The format should be
-                    as follows: different parameters comma-separated, and parameter-value pair
-                    separated by '='):
-                    
-                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+  -p|--mkwargs    Extra arguments that will be directly passed to 'massp'. The format should be
+                  as follows: different parameters comma-separated, and parameter-value pair
+                  separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-                    E.g.,:
-                        "-x rigid_iterations=10000,ignore_affine=False"
+                  E.g.,:
+                    "-x rigid_iterations=10000,ignore_affine=False"
 
-                    This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                    The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
+                  The kwargs specified in this flag take precedent over the default kwargs:
 
-                    defaults = {
-                        "max_iterations": 120,
-                        "max_difference": 0.1,
-                        "save_data": True,
-                        "overwrite": False,
-                        "output_dir": "directory specified with -o|--outputdir",
-                        "file_name": "basename specified with -n|--name"
-                        "map_to_target": ants_file,
-                        "target_images": [input_files[k] for k in list(pattern_map)]
-                    }
+                  defaults = {
+                    "max_iterations": 120,
+                    "max_difference": 0.1,
+                    "save_data": True,
+                    "overwrite": False,
+                    "output_dir": "directory specified with -o|--outputdir",
+                    "file_name": "basename specified with -n|--name"
+                    "map_to_target": ants_file,
+                    "target_images": [input_files[k] for k in list(pattern_map)]
+                  }
         
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 
 Outputs
@@ -160,14 +161,14 @@ Outputs
     - max_label (niimg): Maximum probability labels (-massp_label)
 
 Example:
-    call_nighresmassp -s sub-001 -n 1 -i DIR_DATA_DERIV/pymp2rage -o $DIR_DATA_DERIV/nighres
-    call_nighresmassp \
-        --sub sub-001 \
-        --r1 r1map.nii.gz \
-        --r2s r2smap.nii.gz \
-        --qsm qsm.nii.gz \
-        --outputdir /path/to/nighres/sub-01/ses-1 \
-        --name other_prefix
+  call_nighresmassp -s sub-001 -n 1 -i DIR_DATA_DERIV/pymp2rage -o $DIR_DATA_DERIV/nighres
+  call_nighresmassp \
+    --sub sub-001 \
+    --r1 r1map.nii.gz \
+    --r2s r2smap.nii.gz \
+    --qsm qsm.nii.gz \
+    --outputdir /path/to/nighres/sub-01/ses-1 \
+    --name other_prefix
 
 ---------------------------------------------------------------------------------------------------
     """

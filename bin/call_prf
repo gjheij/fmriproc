@@ -7,14 +7,14 @@ import getopt
 from fmriproc import prf
 from lazyfmri import (
     utils,
-    dataset
+    dataset,
 )
-import numpy as np
 import os
-from scipy import io
 import sys
 import json
 import yaml
+import numpy as np
+from scipy import io
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -117,13 +117,13 @@ Wrapper for population receptive field fitting with pRFpy. If not present yet, i
 sign matrix based on a specified path to screenshots as outputted by the pRF-experiment script. If 
 you're not running that particular experiment, you'll need to create a design matrix yourself. As-
 sumes the input is BIDS compliant, as it will extract certain features from the filenames. Current-
-ly compatible with output from pybest (ending with "*desc-denoised_bold.npy") and from fMRIPrep (en-
-ding with "*bold.func.gii"). It will throw an error if neither of these conditions are met. If you 
-have a different case (e.g., nifti's), please open an issue so we can deal with that.
+ly compatible with output from pybest (ending with "*desc-denoised_bold.npy") and from fMRIPrep 
+(ending with "*bold.func.gii"). It will throw an error if neither of these conditions are met. If 
+you have a different case (e.g., nifti's), please open an issue so we can deal with that.
 
-We'll select files from the input directory based on 'space-' (check spinoza_setup)/'run-'/'task-IDs.
-They are then paired into left+right hemisphere. Finally, the median over all runs is calculated
-and inserted in the model-fitting object.
+We'll select files from the input directory based on 'space-' (check spinoza_setup)/'run-'/
+'task-IDs. They are then paired into left+right hemisphere. Finally, the median over all runs is 
+calculated and inserted in the model-fitting object.
 
 Strictly speaking, we only need a subject ID and the input directory with functional data (e.g.,
 fMRIPrep or Pybest). The output will be stored in a 'prf/<subject>/<ses>' folder, which is assu-
@@ -134,99 +134,98 @@ Usage:
   call_prf [mandatory] [optional] [options]
 
 Mandatory (required input):
-    -s|--sub        subject ID as used in FreeSurfer directory from which you can omit "sub-"
-                    (e.g.,for "sub-001", enter "001").
-    -i|--inputdir   input directory (e.g., output of pybest/fMRIPrep)
+  -s|--sub        subject ID as used in FreeSurfer directory from which you can omit "sub-"
+                  (e.g.,for "sub-001", enter "001").
+  -i|--inputdir   input directory (e.g., output of pybest/fMRIPrep)
 
 Optional (flags with defaults):
-    -n|--ses        session number (e.g., "1")
-    -t|--task       name of the experiment performed (e.g., "2R"). Default = 'pRF'. In any case,
-                    we expect files with 'sub-<sub_id>_task-<task_id>*' to exist.
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'prf'))
-    -j|--jobs       number of jobs to parallellize over (default = 5)
-    -p|--png        path to png's if you ran M. Aqil's experiment
-    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
-                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
-    -x|--kwargs     path to file containing arguments you want to set manually, rather than taking
-                    the settings in 'prf_analysis.yml'.
-    -u|--space      default is set as PYBEST_SPACE in spinoza_setup
-    -c|--constr     string or list representing the type of constraints to use for each stage
-                    (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
-                    but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
-                    specify a list, use the format: 
-                    
-                        '-c tc,bgfs'
-                        
-                    Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
-    --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
-                    but sometimes it's good to get rid of the initial transient
-    --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
-                    (if input = fMRIprep).
-    --folds         number of repeats WITHIN runs to average over. This can be used to increase
-                    SNR if your run consists of multiple equal bar-pass sequences
+  -n|--ses        session number (e.g., "1")
+  -t|--task       name of the experiment performed (e.g., "2R"). Default = 'pRF'. In any case,
+                  we expect files with 'sub-<sub_id>_task-<task_id>*' to exist.
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'prf'))
+  -j|--jobs       number of jobs to parallellize over (default = 5)
+  -p|--png        path to png's if you ran M. Aqil's experiment
+  -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                  models with '--gauss', '--dog', '--css', or '--norm' (see below).
+  -x|--kwargs     path to file containing arguments you want to set manually, rather than taking
+                  the settings in 'prf_analysis.yml'.
+  -u|--space      default is set as PYBEST_SPACE in spinoza_setup
+  -c|--constr     string or list representing the type of constraints to use for each stage
+                  (Gaussian and beyond). By default, we'll use trust-constr minimization ('tc'),
+                  but you can speed up the normalization fitting by using L-BGFS ('bgfs'). To
+                  specify a list, use the format: 
+                  
+                    '-c tc,bgfs'
+                      
+                  Use '--tc', '--bgfs', or '--nelder' to sync the minmizers across stages
+  --cut-vols      Number of volumes to remove at the beginning of the timeseries. Default is 0,
+                  but sometimes it's good to get rid of the initial transient
+  --tr            manually set repetition time (TR). Default = 1.5. Can be read from gifti files
+                  (if input = fMRIprep).
+  --folds         number of repeats WITHIN runs to average over. This can be used to increase
+                  SNR if your run consists of multiple equal bar-pass sequences
 
 Options (extra):
-    -h|--help       print this help text             
-    --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
-                    Use the -x flag if you want different minimizers for both stages
-    --bold          re-calculate BOLD timecourses; otherwise use 'hemi-LR_desc-avg_bold.npy' file
-    --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
-                    will need to calculate how many pixels are to be set to zero given the visual 
-                    field of the subject in the scanner (with a screensize of [1920,1080]px and 
-                    height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
-                    ensure it's read in like a list. Negative values will be set to zero.
-    --file-ending   Overwrite default search-targets from pybest/fMRIPrep output. E.g., for fMRI-
-                    Prep, we look for 'bold.func.gii' and 'desc-denoised_bold.npy' for Pybest. With
-                    <file-ending> you can specify to use the volumetric data from fMRIPrep (e.g., 
-                    preproc_bold.nii.gz [also requires different 'space-' flag!]). If volumetric
-                    data is supplied, we'll convert it to 2D with `linescanning.dataset.Dataset`.
-                    If you want to provide cifti's or nifti's, we assume everything's been prepro-
-                    cessed appropriately. There's no filtering, percent-signal changing or other
-                    stuff.
-    -g|--grid       only run a grid-fit with the specified model
-    --no-hrf        Do not fit the HRF during pRF-fitting. 
-    --nelder        Use Nelder-Mead minimization for both the Gaussian and Extended model.
-                    Use the -x flag if you want different minimizers for both stages
-    --separate-hrf  If `True`, the fitting will consist of two stages: first, a regular fitting 
-                    without HRF estimation. Then, the fitting object of that fit is inserted as 
-                    `previous_gaussian_fitter` into a new fitter object with HRF estimation turned 
-                    on. Default = False. This will ensure the baseline of periods without stimulus 
-                    are set to zero.
-    --fix-hrf       Fix the HRF after Gaussian iterative fit for further fitting.
-    --merge-ses     Pool the data across all sessions for averaging. 
-    --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
-                    bounds, causing 'inf' values. This is especially troublesome when fitting a
-                    single timecourse. If you trust your iterative fitter, you can turn off the 
-                    bounds and let the iterative take care of the parameters                    
-    --no-fit        Stop the process before fitting, right after saving out averaged data. This was 
-                    useful for me to switch to percent-signal change without requiring a re-fit.
-    --overwrite     If specified, we'll overwrite existing Gaussian parameters. If not, we'll look
-                    for a file with ['model-gauss', 'stage-iter', 'params.pkl'] in *output_dir* and,
-                    if it exists, inject it in the normalization model (if `model=norm`)  
-    --raw           use unzscore'd data from pybest; do not percent-signal change.
-    --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
-                    del. 
-                    Use the -x flag if you want different minimizers for both stages
-    --v1            only fit voxels from ?.V1_exvivo.thresh.label; the original dimensions will be 
-                    maintained, but timecourses outside of the ROI are set to zero
-    --v2            only fit voxels from ?.V2_exvivo.thresh.label; the original dimensions will be 
-                    maintained, but timecourses outside of the ROI are set to zero
-    -v|--verbose    print some stuff to a log-file
-    --zscore        Do NOT convert the data to percent signal change. If you do want percent signal
-                    change, the input directory needs to be unzscored data.
-                    PSC will be calculated following M. Aqil's strategy:
+  -h|--help       print this help text             
+  --bgfs          use L-BGFS minimization for both the Gaussian as well as the extended model. 
+                  Use the -x flag if you want different minimizers for both stages
+  --bold          re-calculate BOLD timecourses; otherwise use 'hemi-LR_desc-avg_bold.npy' file
+  --clip          clip the edges of design matrix in the space of 'n-pix' (by default = 100). You 
+                  will need to calculate how many pixels are to be set to zero given the visual 
+                  field of the subject in the scanner (with a screensize of [1920,1080]px and 
+                  height of 39.3cm). Format needs to be '--clip "a,b,c,d"' or --clip [a,b,c,d] to 
+                  ensure it's read in like a list. Negative values will be set to zero.
+  --file-ending   Overwrite default search-targets from pybest/fMRIPrep output. E.g., for fMRI-
+                  Prep, we look for 'bold.func.gii' and 'desc-denoised_bold.npy' for Pybest. With
+                  <file-ending> you can specify to use the volumetric data from fMRIPrep (e.g., 
+                  preproc_bold.nii.gz [also requires different 'space-' flag!]). If volumetric
+                  data is supplied, we'll convert it to 2D with `linescanning.dataset.Dataset`.
+                  If you want to provide cifti's or nifti's, we assume everything's been prepro-
+                  cessed appropriately. There's no filtering, percent-signal changing or other
+                  stuff.
+  -g|--grid       only run a grid-fit with the specified model
+  --no-hrf        Do not fit the HRF during pRF-fitting. 
+  --nelder        Use Nelder-Mead minimization for both the Gaussian and Extended model.
+                  Use the -x flag if you want different minimizers for both stages
+  --separate-hrf  If `True`, the fitting will consist of two stages: first, a regular fitting 
+                  without HRF estimation. Then, the fitting object of that fit is inserted as 
+                  `previous_gaussian_fitter` into a new fitter object with HRF estimation turned 
+                  on. Default = False. This will ensure the baseline of periods without stimulus 
+                  are set to zero.
+  --fix-hrf       Fix the HRF after Gaussian iterative fit for further fitting.
+  --merge-ses     Pool the data across all sessions for averaging. 
+  --no-bounds     Turn off grid bounds; sometimes parameters fall outside the grid parameter 
+                  bounds, causing 'inf' values. This is especially troublesome when fitting a
+                  single timecourse. If you trust your iterative fitter, you can turn off the 
+                  bounds and let the iterative take care of the parameters                    
+  --no-fit        Stop the process before fitting, right after saving out averaged data. This was 
+                  useful for me to switch to percent-signal change without requiring a re-fit.
+  --overwrite     If specified, we'll overwrite existing Gaussian parameters. If not, we'll look
+                  for a file with ['model-gauss', 'stage-iter', 'params.pkl'] in *output_dir* and,
+                  if it exists, inject it in the normalization model (if `model=norm`)  
+  --raw           use unzscore'd data from pybest; do not percent-signal change.
+  --tc            use trust-constr minimization for both the Gaussian as well as the extended mo-
+                  del. Use the -x flag if you want different minimizers for both stages
+  --v1            only fit voxels from ?.V1_exvivo.thresh.label; the original dimensions will be 
+                  maintained, but timecourses outside of the ROI are set to zero
+  --v2            only fit voxels from ?.V2_exvivo.thresh.label; the original dimensions will be 
+                  maintained, but timecourses outside of the ROI are set to zero
+  -v|--verbose    print some stuff to a log-file
+  --zscore        Do NOT convert the data to percent signal change. If you do want percent signal
+                  change, the input directory needs to be unzscored data.
+                  PSC will be calculated following M. Aqil's strategy:
 
-                        psc = signals*100/(mean(signals)) - median(signals_without_stimulus)
+                    psc = signals*100/(mean(signals)) - median(signals_without_stimulus)
 
-    --pyb-type      used in combination with '--merge-ses' to differentiate 'unzscored' or 'de-
-                    noised' files. Should be one of 'unzscored' or 'denoised'. If '--merge-ses' is
-                    not specified, the correct session files will be selected automatically
+  --pyb-type      used in combination with '--merge-ses' to differentiate 'unzscored' or 'de-
+                  noised' files. Should be one of 'unzscored' or 'denoised'. If '--merge-ses' is
+                  not specified, the correct session files will be selected automatically
 
 Models:
-    --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
-    --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
-    --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
-    --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+  --gauss         run standard Gaussian model (default) [Dumoulin & Wandell, 2008]
+  --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
+  --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
+  --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
 
 Example:
   call_prf \
@@ -245,7 +244,7 @@ Example:
     --inputdir /path/to/pybest/sub-001
 
 Notes:
-    see docs: https://fmriproc.readthedocs.io/en/latest/classes/prf.html#fmriproc.prf.pRFmodelFitting
+  see docs: https://fmriproc.readthedocs.io/en/latest/classes/prf.html#fmriproc.prf.pRFmodelFitting
 
 ---------------------------------------------------------------------------------------------------
     """

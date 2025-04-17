@@ -67,6 +67,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;      
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}

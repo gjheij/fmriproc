@@ -8,29 +8,36 @@ from lazyfmri import utils
 opj = os.path.join
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_ribbon2mrvista
 
-This script converts the ribbon.mgz file as created by FreeSurfer to the MrVista compatible segmen-
-tation file
+Convert FreeSurfer's `ribbon.mgz` file to a segmentation format compatible with MrVista/ITKGray. 
+The segmentation is first aligned to native (rawavg) space using `mri_label2vol`, then converted to 
+NIfTI format, and finally re-coded to follow MrVista conventions.
 
-Args:
-    <input file>        path to ribbon.mgz file
-    <output file>       path to output segmentation file
+The following label conversions are applied:
 
-Outputs
-    output file         new volume containing the correct values for gray and white matter:
-                        LW: 2 => 3
-                        LG: 3 => 5
-                        RW: 41 => 4
-                        RG: 42 => 6
+  - Left White Matter  (2)  ➜  3
+  - Left Gray Matter   (3)  ➜  5
+  - Right White Matter (41) ➜  4
+  - Right Gray Matter  (42) ➜  6
 
-See: http://web.stanford.edu/group/vista/cgi-bin/wiki/index.php/FreeSurfer#Extracting_a_white_matter_segmentation_to_use_with_itkGray                     
+For details, see: 
+http://web.stanford.edu/group/vista/cgi-bin/wiki/index.php/FreeSurfer#Extracting_a_white_matter_segmentation_to_use_with_itkGray
+
+Usage:
+  call_ribbon2mrvista <ribbon_file> <output_segmentation>
+
+Arguments:
+  <ribbon_file>   Path to FreeSurfer's ribbon.mgz file
+  <out_seg>       Path to output file (.nii or .nii.gz); must end in .nii or .nii.gz
+
+Outputs:
+  A NIfTI file with MrVista-style label values, suitable for visualization and segmentation in ITKGray.
 
 Example:
-    call_ribbon2mrvista ribbon.mgz itk_segmentation.nii
+  call_ribbon2mrvista $SUBJECTS_DIR/sub-01/mri/ribbon.mgz sub-01_itk_segmentation.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -39,7 +46,6 @@ Example:
     out_file    = None
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

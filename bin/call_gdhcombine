@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import os
-from nilearn import image
-from scipy import ndimage
 import sys
 import getopt
+from nilearn import image
+from scipy import ndimage
 from lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -27,46 +27,46 @@ Usage:
   call_gdhcombine [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    --sub           subject ID
-    --fast          directory containing segmentations from FAST (either from spinoza_segmentfast,
-                    or an fMRIPrep folder with segmentations)
-    --nighres       directory containing segmentations from Nighres
+  --sub           subject ID
+  --fast          directory containing segmentations from FAST (either from spinoza_segmentfast,
+                  or an fMRIPrep folder with segmentations)
+  --nighres       directory containing segmentations from Nighres
 
-    OR:
-    --ses           session ID; if specified, we will aim to read the environmental variables poin-
-                    ting to the segmentations:
-                        - fast: DIR_DATA_DERIV/fmriprep/<subject>/<session>/anat
-                        - FreeSurfer: DIR_DATA_DERIV/freesurfer/<subject>
-                        - Nighres: DIR_DATA_DERIV/nighres/<subject>/<session>/region
-                        - CAT12: DIR_DATA_DERIV/cat12/<subject>/<session>
+  OR:
+  --ses           session ID; if specified, we will aim to read the environmental variables poin-
+                  ting to the segmentations:
+                    - fast: DIR_DATA_DERIV/fmriprep/<subject>/<session>/anat
+                    - FreeSurfer: DIR_DATA_DERIV/freesurfer/<subject>
+                    - Nighres: DIR_DATA_DERIV/nighres/<subject>/<session>/region
+                    - CAT12: DIR_DATA_DERIV/cat12/<subject>/<session>
 
-                    In case you didn't use "ses" tag in your BIDS naming, use "--ses none"
+                  In case you didn't use "ses" tag in your BIDS naming, use "--ses none"
 
 Optional (flags with defaults):
-    --fs            directory containing segmentations from FreeSurfer. Defaults to SUBJECT_DIR/
-                    <subject>
-    --cat           directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
-    -d|--manual     directory containing manual edits
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'masks'))
-    -n|--name       basename for output (default is "<subject>_ses-<session>_acq-MP2RAGE_desc")
+  --fs            directory containing segmentations from FreeSurfer. Defaults to SUBJECT_DIR/
+                  <subject>
+  --cat           directory in DIR_DATA_DERIV containing labels from CAT12 (optional!)
+  -d|--manual     directory containing manual edits
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'masks'))
+  -n|--name       basename for output (default is "<subject>_ses-<session>_acq-MP2RAGE_desc")
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Example:
-    # simple call; let environmental variables do the work
-    call_gdhcombine --sub sub-01 --ses 1
+  # simple call; let environmental variables do the work
+  call_gdhcombine --sub sub-01 --ses 1
 
-    # specify all inputs
-    call_gdhcombine \
-        --sub sub-01
-        --cat cat12/sub-01/ses-1
-        --fast fmriprep/sub-01/ses-1/anat
-        --fs freesurfer/sub-01
-        --nighres nighres/sub-01/ses-1/cruise
-        --manual manual_masks/sub-01/ses-1
-        --outputdir manual_masks/sub-01/ses-1
-        --name sub-01_ses-1_acq-MP2RAGE
+  # specify all inputs
+  call_gdhcombine \
+      --sub sub-01
+      --cat cat12/sub-01/ses-1
+      --fast fmriprep/sub-01/ses-1/anat
+      --fs freesurfer/sub-01
+      --nighres nighres/sub-01/ses-1/cruise
+      --manual manual_masks/sub-01/ses-1
+      --outputdir manual_masks/sub-01/ses-1
+      --name sub-01_ses-1_acq-MP2RAGE
 
 ---------------------------------------------------------------------------------------------------
     """

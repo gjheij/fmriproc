@@ -9,19 +9,30 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_getsingleslice
 
-This super short script fetches the requested volume along the last axis. The slice image will nor-
-mally be 720x720x1x3, so we need to extract from the last axis.
+This super short script fetches a specific 3D volume from a 4D NIfTI file. The extraction is done
+along the last axis (typically time or volume index), producing a new NIfTI file containing only 
+the selected volume. This is useful when you want to isolate a single scan from a 4D series for 
+visualization, analysis, or manual inspection.
 
 Args:
-    <input file>        string-like path to file to extract from
-    <output file>       string-like path to output new volume to
-    <volume nr>         n'th volume to extract from input file
+  <input file>    string-like path to file to extract from (4D NIfTI image)
+  <output file>   string-like path to output new volume to
+  <volume nr>     integer representing the volume index (zero-based) to extract
 
-Outputs
-    output file         new volume containing the extracted data from input file
+Outputs:
+    output file   new 3D NIfTI file containing the extracted volume from the input
+
+Usage:
+    call_getsingleslice <input file> <output file> <volume index>
 
 Example:
-    call_getsingleslice input.nii.gz output.nii.gz 0
+  call_getsingleslice input.nii.gz output.nii.gz 0
+      → Extracts the first volume from input.nii.gz and saves it as output.nii.gz
+
+Notes:
+  - Volume indices start at 0
+  - Output will preserve original header and affine transformation from the input
+  - The script assumes that the input file is a valid 4D NIfTI image
 
 ---------------------------------------------------------------------------------------------------
     """

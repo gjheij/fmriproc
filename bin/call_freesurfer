@@ -25,47 +25,47 @@ Usage:
   call_freesurfer [arguments] [options]
 
 Mandatory (required input):
-  -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
-  -t <t1 input>       T1-weighted image (not necessary if you're running debugging mode)
+  -s <subj ID>    subject ID as per output of FreeSurfer (e.g., 'sub-001')
+  -t <t1 input>   T1-weighted image (not necessary if you're running debugging mode)
 
 Optional (flags with defaults):
-  -p <t2 input>       T2-weighted image (not necessary, but recommended for better pial-surface
-                      segmentation
-  -r <recon stage>    Which stage of recon-all should be run; combinations are possible!
-                      Possible options are:
-                        'all' = all stages (Perform all reconstruction steps, including
-                                subcortical segmentation) [default]
-                        '1'   = autorecon1 (Motion correction through skull strip)
-                        '2'   = autorecon2 (Subcortical segmentation through make final
-                                surfaces)
-                        '3'   = autorecon3 (Cortical parcellation)
-                        '12'  = autorecon1 and autorecon2 (do your edits after this step)
-                        '23'  = autorecon2 and autorecon3 (perform any edits and re-run with
-                                '-e flag')
-  -e <edit type>      What type of edit did you perform after autorecon2?
-                      Possible options are:
-                        'cp'  = you made normalization edits  > runs -autorecon2-cp
-                        'wm'  = you made white matter edits   > runs -autorecon2-wm
-                        'pial'= you made pial edits           > runs -autorecon-pial
-                        'aseg'= edits to aseg.presurf.mgz     > runs -autorecon2-noaseg
-  -j <cpus>           number of cores to use (default is 1)
-  -o <other editing>  Here you can specify the gcut-option to remove latched on pial surface
-  -x <expert opts>    expert option file that maps to '-expert'. 
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -p <t2 input>   T2-weighted image (not necessary, but recommended for better pial-surface
+                  segmentation
+  -r <stage>      Which stage of recon-all should be run; combinations are possible!
+                  Possible options are:
+                    'all' = all stages (Perform all reconstruction steps, including
+                            subcortical segmentation) [default]
+                    '1'   = autorecon1 (Motion correction through skull strip)
+                    '2'   = autorecon2 (Subcortical segmentation through make final
+                            surfaces)
+                    '3'   = autorecon3 (Cortical parcellation)
+                    '12'  = autorecon1 and autorecon2 (do your edits after this step)
+                    '23'  = autorecon2 and autorecon3 (perform any edits and re-run with
+                            '-e flag')
+  -e <edit type>  What type of edit did you perform after autorecon2? Possible options are:
+                    'cp'  = you made normalization edits  > runs -autorecon2-cp
+                    'wm'  = you made white matter edits   > runs -autorecon2-wm
+                    'pial'= you made pial edits           > runs -autorecon-pial
+                    'aseg'= edits to aseg.presurf.mgz     > runs -autorecon2-noaseg
+  -j <cpus>       number of cores to use (default is 1)
+  -o <other>      Here you can specify the gcut-option to remove latched on pial surface
+  -x <expt file>  expert option file that maps to '-expert'. See:
+                  \REPO_DIR/misc/example_experts.opts
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
 
 Options:
-  -h|--help           print this help text
-  --freeview          Open FreeView automatically (default is NO!)
-  --force-exec        Force execution even though directory exists already
-  --sge               Submit the script to a cluster using a template script
-  --local             Force local processing even though cluster is available
-  --no-t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
-                      '-r'. By default, we'll re-use the T2 if present. Same flag should be 
-                      used for not re-using FLAIR images
-  --no-highres        Turn of highres mode by setting '-highres' flag empty
-  --xopts-use         maps to '-xopts-use' for existing expert option file; use existing file
-  --xopts-clean       maps to '-xopts-clean' for existing expert option file; delete existing 
-                      file
+  -h|--help       print this help text
+  --freeview      Open FreeView automatically (default is NO!)
+  --force-exec    Force execution even though directory exists already
+  --sge           Submit the script to a cluster using a template script
+  --local         Force local processing even though cluster is available
+  --no-t2         Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
+                  '-r'. By default, we'll re-use the T2 if present. Same flag should be 
+                  used for not re-using FLAIR images
+  --no-highres    Turn of highres mode by setting '-highres' flag empty
+  --xopts-use     maps to '-xopts-use' for existing expert option file; use existing file
+  --xopts-clean   maps to '-xopts-clean' for existing expert option file; delete existing 
+                  file
   --xopts-overwrite   maps to '-xopts-overwrite' for existing expert option file; use new file
 
 Instructions for editing (from Andrew Jahn's YouTube series):
@@ -213,6 +213,7 @@ if [[ -z ${SUBJECTS_DIR} ]]; then
 fi
 
 if [[ -z ${subj_ID} ]]; then
+  Usage
   echo "Whatever you want to do, I'll always need a subject ID"
   exit 1
 fi
@@ -249,7 +250,13 @@ fi
 
 #-----------------------------------------------------------------------------
 # Create function that submits or runs stuff locally
-CMD(){
+define_fs_command(){
+
+  local subj_id="${1}"
+  local stage_id="${2}"
+  local stage_flag="${3}"
+  local t1_flag="${4}"
+  local t2_flag="${5}"
 
   # $1 = subject ID (subj_ID)
   # $2 = stage nr
@@ -271,7 +278,7 @@ CMD(){
   fi
 
   # delete previously existing file
-  fs_script=${PATH_HOME}/freesurfer/${PROJECT}/${1}_stage-${2}.sh
+  fs_script=${PATH_HOME}/freesurfer/${PROJECT}/${subj_id}_stage-${stage_id}.sh
   echo $fs_script
   if [[ -f ${fs_script} ]]; then
     rm -r ${fs_script}
@@ -295,17 +302,33 @@ CMD(){
     QUEUE=${SGE_QUEUE_LONG}
   fi    
   
-  # echo "${SUBJECTS_DIR}"
-  (
-  echo "#!/bin/bash"
-  echo ""
-  echo "export SUBJECTS_DIR=${SUBJECTS_DIR}"
-  echo "recon-all -subjid ${1} ${4} ${highres_flag} ${parallel_flag} ${mp_flag} ${3} ${5} ${expert_flag} ${XOPTS_}"
-  ) > ${fs_script}
+# Generate recon-all script
+cat <<EOF > "${fs_script}"
+#!/bin/bash
+
+export SUBJECTS_DIR="${SUBJECTS_DIR}"
+
+recon-all \\
+  -subjid ${subj_id} \\
+  ${t1_flag} \\
+  ${highres_flag} \\
+  ${parallel_flag} \\
+  ${mp_flag} \\
+  ${stage_flag} \\
+  ${t2_flag} \\
+  ${expert_flag} \\
+  ${XOPTS_}
+EOF
   
   if [[ ${run_local} -eq 0 ]]; then
   
-    submit=$(generate_submission_command "${QUEUE}" "${n_cpus}" "$(basename ${fs_script} .sh)" "$(dirname ${fs_script})")
+    submit=$(
+      generate_submission_command \
+      "${QUEUE}" \
+      "${n_cpus}" \
+      "$(basename ${fs_script} .sh)" \
+      "$(dirname ${fs_script})"
+    )
   
     ${submit} ${fs_script}
     echo "Now wait until the program has finished and do some editing in FreeView if required."
@@ -326,7 +349,7 @@ CMD(){
 
 }
 
-CHECK_INPUTS(){
+validate_inputs(){
 
   T1_flag=""
   T2_flag=""
@@ -390,14 +413,14 @@ CHECK_INPUTS(){
 
 }
 
-ISRUNNING(){
+check_is_running(){
   is_running=${SUBJECTS_DIR}/${subj_ID}/scripts/IsRunning.lh+rh
   if [[ -f ${is_running} ]]; then
     rm -r ${is_running}
   fi
 }
 
-CHECK_EXECUTION(){
+check_execution(){
 
   # execute either when there's no directory, or when there's no files in /surf, or force-exec=1
   execute=0
@@ -436,11 +459,15 @@ fi
 if [[ ! -z ${option} ]]; then
 
   if [ ! -d ${SUBJECTS_DIR}/${subj_ID} ]; then
-    echo "You're trying to run gcut (i presume) before running recon-all..?"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "gcut" "You're trying to run gcut (i presume) before running recon-all..?"
     exit 1
   else
     if [[ ${option} != "gcut" ]]; then
-      echo "Have not implemented ${option}, yet. Please specify \"gcut\" if this is what you wanted"
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "option" "Option '${option}' is not implemented (yet). Please specify \"gcut\" if this is what you wanted or open an issue"
       exit 1
     fi
   fi
@@ -454,21 +481,19 @@ if [[ ! -z ${option} ]]; then
     echo "Running gcut .."
     recon-all -skullstrip -clean-bm -gcut -s ${subj_ID}
   else
-    echo "You specifed \"-e\" for the gcut option.. This is not necessary"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "input" "You specifed \"-e\" for the gcut option.. This is not necessary"
     exit 1
   fi
 
   if [[ ${FREEVIEW} -eq 1 ]]; then
 
-    if [[ $? == 0 ]]; then
-      echo "Opening Freeview .."
-      call_freeview ${subj_ID}
-    else
-      echo "you do not have the call_freeview script where it's supposed to be"
-      echo "place it in \"${DIR_SCRIPTS}/bin\""
-      exit 1
-    fi
+    # open FreeView
+    echo "Opening Freeview .."
+    call_freeview "${subj_ID}"
 
+    # rerun
     echo "Run recon-all again or not [n] = no, [y] = yes"
     while : ; do
       read -n 1 k <&1
@@ -477,39 +502,54 @@ if [[ ! -z ${option} ]]; then
         break
       elif [[ ${k} = y ]]; then
         echo "Running recon stage 2+3 with gcut option"
-        CMD "${subj_ID}" "23" "-autorecon2 -autorecon3"
+        
+        # define command
+        define_fs_command \
+          "${subj_ID}" \
+          "23" \
+          "-autorecon2 -autorecon3"
 
       else
-        echo "Unknown option. Something weird happened.."
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "unknown" "Unknown option, something weird happened"
         exit 1
       fi
     done
-
   fi
 
 # do all other things when -o is not specified
 else
 
   if [[ -z ${stage} ]]; then
-    echo "What stage do you want to run? Please specify the \"-r\"-flag"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "stage" "Please specify a stage with the '-r' flag"
     exit 1
   fi
 
   if [[ ${stage} == "all" ]]; then
 
     # check for T1 and T2
-    CHECK_INPUTS ${stage}
+    validate_inputs "${stage}"
 
     if [[ ! -z ${edit} ]]; then
       echo "You want to run all stages of recon-all but specified the \"edit\" flag. This is not necessary"
     fi
 
     # check execution; sets 'execution' and 'reason' variables
-    CHECK_EXECUTION
+    check_execution
 
     if [[ ${execute} -eq 1 ]]; then
       echo "Reason to execute: ${reason}"
-      CMD "${subj_ID}" "${stage}" "-all" "${T1_flag}" "${T2_flag}"
+
+      # define command
+      define_fs_command \
+        "${subj_ID}" \
+        "${stage}" \
+        "-all" \
+        "${T1_flag}" \
+        "${T2_flag}"
     else
       echo "This step is already complete; use '--force-exec' to force execution"    
     fi
@@ -517,24 +557,30 @@ else
   elif [[ ${stage} == "12" ]]; then
 
     # check for T1 and T2
-    CHECK_INPUTS ${stage}
+    validate_inputs "${stage}"
 
     # remove running job
-    ISRUNNING
+    check_is_running
 
     if [[ ! -z ${edit} ]]; then
       echo "You want to run all stages of recon-all but specified the \"edit\" flag. This is not necessary"
     fi
-
-    CMD "${subj_ID}" "${stage}" "-autorecon1 -autorecon2" "${T1_flag}" "${T2_flag}"
+    
+    # define command
+    define_fs_command \
+      "${subj_ID}" \
+      "${stage}" \
+      "-autorecon1 -autorecon2" \
+      "${T1_flag}" \
+      "${T2_flag}"
 
   elif [ ${stage} == "23" ]; then
 
     # check for T1 and T2 flags; the actual inputs are not required, but the flags must be present 
-    CHECK_INPUTS ${stage}
+    validate_inputs "${stage}"
 
     # remove running job
-    ISRUNNING
+    check_is_running
 
     if [[ ! -z ${edit} ]]; then
 
@@ -558,19 +604,32 @@ else
       edit_flag="-autorecon2 -autorecon3"
     fi
 
-    CMD "${subj_ID}" "${stage}" "${edit_flag}" "${T1_flag}" "${T2_flag}"
+    # define command
+    define_fs_command \
+      "${subj_ID}" \
+      "${stage}" \
+      "${edit_flag}" \
+      "${T1_flag}" \
+      "${T2_flag}"
 
   elif [[ ${stage} == "1" ]]; then
 
     # check for T1 and T2
-    CHECK_INPUTS ${stage}
+    validate_inputs "${stage}"
 
     # check execution; sets 'execution' and 'reason' variables
-    CHECK_EXECUTION
+    check_execution
 
     if [[ ${execute} -eq 1 ]]; then
       echo "Reason to execute: ${reason}"
-      CMD "${subj_ID}" "${stage}" "-autorecon1" "${T1_flag}" "${T2_flag}"
+
+      # define command
+      define_fs_command \
+        "${subj_ID}" \
+        "${stage}" \
+        "-autorecon1" \
+        "${T1_flag}" \
+        "${T2_flag}"
     else
       echo "This step is already complete; use '--force-exec' to force execution"
     fi
@@ -578,20 +637,29 @@ else
   elif [[ ${stage} == "2" ]]; then
 
     # remove running job
-    ISRUNNING
+    check_is_running
 
-    CMD "${subj_ID}" "${stage}" "-autorecon2"
+    # define command
+    define_fs_command \
+      "${subj_ID}" \
+      "${stage}" \
+      "-autorecon2"
 
   elif [[ ${stage} == "3" ]]; then
 
-      # remove running job
-    ISRUNNING
+    # remove running job
+    check_is_running
 
     # check for T1 and T2
-    CHECK_INPUTS ${stage}
+    validate_inputs "${stage}"
 
-    CMD "${subj_ID}" "${stage}" "-autorecon3" "${T1_flag}" "${T2_flag}"
+    # define command
+    define_fs_command \
+      "${subj_ID}" \
+      "${stage}" \
+      "-autorecon3" \
+      "${T1_flag}" \
+      "${T2_flag}"
 
   fi
-
 fi

@@ -8,29 +8,42 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_ses1_to_motion1
 
-This script warps session 1 anatomy as per output for pymp2rage to the first multi-slice image of 
-a given session
+Warp the anatomical image from session 1 to the first motion image ("motion1") of a later session
+(e.g., session 2). This is useful when motion correction requires anatomical alignment across sessions.
 
-It will look for the following files:
-  - ses-1 anat: derivatives/<anat_stage>/<subject>/ses-1  (uses 'find_hierarchical_anatomy' func-
-                tion if certain stages are not present. Will look in 'denoised' first, then 'pymp-
-                2rage', then 'anat' in DIR_DATA_HOME)
-  - ses-X anat: $DIR_DATA_HOME/<subject>/ses-X/anat/*motion1*
+The script uses a hierarchical search strategy to locate the T1-weighted image from session 1, looking
+in the following folders in priority order:
 
-And output a transformation matrix as:
-  $CTX/transforms/<subject>_from-ses1_to-motion1_desc-genaff.mat
+  1. derivatives/denoised/<subject>/ses-1
+  2. derivatives/pymp2rage/<subject>/ses-1
+  3. <DIR_DATA_HOME>/<subject>/ses-1/anat
 
-Arguments:
-  <subject>    subject ID, e.g., sub-001
-  <ses nr>     session number, e.g., 2
+It will also locate the first motion image in:
+
+  - <DIR_DATA_HOME>/<subject>/ses-<X>/anat/*motion1*.nii.gz
+
+If both images are found, a rigid-body registration is performed using ANTs, and the resulting
+transformation matrix is saved to:
+
+  <CTX>/<subject>/transforms/<subject>_from-ses1_to-ses<X>_rec-motion1_desc-genaff.mat
 
 Usage:
   call_ses1_to_motion1 <subject> <ses_nr>
 
+Arguments:
+  <subject>       Subject ID (e.g., sub-001)
+  <ses_nr>        Session number to align to (e.g., 2)
+
 Example:
   call_ses1_to_motion1 sub-001 2
 
+Outputs:
+  - Transformation matrix (MAT) for rigid alignment from ses-1 to motion1 of the given session
+  - Print message to inspect registration in ITK-SNAP
+
 ---------------------------------------------------------------------------------------------------
+
+USAGE
 
 USAGE
   exit 1
@@ -40,24 +53,56 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
+subj_id="${1}"
+ses_id="${2}"
+
 #-----------------------------------------------------------------------------
 # Check some directories/files
-if [[ ! -d $CTX/${1} ]]; then
-  call_ctximport -s ${1}
+if [[ ! -d $CTX/${subj_id} ]]; then
+  call_ctximport -s ${subj_id}
 fi
 
 # find anatomy directory hierarchically
 INPUT_DIR=$(find_hierarchical_anatomy 3)
 
-ses1=$(find ${INPUT_DIR}/${1}/ses-1 -type f -name "${1}*" -and -name "*T1w.nii.gz" 2>/dev/null)
-ses2=$(find ${DIR_DATA_HOME}/${1}/ses-${2}/anat -type f -name "${1}*" -and -name "*motion1*" -and -name "*.nii.gz" 2>/dev/null)
+#-----------------------------------------------------------------------------
+# reference session
+ses1=$(
+  find "${INPUT_DIR}/${subj_id}/ses-1" \
+  -type f \
+  -name "${subj_id}*" \
+  -and -name "*T1w.nii.gz" \
+  2>/dev/null
+)
 
-if [[ -z ${ses1} ]] || [[ -z ${ses2} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find ses-1 or ses-${2} anatomy"
+if [[ -z ${ses1} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ses-1" "Could not find ses-1 image with \"${subj_id}*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${INPUT_DIR}/${subj_id}/ses-1${RESET}"
   exit 1
 fi
 
-aff=${CTX}/${1}/transforms/${1}_from-ses1_to-ses${2}_rec-motion1_desc-genaff.mat
+#-----------------------------------------------------------------------------
+# target session
+ses2=$(
+  find ${DIR_DATA_HOME}/${subj_id}/ses-${ses_id}/anat \
+  -type f \
+  -name "${subj_id}*" \
+  -and -name "*motion1*" \
+  -and -name "*.nii.gz" \
+  2>/dev/null
+)
+
+if [[ -z ${ses2} ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ses-${ses_id}" "Could not find ses-${ses_id} image with \"${subj_id}*\", \"*motion1*\" and \"*.nii.gz\" in ${BOLD_GREEN}${DIR_DATA_HOME}/${subj_id}/ses-${ses_id}/anat${RESET}"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# define output
+aff=${CTX}/${subj_id}/transforms/${subj_id}_from-ses1_to-ses${ses_id}_rec-motion1_desc-genaff.mat
 if [[ ! -d $(dirname ${aff}) ]]; then
   mkdir -p $(dirname ${aff})
 fi

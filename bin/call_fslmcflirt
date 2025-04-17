@@ -14,16 +14,16 @@ Wrapper for MCFLIRT using fMRIPrep-style default options. These will be overwrit
 
 This script runs motion correction using FSL's MCFLIRT tool with the following defaults:
   - cost function: normcorr
-  - smoothing:     1 mm
-  - stages:        3
-  - refvol:        first volume (automatically extracted)
-  - outputs:       motion matrices, motion plots, and summary report
+  - smoothing:    1 mm
+  - stages:       3
+  - refvol:       first volume (automatically extracted)
+  - outputs:      motion matrices, motion plots, and summary report
 
 Usage:
   call_fslmcflirt <4D-nifti> [additional mcflirt options]
 
 Arguments:
-  <4D-nifti>     Path to the input 4D NIfTI file
+  <4D-nifti>      Path to the input 4D NIfTI file
 
 Optional:
   You can pass any other MCFLIRT options after the input file.
@@ -42,6 +42,7 @@ if [[ $# -lt 1 ]]; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
 # check if input exists
 input="${1}"
 if [[ ! -f ${input} ]]; then
@@ -55,6 +56,7 @@ fi
 
 shift
 
+#-----------------------------------------------------------------------------
 # Parse additional args
 extra_args=("$@")
 arg_str="${extra_args[*]}"
@@ -77,6 +79,7 @@ if [[ ! "${arg_str}" =~ "-refvol" ]]; then
   extra_args+=("-refvol" "${ref}")
 fi
 
+#-----------------------------------------------------------------------------
 # Add fMRIPrep-style defaults if not set
 [[ ! "${arg_str}" =~ "-cost" ]]    && extra_args+=("-cost" "normcorr")
 [[ ! "${arg_str}" =~ "-smooth" ]]  && extra_args+=("-smooth" "1")
@@ -91,7 +94,7 @@ cmd=(
   -in "${input}" 
   "${extra_args[@]}"
 )
-
+#-----------------------------------------------------------------------------
 # Print and run
 echo "Running McFlirt with command:"
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"

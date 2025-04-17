@@ -24,33 +24,33 @@ Usage:
                   -r <reference>
 
 Mandatory:
-  -s <subj ID>        subject ID as per output of FreeSurfer (e.g., 'sub-001')
-  -i <input dir/file> Input file or path to FEAT-directory (can also be group-directory, but in that 
-                      case it should be specified up to the dir.gfeat/cope?.feat-directory). Whatever 
-                      you named the stats-map; make sure you have something with "zstat?" in it.. If 
-                      you have completely changed the name (while keeping zstat? [!!!]), use the '-a' 
-                      flag.
-                      If you specify a gfeat directory, you have to specify some registration file to
-                      on of the subjects, and warp it to the surface from there. So if you want to
-                      warp the group-file to the surface:
-                        - warp zstat to sub-xxx (-s sub-xxx)
-                        - warp zstat_space-subxxx to surface of fsaverage
-  -w <warp file>      h5 (or other) warp file mapping your stats file to T1w-space.
+  -s <subj ID>    subject ID as per output of FreeSurfer (e.g., 'sub-001')
+  -i <dir/file>   Input file or path to FEAT-directory (can also be group-directory, but in that 
+                  case it should be specified up to the dir.gfeat/cope?.feat-directory). Whatever 
+                  you named the stats-map; make sure you have something with "zstat?" in it.. If 
+                  you have completely changed the name (while keeping zstat? [!!!]), use the '-a' 
+                  flag.
+                  
+                  If you specify a gfeat directory, you have to specify some registration file to
+                  on of the subjects, and warp it to the surface from there. So if you want to
+                  warp the group-file to the surface:
+                    - warp zstat to sub-xxx (-s sub-xxx)
+                    - warp zstat_space-subxxx to surface of fsaverage
+  -w <warp file>  h5 (or other) warp file mapping your stats file to T1w-space.
 
 Optional:
-  -f <fsdir>          path to freesurfer directory; if left empty > reads SUBJECTS_DIR
-  -o <output dir>     by default in 'freesurfer/fsaverage/volumes'
-  -r <reference>      reference file on which the <warp file> is based. If not specified, it will look
-                      for the preprocessed anatomical file from fMRIPrep in the folder from <warp file>.
-                      If that's empty, I'll assume the input is a FEAT-directory, in which case it will
-                      look for the highres.nii.gz file in <FEAT>/reg.
-  -a <str>            here you can specify substring to look for the statistical image. If you do not 
-                      want to use the standard rendered_thresh_zstat1.nii.gz, add some more search cri-
-                      teria. For now, please use only 1 extra search parameter.. (leave this empty if 
-                      you want to use the regular rendered_thresh_zstat?.nii.gz images)
-  -t <thresh>         threshold rendered stats map? Leave empty to skip thresholding. Skipping will
-                      show both the negative and positive values of the zstat-image on the surface
-  -q <some suffix>    string to add to the .gii files to differentiate?
+  -f <fsdir>      path to freesurfer directory; if left empty > reads SUBJECTS_DIR
+  -o <output dir> by default in 'freesurfer/fsaverage/volumes'
+  -r <reference>  reference file on which the <warp file> is based. If not specified, it will look
+                  for the preprocessed anatomical file from fMRIPrep in the folder from <warp file>. If that's empty, I'll assume the input is a FEAT-directory, in which case 
+                  it will look for the highres.nii.gz file in <FEAT>/reg.
+  -a <str>        here you can specify substring to look for the statistical image. If you do not 
+                  want to use the standard rendered_thresh_zstat1.nii.gz, add some more search cri-
+                  teria. For now, please use only 1 extra search parameter.. (leave this empty if 
+                  you want to use the regular rendered_thresh_zstat?.nii.gz images)
+  -t <thresh>     threshold rendered stats map? Leave empty to skip thresholding. Skipping will
+                  show both the negative and positive values of the zstat-image on the surface
+  -q <suffix>     string to add to the .gii files to differentiate?
 
 Options:
   -h|--help       print this help text
@@ -60,7 +60,7 @@ Example:
   call_stats2surf -s sub-001 -f /path/to/freesurfer -i <gfeat/cope1.feat> -w /path/to/warp.h5
   call_stats2surf -s sub-001 -i some_file.nii.gz -w /path/to/warp.h5
 
----------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 
 USAGE
 

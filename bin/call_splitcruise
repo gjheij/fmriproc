@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import numpy as np
 import nibabel as nb
-import sys
 opj = os.path.join
 
 def main(argv):
@@ -17,15 +17,17 @@ Split a CRUISE cortical segmentation image into binary gray matter (GM) and whit
 The CRUISE segmentation format uses the following voxel values:
   - 1: Gray Matter
   - 2: White Matter
-This script will generate two separate binary masks for each tissue type and save them as individual
-NIfTI files. This is useful for surface reconstruction or mask refinement in further analysis.
+
+This script will generate two separate binary masks for each tissue type and save them as 
+individual NIfTI files. This is useful for surface reconstruction or mask refinement in further 
+analysis.
 
 Mandatory arguments:
-  <CRUISE seg>      Full path to the input CRUISE cortical segmentation NIfTI file (e.g., .nii or
-                    .nii.gz)
-  <output>          Basename (including full path) to use for the output files. The script will 
-                    append `_desc-cruise_gm.nii.gz` and `_desc-cruise_wm.nii.gz` for gray and
-                    white matter masks respectively.
+  <CRUISE seg>    Full path to the input CRUISE cortical segmentation NIfTI file (e.g., .nii or
+                  .nii.gz)
+  <output>        Basename (including full path) to use for the output files. The script will 
+                  append `_desc-cruise_gm.nii.gz` and `_desc-cruise_wm.nii.gz` for gray and
+                  white matter masks respectively.
 
 Notes:
   - If the output directory does not exist, it will be created automatically.

@@ -8,25 +8,30 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_settr
 
-Set the TR of a nifti-image. Useful if you're converting with parrec2nii, which does not proper-
-ly set this field. You can also do `fsledithd`, but this opens a GUI for each file, which can be
-somewhat cumbersome
+Set the Repetition Time (TR) in the header of a NIfTI image. This is especially useful if the TR 
+was not correctly set during DICOM-to-NIfTI conversion (e.g., using `parrec2nii`), or when 
+preparing images for processing pipelines that rely on a correct TR value.
+
+This script avoids the need to open a GUI editor like `fsledithd` by allowing quick command-line
+modification of the header field `pixdim[4]`.
 
 Usage:
-    call_settr <file> <tr>
+  call_settr <input_file> <TR>
 
-Optional (flags with defaults):
-    <input>         image to be manipulated
-    <TR>            new TR
+Mandatory:
+  <input_file>    Path to a NIfTI image (.nii or .nii.gz)
+  <TR>            Repetition time in seconds (e.g., 1.5)
+
+Outputs:
+  - Overwrites the input file with updated TR metadata
 
 Example:
-    call_settr sub-001_bold.nii.gz 1.32
+  call_settr sub-001_task-rest_bold.nii.gz 1.32
 
 ---------------------------------------------------------------------------------------------------
     """
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit(1)
     

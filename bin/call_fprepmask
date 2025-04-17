@@ -12,51 +12,92 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fprepmask
 
-Apply the masks to the corresponding BOLD files given an fMRIprep directory. You can do something 
-similar with pybest, but this script exists in case you don't want to use that.
+Apply brain masks from fMRIPrep to their corresponding BOLD preprocessed images.
+
+This script multiplies each *_preproc_bold.nii.gz file with its corresponding brain_mask.nii.gz 
+file (usually found in the same directory). The resulting masked image is saved as 
+*masked_bold.nii.gz. This step is useful for excluding non-brain voxels prior to first-level 
+analysis or post-processing, especially if you're not using pybest or similar pipelines.
 
 Usage:
-  call_fprepmask <fprep dir>
+  call_fprepmask <fmriprep_directory>
 
-Example:
-  call_fprepmask # runs the script for all BOLD files in DIR_DATA_DERIV/fmriprep
-  call_fprepmask DIR_DATA_DERIV/fmriprep/sub-01 # runs the script for a single subject
-  call_fprepmask help # bring up this help 
-  
+Positional:
+  <fprep_dir>     Directory containing fMRIPrep outputs. This can be:
+                    - A full fMRIPrep derivatives folder (default: \$DIR_DATA_DERIV/fmriprep)
+                    - A single subject folder (e.g., .../fmriprep/sub-01)
+
+Options:
+  help|--help     print this help text
+
+Outputs:
+  For each *_preproc_bold.nii.gz file, a new file is created named:
+    *_masked_bold.nii.gz
+
+  The masking operation is performed using FSL's 'fslmaths' with the '-mas' flag.
+
+Examples:
+  call_fprepmask
+    → run masking for all BOLD files in \$DIR_DATA_DERIV/fmriprep
+
+  call_fprepmask /path/to/fmriprep/sub-01
+    → run masking for a single subject
+
+  call_fprepmask help
+    → show this help message
+
+Notes:
+  - This script assumes that the masks follow the BIDS-style naming convention and are
+    stored in the same directory as the corresponding preprocessed BOLD images.
+  - It will skip files for which no brain mask is found and print a warning.
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
-
 }
 
-# set default
+#-----------------------------------------------------------------------------
+# set path
 if [[ ${#@} -eq 0 ]]; then
   fprep_dir=${DIR_DATA_DERIV}/fmriprep
 else
   fprep_dir=${1}
   if [[ ${fprep_dir} == "help" || ${fprep_dir} == "--help" ]]; then
     Usage && exit 0
+  else
+    fprep_dir=$(readlink -f "${fprep_dir}")
   fi
 fi
 
-funcs=($(find ${fprep_dir} -type f -name "*preproc_bold.nii.gz" | sort))
+#-----------------------------------------------------------------------------
+# find funcs
+funcs=(
+  $(
+    find "${fprep_dir}" \
+    -type f -name "*preproc_bold.nii.gz" | 
+    sort
+  )
+)
+
 if [ ${#funcs[@]} -eq 0 ]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "Could not find files with \"*preproc_bold.nii.gz\" in \"${fprep_dir}\""
+  print_error_msg "$(basename ${0})" "find" "Could not find files with \"*preproc_bold.nii.gz\" in ${BOLD_GREEN}${fprep_dir}${RESET}"
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
+# loop through funcs
 echo "Input directory = \"${fprep_dir}\" (${#funcs[@]} files)"
 ct=1
 for f in ${funcs[@]}; do
-  base_name=$(dirname ${f})/$(basename ${f} preproc_bold.nii.gz)
-  mask_file=${base_name}brain_mask.nii.gz
-  if [ -f ${mask_file} ]; then
+  base_name="$(dirname ${f})/$(basename ${f} preproc_bold.nii.gz)"
+  mask_file="${base_name}brain_mask.nii.gz"
+  if [[ -f "${mask_file}" ]]; then
     echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
     
     # define output
-    out=${base_name}masked_bold.nii.gz
+    out="${base_name}masked_bold.nii.gz"
     
     # define command
     cmd=(
@@ -65,17 +106,18 @@ for f in ${funcs[@]}; do
       -mas "${mask_file}"
       "${out}"
     )
-    eval "${cmd[@]}"
 
-    if [ $? -ne 0 ]; then
+    # run
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
       echo
       print_line -
-      print_error_msg "$(basename ${0})" "fslmaths"
+      print_error_msg "$(basename ${0})" "fslmaths" 
       exit 1
     else
       ((ct++))
     fi
   else
-    echo "mask file (\"${mask_file}\") does not exist"
+    echo "mask file (\"${mask_file}\") does not exist" "Failed with command: \"${cmd[@]}\""
   fi
 done

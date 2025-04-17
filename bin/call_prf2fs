@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import getopt
+import numpy as np
 from fmriproc import prf
 from lazyfmri import utils
-import os
-import numpy as np
 from nibabel.freesurfer.io import read_morph_data, write_morph_data
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -25,31 +25,38 @@ Usage:
   call_prf2fs [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -i|--in         file containing the pRF estimates
+  -i|--in         file containing the pRF estimates
 
 Optional (flags with defaults):
-    -s|--sub        Subject ID used for FreeSurfer. If not specified, we'll try to read it from
-                    the input file
-    -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
-                    models with '--gauss', '--dog', '--css', or '--norm' (see below).
-    -t|--thr        r2 threshold to use for thresholding the eccentricity/polar angle maps
-    --max_ecc       maximum eccentricity value to consider when plotting. Default = 10
+  -s|--sub        Subject ID used for FreeSurfer. If not specified, we'll try to read it from
+                  the input file
+  -m|--model      one of ['gauss','dog','css','norm']. Default = 'gauss'. You can also call
+                  models with '--gauss', '--dog', '--css', or '--norm' (see below).
+  -t|--thr        r2 threshold to use for thresholding the eccentricity/polar angle maps
+  --max_ecc       maximum eccentricity value to consider when plotting. Default = 10
 
 Options (extra):
-    -h|--help       print this help text
-    --freeview      immediately open freeview to draw stuff
+  -h|--help       print this help text
+  --freeview      immediately open freeview to draw stuff
 
 Models:
-    --gauss         use standard Gaussian model (default) [Dumoulin & Wandell, 2008]
-    --dog           use difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
-    --css           use compressive spatial summation model (compression) [Kay, et al. 2013]
-    --norm          use divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+  --gauss         use standard Gaussian model (default) [Dumoulin & Wandell, 2008]
+  --dog           use difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
+  --css           use compressive spatial summation model (compression) [Kay, et al. 2013]
+  --norm          use divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
 
 Example:
-  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl # read elements from file
-  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl --thr 0.05 # reduce r2 threshold
-  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl --freeview # open freeview too
-  call_prf2fs -i prf_estimates -s sub-001 --gauss # manually set subject & model
+  # read elements from file
+  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl
+
+  # reduce r2 threshold
+  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl --thr 0.05
+  
+  # open freeview too
+  call_prf2fs -i sub-001_task-2R_model-gauss_desc-prf_params.pkl --freeview
+  
+  # manually set subject & model
+  call_prf2fs -i prf_estimates -s sub-001 --gauss
 
 ---------------------------------------------------------------------------------------------------
     """

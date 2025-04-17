@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-import numpy as np
 import os
 import sys
-import scipy.io as io
-import nibabel as nb
 import getopt
+#!/usr/bin/env python
+import numpy as np
+import nibabel as nb
+import scipy.io as io
 from lazyfmri import utils
 
 @utils.validate_cli_inputs(required_keys=["raw", "nii"])
@@ -24,29 +24,29 @@ Usage:
   call_func2nifti -i <mat file> -r <ref slice> [options]
 
 Mandatory (required input):
-    -i|--raw        matrix containing reconstructed data (see call_linerecon)
-    -r|--ref        nifti image with correct dimensions for line (see call_createline)
+  -i|--raw        matrix containing reconstructed data (see call_linerecon)
+  -r|--ref        nifti image with correct dimensions for line (see call_createline)
 
 Optional (flags with defaults):
-    -o|--out        custom output name; leave empty to overwrite <empty nifti>
+  -o|--out        custom output name; leave empty to overwrite <empty nifti>
 
 Options (extra):
-    -h|--help       print this help text
-    -c|--complex    store complex values instead of absolute values
+  -h|--help       print this help text
+  -c|--complex    store complex values instead of absolute values
 
 Outputs:
-    4D nibabel.Nifti1Image image
+  4D nibabel.Nifti1Image image
 
 Example:
-    call_func2nifti \
-        -i sub-001_task-LR_bold.mat \
-        -r sub-001_task-LR_bold.nii.gz \
-        -o bold.nii.gz
+  call_func2nifti \
+      -i sub-001_task-LR_bold.mat \
+      -r sub-001_task-LR_bold.nii.gz \
+      -o bold.nii.gz
 
-    call_func2nifti \
-        --raw sub-001_task-LR_bold.mat \
-        --ref sub-001_task-LR_bold.nii.gz \
-        --complex
+  call_func2nifti \
+      --raw sub-001_task-LR_bold.mat \
+      --ref sub-001_task-LR_bold.nii.gz \
+      --complex
 
 ---------------------------------------------------------------------------------------------------
     """

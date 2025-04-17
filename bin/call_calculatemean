@@ -18,12 +18,12 @@ IMPORTANT:
   - A temporary file will be created during the process and automatically removed after completion.
   - If the output file already exists, the script will skip processing unless removed manually.
 
-Inputs:
-  <image_1> ... <image_n>    NIfTI files to average
-  <output>                   Output filename (must be last argument)
-
 Usage:
   call_calculatemean <image_1> <image_2> <image_3> <output>
+  
+Inputs:
+  <i_1> ... <i_n> NIfTI files to average
+  <output>        Output filename (must be last argument)
 
 Example:
   call_calculatemean run-1_T1w.nii.gz run-2_T1w.nii.gz avg_T1w.nii.gz

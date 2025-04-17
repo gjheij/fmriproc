@@ -46,23 +46,31 @@ Arguments:
 Options:
   -h|--help       print this help text
   -v|--verbose    Turn on verbose
-  --<metric>      Flag to use a given metric. Available options are: 'cc' (cross-correlation), 'mi',
-                  (mutual information) [default], 'mattes', 'ms' (mean squares), 'demons', 'gc' 
-                  (global correlation), 'icp' (euclidian), 'pse' (point-set expectation), 'jhct' 
-                  (jensen-havrda-charvet-tsallis), 'igdm'
-                  For instance, to use 'Mutual Information', use '--mi', for 'Bspline' 5th order, 
-                  use '--bspl5'. For now it's not possible to set the metrics for different stages 
-                  separately. The same metric is used for all stages. By default, 'Cross-correlation'
-                  is used for SyN-diffeomorphic registration (the final stage). The rigid-body and 
-                  affine stages before the SyN-registration can be altered.
+  --<metric>      Flag to use a given metric. Available options are: 
+                    - 'cc' (cross-correlation),    
+                    - 'mi', (mutual information) [default],
+                    - 'mattes',
+                    - 'ms' (mean squares),
+                    - 'demons', 
+                    - 'gc' (global correlation),
+                    - 'icp' (euclidian),
+                    - 'pse' (point-set expectation),
+                    - 'jhct' (jensen-havrda-charvet-tsallis),
+                    - 'igdm'
+                    
+                  By default, 'Cross-correlation' is used for SyN-diffeomorphic registration (the 
+                  final stage). The rigid-body and affine stages before the SyN-registration can 
+                  be altered.
   --fsl           also output the matrix in FSL-compatible format (not available for SyN)
   --itk           open ITK-Snap to verify how registration went
-  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel), 
-                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc), 
-                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel); 
+  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel),   
+                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc),
+                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel);
                   default = 'nn'
-                  For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel', 
-                  use '--gen'
+
+                  For instance, to use:
+                    - 'Linear' interpolation, use '--lin'
+                    - 'GenericLabel', use '--gen'
 
   --rigid         use rigid-body registration
   --affine        use affine registration
@@ -229,6 +237,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     x)  mask=${OPTARG}
           ;;
     i)  initial=${OPTARG}
@@ -248,8 +258,6 @@ do
     v)  VERBOSE="--verbose 1"
         VERB=1
           ;;
-    h)  Usage && exit 0
-          ;;   
   esac
 done
 
@@ -336,27 +344,29 @@ function validate_extension {
 # if check_stage_inputs fails, the returned value will be the error message, so we can conveniently make a traceback
 shrink=$(check_stage_inputs shrink)
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
-  echo ${shrink}
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "check_stage_inputs" "Shrink inputs not correct: ${shrink}"
   exit 1
 fi
 
 converg=$(check_stage_inputs converge)
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
-  echo ${converg}
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "check_stage_inputs" "Converging inputs not correct: ${converg}"
   exit 1
 fi
 
 smooth=$(check_stage_inputs smooth)
 if [[ $? -ne 0 ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): check_stage_inputs exited with non-zero status:"
-  echo ${smooth}
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "check_stage_inputs" "Smoothing inputs not correct: ${smooth}"
   exit 1
 fi
 
 if [[ $# -lt 3 ]] ; then
-  echo "NOT ENOUGH ARGUMENTS SPECIFIED"
   Usage && exit 0
 fi
 
@@ -369,6 +379,8 @@ if [[ ! -f ${REF} ]]; then
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
+else
+  REF=$(readlink "${REF}")
 fi
 
 if [[ ! -f ${MOV} ]]; then
@@ -376,6 +388,8 @@ if [[ ! -f ${MOV} ]]; then
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
+else
+  MOV=$(readlink -f "${MOV}")
 fi  
 
 #-----------------------------------------------------------------------------
@@ -384,80 +398,72 @@ extract_fixed=0
 extract_moving=0
 
 #-----------------------------------------------------------------------------
-# append full paths
-REF=$(fetch_filepath ${REF})
-MOV=$(fetch_filepath ${MOV})
-OUT=${OUT}
-
-#-----------------------------------------------------------------------------
 # Make sure a bunch of stuff surrounding the input images is ok, such as the
 # extensions and dimensionality
-if [[ -f ${REF} && -f ${MOV} ]]; then
 
-  # check extension
-  REF=$(validate_extension ${REF})
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "validate_extension"
-    exit 1
-  fi
+# check extension
+REF=$(validate_extension ${REF})
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "validate_extension"
+  exit 1
+fi
 
-  MOV=$(validate_extension ${MOV})
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "validate_extension"
-    exit 1
-  fi
+MOV=$(validate_extension ${MOV})
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "validate_extension"
+  exit 1
+fi
 
-  # check dimensions
-  DIMfixed=$(fslval ${REF} dim0)
-  DIMmoving=$(fslval ${MOV} dim0)
-  if [[ $DIMfixed != $DIMmoving ]]; then
+# check dimensions
+DIMfixed=$(fslval ${REF} dim0)
+DIMmoving=$(fslval ${MOV} dim0)
+if [[ $DIMfixed != $DIMmoving ]]; then
 
-    # check if we can extract first volume of time-series
-    if [[ $((${DIMmoving})) -eq 4 ]]; then
+  # check if we can extract first volume of time-series
+  if [[ $((${DIMmoving})) -eq 4 ]]; then
+  
+    if [ ${VERB} -eq 1 ]; then
+      echo "Taking first volume of 4D-moving image"
+    fi
     
-      if [ ${VERB} -eq 1 ]; then
-        echo "Taking first volume of 4D-moving image"
-      fi
-      
-      MOVING=$(dirname ${MOV})/example_moving.nii.gz
-      fslroi ${MOV} ${MOVING} 0 1
-      extract_moving=1
+    MOVING=$(dirname ${MOV})/example_moving.nii.gz
+    fslroi ${MOV} ${MOVING} 0 1
+    extract_moving=1
 
-    else  
-      DIM=$DIMmoving
-      MOVING=${MOV}
-    fi
-
-    if [[ $((${DIMfixed})) -eq 4 ]]; then
-    
-      if [ ${VERB} -eq 1 ]; then
-        echo "Taking first volume of 4D-fixed image"
-      fi
-      
-      FIXED=$(dirname ${REF})/example_fixed.nii.gz
-      fslroi ${REF} ${FIXED} 0 1
-      extract_fixed=1
-    else  
-      DIM=$DIMmoving
-      FIXED=${REF}
-    fi
-
-    # final check
-    if [[ $(fslval ${FIXED} dim0) != $(fslval ${MOVING} dim0) ]]; then
-      echo "Input files have different dimensions. Fix this before continuing."
-      echo " Fixed image:   $(fslval ${FIXED} dim0)"
-      echo " Moving image:  $(fslval ${MOVING} dim0)"
-      exit 1
-    fi
-
-  else
-    FIXED=${REF}
+  else  
+    DIM=$DIMmoving
     MOVING=${MOV}
   fi
+
+  if [[ $((${DIMfixed})) -eq 4 ]]; then
+  
+    if [ ${VERB} -eq 1 ]; then
+      echo "Taking first volume of 4D-fixed image"
+    fi
+    
+    FIXED=$(dirname ${REF})/example_fixed.nii.gz
+    fslroi ${REF} ${FIXED} 0 1
+    extract_fixed=1
+  else  
+    DIM=$DIMmoving
+    FIXED=${REF}
+  fi
+
+  # final check
+  if [[ $(fslval ${FIXED} dim0) != $(fslval ${MOVING} dim0) ]]; then
+    echo "Input files have different dimensions. Fix this before continuing."
+    echo " Fixed image:   $(fslval ${FIXED} dim0)"
+    echo " Moving image:  $(fslval ${MOVING} dim0)"
+    exit 1
+  fi
+
+else
+  FIXED=${REF}
+  MOVING=${MOV}
 fi
 
 #-----------------------------------------------------------------------------
@@ -582,8 +588,7 @@ fi
 echo "${cmd}" >> ${OUT}command.txt
 
 # Execute command
-"${cmd}"
-
+eval "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -593,36 +598,40 @@ fi
 
 # rename
 if [[ -f ${OUT}0GenericAffine.mat ]]; then
-  mv ${OUT}0GenericAffine.mat ${OUT}genaff.mat
-
-  # conver to FSL
-  if [[ ${fsl_fmt} -eq 1 ]]; then
-    cmd="call_ras2fsl ${FIXED} ${MOVING} ${OUT}genaff.mat ${OUT}fsl.mat"
-  fi
+  input_for_c3d="${OUT}genaff.mat"
+  mv "${OUT}0GenericAffine.mat" "${input_for_c3d}" 2>/dev/null
 fi
 
 # this file is created if --collapse-output-transforms is set to 0 and you did rigid-body registration; safest bet is to keep --collapse-output-transforms to 1 so you always get the same output 
 if [[ -f ${OUT}0Rigid.mat ]]; then
-  mv ${OUT}0Rigid.mat ${OUT}rigid.mat
-  
-  # convert to FSL
-  if [[ ${fsl_fmt} -eq 1 ]]; then
+  input_for_c3d="${OUT}rigid.mat"
+  mv "${OUT}0Rigid.mat" "${input_for_c3d}" 2>/dev/null
+fi
+
+# convert to FSL
+if [[ ${fsl_fmt} -eq 1 ]]; then
+  if [[ -f "${input_for_c3d}" ]]; then
     cmd=(
       call_ras2fsl
       "${FIXED}"
       "${MOVING}"
-      "${OUT}rigid.mat"
+      "${input_for_c3d}"
       "${OUT}fsl.mat"
     )
     if [[ ${VERB} -eq 1 ]]; then
-      echo "ras2fsl call:"
-      print_line -
-      print_cmd "${cmd}"
       echo
+      print_line -
+      print_cmd "${cmd[@]}"
     fi
 
     eval "${cmd[@]}"
-  fi
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_ras2fsl"
+      exit 1
+    fi
+  fi  
 fi
 
 # remove temporary file

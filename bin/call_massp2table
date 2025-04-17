@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from fmriproc.image import massp_to_table
 import os
-import getopt
 import sys
+import getopt
+from fmriproc.image import massp_to_table
 opj = os.path.join
 
 def main(argv):
@@ -12,18 +12,33 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_massp2table
 
-Convert MASSP-label image to a tabular volumetric file. 
+Convert a MASSP (Multiple Automatically Segmented Subcortical Structures) label image into a
+tabular file with volumetric statistics per region. This can be useful for group analyses,
+descriptive stats, or as QC metrics in volumetric pipelines.
 
-Args:
-    -l <input img>      label image
-    -o <output file>    output tabular file
-    -u <unit>           mm^3 or voxels (default = mm)
+The script supports two unit types:
+  - "mm"     = cubic millimeters (default)
+  - "voxels" = number of labeled voxels
 
-Outputs
-    output file containing volumetric output
+Usage:
+  call_massp2table -l <label_image> [-o <output_file>] [-u mm|voxels]
+
+Mandatory:
+  -l, --label     Path to the MASSP label image (NIfTI format)
+
+Optional:
+  -o, --out       Output file name [default: label.json]
+  -u, --unit      Unit of measure: "mm" for mm³ (default), or "voxels" for raw counts
+
+Options:
+  -h|--help       print this help text
+  
+Outputs:
+  A JSON or TSV file (depending on your specification) with volume per structure
 
 Example:
-    call_massp2table -l label.nii.gz -i label.json
+  call_massp2table -l sub-01_label.nii.gz -o sub-01_volumes.json
+  call_massp2table --label label.nii.gz --unit voxels --out subj1.tsv
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -54,7 +69,6 @@ Example:
             unit = arg            
 
     if len(argv) < 2:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

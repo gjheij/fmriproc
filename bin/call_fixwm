@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import os
-import numpy as np
-from nilearn import image
-import nibabel as nb
-from lazyfmri import utils
 import sys
+import numpy as np
+import nibabel as nb
+from nilearn import image
+from lazyfmri import utils
 opj = os.path.join
 
 
@@ -14,6 +14,19 @@ def resample_and_convert_to_mgh(
     trg,
     **kwargs
     ):
+
+    """
+    Resample the input image to match the target image and convert to MGH format
+    (used by FreeSurfer).
+
+    Parameters:
+        src (str): Path to source image to resample
+        trg (str): Path to target image
+        kwargs (dict): Additional nilearn resample options (e.g., interpolation)
+
+    Returns:
+        nibabel.freesurfer.MGHImage: Resampled image in MGH format
+    """
 
     kwargs = utils.update_kwargs(
         kwargs,
@@ -36,26 +49,42 @@ def resample_and_convert_to_mgh(
 
     return res_mgh
 
-@validate_cli_inputs(required_keys=["subject", "wmseg"])
+@utils.vatlidate_cli_inputs(required_keys=["subject", "wmseg"])
 def main(subject=None, wmseg=None, cortex=None):
     """
 ---------------------------------------------------------------------------------------------------
 call_fixwm
 
-The white-matter segmentation from FreeSurfer is not always optimal. With the script we inject the
-segmentation from CAT12 into FreeSurfer, which is much more accurate, especially around insular re-
-gions. We just give it the FreeSurfer subject and the path to CAT12's white matter segmentation. I
-tried inserting the CAT12 segmentation as manualsegwm in call_gdhinject, but then you get similar
-cerebellum issues.
+The white-matter segmentation from FreeSurfer is not always optimal. With this script, we inject the
+segmentation from CAT12 into FreeSurfer, which tends to be much more accurate, especially around 
+challenging regions like the insula. 
 
-Arguments:
-    <subject>       subject ID as used in the FreeSurfer directory
-    <WM seg>        path to WM-segmentation from CAT12
-    <cortex seg>    path to cortex mask to eliminate cerebellum > created during spinoza_cortexre-
-                    construction
+Instead of feeding the CAT12 segmentation to the full pial-editing pipeline (e.g., via 
+`call_gdhinject`), this script limits itself to updating wm.mgz directly. This approach avoids 
+typical issues such as unwanted extension of the segmentation into the cerebellum.
 
-Example:
-    call_fixwm sub-999 /path/to/p2WMseg.nii.gz /path/to/cortexseg.nii.gz
+Inputs:
+  <subject>       Subject ID as used in the FreeSurfer SUBJECTS_DIR
+  <WM seg>        Path to white-matter segmentation from CAT12 or equivalent
+  <cortex seg>    Optional path to cortex mask (e.g., from Nighres CRUISE or Spinoza pipeline);
+                  used to exclude cerebellum. If not given, script will attempt to auto-detect 
+                  a mask file containing 'cruise_mask' in the manual_masks directory
+
+Outputs:
+  wm.mgz          Updated FreeSurfer white matter segmentation including external edits
+                  (injected with label=110, cleaned up with largest connected component)
+
+Usage:
+  call_fixwm <subject> <cat12_wmseg.nii.gz> [<cortex_mask.nii.gz>]
+
+Examples:
+  call_fixwm sub-001 p2WMseg.nii.gz cruise_mask.nii.gz
+  call_fixwm sub-002 /path/to/wm_seg.nii.gz    # cortex mask will be auto-detected
+
+Notes:
+  - SUBJECTS_DIR must be set correctly in your environment
+  - This script overwrites wm.mgz directly (a backup is not created automatically)
+  - The script attempts to constrain edits to regions within the cortex mask (if available)
 
 ---------------------------------------------------------------------------------------------------
     """

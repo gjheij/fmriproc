@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 import os
-import numpy as np
-from nilearn import image
-import nibabel as nb
 import sys
 import getopt
 import shutil
+import numpy as np
+import nibabel as nb
+from nilearn import image
 from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -57,26 +57,26 @@ FreeSurfer (and later fmriprep) use these edits, you need to run call_freesurfer
 tations that are then being used to create levelsets for Nighres cortex reconstruction.
 
 Usage:
-    call_gdhinject [mandatory] [arguments] [options]
+  call_gdhinject [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -s|--sub        subject ID used for FreeSurfer
+  -s|--sub        subject ID used for FreeSurfer
 
 Optional (flags with defaults):    
-    -n|--ses        sesssion ID
-    -f|--fsdir      directory containing segmentations from FreeSurfer (defaults to SUBJECTS_DIR)
-    -m|--masks      directory containing manual segmentation edits; defaults to DIR_DATA_DERIV/
-                    manual_masks/<sub>/<ses>. Requires the usage of the '-s' (and optionally, 
-                    the '-n' flag)
+  -n|--ses        sesssion ID
+  -f|--fsdir      directory containing segmentations from FreeSurfer (defaults to SUBJECTS_DIR)
+  -m|--masks      directory containing manual segmentation edits; defaults to DIR_DATA_DERIV/
+                  manual_masks/<sub>/<ses>. Requires the usage of the '-s' (and optionally, 
+                  the '-n' flag)
                     
 Options (extra):
-    -h|--help       print this help text
-    -o|--outside    use only 'outside'-mask to generate new brainmask
-    --final         directly set the manual WM segmentation as wm.mgz
+  -h|--help       print this help text
+  -o|--outside    use only 'outside'-mask to generate new brainmask
+  --final         directly set the manual WM segmentation as wm.mgz
 
 Example:
-    call_gdhinject -f /path/to/fs -m /path/to/man_masks
-    call_gdhinject -f /path/to/fs -m /path/to/man_masks --outside
+  call_gdhinject -f /path/to/fs -m /path/to/man_masks
+  call_gdhinject -f /path/to/fs -m /path/to/man_masks --outside
 
 ---------------------------------------------------------------------------------------------------
     """

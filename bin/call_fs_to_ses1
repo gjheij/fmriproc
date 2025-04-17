@@ -6,28 +6,51 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fs_to_ses1
 
-This script warps the orig.mgz image from FreeSurfer to the anatomy of session 1 as per output of py-
-mp2rage. It uses predefined paths only so unless you changed something in previous steps you can use 
-it with just the subject ID.
+This script computes a transformation matrix to align the anatomical image from FreeSurfer space 
+('orig.mgz') to the session-1 anatomical image (usually from the MP2RAGE sequence), as derived 
+from pymp2rage outputs. This transformation is often used for mapping FreeSurfer segmentations 
+to the original acquisition space for visualization or analysis.
 
-It will look for the following files:
-  - orig.mgz: $FS/<subject>/mri
-  - ses-1 anat: $PYMP2RAGE/<subject>/ses-1
+Two registration tools are supported:
+  - FreeSurfer's 'tkregister2': for surface-aligned, linear transforms using header info.
+  - ANTs' 'antsRegistration': for rigid-body registration using mutual information.
 
-And output a transformation matrix as:
-  $CTX/transforms/<subject>_from-fs_to-ses1_desc-genaff.mat/.dat
+This script assumes the following directory structure and environment variables:
+  - \$FS          points to the FreeSurfer SUBJECTS_DIR
+  - \$PYMP2RAGE   base path to pymp2rage output
+  - \$CTX         directory to store transformation matrices
 
-Arguments:
-  <-s software> use antsRegistration or FreeSurfer's tkregister2. Can be 'fs' or 'ants'. Default is 
-                set to ants
-  <subject>     subject ID, e.g., sub-001
+The script looks for:
+  - \$FS/<subject>/mri/orig.mgz       : the anatomical image from FreeSurfer
+  - \$PYMP2RAGE/<subject>/ses-1       : MP2RAGE output directory
+
+The script writes:
+  - \$CTX/transforms/<subject>_from-fs_to-ses1_desc-genaff.mat (for ANTs)
+  - or
+  - \$CTX/transforms/<subject>_from-fs_to-rawavg_desc-genaff.dat (for FreeSurfer)
 
 Usage:
-  call_fs_to_ses1 <-s fs|ants> <subject> 
+  call_fs_to_ses1 [-s ants|fs] <subject>
 
-Example:
+Arguments:
+  -s <software>   Registration backend: 'ants' (default) or 'fs' (tkregister2)
+  <subject>       Subject ID (e.g., sub-001). Must exist in \$FS.
+
+Options:
+  -h|--help       print this help text
+
+Examples:
   call_fs_to_ses1 sub-001
-  call_fs_to_ses1 -s fs sub-001
+    → Registers FreeSurfer's orig.mgz to MP2RAGE ses-1 T1w using ANTs
+
+  call_fs_to_ses1 -s fs sub-002
+    → Registers rawavg.mgz to orig.mgz using FreeSurfer's tkregister2
+
+Notes:
+  - The script uses default directory structures. If you have changed them, modify the
+    relevant environment variables or edit the script.
+  - If rawavg.mgz is used, it will be converted to NIfTI if required.
+  - Output transform matrix will not be overwritten unless manually removed.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -37,11 +60,25 @@ USAGE
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts s: arg
+while getopts :-:hs: arg
 do
   case ${arg} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;    
     s)  SOFTWARE=${OPTARG}
-          ;;      
+          ;; 
   esac
 done
 

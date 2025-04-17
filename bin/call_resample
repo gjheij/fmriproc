@@ -1,33 +1,44 @@
 #!/usr/bin/env python
 
-from nilearn import image
 import sys
+from nilearn import image
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_resample
 
-This function quickly resamples a given input image to a given reference image and write a new file
-with the resampled-to-reference input image
+Resample an input image to match the spatial resolution, shape, and affine of a reference image.
+This is useful for aligning images prior to registration, masking, or group-level analysis.
+
+By default, resampling uses nearest-neighbor interpolation, which is recommended for label or mask 
+images. If you need smoother interpolation (e.g., for continuous intensity volumes), consider 
+modifying the interpolation parameter inside this script.
+
+Usage:
+  call_resample <input_image> <reference_image> [<output_image>]
 
 Arguments:
-    <input>     image to be resampled
-    <reference> image to resample to
+  <input_image>   Path to the image that should be resampled
+  <ref_image>     Path to the image whose dimensions and affine should be matched
 
 Optional:
-    <output>    optional: output filename, otherwise input name will be used!
+  <output_image>  Output file name for the resampled image If not specified, the input file will 
+                  be overwritten
+
+Outputs:
+  A resampled version of <input_image> in the space of <reference_image>
 
 Example:
-    call_resample <input> <reference> <output>
+  call_resample bold_mask.nii.gz anat.nii.gz
+  call_resample segmentation.nii.gz template.nii.gz resampled_seg.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
 
     if len(argv) < 2 or len(argv) > 3:
         print(main.__doc__)
-        sys.exit(1)
+        sys.exit(0)
 
     in_img, ref_img = argv[:2]
     out_img = argv[2] if len(argv) == 3 else in_img

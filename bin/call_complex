@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
-# source helper functions
-source ${SETUP_FILE}
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -10,25 +9,51 @@ source call_bashhelper
 function Usage {
     cat <<EOF
 
----------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 call_complex
 
-Convert imaginary/real images from the MP2RAGE sequence to INV1/INV2 images that are compatible with py-
-mp2rage. 
+Converts a pair of real and imaginary MP2RAGE images into complex images, and then splits them 
+into magnitude and phase images. Outputs are compatible with downstream pipelines such as 
+pymp2rage.
 
-Arguments
-	<real>	file representing the "real" images
-	<imag>	file representing the "imaginary" images
-	<base>	output basename (e.g., sub-01_ses-1_acq-MP2RAGE_); "_inv-{1|2}_part-{mag|phase} will be 
-					appended
+Usage:
+  call_complex <real_image> <imaginary_image> <output_basename>
 
-Example
-	call_complex real.nii.gz imag.nii.gz sub-01_ses-1_acq-MP2RAGE
+Mandatory arguments:
+  <real>          Path to the NIfTI file containing real-valued MP2RAGE images
+  <imag>          Path to the NIfTI file containing imaginary-valued MP2RAGE images
+  <basename>      Output base name (e.g., sub-01_ses-1_acq-MP2RAGE).
+                  "_inv-{1,2}_part-{mag,phase}.nii.gz" will be appended
 
----------------------------------------------------------------------------------------------------------
+Functionality:
+  - Uses fslcomplex to combine real and imaginary data into a complex-valued image
+  - Automatically splits the complex image into magnitude and phase using polar representation
+  - Reorients all outputs to LPI and copies geometry for consistency
+  - Checks that both inputs contain at least two 3D volumes (dim4 >= 2), corresponding to INV1 and 
+    INV2
+  - Outputs:
+      <basename>_inv-1_part-mag.nii.gz
+      <basename>_inv-1_part-phase.nii.gz
+      <basename>_inv-2_part-mag.nii.gz
+      <basename>_inv-2_part-phase.nii.gz
+
+Requirements:
+  - FSL must be installed and accessible from the command line
+  - Scripts 'call_reorient' and 'fetch_filepath' must be available in your environment
+  - ENV variable SETUP_FILE must be set if needed for loading dependencies
+
+Example:
+  call_complex real.nii.gz imag.nii.gz sub-01_ses-1_acq-MP2RAGE
+
+  This will output:
+    sub-01_ses-1_acq-MP2RAGE_inv-1_part-mag.nii.gz
+    sub-01_ses-1_acq-MP2RAGE_inv-1_part-phase.nii.gz
+    sub-01_ses-1_acq-MP2RAGE_inv-2_part-mag.nii.gz
+    sub-01_ses-1_acq-MP2RAGE_inv-2_part-phase.nii.gz
+
+---------------------------------------------------------------------------------------------------
 
 EOF
-
 }
 
 #---------------------------------------------------------------------------------------------------------
@@ -46,8 +71,10 @@ out=${3}
 for f in ${real} ${imag}; do
 	dim=$(fslval ${f} dim4)
 	if [[ ${dim} -lt 2 ]]; then
-		echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ${f} only has ${dim} dimensions. This file must contain 2x 3D images"
-		exit 1
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "dim" "${f} only has ${dim} dimensions. This file must contain 2x 3D images"
+    exit 1
 	fi
 done
 
@@ -59,11 +86,20 @@ for inv in $(seq 1 2); do
   ix=$((inv-1))
 	# combine real/imag into complex
 	cplx=${out}_inv-${inv}_part-complex.nii.gz
-	cmd="""fslcomplex -complex ${real} ${imag} ${cplx} ${ix} ${ix}"""
-  ${cmd}
+	cmd=(
+    fslcomplex
+    -complex ${real}
+    "${imag}"
+    "${cplx}"
+    "${ix}" 
+    "${ix}"
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): fslcomplex -complex exited with non-zero error"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" fslcomplex
     exit 1
   fi
   
@@ -75,18 +111,32 @@ for inv in $(seq 1 2); do
     # split complex into mag/phase
     mag=${out}_inv-${inv}_part-mag.nii.gz
     ph=${out}_inv-${inv}_part-phase.nii.gz
-    cmd="""fslcomplex -realpolar ${cplx} ${mag} ${ph}"""
-    ${cmd}
+    cmd=(
+      fslcomplex
+      -realpolar "${cplx}"
+      "${mag}"
+      "${ph}"
+    )
+
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" fslcomplex
+      exit 1
+    fi
 
     # fix affines
     echo " Copying geometry from complex and reorient to LPI"
     for f in ${mag} ${ph}; do
-      fslcpgeom ${cplx} ${f}
+      call_copyheader "${cplx}" "${f}"
       call_reorient -i ${f}
     done
 
   else
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): complex file \"${cplx}\" does not exist"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "find" "Could not find complex image \"${BOLD_GREEN}${cplx}${RESET}\""
     exit 1
   fi
 done

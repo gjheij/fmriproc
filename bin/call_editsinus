@@ -16,10 +16,17 @@ Script to create or edit the sagittal sinus segmentation. The script will open I
 manual edit file.
 
 Args:
-  -s <subject>  subject ID
-  -n <session>  session number
-  <t1w-image>   base image to use as reference
-  <output name> output name for sinus image, automatically appends _desc-sagittalsinus.nii.gz
+  -s <subject>    subject ID
+  -n <session>    session number
+  -a <depth>      depth for 'find_hierarchical_anatomy' to derive appropriate anatomical directory.
+                  default = 4 (starts looking in DIR_DATA_DERIV/cat12)
+
+Options:
+  -h|--help       print this help text
+
+Positional:  
+  <t1w-image>     base image to use as reference
+  <output name>   output name for outside, automatically appends _desc-sagittalsinus.nii.gz
 
 Specify only '-s' and/or 'n' if you've run the pipeline as it is without changing directories or 
 filenames; this option will look for all the default directories and files. If you want to edit
@@ -45,9 +52,23 @@ fi
 
 # Check for subject & session flags
 anat_depth=4
-while getopts s:n:a: argument
+while getopts :-:hs:n:a: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;    
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -58,8 +79,7 @@ do
 done
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# define inputs based on positional or flag arguments
 if [[ ! -z ${sub} ]]; then
 
   # collect subject name
@@ -75,12 +95,22 @@ if [[ ! -z ${sub} ]]; then
     exit 1
   fi
 
-  REF=$(find ${ANAT_DIR}/${base_path} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
+  # search for reference in directory
+  REF=$(
+    find ${ANAT_DIR}/${base_path} \
+    -type f \
+    -name "${sub}*" \
+    -and -name "*T1w.nii.gz"
+    2>/dev/null
+  )
+
   if [[ ! -f ${REF} ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "find" "No file with ${BOLD_RED}${sub}*${RESET} and ${BOLD_RED}*T1w.nii.gz${RESET} in ${BOLD_GREEN}${ANAT_DIR}${RESET}"
     exit 1
+  else
+    REF=$(readlink -f "${REF}")
   fi
 
   MAN=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
@@ -92,26 +122,49 @@ else
     print_line -
     print_error_msg "$(basename ${0})" "find" "Anatomical file ${BOLD_GREEN}${REF}${RESET} does not exist"
     exit 1
+  else
+    REF=$(readlink -f "${REF}")
   fi
 
   MAN=${@:$OPTIND+1:1}
 fi
 
-
+#-----------------------------------------------------------------------------
+# create empty
 if [[ ! -f ${MAN} ]]; then
   if [[ ! -d $(dirname ${MAN}) ]]; then
     mkdir -p $(dirname ${MAN})
   fi
-  echo "Creating $(basename ${man}) with call_createimg"    
-  cmd="call_createimg ${REF} ${MAN}"
-  print_cmd "${cmd}" && eval "${cmd}"
+  print_create_img "${MAN}"
+  cmd=(
+    call_createimg
+    "${REF}"
+    "${MAN}"
+  )
+
+  # print and run
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"
+    exit 1
+  fi
 fi
 
+#-----------------------------------------------------------------------------
+# launch itksnap
 echo -e "T1w:  ${BOLD_GREEN}${REF}${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
-cmd="launch_itksnap -g ${REF} -s ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+cmd=(
+  launch_itksnap
+  -g "${REF}"
+  -s "${MAN}"
+)
+
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}" 2>/dev/null
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -119,8 +172,16 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-cmd="call_copyheader ${REF} ${MAN}"
-print_cmd "${cmd}" && eval "${cmd}"
+#-----------------------------------------------------------------------------
+# copy header
+cmd=(
+  call_copyheader
+  "${REF}"
+  "${MAN}"
+)
+
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

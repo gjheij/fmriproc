@@ -11,18 +11,62 @@
 #              MIT License              #
 #########################################
 
+import os
+import sys
 import numpy
 import shutil
-import os
-import nibabel
-import sys
 import getopt
+import nibabel
 import imageio
 
 
 def main(argv):
-    inputfile = ''
-    outputfile = ''
+
+    """
+---------------------------------------------------------------------------------------------------
+nii2png
+
+Convert a 3D or 4D NIfTI (.nii/.nii.gz) image into a series of PNG slices. This script supports both
+standard and multi-volume datasets and offers the option to rotate the image slices before saving.
+
+Usage:
+  nii2png.py -i <input_file> -o <output_folder>
+
+Arguments:
+  -i|--input      Path to the input NIfTI file (.nii or .nii.gz)
+  -o|--output     Directory to store the resulting PNG files
+
+Options (extra):
+  -h|--help       print this help text
+
+Features:
+  - Supports both 3D and 4D NIfTI files
+  - Optional image rotation (90°, 180°, or 270°)
+  - Automatically names and saves slices as PNG files
+  - Creates output directory if it doesn't exist
+  - Moves generated PNG files into the specified folder
+
+Interactive Prompts:
+  - Asks whether to rotate image slices
+  - If rotation is selected, prompts for degree of rotation
+
+Outputs:
+  A folder of PNG images named according to time (t) and slice (z) indices:
+    <input_file>_tXXX_zXXX.png  for 4D inputs
+    <input_file>_zXXX.png       for 3D inputs
+
+Example:
+  call_nii2png -i sub-01_T1w.nii.gz -o ./png_slices
+  call_nii2png --input bold_4D.nii.gz --output bold_pngs
+
+Note:
+  This script is interactive and will prompt for rotation settings during execution.
+
+---------------------------------------------------------------------------------------------------
+    """
+        
+    inputfile = None
+    outputfile = None
     try:
         opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
     except getopt.GetoptError:
@@ -39,8 +83,6 @@ def main(argv):
             outputfile = arg
     
     if len(argv) < 4:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
-        print('nii2png.py -i <inputfile> -o <outputfile>')
         sys.exit()
 
     print('Input file is ', inputfile)

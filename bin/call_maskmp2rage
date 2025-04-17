@@ -15,12 +15,12 @@ This super short script masks and scales the T1-weighted image with the T1-map f
 sequences
 
 Arguments:
-    <t1-weighted>      string-like path to the T1-weighted image
-    <t1-map>           string-like path to the T1-map image
-    <scaled output>    string-like path to the output image
+  <t1-weighted>   string-like path to the T1-weighted image
+  <t1-map>        string-like path to the T1-map image
+  <scaled output> string-like path to the output image
 
 Outputs:
-    output file        new volume scaled accordingly.
+  output file     new volume scaled accordingly.
 
 Example:
     call_maskmp2rage t1w.nii.gz t1map.nii.gz scaled.nii.gz
@@ -29,7 +29,6 @@ Example:
     """
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

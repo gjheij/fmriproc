@@ -21,22 +21,25 @@ It will look for the following files:
 And output a transformation matrix as:
   CTX/transforms/<subject>_from-ses1_to-ses2_desc-genaff.mat
 
-Arguments:
-  -s <subject>  subject ID, e.g., sub-001
-  -n <ses nr>   session number, e.g., 2
-  -d <depth>    passed along to 'find_hierarchical_anatomy'. Defaults to DIR_DATA_DERIV/pymp2rage
-  -q <queue>    queue name for when --sge is passed. Default = short.q
-  -j <n_cpus>   number of cores to use (default = 1)
-
-Options: 
-  --inv         invert the matrix 
-  --sge         submit job to SoGE
-  --verbose     print stuff to the terminal
-  --clear       remove existing log-file
-  --debug       just print command, don't execute
-
 Usage:
   call_ses1_to_ses [options] -s <subject> -n <ses_nr> -q <queue> -d <depth> -j <n_cpus>
+
+Mandatory:
+  -s <subject>    subject ID, e.g., sub-001
+  -n <ses nr>     session number, e.g., 2
+
+Optional:
+  -d <depth>      passed along to 'find_hierarchical_anatomy'. Defaults to DIR_DATA_DERIV/pymp2rage
+  -q <queue>      queue name for when --sge is passed. Default = short.q
+  -j <n_cpus>     number of cores to use (default = 1)
+
+Options:
+  -h|--help       print this help text
+  --inv           invert the matrix 
+  --sge           submit job to SoGE
+  --verbose       print stuff to the terminal
+  --clear         remove existing log-file
+  --debug         just print command, don't execute
 
 Example:
   call_ses1_to_ses -s sub-001 -n 2
@@ -78,13 +81,18 @@ do
         debug)
           debug=1
           ;;                         
-        *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+        help)
+          Usage && exit 0
           ;;
-      esac;;        
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;       
     s)  sub_id=${OPTARG}
           ;;  
     n)  ses_id=${OPTARG}
@@ -113,19 +121,45 @@ fi
 
 # find anatomy directory hierarchically
 INPUT_DIR=$(find_hierarchical_anatomy ${search_depth})
-ses1=$(find ${INPUT_DIR}/${sub_id}/ses-1 -type f -name "${sub_id}*" -and -name "*T1w.nii.gz" 2>/dev/null)
-ses2=$(find ${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat -type f -name "${sub_id}*" -and -name "*acq-MP2RAGE*" -and -name "*T1w.nii.gz" 2>/dev/null)
 
+#-----------------------------------------------------------------------------
+# reference session
+ses1=$(
+  find \
+  "${INPUT_DIR}/${sub_id}/ses-1" \
+  -type f \
+  -name "${sub_id}*" \
+  -and -name "*T1w.nii.gz" \
+  2>/dev/null
+)
+
+# check if ses-1 exists
 if [[ -z ${ses1} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): no T1w file in \"${INPUT_DIR}/${sub_id}/ses-1\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ses-1" "Could not find ses-1 image with \"${sub_id}*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${INPUT_DIR}/${sub_id}/ses-1${RESET}"
   exit 1
 fi
+
+#-----------------------------------------------------------------------------
+# target session
+ses2=$(
+  find "${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat" \
+  -type f \
+  -name "${sub_id}*" \
+  -and -name "*acq-MP2RAGE*" \
+  -and -name "*T1w.nii.gz" \
+  2>/dev/null
+)
 
 if [[ -z ${ses2} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): ses-${ses_id} in \"${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat\""
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ses-${ses_id}" "Could not find ses-${ses_id} image with \"${sub_id}*\", \"*acq-MP2RAGE*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat${RESET}"
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # set input/output
 if [[ ${invert} -eq 1 ]]; then
   ref=${ses1}
@@ -151,9 +185,17 @@ if [[ ${clear} -eq 1 ]]; then
   fi
 fi
 
+#-----------------------------------------------------------------------------
 # define job execution
 if [[ ${run_local} -eq 0 ]]; then
-  submit=$(generate_submission_command ${QUEUE} ${n_cpus} $(basename ${aff}) ${DIR_LOGS})
+  submit=$(
+    generate_submission_command \
+    "${QUEUE}" \
+    "${n_cpus}" \
+    "$(basename ${aff})" \
+    "${DIR_LOGS}"
+  )
+
   call_=$(which call_antsregistration)
   job="${submit} ${call_}"
   verbose="--verbose"
@@ -161,6 +203,7 @@ else
   job="call_antsregistration"
 fi
 
+#-----------------------------------------------------------------------------
 # define command
 cmd=(
   "${job}"

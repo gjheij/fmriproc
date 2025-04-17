@@ -12,67 +12,68 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fmriprep
 
-Wrapper for the fmriprep which is either run locally or submitted to a SGE-cluster by specifying the
-last argument as 'SGE' or 'local'. Default is SGE, so if you're on the cluster you can leave it emp-
-ty. Do you want to run it locally, make sure you have all dependencies installed and specify the flag
-'local'.
+Wrapper for the fmriprep which is either run locally or submitted to a SGE-cluster by specifying 
+the last argument as 'SGE' or 'local'. Default is SGE, so if you're on the cluster you can leave 
+it empty. Do you want to run it locally, make sure you have all dependencies installed and specify 
+the flag 'local'.
 
-There's also a bunch of other things you can customize, but to keep it as simple as possible without
-making it similar to the fmriprep call itself, see arguments for customizable options
+There's also a bunch of other things you can customize, but to keep it as simple as possible 
+without making it similar to the fmriprep call itself, see arguments for customizable options.
 
 Usage:
   call_fmriprep [arguments] [options]
 
 Mandatory (required input):
-  -s <sub number>   number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
-                    enter "001")
+  -s <sub number> number of subject's directory from which you can omit "sub-" (e.g., for 
+                  "sub-001", enter "001")
 
 Optional (flags with defaults):
-  -m <mode>         run anatomical workflow only ('anat') or run everything (leave empty). Default is
-                    'anat' to get the segmentations right
-  -r <root>         project root directory from which to run fmriprep. Default is DIR_DATA_HOME
-  -d <derivatives>  derivatives directory. Default is DIR_DATA_DERIV
-  -i <simg>         singularity image that can be specified if -c flag is set to SGE
-  -b <binding>      binding point that can be specified if -c flag is set to SGE
-  -c <n_threads>    set number of threads to use. Default = 15
-  -w <work>         working directory to store intermediate files. Default is PATH_HOME/programs/
-                    packages/fmriprep
-  -l <license>      path to freesurfer license. Make sure license is after the path specified with 
-                    the -b flag (binding point) if SGE is specified!
-  -x <config>       specify config file to guide fMRIprep
-  -t <task ID>      limit the preprocessing to a certain task; instead of this flag you can also 
-                    use a configuration file to make the criteria more explicit
-  -k <kwargs>       use a file containing additional arguments for fMRIprep. Make sure file has
-                    has trailing new line. For VSCode: https://stackoverflow.com/a/44704969
-  -a <keep runs>    if you're running fMRIprep with MNI152* as output space, you're creating massive
-                    files; oftentimes, you're mostly interested in the registration matrices, so by
-                    default I'll remove the output nifti's so that the folder is not clogged. With 
-                    this argument you can specify which runs to keep. Again, if not specified, all
-                    nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
-                    ces will be left alone. Use '-a all' to keep all runs (not recommended..)     
-
-Options (extra):
-    -h|--help       print this help text
-  --docker          use command 'fmriprep-docker' to invoke docker image               
-  --warp-only       skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
-  --no-boldref      don't create new boldref images (mean over time) after fMRIprep has finished.
-  --sge             run fMRIPrep with singularity-configuration. Default singularity image should 
-                    be specified in the setup file (if can with 'spinoza_fmriprep'). Otherwise,
-                    use the '-i' flag to point to a singularity image.
-  --clean           remove the single-subject workflow folder completely. This saves storage, but comes
-                    at the price that it re-runs EVERYTHING if you restart the process.
-  --fetch-fsl       retrieve the MNI-transformed nifti-files (which are cleaned by default)
-  --fetch-anat      retrieve the nifti-files in T1w-space
-  --fetch-func      retrieve the nifti-files in func-space
-  --masks           used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
-                    associated with the timeseries files  
-  --fd              retrieve the frame-wise displacement files from the workflow folder
-  --try             the default behavior of fmriprep is to crash upon the first error through the
-                    '--stop-on-first-crash' flag. The '--try' flag tells fmriprep to keep trying in 
-                    the face of errors. This can be useful if you know errors might occur that are
-                    not necessarily relevent. E.g., if you're trying to re-run someone elses fmri-
-                    prep, it cannot find TemplateFlow-files that are stored in the other person's
-                    HOME-folder. If you don't care about that, you can keep continuing
+  -m <mode>       run anatomical workflow only ('anat') or run everything (leave empty). Default is
+                  'anat' to get the segmentations right
+  -r <root>       project root directory from which to run fmriprep. Default is DIR_DATA_HOME
+  -d <deriv>      derivatives directory. Default is DIR_DATA_DERIV
+  -i <simg>       singularity image that can be specified if -c flag is set to SGE
+  -b <binding>    binding point that can be specified if -c flag is set to SGE
+  -c <n_threads>  set number of threads to use. Default = 15
+  -w <work>       working directory to store intermediate files. Default is PATH_HOME/programs/
+                  packages/fmriprep
+  -l <license>    path to freesurfer license. Make sure license is after the path specified with 
+                  the -b flag (binding point) if SGE is specified!
+  -x <config>     specify config file to guide fMRIprep
+  -t <task ID>    limit the preprocessing to a certain task; instead of this flag you can also 
+                  use a configuration file to make the criteria more explicit
+  -k <kwargs>     use a file containing additional arguments for fMRIprep. Make sure file has
+                  has trailing new line. For VSCode: https://stackoverflow.com/a/44704969.
+                  See '\$REPO_DIR/misc/fprep_options' for an example.
+ -a <keep runs>   if you're running fMRIprep with MNI152* as output space, you're creating massive
+                  files; oftentimes, you're mostly interested in the registration matrices, so by
+                  default I'll remove the output nifti's so that the folder is not clogged. With 
+                  this argument you can specify which runs to keep. Again, if not specified, all
+                  nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
+                  ces will be left alone. Use '-a all' to keep all runs (not recommended..)
+ 
+ptions (extra):
+    -h|--help     print this help text
+  --docker        use command 'fmriprep-docker' to invoke docker image               
+  --warp-only     skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
+  --no-boldref    don't create new boldref images (mean over time) after fMRIprep has finished.
+  --sge           run fMRIPrep with singularity-configuration. Default singularity image should 
+                  be specified in the setup file (if can with 'spinoza_fmriprep'). Otherwise,
+                  use the '-i' flag to point to a singularity image.
+  --clean         remove the single-subject workflow folder completely. This saves storage, but 
+                  comes at the price that it re-runs EVERYTHING if you restart the process.
+  --fetch-fsl     retrieve the MNI-transformed nifti-files (which are cleaned by default)
+  --fetch-anat    retrieve the nifti-files in T1w-space
+  --fetch-func    retrieve the nifti-files in func-space
+  --masks         used in combination with '--fetch_{fsl|func|anat}' to also fetch the brain masks
+                  associated with the timeseries files  
+  --fd            retrieve the frame-wise displacement files from the workflow folder
+  --try           the default behavior of fmriprep is to crash upon the first error through the
+                  '--stop-on-first-crash' flag. The '--try' flag tells fmriprep to keep trying in 
+                  the face of errors. This can be useful if you know errors might occur that are
+                  not necessarily relevent. E.g., if you're trying to re-run someone elses fmri-
+                  prep, it cannot find TemplateFlow-files that are stored in the other person's
+                  HOME-folder. If you don't care about that, you can keep continuing
 
 Example:
   call_fmriprep -s 001 (simplest form, runs the entire pipeline)
@@ -234,12 +235,6 @@ if [[ ! -z ${KWARGS_FILE} ]]; then
       kwargs+=(${line})
     fi
   done < ${KWARGS_FILE}
-fi
-
-#-----------------------------------------------------------------------------
-if [[ -z ${subj_ID} ]]; then
-  echo "Need at least a subject ID!"
-  Usage && exit 0
 fi
 
 #-----------------------------------------------------------------------------

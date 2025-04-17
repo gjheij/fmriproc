@@ -49,11 +49,11 @@ Options:
   <--tr>          set repetition time in .gii-files
 
 Positional:
-  <subject>   subject ID as used in the FreeSurfer directory
-  <in_file>   path to the input file that needs to be projected to the surface
-  <suffix>    suffix for the output. The output file will be an .gii file in both the subject-
-              specific folder (mri_vol2surf) and fsaverage/volumes. <subject>_hemi-<L|R>_space-
-              <fsnative|fsaverage>_<suffix>.gii is default
+  <subject>       subject ID as used in the FreeSurfer directory
+  <in_file>       path to the input file that needs to be projected to the surface
+  <suffix>        suffix for the output. The output file will be an .gii file in both the subject-
+                  specific folder (mri_vol2surf) and fsaverage/volumes. <subject>_hemi-<L|R>_space-
+                  <fsnative|fsaverage>_<suffix>.gii is default
 
 Example:
   call_vol2fsaverage sub-001 t1map.nii.gz T1map

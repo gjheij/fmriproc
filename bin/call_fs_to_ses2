@@ -6,28 +6,45 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_fs_to_ses2
 
-This script warps the orig.mgz image from FreeSurfer to the anatomy of session 1 as per output of py-
-mp2rage. It uses predefined paths only so unless you changed something in previous steps you can use 
-it with just the subject ID. If you want to use a session other than ses-2, you can use the -n flag 
-to specify which session
+This script registers the 'orig.mgz' image from FreeSurfer to the anatomical image of a specified 
+session (default: ses-2) from the MP2RAGE output. It computes a rigid transformation matrix using 
+ANTs' 'call_antsregistration' and saves the resulting matrix in the subject's CTX directory.
 
-It will look for the following files:
-  - orig.mgz: $FS/<subject>/mri
-  - ses-2 anat: $DIR_DATA_HOME/<subject>/ses-2/anat
+The script assumes a standardized data structure and environment variable configuration:
+  - \$FS              should point to the FreeSurfer SUBJECTS_DIR
+  - \$DIR_DATA_HOME   should point to the directory containing MP2RAGE output (e.g., BIDS 
+                       derivatives)
+  - \$CTX             should be the output root for storing transform files
 
-And output a transformation matrix as:
-  $CTX/transforms/<subject>_from-fs_to-ses1_desc-genaff.mat
+It will search for the following files:
+  - FreeSurfer anatomical:       \$FS/<subject>/mri/orig.mgz
+  - Target session image:        \$DIR_DATA_HOME/<subject>/ses-<n>/anat/*acq-MP2RAGE_T1w.nii.gz
+
+It will output:
+  - Transformation matrix:       \$CTX/<subject>/transforms<subject>_from-fs_to-ses<n>_desc-genaff.
+                                mat
 
 Arguments:
-  <subject>    subject ID, e.g., sub-001
+  -n <session>     Specify session number (e.g., 2 or 3); defaults to 2 if not provided
+  <subject>        Subject ID (e.g., sub-001)
 
 Usage:
-  call_fs_to_ses2 <-n session> <subject> 
+  call_fs_to_ses2 [-n <session>] <subject>
 
-Example:
+Examples:
+  call_fs_to_ses2 sub-001
+    → Registers FreeSurfer orig.mgz to MP2RAGE session 2 T1w and outputs transformation matrix
+
   call_fs_to_ses2 -n 3 sub-001
+    → Registers to session 3 anatomy instead of the default session 2
+
+Notes:
+  - The output matrix will not be overwritten unless manually removed
+  - If orig.nii.gz does not exist, it is generated from orig.mgz using call_mriconvert
+  - Assumes you have already run call_ctximport or have valid \$CTX/<subject> structure
 
 ---------------------------------------------------------------------------------------------------
+
 
 USAGE
   
@@ -35,12 +52,26 @@ USAGE
 
 #-----------------------------------------------------------------------------
 # Deal with arguments
-while getopts n: arg
+while getopts :-:hn: arg
 do
-    case ${arg} in
-      n)  SESSION=${OPTARG}
-            ;;      
-    esac
+  case ${arg} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;      
+    n)  SESSION=${OPTARG}
+          ;;      
+  esac
 done
 
 if [[ $# -lt 1 ]] ; then

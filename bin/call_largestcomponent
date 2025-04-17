@@ -4,22 +4,32 @@ import sys
 from nilearn import image
 
 def main(argv):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_largestcomponent
 
-Keep the largest component of an image to remove weird small clusters/voxels.
+This script keeps only the largest connected component in a binary or thresholded image volume. 
+It is typically used to remove small, noisy clusters and retain the main object (e.g., after 
+binarizing a mask or segmentation).
 
-Args:
-    <input file>  input file (.nii.gz)
-    <output>      output file (.nii.gz) [if empty, <input file> will be overwritten]
+Usage:
+  call_largestcomponent <input_file> [output_file]
 
-Outputs
-    output        new volume containing the largest connected component
+Arguments:
+  <input_file>    Path to the input NIfTI image (.nii or .nii.gz). This should ideally be a 
+                  binarized or thresholded image with isolated clusters.
+  <output_file>   Optional. If specified, will write the result to this file. If not specified,
+                  the input file will be overwritten with the cleaned version.
 
-Example:
-    call_largestcomponent input.nii.gz output.nii.gz
+Outputs:
+  - A NIfTI file containing only the largest connected component from the input image.
+
+Examples:
+  call_largestcomponent mask_thresh.nii.gz
+    → Keeps the largest component in-place (overwrites mask_thresh.nii.gz)
+
+  call_largestcomponent mask_thresh.nii.gz cleaned_mask.nii.gz
+    → Writes largest component to 'cleaned_mask.nii.gz'
 
 ---------------------------------------------------------------------------------------------------
     """

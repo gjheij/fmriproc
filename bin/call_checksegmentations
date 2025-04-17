@@ -12,18 +12,33 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_checksegmentations
 
-Loads in all segmentations present in the manual_masks/<subject>/<ses-?> directory. Saves a bunch
-of clicks. Assumes you've ran the pipeline with all settings set to default (e.g., the paths)
-
-Args:
-  -s <subject>  subject ID
-  -n <session>  session number
+Quick launcher for checking segmentations using ITK-SNAP. This script searches for common 
+segmentation outputs (e.g., GM, WM, cruise, ribbon) in the default manual_masks/<subject>/<session>
+directory and opens them alongside the anatomical reference image. This is intended to streamline 
+quality checks and save manual clicks.
 
 Usage:
-  call_checksegmentations -s <subject> -n 1
+  call_checksegmentations -s <subject> -n <session>
+
+Arguments:
+  -s <subject>    BIDS-style subject ID (e.g., sub-001)
+  -n <session>    Session label or number (e.g., 1)
+
+Details:
+  - Looks in:     \$MASKS/<subject>/ses-<session>/
+  - Loads files:  GM, WM, CSF, cruise_cortex, ribbon, cruise_mask (if present)
+  - Ref:          \$DIR_DATA_DERIV/cat12/<subject>/ses-<session>/*T1w.nii.gz
+  - Opens:        ITK-SNAP with all found segmentations layered on top
 
 Example:
   call_checksegmentations -s sub-001 -n 1
+    → opens ITK-SNAP with T1-weighted anatomy and overlays of GM/WM/cruise masks etc.
+
+Notes:
+  - This script assumes a standard directory structure and naming convention.
+  - Segmentations must be in .nii.gz format.
+  - If a segmentation is missing, a warning is printed but processing continues.
+  - Requires ITK-SNAP to be installed and callable via 'launch_itksnap' (call_bashhelper).
 
 ---------------------------------------------------------------------------------------------------
 

@@ -18,12 +18,12 @@ uses a tempate script to run CAT12 in SPM.
 Usage:
  call_cat12 [arguments] [options] <input file> <output directory>
  
-Options:
-  -h|--help       print this help text
+Arguments:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
 
 Options:
+  -h|--help       print this help text
   --full          refers to a full processing with CAT12, which is sometimes overkill (makes the
                   brain too smooth). Default is just tissue segmentation.
 
@@ -67,14 +67,14 @@ do
           ;;
       esac
       ;;   
+    h)  Usage && exit 0
+          ;;               
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
             ;;
     m)  MODE=${OPTARG}
             ;;
-    h)  Usage && exit 0
-          ;;               
   esac
 done
 
@@ -252,8 +252,9 @@ find "$(dirname "${in_file}")" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*
 
   # copy geometry from input file
   cmd="call_copyheader "${INPUT}" "${out_file}""
+  
+  # run
   eval "${cmd}"
-  # check for error-directory
   if [[ $? -ne 0 ]]; then
     echo 
     print_line -
@@ -272,8 +273,9 @@ if [ ! -z ${img_for_mask} ]; then
     -bin
     "${OUTPUT}/mask$(basename ${img_for_mask})"
   )
+
+  # run
   eval "${cmd[@]}"
-  
   if [[ $? -ne 0 ]]; then
     echo 
     print_line -

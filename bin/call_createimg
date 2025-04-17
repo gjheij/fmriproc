@@ -5,27 +5,31 @@ import sys
 import numpy as np
 import nibabel as nb
 
-def main(argv):
 
+def main(argv):
     """
 ---------------------------------------------------------------------------------------------------
 call_createimg
 
-This super short script creates an empty nifti image based on the reference image. This is useful 
-for creating the manual segmentations (saves a bunch of clicking in ITK-Snap).
+This super short script creates an empty NIfTI image based on a reference image. It will match the
+dimensions, affine, and header of the reference, but the contents will be initialized to zeros. 
+This is useful for creating manual segmentations or binary masks — for instance, when preparing 
+files in ITK-SNAP or other neuroimaging tools where manual edits are made.
 
 Args:
-    <ref file>        reference image
-    <output file>     empty output image
+  <ref file>      Path to the reference NIfTI image. Must be a valid .nii or .nii.gz file.
+  <output file>   Path for the output image. Must end in .nii or .nii.gz.
 
-Outputs
-    output file       new volume with the same dimensions as reference image
+Outputs:
+  output file     A new NIfTI volume with the same shape, affine, and header as <ref file>, but
+                  with all voxel values set to 0.
 
 Usage:
-    call_createimg <input> <output> 
+  call_createimg <input> <output> 
 
-Example:
-    call_createimg input.nii.gz output.nii.gz
+Examples:
+  call_createimg input.nii.gz output.nii.gz
+  call_createimg /data/sub-01/anat/T1w.nii.gz seg_template.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -34,7 +38,6 @@ Example:
     out = None
 
     if len(argv) < 2:
-        print("NOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 
@@ -51,6 +54,7 @@ Example:
         ).to_filename(out)
     else:
         raise FileNotFoundError(f"Could not find specified file: {ref}")
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

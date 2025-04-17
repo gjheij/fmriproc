@@ -14,21 +14,25 @@ call_spmphysio
 
 Create a text file with physiological regressors using the PhysIO toolbox as implemented in SPM12. 
 You will need to specify the path to the SCANPHYSLOG file of interest and the base name of the out-
-put (to which several extensions such as *.txt, *.mat, and *.ps will be added). If you setup is not 
-default, you can specify the path to SPM-directory containing the PhysIO-toolbox with the '-s' flag.
+put (to which several extensions such as *.txt, *.mat, and *.ps will be added). If you setup is 
+not default, you can specify the path to SPM-directory containing the PhysIO-toolbox with the '-s' 
+flag.
 
 Usage:
   call_spmphysio [options] <input file> <output directory + basename>
   
-Options:
-  -h|--help       print this help text
+Optional:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
   -t <TR>         repetition time, set by default to 0.105; 'pixdim4' if func = *.nii.gz
   -n <n_slices>   number of slices, set by default to 1; 'dim1' if func = *.nii.gz
   -v <VOLUMES>    nr of volumes; 'dim4' if func = *.nii.gz or 'shape[-1]' if *.mat
   -f <FUNC FILE>  functional file that contains information about the number of runs
-  -d <DUMMY VOL>  number of dummy volumes before acquisition of actual data (1 dyn is typically 400 vols)
+  -d <DUMMY VOL>  number of dummy volumes before acquisition of actual data (1 dyn is typically 
+
+Options:
+  -h|--help       print this help text
+                  400 vols)
   --no-tapas      do not run PhysIO-toolbox, only 'scanphyslog2bids'
   --no-bids       do not run 'scanphyslog2bids'
   --use_bids      index the final dataframe with BIDS-fields read from the filename. Maps onto 

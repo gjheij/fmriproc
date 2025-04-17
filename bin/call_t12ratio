@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import getopt
-import os
-from nilearn import image
-import nibabel as nb
 import numpy as np
+import nibabel as nb
+from nilearn import image
 from lazyfmri import utils
 opj = os.path.join
 
@@ -26,24 +26,27 @@ Usage:
   call_t12ratio [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    --t1            T1-weighted image with background noise
-    --t2            T2-weighted image with background noise
-    -o|--out        Output basename including the path for the ratio image and sagittal sinus image
-                    ("-desc_ratio" and "-desc_nuisance" will be appended)
+  --t1            T1-weighted image with background noise
+  --t2            T2-weighted image with background noise
+  -o|--out        Output basename including the path for the ratio image and sagittal sinus image
+                  ("-desc_ratio" and "-desc_nuisance" will be appended)
 
 Optional (flags with defaults):
-    -t|--thresh     Threshold to use before binarizing the mask. If no threshold is specified,
-                    ITK-Snap will be opened to determine a threshold based on the calculated ratio.
+  -t|--thresh     Threshold to use before binarizing the mask. If no threshold is specified,
+                  ITK-Snap will be opened to determine a threshold based on the calculated ratio.
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs
-    1) T1w/T2w-ratio image
-    2) Initial sagittal sinus estimate
+  1) T1w/T2w-ratio image
+  2) Initial sagittal sinus estimate
 
 Example:
-    call_t12ratio --t1 t1w.nii.gz --t2 t2w.nii.gz -o /some/path/sub-001_desc
+  call_t12ratio \
+    --t1 t1w.nii.gz \
+    --t2 t2w.nii.gz \
+    -o /some/path/sub-001_desc
 
 ---------------------------------------------------------------------------------------------------
     """

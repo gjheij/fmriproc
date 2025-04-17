@@ -3,17 +3,17 @@
 import os
 import sys
 import getopt
-from lazyfmri import utils
 from nilearn import image
+from lazyfmri import utils
 
 opj = os.path.join
 opd = os.path.dirname
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 end = utils.color.END
 
+
 @utils.validate_cli_inputs(required_keys=["input_file", "output_file"])
 def main(context):
-
     """
 ---------------------------------------------------------------------------------------------------
 call_createmask
@@ -27,23 +27,23 @@ standalone version), then combine them. This is because each mask can miss parti
 is compensated with the other.
 
 Arguments:
-    -i|--input      image to use for processing (e.g., INV2 or MPRAGE image)
-    -o|--output     file name of the output mask
+  -i|--input      image to use for processing (e.g., INV2 or MPRAGE image)
+  -o|--output     file name of the output mask
 
 Optional (flags with defaults):
-    -t|--t1         in case '--input' is INV2, you can specify the T1w image to apply the genera-
-                    ted mask to remove noise around the brain. Generally should be done for
-                    MP2RAGE(ME)s, not MPRAGE.
+  -t|--t1         in case '--input' is INV2, you can specify the T1w image to apply the genera-
+                  ted mask to remove noise around the brain. Generally should be done for
+                  MP2RAGE(ME)s, not MPRAGE.
 
 Options (extra):
-    -h|--help       print this help text
-    --verbose       print some stuff to the terminal
-    --skip-bg       do not attempt to remove the noise structure around the brain (in case of
-                    MPRAGE image)
+  -h|--help       print this help text
+  --verbose       print some stuff to the terminal
+  --skip-bg       do not attempt to remove the noise structure around the brain (in case of
+                  MPRAGE image)
 
 Outputs:
-    T1w     (Nifti1Image):      denoised T1w image
-    Mask    (Nifti1Image):      brain mask
+    T1w: nifti file of denoised T1w image
+    Mask: nifti file of brain mask
 
 Examples:
     call_createmask -i inv2.nii.gz -o spm_mask.nii.gz # no t1
@@ -52,7 +52,7 @@ Examples:
 
 ---------------------------------------------------------------------------------------------------
     """
-    
+
     input_file = context.get("input_file")
     output_file = context.get("output_file")
     verbose = context.get("verbose", False)
@@ -64,9 +64,10 @@ Examples:
     # check if T1-file was specified
     if apply_mask:
         if not isinstance(t1_file, str) or not os.path.exists(t1_file):
-            print(f" {rb}WARNING{end}: apply_mask was set to True, but no valid T1-file was specified..")
+            print(
+                f" {rb}WARNING{end}: apply_mask was set to True, but no valid T1-file was specified..")
             apply_mask = False
-    
+
     # generate FSL mask
     fsl_mask = opj(opd(input_file), 'tmp_mask.nii.gz')
     if not os.path.exists(fsl_mask):
@@ -86,10 +87,11 @@ Examples:
             verb=verbose
         )
 
-        # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area, 
+        # SPM-mask sometimes gets rid of a part of the cerebellum; adding FSL's bet2 mask to it improves this area,
         # but also leaves in more dura. This will be removed, however, during the CAT12 stage
         if os.path.exists(output_file) and os.path.exists(fsl_mask):
-            utils.verbose("Combining SPM & FSL mask to include cerebellum too", verbose)
+            utils.verbose(
+                "Combining SPM & FSL mask to include cerebellum too", verbose)
             try:
                 new_mask = image.math_img(
                     '(spm + fsl) > 0',
@@ -116,7 +118,8 @@ Examples:
             "Removing noise pattern around the brain",
             verb=verbose
         )
-        print(f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
+        print(
+            f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
 
         # do some final intensity things
         cmd = f"call_wsd -l {lower} -u {upper} {t1_file}"
@@ -125,6 +128,7 @@ Examples:
             "Running post-processing to fix intensities and datatype",
             verb=verbose
         )
+
 
 if __name__ == "__main__":
 
@@ -140,7 +144,8 @@ if __name__ == "__main__":
         opts = getopt.getopt(
             sys.argv[1:],
             "hi:o:t:u:l:",
-            ["help", "input=", "output=", "t1=", "skip-bg", "verbose", "lower=", "upper="]
+            ["help", "input=", "output=", "t1=",
+                "skip-bg", "verbose", "lower=", "upper="]
         )[0]
     except getopt.GetoptError:
         print("ERROR while handling arguments; did you specify an illegal/non-defined argument?")
@@ -150,15 +155,15 @@ if __name__ == "__main__":
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print(main.__doc__)
-            sys.exit()            
+            sys.exit()
         elif opt in ("-i", "--input"):
             input_file = os.path.abspath(arg)
         elif opt in ("-o", "--output"):
             output_file = arg
         elif opt in ("-u", "--upper"):
-            upper = float(arg)   
+            upper = float(arg)
         elif opt in ("-l", "--lower"):
-            lower = float(arg)               
+            lower = float(arg)
         elif opt in ("-t", "--t1"):
             t1_file = os.path.abspath(arg)
         elif opt in ("--skip-bg"):

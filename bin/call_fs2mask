@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-import sys
 import os
-from lazyfmri import utils
-import nibabel as nb
+import sys
 import numpy as np
+import nibabel as nb
 from nilearn import image
+from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
@@ -26,26 +26,26 @@ Usage:
   call_fs2mask <atlas> <values> <output> [optional]
 
 Mandatory (required input):
-    <atlas img>     path to either an mgz-file or a nifti-file. The mgz-file will be converted
-                    to nifti
-    <values>        specify an integer for one hemisphere or a list in the format [<value1>,
-                    <value2>] for both hemispheres. You can look up the values by opening Free-
-                    view and load in the atlas of your choice and look for your ROI. Note down 
-                    the corresponding in the image (NOT THE LABELS IN THE LOOKUP TABLE ON THE 
-                    LEFT!). You can combine as many labels as you want.
-    <output img>    path to the output image
+  <atlas img>     path to either an mgz-file or a nifti-file. The mgz-file will be converted
+                  to nifti
+  <values>        specify an integer for one hemisphere or a list in the format [<value1>,
+                  <value2>] for both hemispheres. You can look up the values by opening Free-
+                  view and load in the atlas of your choice and look for your ROI. Note down 
+                  the corresponding in the image (NOT THE LABELS IN THE LOOKUP TABLE ON THE 
+                  LEFT!). You can combine as many labels as you want.
+  <output img>    path to the output image
     
 Optional:
-    <resample img>  image to resample freesurfer segmentation to if you don't want the output 
-                    in FS-space, but in native space - for instance
+  <resample img>  image to resample freesurfer segmentation to if you don't want the output 
+                  in FS-space, but in native space - for instance
 
 Outputs:
-    new image with the selected values set to 1
+  new image with the selected values set to 1
 
 Example:
-    call_fs2mask mri/aparc.DKTatlas+aseg.mgz 1002 example_hemi-L_roi-acc.nii.gz
-    call_fs2mask mri/aparc.DKTatlas+aseg.mgz 2002 example_hemi-R_roi-acc.nii.gz    
-    call_fs2mask mri/aparc.DKTatlas+aseg.mgz [1002,2002] example_roi-acc.nii.gz
+  call_fs2mask mri/aparc.DKTatlas+aseg.mgz 1002 example_hemi-L_roi-acc.nii.gz
+  call_fs2mask mri/aparc.DKTatlas+aseg.mgz 2002 example_hemi-R_roi-acc.nii.gz    
+  call_fs2mask mri/aparc.DKTatlas+aseg.mgz [1002,2002] example_roi-acc.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

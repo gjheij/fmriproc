@@ -16,6 +16,9 @@ Arguments:
   <-d output dir> output directory to store the figure(s)
   <-b basename>   output basename, otherwise input filename is used
 
+Options:
+  -h|--help       print this help text
+
 Positional:
   <input file>    file to create the image from
 
@@ -37,9 +40,23 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 # Check for subject & session flags
-while getopts o:d:b: argument
+while getopts :-:ho:d:b: argument
 do
   case ${argument} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;   
+    h)  Usage && exit 0
+          ;;    
     o)  OVERLAY=${OPTARG}
             ;;
     d)  OUTDIR=${OPTARG}
@@ -49,13 +66,17 @@ do
   esac
 done
 
-# if [[ "${@}" == *"-d"* ]]; then
-#   RM=0
-# else
-#   RM=1
-# fi
-
-INPUT=${@:$OPTIND:1}
+#-----------------------------------------------------------------------------
+# define inputs
+tmp="${@:$OPTIND:1}"
+if [[ ! -f "${tmp}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input" "Specified input file ${BOLD_GREEN}${tmp}${RESET} does not exist"
+  exit 1
+else
+  INPUT=$(readlink -f "${tmp}")
+fi
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -82,7 +103,7 @@ fi
 sliceropts="${edgeopts} -x 0.4 ${outdir}/grota.png -x 0.5 ${outdir}/grotb.png -x 0.6 ${outdir}/grotc.png -y 0.4 ${outdir}/grotd.png -y 0.5 ${outdir}/grote.png -y 0.6 ${outdir}/grotf.png -z 0.4 ${outdir}/grotg.png -z 0.5 ${outdir}/groth.png -z 0.6 ${outdir}/groti.png"
 convertopts="${outdir}/grota.png + ${outdir}/grotb.png + ${outdir}/grotc.png + ${outdir}/grotd.png + ${outdir}/grote.png + ${outdir}/grotf.png + ${outdir}/grotg.png + ${outdir}/groth.png + ${outdir}/groti.png"
 
-A=`${FSLDIR}/bin/remove_ext ${INPUT}`
+A=$(${FSLDIR}/bin/remove_ext ${INPUT})
 ${FSLDIR}/bin/slicer ${A} ${B} -s 1 ${sliceropts}
 
 ${FSLDIR}/bin/pngappend ${convertopts} ${outdir}/${fname}

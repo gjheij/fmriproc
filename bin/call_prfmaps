@@ -3,60 +3,92 @@
 import os
 import sys
 import numpy as np
-from lazyfmri.utils import get_file_from_substring
+from fmriproc import prf
+from lazyfmri import utils
 opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
 call_prfmaps
 
-Create maps of polar angle, eccentricity, and r2 from the output of call_prf
+Create polar angle, eccentricity, and R² maps from the output of 'call_prf'. This script loads 
+fitted pRF parameter files from a given model and extracts:
+  - Polar angle (θ)
+  - Eccentricity (r)
+  - Variance explained (R²)
 
-Args:
-    <subject>       subject ID
-    <output file>   if empty it will default to derivatives/<subject>/<subject>_desc-<polarangle>
-                    |<eccentricity>|<R2>.npy; specify a different basename if desired, but the 
-                    <polarangle>|<eccentricity>|<R2>.npy will be appended anyway
+The script supports different pRF models including:
+  - gauss : Gaussian pRF [Dumoulin & Wandell, 2008]
+  - dog   : Difference of Gaussian [Zuiderbaan et al., 2013]
+  - css   : Compressive Spatial Summation [Kay et al., 2013]
+  - norm  : Divisive Normalization [Aqil et al., 2021]
 
-Outputs
-    3x numpy array containing maps for polar angle, eccentricity and R2
+Usage:
+  call_prfmaps <input_dir> [model]
+
+Arguments:
+  <input_dir>     Path to the directory containing output from `call_prf`, e.g.,:
+                  derivatives/prf/sub-01/ses-1
+
+  [model]         Optional string indicating model type; defaults to "gauss"
+
+Outputs:
+  Saves three NumPy arrays:
+    - *_polarangle.npy : polar angle map (in radians)
+    - *_ecc.npy        : eccentricity map (in visual degrees)
+    - *_r2.npy         : variance explained (R²)
+
+Output filenames are derived from the original parameter file name with suffixes:
+  "_polarangle.npy", "_ecc.npy", and "_r2.npy"
 
 Example:
-    call_prfmaps sub-001 derivatives/prf/sub-001/sub-001_desc-
-    call_prfmaps sub-001
+  call_prfmaps derivatives/prf/sub-01/ses-1
+  call_prfmaps derivatives/prf/sub-01/ses-1 css
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject = None
-    out     = None
-
+    input_dir = None
     if len(argv) < 1:
         print(main.__doc__)
         sys.exit()
 
-    try:
-        subject = argv[0]
-        out = argv[1]
-    except:
-        subject = argv[0]
+    input_dir = argv[0]
+    model = argv[1] if len(argv) > 1 else "gauss"
+
+    # get files    
+    prf_params = utils.get_file_from_substring(
+        [f"model-{model}", "_desc-prf_params.pkl"],
+        input_dir
+    )
+
+    # check if input is valid
+    if isinstance(prf_params, str):
+        pars = prf.read_par_file(prf_params)
+    else:
+        raise TypeError(
+            f"Params file '{prf_params}' is not a string, but {type(prf_params)}: {prf_params}"
+        )
+
+    # calculate maps
+    polar = np.angle(pars[:,0]+pars[:,1]*1j)
+    r2 = pars[:,-1]
+    ecc = np.sqrt(pars[:,0]**2+pars[:,1]**2)
     
-    prf_params = get_file_from_substring("desc-prf_params", opj(os.environ['PRF'], subject))
-    if prf_params != None:
-        prf = np.load(prf_params)
+    # set output
+    out = "_".join(prf_params.split("_")[:-1])
 
-    polar = np.angle(prf[:,0]+prf[:,1]*1j)
-    r2 = prf[:,-1]
-    ecc = np.sqrt(prf[:,0]**2+prf[:,1]**2)
+    # define output dict
+    pattern = {
+        "_polarangle": polar,
+        "_ecc": ecc,
+        "_r2": r2
+    }
 
-    if not out:
-        out = opj(os.path.dirname(prf_params), f'{subject}_desc-')
-
-    np.save(out+'polarangle_map.npy', polar)
-    np.save(out+'eccentricity_map.npy', r2)
-    np.save(out+'R2_map.npy', ecc)
+    for i, j in pattern.items():
+        np.save(f"{out}{i}.npy", j)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

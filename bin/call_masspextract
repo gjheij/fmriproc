@@ -1,29 +1,46 @@
 #!/usr/bin/env python
 
-from fmriproc.image import massp_mask_img
 import os
-import getopt
 import sys
+import getopt
+from fmriproc.image import massp_mask_img
 opj = os.path.join
 
 def main(argv):
 
-    """
+    r"""
 ---------------------------------------------------------------------------------------------------
-call_massp2table
+call_masspmask2table
 
-Convert MASSP-label image to a tabular volumetric file. 
+Apply a MASSP (Multiple Automatically Segmented Subcortical Structures) label image to a quantitative
+parameter map (e.g., T1map or R1map) to extract the mean value for each labeled region. The output
+is a structured JSON file listing the average signal values per subcortical region.
 
-Args:
-    -l <input img>      label image
-    -m <mask img>       image to which label image is applied
-    -o <output file>    output tabular file
+This is useful for quantitative neuroimaging analyses where summary statistics are needed per
+structure (e.g., in group-level or cross-subject comparisons).
 
-Outputs
-    output file containing average across MASSP-structures given a to-be-masked image
+Usage:
+  call_masspmask2table -l <label_image> -m <quantitative_map> [-o <output_file>]
+
+Mandatory:
+  -l|--label      Path to the MASSP label image (NIfTI format)
+  -m|--mask       Quantitative map (e.g., T1 or R1 map) to extract signal values from
+
+Optional:
+  -o|--out        Output file name [default: label.json]
+
+Options:
+  -h|--help       Show this help text
+
+Outputs:
+  A JSON file where each key is a structure name and each value is the mean intensity from the
+  quantitative map within that structure.
 
 Example:
-    call_massp2table -l label.nii.gz -m t1map.nii.gz -o label.json
+  call_masspmask2table \
+    -l sub-01_label.nii.gz \
+    -m sub-01_T1map.nii.gz \
+    -o sub-01_massp_means.json
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -54,7 +71,6 @@ Example:
             mask = arg            
 
     if len(argv) < 2:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

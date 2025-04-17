@@ -793,8 +793,8 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_bids
 
-convert raw data from the scanner to nifti format. Depending on which session we're analyzing, we'll
-use either call_dcm2niix (session 1 - which is FromScannerToBIDS from M. Aqil) which can deal
+convert raw data from the scanner to nifti format. Depending on which session we're analyzing, 
+we'll use either call_dcm2niix (session 1 - which is FromScannerToBIDS from M. Aqil) which can deal
 nicely with the anatomical and functional stuff or call_dcm2niix, which is more specific for the
 line scanning stuff.
 
@@ -867,12 +867,13 @@ Example:
 Notes:
   - MP2RAGE files will be selected on the presence of the following strings in the filename:
     - 'T1w_'; this must be somewhere in your sequence name
-    - '_t10', '_t29', '_t30'; denote different trigger delays, will be appended by the dcm2niix conver-
-      sion
-    - Excludes files that have 'WIP' in them, as we're combining the inversion images with pymp2rage
+    - '_t10', '_t29', '_t30'; denote different trigger delays, will be appended by the dcm2niix   
+      conversion
+    - Excludes files that have 'WIP' in them, as we're combining the inversion images with 
+      pymp2rage
   - FLAIR/T2w files will be selected on the presence of '{FLAIR|T2w}.nii.gz' in the filename
 
----------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 
 EOF
 

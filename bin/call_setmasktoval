@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import nibabel as nb
-from nilearn import image
+import os
 import sys
 import getopt
-import os
+import nibabel as nb
+from nilearn import image
 
 def main(argv):
 
@@ -17,21 +17,25 @@ the opposite of regular 'making', where values in the mask are retained in the i
 call_setmasktoone and call_setmasktozero
 
 Mandatory (required input):
-    -i|--input      input image
-    -m|--mask       mask image
-    -v|--val        value
+  -i|--input      input image
+  -m|--mask       mask image
+  -v|--val        value
 
 Optional (flags with defaults):
-    -o|--output     output image, set to <input image> if empty
+  -o|--output     output image, set to <input image> if empty
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs
-    same as input image but with values from mask image set to a specified value
+  same as input image but with values from mask image set to a specified value
 
 Example:
-    call_setmasktozero -i t1w_image.nii.gz -m mask.nii.gz -o zeroed_t1w.nii.gz
+  call_setmasktozero \
+    -i t1w_image.nii.gz \
+    -m mask.nii.gz \
+    -v 10 \
+    -o mask_with_10s.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

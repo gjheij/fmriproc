@@ -12,9 +12,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_ants2lta
 
-This script converts transformation matrices from ANTs (.mat or .txt) format to FreeSurfer-compatible 
-`.lta` format using FreeSurfer's `lta_convert` tool. This is especially useful when combining ANTs 
-and FreeSurfer pipelines for alignment or resampling tasks.
+This script converts transformation matrices from ANTs (.mat or .txt) format to FreeSurfer-
+compatible `.lta` format using FreeSurfer's `lta_convert` tool. This is especially useful when
+combining ANTs and FreeSurfer pipelines for alignment or resampling tasks.
 
 Inputs:
   - ANTs transform file (.mat or .txt)

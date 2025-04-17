@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Get bash helper functions
 source call_bashhelper
 
@@ -19,10 +19,12 @@ filter and bias correction separately we obtain the best of both worlds, presuma
 Usage:
   call_spmsanlm [options] <input image> <output directory + basename>
 
-Options:
-  -h|--help       print this help text
+Optional:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
+Options:
+  -h|--help       print this help text
 
 Positional:
   <input image>   input image. Can either be *.nii.gz or *.nii image. In the case of the former,

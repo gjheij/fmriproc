@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import numpy as np
 import nibabel as nb
 from fmriproc.image import mgz2nii
-import numpy as np
-import sys
 opj = os.path.join
 
 def main(argv):
@@ -16,8 +16,8 @@ call_splitribbon
 Split FreeSurfer's `ribbon.mgz` into binary gray matter (GM), white matter (WM), and combined cortex
 masks in NIfTI format.
 
-This script extracts key tissue regions from the `ribbon.mgz` file created by FreeSurfer. It uses the
-default FreeSurfer labeling:
+This script extracts key tissue regions from the `ribbon.mgz` file created by FreeSurfer. It uses 
+the default FreeSurfer labeling:
   - 2: Left-White-Matter
   - 41: Right-White-Matter
   - 3: Left-Cortex (Gray Matter)
@@ -29,11 +29,11 @@ Outputs include binary masks for:
   - Combined Cortical Mask (`_desc-ribbon_mask.nii.gz`)
 
 Arguments:
-  <subject>         FreeSurfer subject ID (used to locate SUBJECTS_DIR/<subject>/mri/ribbon.mgz)
-  <output>          Basename path where output files will be saved. The script will append:
-                     _desc-ribbon_gm.nii.gz
-                     _desc-ribbon_wm.nii.gz
-                     _desc-ribbon_mask.nii.gz
+  <subject>       FreeSurfer subject ID (used to locate SUBJECTS_DIR/<subject>/mri/ribbon.mgz)
+  <output>        Basename path where output files will be saved. The script will append:
+                    *_desc-ribbon_gm.nii.gz
+                    *_desc-ribbon_wm.nii.gz
+                    *_desc-ribbon_mask.nii.gz
 
 Notes:
   - If the output directory does not exist, it will be created automatically.
@@ -67,7 +67,7 @@ This will generate:
     os.makedirs(output_dir, exist_ok=True)
 
     # fetch ribbon file
-    ribbon_mgz = opj(os.environ['SUBJECTS_DIR'], subject, 'mri', 'ribbon.mgz')
+    ribbon_mgz = opj(os.environ.get('SUBJECTS_DIR'), subject, 'mri', 'ribbon.mgz')
     ribbon_nii = mgz2nii(ribbon_mgz)
 
     ribbon_img = nb.load(ribbon_nii)

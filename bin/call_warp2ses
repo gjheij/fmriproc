@@ -116,7 +116,14 @@ fi
 
 # check in DIR_DATA_HOME/<sub>/ses-<to_ses>/anat
 if [[ -z ${ref_img} ]]; then
-  ref_img=$(find ${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat -type f -name "*acq-${space^^}*" -and -not -name "*space-*" -and -name "*.nii.gz" 2>/dev/null)
+  ref_img=$(
+    find "${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat" \
+    -type f \
+    -name "*acq-${space^^}*" \
+    -and -not -name "*space-*" \
+    -and -name "*.nii.gz" \
+    2>/dev/null
+  )
 fi
 
 if [[ ! -f ${ref_img} ]]; then
@@ -182,7 +189,14 @@ echo "Output session  = ${to_ses,,  }"
 #-----------------------------------------------------------------------------
 # check if we have something between actual files and ses-x tag
 echo "Start warping.."
-fn=$(find ${input} -type f -name "*${search}*" -and -name "*.nii.gz" 2>/dev/null)
+fn=$(
+  find "${input}" \
+  -type f \
+  -name "*${search}*" \
+  -and -name "*.nii.gz" \
+  2>/dev/null
+)
+
 for f in ${fn[@]}; do
 
   # re-direct output to ses-2 directory and insert "space-ses<to_ses>"

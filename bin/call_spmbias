@@ -19,10 +19,12 @@ ber use this prior to FreeSurfer and find it really helps..
 Usage:
   call_spmsanlm [options] <input image> <output directory + basename>
 
-Options:
-  -h|--help       print this help text
+Optional:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <LOG_PATH>	  path to working directory, defaults to DIR_LOGS
+
+Options:
+  -h|--help       print this help text
   -k|--keep       keep intermediate files
 
 Positional:

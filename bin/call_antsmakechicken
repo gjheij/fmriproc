@@ -1,42 +1,55 @@
 #!/usr/bin/env python
 
 import sys
-import numpy as np
 import ast
+import numpy as np
 from lazyfmri.utils import make_chicken_csv
 
-def main(argv):
 
+def main(argv):
     """
 ---------------------------------------------------------------------------------------------------
 call_antsmakechicken
 
-Command-line script to create a chicken-file as per input of antsApplyTransformsToPoints. You'll only
-need to specify a coordinate, an output file name ending with .csv and whether the coordinate is 
-in RAS or LPS convention (I assume by default it is in LPS). The difference between RAS and LPS is 
-that the first two dimensions are flipped. 
+Command-line utility to generate a "chicken-file" (.csv) that contains a 3D coordinate in the 
+format required by ANTs' antsApplyTransformsToPoints. Coordinates can be specified in either LPS
+(default) or RAS orientation.
 
-Args:
-    <coord>         coordinate in the format [C,R,S] (comma-separated & no spaces!)
-    <output file>   string-like representation to a .csv-file
-    <input conv>    convention the input coordinate uses; ("lps" (default)|"ras")
-
-Outputs
-    output file     csv-file containing the input coordinate
+The "chicken-file" is a lightweight CSV structure that stores spatial points (e.g., ROI centers or
+landmarks) which can be transformed using ANTs tools. The script converts user-specified 
+coordinates into a valid format and applies optional orientation flipping depending on the conven-
+tion used.
 
 Usage:
-    call_antsmakechicken <coord> <output file> <convention>
+  call_antsmakechicken <coord> <output_file> <convention>
 
-Example:
-    call_antsmakechicken [-15,-89,56] test.csv ras
+Arguments:
+  <coord>         Coordinate in the format [X,Y,Z] (as a string, comma-separated, no spaces)
+  <output_file>   Path to output .csv file that will contain the formatted coordinate
+  <convention>    Coordinate convention (optional); valid options are:
+                    - "lps" (default)  → ANTs default orientation
+                    - "ras"            → Flips first two dims relative to LPS
+
+Outputs:
+  A .csv file containing the formatted spatial coordinate, suitable for antsApplyTransformsToPoints
+
+Examples:
+  call_antsmakechicken [-15,-89,56] test.csv ras
+  call_antsmakechicken [12.3,45.1,67.0] output.csv
+
+Notes:
+  - Input coordinates must be wrapped in brackets and comma-separated (e.g., [x,y,z])
+  - No spaces allowed inside the coordinate string
+  - Convention defaults to "lps" if not explicitly specified
+  - The volume column is fixed to 0.343 (can be adjusted in the code)
 
 ---------------------------------------------------------------------------------------------------
     """
 
-    coord       = None
-    out_file    = None
+    coord = None
+    out_file = None
 
-    if len(argv)<2:
+    if len(argv) < 2:
         print(main.__doc__)
         sys.exit(0)
 
@@ -44,11 +57,12 @@ Example:
     in_type = argv[2] if len(argv) > 2 else "lps"
 
     try:
-      coord = np.array(ast.literal_eval(coord))
+        coord = np.array(ast.literal_eval(coord))
     except:
-      raise ValueError(f"You used '{coord}'. Make sure to use '[x,y,z]' (comma-separated and no spaces)")
+        raise ValueError(
+            f"You used '{coord}'. Make sure to use '[x,y,z]' (comma-separated and no spaces)")
 
-    if in_type.lower() not in ["lps","ras"]:
+    if in_type.lower() not in ["lps", "ras"]:
         raise ValueError(f"in_type is {in_type}; please use 'lps' or 'ras'")
 
     make_chicken_csv(
@@ -57,6 +71,7 @@ Example:
         output_file=out_file,
         vol=0.343
     )
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

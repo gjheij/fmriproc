@@ -12,9 +12,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_ras2fsl
 
-wrapper for reorientating a given warp file from RAS to FSL, i.e., to MNI space (= RPI) or vice ver-
-sa. The default for the script is to use 'ras2fsl', but we can also do 'fsl2ras' by specifying the 
-'-i' flag. A specified output name will be used, otherwise the input file will be overwritten.
+wrapper for reorientating a given warp file from RAS to FSL, i.e., to MNI space (= RPI) or vice 
+versa. The default for the script is to use 'ras2fsl', but we can also do 'fsl2ras' by specifying 
+the '-i' flag. A specified output name will be used, otherwise the input file will be overwritten.
 
 Usage:
   call_ras2fsl [options] <fixed> <moving> <tfm> <output>
@@ -41,7 +41,7 @@ USAGE
 
 # Check for subject flag
 to_fsl=0
-while getopts :-:ft: argument
+while getopts :-:hft: argument
 do
   case ${argument} in
     -)
