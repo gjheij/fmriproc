@@ -41,7 +41,8 @@ Options:
   -h|--help       print this help text
   -o|--ow         rename existing file to numerically increasing (e.g., line_pycortex > line_pycor-
                   tex1.csv) so that a new line_pycortex.csv-file is created. Given that the 
-                  original file is NOT deleted, I consider this a soft-overwrite mode. You can always manually delete unwanted/unused files or use '--full' to remove the file.
+                  original file is NOT deleted, I consider this a soft-overwrite mode. You can 
+                  always manually delete unwanted/unused files or use '--full' to remove the file.
   --aparc         specified ROI is part of the 'aparc.annot' atlas [default = False]. It is wise 
                   to use this function in combination with '--manual' to select a vertex from this 
                   ROI. Available ROIs in this atlas are:
