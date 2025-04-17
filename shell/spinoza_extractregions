@@ -23,25 +23,26 @@ custom levelset (see call_gdhcombine).
 For this, you will need four directories: the REGION directory (with tissue classification from
 MGDM), the FreeSurfer directory (read from you SUBJECTS_DIR), the fMRIprep-directory with tissue
 classification from FAST, and the MASK-directory containing manual edits. The REGION directory is
-the directory that will be created first, the FreeSurfer directory will be read from the SUBJECTS_DIR
-variable, the fMRIprep-directory you'll need to specify with the -f flag BEFORE (!!) the positional
-arguments, and the MASK-directory you will already specify.
+the directory that will be created first, the FreeSurfer directory will be read from the 
+\$SUBJECTS_DIR-variable, the fMRIprep-directory you'll need to specify with the -f flag BEFORE 
+(!!) the positional arguments, and the MASK-directory you will already specify.
 
 Usage:
-  spinoza_extractregions [arguments] [options] <nighres folder> <probability folder> <ROI>
+  spinoza_extractregions [arguments] [options] <nighres out> <probability folder> <ROI>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
 
 Options:
-  -o|--ow             Overwrite existing output
-  --skip-combine      do not combine all segmentations, just exit after Nighres
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --skip-combine  do not combine all segmentations, just exit after Nighres
 
 Positional:
-  <nighres folder>    folder with nighres output
-  <prob folder>       folder containing masks
-  <region>            region to extract with Nighres
+  <nighres out>   folder with nighres output
+  <prob folder>   folder containing masks
+  <region>        region to extract with Nighres
 
 Example:
   spinoza_extractregions DIR_DATA_DERIV/nighres DIR_DATA_DERIV/manual_masks cerebrum
@@ -68,7 +69,6 @@ USAGE
 }
 
 if [[ $# -lt 4 ]] ; then
-  echo NOT ENOUGH ARGUMENTS SPECIFIED
   Usage && exit 0
 fi
 
@@ -78,7 +78,7 @@ COMB_ONLY=0
 SKIP_COMB=0
 fprep=${DIR_DATA_DERIV}/fmriprep
 kwargs_flag=""
-while getopts cos:n:f:x:-: argument
+while getopts hcos:n:f:x:-: argument
 do
   case ${argument} in
     -)
@@ -89,6 +89,9 @@ do
         ow)
           OW=1
           ;;         
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -96,6 +99,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -132,7 +137,18 @@ fi
 #-----------------------------------------------------------------------------
 # Run it
 
-declare -a ROI=("left_cerebrum" "right_cerebrum" "cerebrum" "cerebellum" "cerebellum_brainstem" "subcortex" "tissues(anat)" "tissues(func)" "brain_mask")
+declare -a ROI=(
+  "left_cerebrum"
+  "right_cerebrum"
+  "cerebrum"
+  "cerebellum"
+  "cerebellum_brainstem"
+  "subcortex"
+  "tissues(anat)"
+  "tissues(func)"
+  "brain_mask"
+)
+
 if [[ "${ROI[@]}" =~ "${REGION}" ]]; then
   if [[ ${REGION} == "left_cerebrum" ]]; then
     suff="lcr"
@@ -204,7 +220,14 @@ for subID in ${search}; do
   declare -a INPUTS=()
 
   for r in ${MGDM[@]}; do
-    file=$(find "${mgdm_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
+    file=$(
+      find "${mgdm_dir}" \
+      -type f \
+      -name "*acq-${DATA^^}*" \
+      -and -name "*${r}*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
 
     # check for multiple files..
     j=0; for i in ${file[@]}; do ((j++)); done
@@ -216,8 +239,8 @@ for subID in ${search}; do
       continue 2
     fi
 
-    if [[ -f ${file} ]]; then
-      INPUTS+=(${file})
+    if [[ -f "${file}" ]]; then
+      INPUTS+=("${file}")
     else
       print_file_not_in_dir "${sub_name}" "*${r}*" "${mgdm_dir}"
       continue
@@ -229,36 +252,28 @@ for subID in ${search}; do
     continue
   fi
 
-  output_root=${region_dir}/${base}_acq-${DATA^^}_desc
-  output=${output_root}-xproba_${suff}-gm.nii.gz
-  gm_prob=${mask_dir}/${base}_acq-${DATA^^}_label-GM_probseg.nii.gz
-  if [[ ! -d ${region_dir} ]]; then
-    mkdir -p ${region_dir}
+  # define outputs
+  output_root="${region_dir}/${base}_acq-${DATA^^}_desc"
+  output="${output_root}-xproba_${suff}-gm.nii.gz"
+  gm_prob="${mask_dir}/${base}_acq-${DATA^^}_label-GM_probseg.nii.gz"
+  
+  # output directory
+  if [[ ! -d "${region_dir}" ]]; then
+    mkdir -p "${region_dir}"
   fi
 
   # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
   if [[ ${OW} -eq 1 ]]; then
-    if [[ ${COMB_ONLY} -eq 1 ]]; then
-      if [[ -f ${gm_prob} ]]; then
-        rm -r ${gm_prob} 2>/dev/null
-      fi
-    else
-      # remove existing nighres stuff
-      if [[ -d ${region_dir} ]]; then
-        rm -r ${output_root}*${suff}* 2>/dev/null
-      fi
-
-      # remove search target for probability-maps
-      if [[ -f ${gm_prob} ]]; then
-        rm -r ${gm_prob} 2>/dev/null
-      fi
+    rm "${gm_prob}" 2>/dev/null
+    if [[ ${COMB_ONLY} -eq 0 ]]; then
+      rm -r "${output_root}"*${suff}* 2>/dev/null
     fi
   fi
 
   executed_nighres=0
   if [[ ${COMB_ONLY} -eq 0 ]]; then
-    if [[ ! -f ${output} ]]; then
-      if [[ ! -f ${output_root}_xproba-${suff}gm.nii.gz ]]; then
+    if [[ ! -f "${output}" ]]; then
+      if [[ ! -f "${output_root}_xproba-${suff}gm.nii.gz" ]]; then
 
         # print header
         print_subject_header ${sub_name}
@@ -272,7 +287,7 @@ for subID in ${search}; do
           --roi "${REGION}"
           --outputdir "${region_dir}"
           --name "$(basename ${INPUTS[0]} -mgdm_seg.nii.gz)"
-          ${kwargs_flag}
+          "${kwargs_flag}"
         )
 
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -291,14 +306,14 @@ for subID in ${search}; do
 
   if { [[ ! -f "${gm_prob}" ]] || [[ "${COMB_ONLY}" -eq 1 ]]; } && [[ "${SKIP_COMB}" -eq 0 ]]; then
 
-    if [[ ${mask_dir} != *"nighres"* ]]; then
+    if [[ "${mask_dir}" != *"nighres"* ]]; then
 
       if [[ ${executed_nighres} -eq 0 ]]; then
         print_subject_header ${sub_name}
       fi
       
-      fs=${SUBJECTS_DIR}/${sub_name}
-      for i in ${fprep_dir} ${fs} ${mask_dir} ${region_dir}; do
+      fs="${SUBJECTS_DIR}/${sub_name}"
+      for i in "${fprep_dir}" "${fs}" "${mask_dir}" "${region_dir}"; do
         if [[ ! -d ${i} ]]; then
           echo "You want a custom levelset, but you're missing directories:"
           echo " ${i}"
@@ -307,9 +322,9 @@ for subID in ${search}; do
         fi
       done
 
-      if [[ -d ${cat12_dir} ]]; then
+      if [[ -d "${cat12_dir}" ]]; then
         print_create_img "custom levelset" "Input=(fmriprep+FS+MGDM+CAT12)"
-        cat12=${cat12_dir}
+        cat12="${cat12_dir}"
       else
         print_create_img "custom levelset" "Input=(fmriprep+FS+MGDM)"
         cat12=""
@@ -338,7 +353,6 @@ for subID in ${search}; do
       )
 
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
       if [[ $? -ne 0 ]]; then
         echo
         print_line -

@@ -16,35 +16,35 @@ spinoza_bestvertex
 wrapper for call_targetvertex to calculate the best vertex and normal vector based on the minimal
 curvature given an ROI.
 
-this script requires input from FreeSurfer, so it won't do much if that hasn't run yet. Ideally, you
-should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this thing
-so it can also take in the pRF to locate an even better vertex.
+this script requires input from FreeSurfer, so it won't do much if that hasn't run yet. Ideally, 
+you should perform FreeSurfer with the pRF-mapping in fMRIprep (module before [13]), then run this 
+thing so it can also take in the pRF to locate an even better vertex.
 
 Usage:
   spinoza_bestvertex [arguments] [options] <sourcedata> <derivatives> <ROI>
 
 Arguments:
   -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
-  -n <session>    session ID used to extract the correct pRF-parameters. Will combined with <deriva-
-                  tives>/prf/ses-<session>
+  -n <session>    session ID used to extract the correct pRF-parameters. Will combined with 
+                  <derivatives>/prf/ses-<session>
   -l <line ses>   session ID for new line-scanning session; default = 2
-  -t <task>       select pRF estimates from a particular task; by default the first element of TASK_
-                  SES1 in spinoza_setup
+  -t <task>       select pRF estimates from a particular task; by default the first element of 
+                  TASK_IDS in \$CONFIG_FILE
   -v <vertices>   manually specify two vertices to use instead of having the program look for it. 
-                  The format is important here and should always be: "<vertex in lh>,<vertex in rh>".
-                  Always try to specify two vertices; doesn't matter too much if one is not relevant
-  -e <epi_file>   Specify custom EPI-intensity file rather than looking in DIR_DATA_DERIV/fmriprep. 
-                  Automatically sets --use_epi.
+                  The format is important here and should always be: "<vertex in lh>,<vertex in 
+                  rh>". Always try to specify two vertices; doesn't matter too much if one is not 
+                  relevant
+  -e <epi_file>   Specify custom EPI-intensity file rather than looking in \$DIR_DATA_DERIV/  
+                  fmriprep. Automatically sets --use_epi.
 
 Options:
   -h|--help       print this help text
   -o|--ow         rename existing file to numerically increasing (e.g., line_pycortex > line_pycor-
-                  tex1.csv) so that a new line_pycortex.csv-file is created. Given that the original
-                  file is NOT deleted, I consider this a soft-overwrite mode. You can always manual-
-                  ly delete unwanted/unused files or use '--full' to remove the file.
-  --aparc         specified ROI is part of the 'aparc.annot' atlas [default = False]. It is wise to 
-                  use this function in combination with '--manual' to select a vertex from this ROI.
-                  Available ROIs in this atlas are:
+                  tex1.csv) so that a new line_pycortex.csv-file is created. Given that the 
+                  original file is NOT deleted, I consider this a soft-overwrite mode. You can always manually delete unwanted/unused files or use '--full' to remove the file.
+  --aparc         specified ROI is part of the 'aparc.annot' atlas [default = False]. It is wise 
+                  to use this function in combination with '--manual' to select a vertex from this 
+                  ROI. Available ROIs in this atlas are:
                     'caudalanteriorcingulate'
                     'caudalmiddlefrontal'
                     'corpuscallosum'
@@ -83,34 +83,35 @@ Options:
   --no-freeview   prevent FreeView from opening while verifying the location. ONLY do this if you
                   already know the position. Generally only used for debugging purposes.
   --no-srf        do not use size-response functions (SRFs) despite the usage of DN-model estimates
-  --srf-file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the subjects'
-                  pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/sub-001_desc-srfs_centered.csv')        
+  --srf-file      search for file with SRFs (should be call "desc-srfs_centered.csv" in the 
+                  subjects' pRF folder, e.g., 'derivatives/prf/<subject>/ses-<x>/
+                  sub-001_desc-srfs_centered.csv')        
   --v1|--v2       use the pRF-estimates that you created with spinoza_fitprfs --v1/--v2
   --grid          use pRF-estimates from grid search; default is 'iter'
-  --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and SRFs
-                  are included, this will yield in a 4x5 grid with brainmaps of various kinds that 
-                  were used in the selection process of the target vertex.
+  --gallery       save all cortex-objects from 'optimal.TargetVertex()' in a figure. If pRFs and 
+                  SRFs are included, this will yield in a 4x5 grid with brainmaps of various kinds 
+                  that were used in the selection process of the target vertex.
   --manual        use manual selection for the vertex, rather than minimizing for curvature     
   --no-epi        do not use EPI-intensities even though you could   
-  --skip-prf-info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful if 
-                  you want an indication of the pRF-properties, but want to refit yourself. This is 
-                  the case where I use M. Aqil's fitting output, which has been fitted with an out-
-                  dated screen distance.      
+  --skip-prf-info skip the creation of the 'model-{}_desc-best_vertices.csv'. This can be useful 
+                  if you want an indication of the pRF-properties, but want to refit yourself. 
+                  This is the case where I use M. Aqil's fitting output, which has been fitted 
+                  with an outdated screen distance.      
 
 Positional:
   <project root>  Path to where the subject-drectories are located; used to loop through subjects, 
                   unless the -s switch is triggered
-  <derivatives>   Derivatives folder containing the output from pycortex and pRF-fitting. Looks for 
-                  <derivatives>/freesurfer, <derivatives>/pycortex, and <derivatives>/prf for the 
-                  surface reconstruction, pycortex-import, and pRF-data, respectively
+  <derivatives>   Derivatives folder containing the output from pycortex and pRF-fitting. Looks 
+                  for <derivatives>/freesurfer, <derivatives>/pycortex, and <derivatives>/prf for 
+                  the surface reconstruction, pycortex-import, and pRF-data, respectively
   <ROI>           Region-of-interest to use. Should be a FreeSurfer-named label-file or a custom
                   file in the format of FreeSurfer label-file: you could for instance draw an ROI
                   in volume-space in FreeView, convert that to a label ("mri_vol2label") and insert
                   that to look for a vertex (might be useful for finding a mask representing indi-
                   vidual fingers when the motor cortex mask from FreeSurfer is to coarse).
 
-                  If pRFs are used, we'll also try to include the mean intensities of the functional
-                  data as criteria, to exclude veins
+                  If pRFs are used, we'll also try to include the mean intensities of the 
+                  functional data as criteria, to exclude veins
 
 Models for pRF fitting:
   --gauss         use standard Gaussian model (default) [Dumoulin & Wandell, 2008]
@@ -428,8 +429,7 @@ for subID in ${search}; do
     )
     
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-    if [[ $? != 0 ]]; then
+    if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "call_targetvertex"

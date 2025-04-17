@@ -20,59 +20,63 @@ Usage:
   spinoza_freesurfer [arguments] [options] <directory with anats> <stage> <T2-directory>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
-  -e <start>          start stage (maps to '-r' from 'call_freesurfer'). Must be one of 'pial', 
-                      'cp', or 'wm' if <freesurfer stage> != 'all'
-  -j <cpus>           number of cores to use (default is 1)
-  -x <file>           use expert file
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or n)
+  -e <start>      start stage (maps to '-r' from 'call_freesurfer'). Must be one of 'pial', 
+                  cp', or 'wm' if <freesurfer stage> != 'all'
+  -j <cpus>       number of cores to use (default is 1)
+  -x <file>       use expert file
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+
 Options:
-  -o|--ow             overwrite existing files
-  --force-exec        Force execution even though directory exists already
-  --local             Force local processing even though cluster is available
-  --no-highres        Turn of highres mode by setting '-highres' flag empty
-  --no-t2             Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
-                      '-r'. By default, we'll re-use the T2 if present. Same flag should be 
-                      used for not re-using FLAIR images  
-  --sge               Submit the script to a cluster using a template script
-  --xopts-use         maps to '-xopts-use' for existing expert option file; use existing file
-  --xopts-clean       maps to '-xopts-clean' for existing expert option file; delete existing file
-  --xopts-overwrite   maps to '-xopts-overwrite' for existing expert option file; use new file
+  -h|--help       print this help text
+  -o|--ow         overwrite existing files
+  --force-exec    Force execution even though directory exists already
+  --local         Force local processing even though cluster is available
+  --no-highres    Turn of highres mode by setting '-highres' flag empty
+  --no-t2         Do not reuse T2 with autorecon3. Must be used in concert with '-e' and
+                  '-r'. By default, we'll re-use the T2 if present. Same flag should be 
+                  used for not re-using FLAIR images  
+  --sge           Submit the script to a cluster using a template script
+  --xopts-use     maps to '-xopts-use' for existing expert option file; use existing file
+  --xopts-clean   maps to '-xopts-clean' for existing expert option file; delete existing file
+  --xopts-overwrite maps to '-xopts-overwrite' for existing expert option file; use new file
 
 Positional arguments:
-  <anat folder>       folder containing the T1w-file. In 'master', we'll look through various fol-
-                      ders. In order of priority:
-                        -'<derivatives>/masked_${DATA,,}'
-                        -'<derivatives>/denoised'
-                        -'<derivatives>/pymp2rage'
-                        -'DIR_DATA_HOME'
-                      this ensures a level of agnosticity about anatomical preprocessing. I.e., you
-                      don't have to run the full pipeline if you don't want to.
-  <freesurfer stage>  stage to run for FreeSurfer. By default 'all'
-  <T2-folder>         if specified, we'll look for a '*T2w.nii.gz' or '*FLAIR.nii.gz' image to add 
-                      to the FreeSurfer reconstruction.
+  <anat folder>   folder containing the T1w-file. In 'master', we'll look through various fol-
+                  ders. In order of priority:
+                    -'<derivatives>/masked_\${DATA,,}'
+                    -'<derivatives>/denoised'
+                    -'<derivatives>/pymp2rage'
+                    -'DIR_DATA_HOME'
+                  this ensures a level of agnosticity about anatomical preprocessing. I.e., you
+                  don't have to run the full pipeline if you don't want to.
+  <stage>         stage to run for FreeSurfer. By default 'all'
+  <T2-folder>     if specified, we'll look for a '*T2w.nii.gz' or '*FLAIR.nii.gz' image to add 
+                  to the FreeSurfer reconstruction.
 
 General approach for segmentation:
   - Run autorecon1:   call_freesurfer -s <subj ID> -t <T1> -p <T2> -r 1)      ~an hour
   - Fix skullstrip:   call_freesurfer -s <subj ID> -o gcut                    ~10 minutes
   - Run autorecon2:   call_freesurfer -s <subj ID> -r 2                       ~few hours
   - Fix errors with:
-      - norm; then run call_freesurfer -s ${SUBJECT_PREFIX}001 -r 23 -e cp    ~few hours
-      - pia;  then run call_freesurfer -s ${SUBJECT_PREFIX}001 -r 23 -e pial  ~few hours
+      - norm; then run:
+          call_freesurfer -s sub-001 -r 23 -e cp    ~few hours
+      - pia;  then run:
+          call_freesurfer -s sub-001 -r 23 -e pial  ~few hours
 
 You can specify in which directory to look for anatomical scans in the first argument. Usually,
 this is one of the following options: DIR_DATA_HOME if we should use the T1w in the project/
-${SUBJECT_PREFIX}xxx/anat directory, or DIR_DATA_DERIV/pymp2rage to use T1w-images derived from 
+sub-xxx/anat directory, or DIR_DATA_DERIV/pymp2rage to use T1w-images derived from 
 pymp2rage, or DIR_DATA_DERIV/masked_mp2rage to use T1w-images where the dura and sagittal sinus 
 are masked out (should be default!). In any case, it assumes that the file is in YOURINPUT/
-${SUBJECT_PREFIX}xxx/ses-1/. If the input is equal to the DIR_DATA_HOME variable, this will 
-be recognize and 'anat' will be appended to YOURINPUT/${SUBJECT_PREFIX}xxx/ses-1/anat.
+sub-xxx/ses-1/. If the input is equal to the DIR_DATA_HOME variable, this will 
+be recognize and 'anat' will be appended to YOURINPUT/sub-xxx/ses-1/anat.
 
-You can also specify a directory where the T2-weighted image is located. Do this the same way as de-
-scribed above. To you path, ${SUBJECT_PREFIX}xxx/ses-x will be appended if the input path is not 
-equal to DIR_DATA_HOME. Again, if it is, ${SUBJECT_PREFIX}xxx/ses-x/anat will be appended as well.
+You can also specify a directory where the T2-weighted image is located. Do this the same way as 
+described above. To you path, sub-xxx/ses-x will be appended if the input path is 
+not equal to \$DIR_DATA_HOME. Again, if it is, sub-xxx/ses-x/anat will be appended 
+as well.
 
 Example:
   spinoza_freesurfer DIR_DATA_DERIV/masked_mp2rage all DIR_DATA_HOME
@@ -80,9 +84,10 @@ Example:
 
 Notes:
   When an expert options is passed, it will be copied to scripts/expert-options. Future calls to 
-  recon-all, the user MUST explicitly specify how to treat this file. Options are (1) use the file 
-  ('--xopts-use'), or (2) delete it ('--xopts-clean'). If this file exsts and the user specifies 
-  another expert options file, then the user must also specify '--xopts-overwrite'.
+  recon-all, the user MUST explicitly specify how to treat this file. Options are:
+    (1) use the file ('--xopts-use')
+    (2) delete it ('--xopts-clean'). If this file exsts and the user specifies another expert 
+        options file, then the user must also specify '--xopts-overwrite'.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -180,8 +185,11 @@ fi
 # check if we got expert file
 if [[ ! -z ${EXPERT_FILE} ]]; then
   if [[ ! -f ${EXPERT_FILE} ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): specified expert file \"${EXPERT_FILE}\" does not exist"
-    exit 1
+      echo
+      print_line -
+      print_error_msg "$(basename $0)" "find" "Expert file ${BOLD_GREEN}${EXPERT_FILE}${RESET} does not exist"
+      exit 1
+    fi
   fi
   expert_flag="-x ${EXPERT_FILE}"
 else
@@ -204,7 +212,14 @@ for subID in ${search}; do
 
   # check number of T1w-files
   T1_DIR=${T1}/${base_path}
-  input_t1w=$(find "${T1_DIR}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+  input_t1w=$(
+    find "${T1_DIR}" \
+    -type f \
+    -name "${sub_name}*" \
+    -and -name "*${DATA^^}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
   ct=0; for ii in ${input_t1w[@]}; do ((ct++)); done
   if [ ${ct} -gt 1 ]; then

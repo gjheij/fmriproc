@@ -61,20 +61,20 @@ Usage:
   spinoza_sinusfrommni [arguments] [options] <anat folder> <registration folder> <mask folder>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
 
 Options:
-  -o|--ow             Overwrite existing output
-  --itk               use ITK-Snap for manual editing [default]
-  --fsl               use FSLeyes for editing
-  --freeview          use FreeView for editing
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --itk           use ITK-Snap for manual editing [default]
+  --fsl           use FSLeyes for editing
+  --freeview      use FreeView for editing
 
 Positional:
-  <anat directory>    directory containing the T1w and T2w files; should generally be pymp2rage-
-                      folder
-  <registration>      path to directory where registration file is (output from spinoza_registration)
-  <mask directory>    path to output mask directory (to put final 'sinus'-mask)
+  <anat dir>      directory containing the T1w and T2w files; should generally be pymp2rage-folder
+  <reg dir>       path to directory where registration file is (output from spinoza_registration)
+  <mask dir>      path to output mask directory (to put final 'sinus'-mask)
 
 Eample:
   spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
@@ -89,7 +89,7 @@ USAGE
 # Check for subject & session flags
 OW=0
 open_viewer=0
-while getopts :-:os:n:m: argument
+while getopts :-:hos:n:m: argument
 do
   case ${argument} in
     -)
@@ -109,6 +109,9 @@ do
         ow)
           OW=1
           ;; 
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -116,6 +119,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -144,14 +149,14 @@ else
 fi
 
 # first-pass check for directories
-if [[ ! -d ${ANAT} ]]; then
+if [[ ! -d "${ANAT}" ]]; then
   echo 
   print_line -
   print_error_msg "$(basename ${0})" "find" "Folder with T1w-file ${BOLD_GREEN}${ANAT}${RESET} does not exist"
   exit 1
 fi
 
-if [[ ! -d ${MATRIX} ]]; then
+if [[ ! -d "${MATRIX}" ]]; then
   echo 
   print_line -
   print_error_msg "$(basename ${0})" "find" "Folder with warp-files ${BOLD_GREEN}${MATRIX}${RESET} does not exist"
@@ -198,13 +203,15 @@ for subID in ${search}; do
 
   if [[ -d ${pn_anat} ]]; then
 
-    fn_ratio=${pn_anat}/${base}_acq-${DATA^^}_desc-ratio.nii.gz
-    fn_nuisance=${pn_anat}/${base}_acq-${DATA^^}_desc-nuisance.nii.gz
-    fn_mni=${pn_masks}/${base}_acq-${DATA^^}_space-MNI152NLin6Asym_desc-sinus.nii.gz
-    fn_out=${pn_masks}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz
+    #-----------------------------------------------------------------------------
+    # Define output
+    fn_ratio="${pn_anat}/${base}_acq-${DATA^^}_desc-ratio.nii.gz"
+    fn_nuisance="${pn_anat}/${base}_acq-${DATA^^}_desc-nuisance.nii.gz"
+    fn_mni="${pn_masks}/${base}_acq-${DATA^^}_space-MNI152NLin6Asym_desc-sinus.nii.gz"
+    fn_out="${pn_masks}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz"
 
     if [[ ${OW} -eq 1 ]]; then
-      rm ${fn_ratio} ${fn_nuisance} ${fn_out} ${fn_mni} 2>/dev/null
+      rm "${fn_ratio}" "${fn_nuisance}" "${fn_out}" "${fn_mni}" 2>/dev/null
     fi
 
     if [[ ! -f ${fn_out} ]]; then
@@ -212,15 +219,44 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
 
-      # calculate T1w/T2w ratio
-      t1=$(find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-      t2=$(find "${pn_anat}" -type f \( -name "${base}*" -and -name "*T2w.nii.gz" -and -not -name "tmp*" \) 2>/dev/null)
-      mask=$(find "${pn_anat}" -type f \( -name "*spm_mask.nii.gz" \) 2>/dev/null)
+      #-----------------------------------------------------------------------------
+      # Find files
+
+      # T1w
+      t1=$(
+        find "${pn_anat}" \
+        -type f \
+        -name "${base}*" \
+        -and -name "*T1w.nii.gz" \
+        2>/dev/null
+      )
+
+      # T2w
+      t2=$(
+        find "${pn_anat}" \
+        -type f \
+        -name "${base}*" \
+        -and -name "*T2w.nii.gz" \
+        -and -not -name "tmp*" \
+        2>/dev/null
+      )
+
+      # mask
+      mask=$(
+        find "${pn_anat}" \
+        -type f \
+        -name "*spm_mask.nii.gz" \
+        2>/dev/null
+      )
+
       if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
 
+        #-----------------------------------------------------------------------------
+        # generate mask
         if [[ ! -z ${t2} ]]; then
 
-          # if we have a mask-image, we can create a sinus mask directly from the T2-image. Use ratio otherwise
+          #-----------------------------------------------------------------------------
+          # if we have a mask-image, we can create a sinus mask directly from the T2-image
           if [[ ! -z ${mask} ]]; then
             print_create_img "${fn_nuisance}" "Using T2-only"
 
@@ -262,6 +298,8 @@ for subID in ${search}; do
             rm $(dirname ${t2})/tmp_$(basename ${t2}) 2>/dev/null
           else
 
+          #-----------------------------------------------------------------------------
+          # calculate ratio
             if [[ -f ${t1} && -f ${t2} ]]; then
               print_create_img "T1w/T2w ratio"
               cmd=(
@@ -290,14 +328,32 @@ for subID in ${search}; do
         fi
       fi
 
-      if [[ ! -f ${fn_mni} ]]; then
+      #-----------------------------------------------------------------------------
+      # apply MNI warps to dilated sinus mask to get rid of subcortex stuff
+      if [[ ! -f "${fn_mni}" ]]; then
 
-        if [[ -f ${fn_nuisance} ]]; then
+        if [[ -f "${fn_nuisance}" ]]; then
 
           # fetch template and warp files created with spinoza_registration in step before
           mni_mask=${REPO_DIR}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
-          mat_file=$(find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*.mat" \) 2>/dev/null)
-          warp_file=$(find "${pn_matrix}" -type f \( -name "*to-MNI152NLin6Asym*" -and -name "*invwarp.nii.gz" \) 2>/dev/null)
+          
+          # affine matrix
+          mat_file=$(
+            find "${pn_matrix}" \
+            -type f \
+            -name "*to-MNI152NLin6Asym*" \
+            -and -name "*.mat" \
+            2>/dev/null
+          )
+
+          # warp field
+          warp_file=$(
+            find "${pn_matrix}" \
+            -type f \
+            -name "*to-MNI152NLin6Asym*" \
+            -and -name "*invwarp.nii.gz" \
+            2>/dev/null
+          )
           
           if [[ ! -z "${mat_file}" && ! -z "${warp_file}" ]]; then
             # got SyN registration
@@ -345,14 +401,21 @@ for subID in ${search}; do
         fi
       fi
 
-      if [[ ! -f ${fn_out} ]]; then
-        if [[ -f ${fn_mni} ]]; then
+      #-----------------------------------------------------------------------------
+      # multiply warped dilated mask with (T1w/)T2-mask
+      if [[ ! -f "${fn_out}" ]]; then
+        if [[ -f "${fn_mni}" ]]; then
           echo
           echo "Multiplying template mask with nuisance-image"
-          cmd="""fslmaths ${fn_mni} -mul ${fn_nuisance} ${fn_out}"""
-          print_cmd "${cmd}" && eval "${cmd}"
+          cmd=(
+            fslmaths
+            "${fn_mni}"
+            -mul "${fn_nuisance}"
+            "${fn_out}"
+          )
 
-          if [[ $? != 0 ]]; then
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
             echo
             print_line -
             print_error_msg "$(basename ${0})" "fslmaths"
@@ -362,13 +425,18 @@ for subID in ${search}; do
           rm ${fn_mni} 2>/dev/null
           echo; echo -e "Created ${BOLD_GREEN}${fn_out}${RESET}"
           if [[ ! -z ${t1} ]]; then
-            cmd="launch_viewer ${t1} ${fn_out} ${use_software}"
+            cmd=(
+              launch_viewer
+              "${t1}"
+              "${fn_out}"
+              "${use_software}"
+            )
             if [[ ${open_viewer} -eq 0 ]]; then
               echo "check with following command:"
-              echo "\"${cmd}\""
+              echo "\"${cmd[@]}\""
             else
               echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
-              print_cmd "${cmd}" && eval "${cmd}"
+              print_cmd "${cmd[@]}" && eval "${cmd[@]}"
             fi
           fi
         else

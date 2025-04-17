@@ -13,43 +13,41 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_mgdm
 
-Tissue segmentation using nighres' MGDM. It assumes that you've run module from this pipeline before,
-so that you're directory structure is like derivatives/<process>/${SUBJECT_PREFIX}xxx/ses-x. For this script, you
-need to give the path to the skullstripped directory up until ${SUBJECT_PREFIX}xxx, the output mgdm directory,
-and the directory containing masks that are used to filter out stuff in the MGDM segmentation.
-
-By default, it's set to overwrite existing files in order to be able to iterate over the structural
-preprocessing pipeline for optimizing the segmentations. To disable, run this particular module with
-the overwrite switch set to 'n': master -m <module> -o n
+Tissue segmentation using nighres' MGDM. It assumes that you've run module from this pipeline 
+before, so that you're directory structure is like derivatives/<process>/<subject>/ses-x. For this 
+script, you need to give the path to the skullstripped directory up until <subject>, the output 
+mgdm directory, and the directory containing masks that are used to filter out stuff in the MGDM 
+segmentation.
 
 Usage:
   spinoza_mgdm [arguments] [options] <skullstripped> <mgdm> <masks>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -j <n_cpus>         number of CPUs to use (default = 1)
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -x <kwargs>         Additional commands to be passed to 'mgdm_segmentation'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -j <n_cpus>     number of CPUs to use (default = 1)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>     Additional commands to be passed to 'mdgm_segmentation'. Format should be comma-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands
+                  This allows bash commands to be translated to python commands
 
 Options:
-  -o|--ow             overwrite existing files
-  --gdh               run GdH-pipeline version (call_gdhmgdm, default is call_nighresmgdm). This
-                      versions uses input from fMRIPrep and FreeSurfer as inputs for MGDM.
-  --sge               submit job to cluster (SGE)
+  -h|--help       print this help text
+  -o|--ow         overwrite existing files
+  --gdh           run GdH-pipeline version (call_gdhmgdm, default is call_nighresmgdm). This ver-
+                  sion uses input from fMRIPrep and FreeSurfer as inputs for MGDM.
+  --sge           submit job to cluster (SGE)
 
 Positional:
-  <skullstripped>     path to skullstripped data
-  <mgdm>              path to output directory
-  <masks>             path to masks
+  <skullstr.>     path to skullstripped data
+  <mgdm>          path to output directory
+  <masks>         path to masks
 
 Example:
   spinoza_mgdm SKULLSTRIP NIGHRES/mgdm MASKS
@@ -73,7 +71,7 @@ run_local=1
 n_cpus=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
 kwargs_flag=""
-while getopts :-:os:n:t:q:j:x: argument
+while getopts :-:hos:n:t:q:j:x: argument
 do
   case ${argument} in
     -)
@@ -87,13 +85,18 @@ do
         sge)
           run_local=0
           ;;                                     
+        help)
+          Usage && exit 0
+          ;;                      
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;   
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;; 
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -154,25 +157,53 @@ for subID in ${search}; do
     continue
   fi
   
-  #----------------------------------------------------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # Look for files
-  bet_uni=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-  bet_t1m=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -not -name "*gdh*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
-  mask_outside=$(find "${mask_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*-outside*" -and -name "*.nii.gz" \) 2>/dev/null)
+  
+  # T1w file
+  bet_uni=$(
+    find "${input_dir}" \
+    -type f \
+    -name "*acq-${DATA^^}*" \
+    -and -not -name "*gdh*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
+  # T1map file
+  bet_t1m=$(
+    find "${input_dir}" \
+    -type f \
+    -name "*acq-${DATA^^}*" \
+    -and -not -name "*gdh*" \
+    -and -name "*T1map.nii.gz" \
+    2>/dev/null
+  )
+
+  # garbage mask
+  mask_outside=$(
+    find "${mask_dir}" \
+    -type f \
+    -name "*acq-${DATA^^}*" \
+    -and -name "*-outside.nii.gz" \
+    2>/dev/null
+  )
+
+  #-----------------------------------------------------------------------------
   # Define nighres output names
   output_root="${base}_acq-${DATA^^}_desc"
-  masked_seg=${output_dir}/mgdm
-  mgdm_seg=${masked_seg}/${output_root}-mgdm_seg.nii.gz
+  masked_seg="${output_dir}/mgdm"
+  mgdm_seg="${masked_seg}/${output_root}-mgdm_seg.nii.gz"
 
-  # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
+  #-----------------------------------------------------------------------------
+  # overwrite mode
   if [[ ${OW} -eq 1 ]]; then
-    # txt="Overwrite mode: deleting files with \"${output_root}\""
-    if [[ -d ${masked_seg} ]]; then
-      rm -r ${masked_seg}/${output_root}* 2>/dev/null
+    if [[ -d "${masked_seg}" ]]; then
+      rm -r "${masked_seg}/${output_root}"* 2>/dev/null
     fi
   fi
 
+  #-----------------------------------------------------------------------------
   # if we want the GdH-mgdm script, run it directly.
   execute_cmd=0
   if [[ ${type} == "gdh" ]]; then
@@ -185,13 +216,20 @@ for subID in ${search}; do
         execute_cmd=0
       fi
 
-      fs_mask=${SUBJECTS_DIR}/${sub_name}/mri/brainmask.mgz
-      brainmask=$(find -L "${input_dir}" -type f \( -name "mask*" -and -name "*acq-${DATA^^}*" \) 2>/dev/null)
-      if [[ -f ${fs_mask} ]]; then
-        use_mask=${fs_mask}
+      fs_mask="${SUBJECTS_DIR}/${sub_name}/mri/brainmask.mgz"
+      brainmask=$(
+        find -L "${input_dir}" \
+        -type f \
+        -name "mask*" \
+        -and -name "*acq-${DATA^^}*" \
+        2>/dev/null
+      )
+    
+      if [[ -f "${fs_mask}" ]]; then
+        use_mask="${fs_mask}"
       else
-        if [[ ! -z ${brainmask} ]]; then
-          use_mask=${brainmask}
+        if [[ ! -z "${brainmask}" ]]; then
+          use_mask="${brainmask}"
         else
           reason="not sure what mask to use.. [GdH]"
           execute_cmd=0
@@ -200,7 +238,15 @@ for subID in ${search}; do
 
       # decide the job type
       call_="call_gdhmgdm"
-      job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+      job="$(
+        decide_job_type \
+        "${call_}" \
+        "${output_root}-mgdm" \
+        "${run_local}" \
+        "${DIR_LOGS}" \
+        "${n_cpus}" \
+        "${SGE_QUEUE}"
+      )"
 
       # define command
       cmd=(
@@ -218,28 +264,38 @@ for subID in ${search}; do
     fi
   else
 
-    if [[ ! -d $(dirname ${mgdm_seg}) ]]; then
-      mkdir -p $(dirname ${mgdm_seg})
+    #-----------------------------------------------------------------------------
+    # run standard version with Filters
+    if [[ ! -d "$(dirname ${mgdm_seg})" ]]; then
+      mkdir -p "$(dirname ${mgdm_seg})"
     fi
 
-    if [[ ! -f ${mgdm_seg} ]]; then
+    if [[ ! -f "${mgdm_seg}" ]]; then
 
       execute_cmd=1
       run_mode="Running ${BOLD_RED}regular version${RESET} of MGDM with ${BOLD_BLUE}call_nighresmgdm${RESET}"
 
-      if [[ -z ${bet_uni} ]]; then
+      if [[ -z "${bet_uni}" ]]; then
         execute_cmd=0
         reason="Could not find skullstripped T1-image.. "
       fi
 
-      if [[ -z ${bet_t1m} ]]; then
+      if [[ -z "${bet_t1m}" ]]; then
         execute_cmd=0
         reason="Could not find skullstripped T1map-image.. "
       fi
       
       # decide the job type
       call_="call_nighresmgdm"
-      job="$(decide_job_type "${call_}" "${output_root}-mgdm" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+      job="$(
+        decide_job_type \
+        "${call_}" \
+        "${output_root}-mgdm" \
+        "${run_local}" \
+        "${DIR_LOGS}" \
+        "${n_cpus}" \
+        "${SGE_QUEUE}"
+      )"
 
       # define command
       cmd=(
@@ -257,10 +313,10 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
+  # execute command
   if [[ ${execute_cmd} -eq 1 ]]; then
     if [[ ${run_local} -eq 1 ]]; then
-
-      # print header
       print_subject_header ${sub_name}
       echo -e ${run_mode}
       print_create_img "${mgdm_seg}"
@@ -272,7 +328,7 @@ for subID in ${search}; do
     fi
 
     eval "${cmd[@]}"
-    if [[ $? != 0 ]]; then
+    if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "${call_}"

@@ -10,7 +10,7 @@ source call_bashhelper
 function Usage {
     cat <<USAGE
 
----------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 spinoza_averagesanatomies
 
 This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average. This re-
@@ -38,7 +38,7 @@ Example:
   spinoza_averagesanatomies DIR_DATA_DERIV DIR_DATA_DERIV
   spinoza_averagesanatomies -s 001 -n 1 DIR_DATA_DERIV DIR_DATA_DERIV
 
----------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
 
 USAGE
 

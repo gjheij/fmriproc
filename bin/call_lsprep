@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from bids import BIDSLayout
+from bids import BIDSLayoutimport BIDSLayout
 from lazyfmri import (
     utils,
     dataset,
@@ -206,7 +206,7 @@ Examples:
                 matcher=["task","run"]
             )
     
-    # set acompcor to false if ica == True
+    # set acompcor to false if ica
     if do_ica:
         do_acompcor = False
 

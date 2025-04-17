@@ -21,40 +21,49 @@ Usage:
   spinoza_denoising [arguments] [options] <fmriprep directory> <pybest output directory>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -t <task ID>        limit pybest processing to a specific task. Default is all tasks in TASK_IDS
-                      in the spinoza_setup-file Can also be comma-separated list: task1,task2
-  -j <n_cpus>         number of CPUs to use (default = 1)
-  -c <n_comps>        overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
-                      the PCA (default = 10)
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -x <kwargs>         other arguments that should be passed to pybest
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -t <task ID>    limit pybest processing to a specific task. Default is all tasks in TASK_IDS
+                  in the spinoza_setup-file Can also be comma-separated list: task1,task2
+  -j <n_cpus>     number of CPUs to use (default = 1)
+  -c <n_comps>    overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
+                  the PCA (default = 10)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>     Additional commands to be passed to 'pybest'. Format should be comma-separated 
+                  flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                  This allows bash commands to be translated to python commands
   
-Options:  
-  -o|--ow             overwrite existing files. Note that this does not delete the full ses-<> folder!
-                      use --full to completely remove a folder
-  --full              Overwrite (i.e., remove) existing output. In case of "-r 'all'", the entire
-                      subject directory is removed
-  --sge               submit job to cluster (called with 'master -m <module> --sge')
-  --no-raw            do NOT unzscore the output from pybest (default is to do so)
-  --fsaverage         overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
-                      native)
-  --fsnative          overwrite PYBEST_SPACE-variable and use FSNative (defaults to fsnative)
-  --func              overwrite PYBEST_SPACE-variable and use 'func'-space
-  --anat              overwrite PYBEST_SPACE-variable and use 'T1w'-space
-  --mni-fsl           overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
-  --mni-2009          overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
-  --force             force execution despite existing files
-  --sge               submit job to cluster (SGE/SLURM)
-  --pyb-only          run only pybest step.
-  --post-only         run only post-processing step.
-  --pre-only          run only pre-processing step.  
-  --force-exec        force the execution of Pybest regardless of existing files.
+Options:
+  -h|--help       print this help text
+  -o|--ow         overwrite existing files. Note that this does not delete the full ses-<> folder!
+                  use --full to completely remove a folder
+  --full          Overwrite (i.e., remove) existing output. In case of "-r 'all'", the entire
+                  subject directory is removed
+  --sge           submit job to cluster (called with 'master -m <module> --sge')
+  --no-raw        do NOT unzscore the output from pybest (default is to do so)
+  --fsaverage     overwrite PYBEST_SPACE-variable and use FSAverage for pybest (defaults to fs-
+                  native)
+  --fsnative      overwrite PYBEST_SPACE-variable and use FSNative (defaults to fsnative)
+  --func          overwrite PYBEST_SPACE-variable and use 'func'-space
+  --anat          overwrite PYBEST_SPACE-variable and use 'T1w'-space
+  --mni-fsl       overwrite PYBEST_SPACE-variable and use 'MNI152NLin6Asym_res-1'-space
+  --mni-2009      overwrite PYBEST_SPACE-variable and use 'MNI152NLin2009cAsym_res-1'-space
+  --force         force execution despite existing files
+  --sge           submit job to cluster (SGE/SLURM)
+  --pyb-only      run only pybest step.
+  --post-only     run only post-processing step.
+  --pre-only      run only pre-processing step.  
+  --force-exec    force the execution of Pybest regardless of existing files.
 
 Positional:
-  <project root>      base directory containing the derivatives and the subject's folders.
-  <derivatives>       path to the derivatives folder
+  <project root>  base directory containing the derivatives and the subject's folders.
+  <derivatives>   path to the derivatives folder
 
 Eample:
   spinoza_denoising DIR_DATA_HOME DIR_DATA_DERIV
@@ -91,7 +100,7 @@ if [[ -z ${PYBEST_SPACE} ]]; then
   PYBEST_SPACE="fsnative"
 fi
 
-while getopts :-:os:n:t:q:j:c:x: argument
+while getopts :-:hos:n:t:q:j:c:x: argument
 do
   case ${argument} in
     -)
@@ -138,13 +147,18 @@ do
         pyb-only)
           pyb_flag="--pyb-only"
           ;;                                   
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
+      ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -258,20 +272,27 @@ for subID in ${search}; do
         # also check if there's files in the directories
         searchdir=${DENOISE}/${base_path}/denoising
         if [[ ${PYBEST_SPACE} == "func" ]]; then
-          func_files=$(find ${searchdir} -type f -name "*_desc-denoised_bold.nii.gz" -and -not -name "*space-*" 2>/dev/null)
+          func_files=$(
+            find "${searchdir}" \
+            -type f \
+            -name "*_desc-denoised_bold.nii.gz" \
+            -and -not -name "*space-*" \
+            2>/dev/null
+          )
         else
-          func_files=$(find ${searchdir} -type f -name "*space-${PYBEST_SPACE}*" -and -name "*_desc-denoised_bold.nii.gz" 2>/dev/null)
+          func_files=$(
+            find "${searchdir}" \
+            -type f \
+            -name "*space-${PYBEST_SPACE}*" \
+            -and -name "*_desc-denoised_bold.nii.gz" \
+            2>/dev/null
+          )
         fi
 
         if [[ -z ${func_files} ]]; then
           execute_cmd=1
         fi
       fi
-
-      # echo $searchdir
-      # echo ${func_files[@]}
-      # echo ${execute_cmd}
-      # exit 1
 
       # overwrite mode
       if [[ ${OW} -eq 1 ]]; then
@@ -292,7 +313,15 @@ for subID in ${search}; do
       if [[ ${execute_cmd} -eq 1 ]]; then
 
         # decide the job type
-        job="$(decide_job_type "call_pybest" "${base}_desc-pybest" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+        job="$(
+          decide_job_type \
+          "call_pybest" \
+          "${base}_desc-pybest" \
+          "${run_local}" \
+          "${DIR_LOGS}" \
+          "${n_cpus}" \
+          "${SGE_QUEUE}"
+        )"
 
         if [[ ${run_local} -eq 0 ]]; then
           print_subject_header ${sub_name}
@@ -321,7 +350,7 @@ for subID in ${search}; do
         fi
         eval "${cmd[@]}"
 
-        if [[ $? != 0 ]]; then
+        if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_pybest"
           exit 1
         fi

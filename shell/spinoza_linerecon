@@ -13,45 +13,46 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_linerecon
 
-wrapper for call_linerecon that performs the reconstruction of the line data. Uses MRecon, so we can
-only run it on the spinoza cluster. It calls upon call_linerecon, which internally uses a template
-for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
+wrapper for call_linerecon that performs the reconstruction of the line data. Uses MRecon, so we 
+can only run it on the spinoza cluster. It calls upon call_linerecon, which internally uses a 
+template for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
 
 Usage:
   spinoza_linerecon [arguments] [options] <project root directory> <sourcedata>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
-  -m <n_echoes>       number of echoes in the acquisition (e.g., 5); by default we try to read it 
-                      from the PAR-file (field 'number of echoes')
-  -r <runIDs>         specific runs to preproces; can be comma-separated list                      
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -c <comps>          percentage of components to remove using NORDIC (default is to use scree 
-                      plot to remove appropriae number of components)
-  -f <suffix>         add custom suffix; overwrites default of "bold"
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or n)
+  -m <n_echoes>   number of echoes in the acquisition (e.g., 5); by default we try to read it 
+                  from the PAR-file (field 'number of echoes')
+  -r <runIDs>     specific runs to preproces; can be comma-separated list                      
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -c <comps>      percentage of components to remove using NORDIC (default is to use scree 
+                  plot to remove appropriae number of components)
+  -f <suffix>     add custom suffix; overwrites default of "bold"
 
 Options:
-  -o|--ow             Overwrite existing output
-  --debug             don't submit job, just print inputs/outputs
-  --no-nordic         turn off NORDIC denoising during reconstruction
-  --sge               submit job to cluster (SGE)
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --debug         don't submit job, just print inputs/outputs
+  --no-nordic     turn off NORDIC denoising during reconstruction
+  --sge           submit job to cluster (SGE)
 
 Positional:
-  <project root>      base directory containing the derivatives and the subject's folders.
-  <sourcedata>        base directory containing the raw data for reconstruction
+  <project root>  base directory containing the derivatives and the subject's folders.
+  <sourcedata>    base directory containing the raw data for reconstruction
 
 Example:
   # call the module
   spinoza_linerecon DIR_DATA_HOME DIR_DATA_SOURCE
 
   # run with master:  
-    "master -m 03a -s 003 -n 4 -e 5" (sub-003, ses-4, multi-echo (5) acquisition)
-    "master -m 03a -s 003 -n 4"      (sub-003, ses-4, single-echo acquisition)
-    "master -m 03a --sge"            (submit to cluster)
-    "master -m 03a -o"               (overwrite existing files)
-    "master -m 03a -o --sge"         (overwrite and submit)
-    "master -m 03a -s 003 --debug"   (debug mode)
+    "master -m 03a -s 003 -n 4 -e 5" # (sub-003, ses-4, multi-echo (5) acquisition)
+    "master -m 03a -s 003 -n 4"      # (sub-003, ses-4, single-echo acquisition)
+    "master -m 03a --sge"            # (submit to cluster)
+    "master -m 03a -o"               # (overwrite existing files)
+    "master -m 03a -o --sge"         # (overwrite and submit)
+    "master -m 03a -s 003 --debug"   # (debug mode)
 
 Notes:
   Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
@@ -76,7 +77,7 @@ comps_flag=""
 suffix="bold"
 verbose=1
 SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:os:n:c:m:q:r:f: argument
+while getopts :-:hos:n:c:m:q:r:f: argument
 do
   case ${argument} in
     -)
@@ -94,6 +95,9 @@ do
         ow)
           OW=1
           ;;                                                                    
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -101,6 +105,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;   
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -180,8 +186,17 @@ for subID in ${search}; do
     if [[ ! -z ${runs} ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
-        run_f=$(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" -and -name "*run-${r}*" \) 2>/dev/null)
-        b_files+=(${run_f})
+        run_f=$(
+          find -L "${lab_func}" \
+          -maxdepth 1 \
+          -type f \
+          -name "*bold_*" \
+          -and -name "*run-${r}*" \
+          -and -name "*.lab" \
+          2>/dev/null
+        )
+
+        b_files+=("${run_f}")
       done
 
       # sort array (https://stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash)
@@ -189,7 +204,16 @@ for subID in ${search}; do
       unset IFS
 
     else
-      bold_files=($(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*bold_*" -and -name "*.lab" \) | sort 2>/dev/null))
+      bold_files=(
+        $(
+          find -L "${lab_func}" \
+          -maxdepth 1 \
+          -type f \
+          -name "*bold_*" \
+          -and -name "*.lab" | \
+          sort 2>/dev/null
+        )
+      )
     fi
 
     if [[ -z ${bold_files} ]]; then
@@ -216,21 +240,48 @@ for subID in ${search}; do
       task=$(task_id ${bold})
 
       # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
-      par_file=($(find $(dirname ${bold}) -type f -name "*run-${run}*" -and -name "*task-${task}*" -and -name "*bold*" -and -iname "*.par" -and -not -iname "*3DEPI*" 2>/dev/null))
+      par_file=(
+        $(
+          find "$(dirname ${bold})" \
+          -type f \
+          -name "*run-${run}*" \
+          -and -name "*task-${task}*" \
+          -and -name "*bold*" \
+          -and -iname "*.par" \
+          -and -not -iname "*3DEPI*" \
+          2>/dev/null
+        )
+      )
+
       if [[ -f ${par_file} ]]; then
         if [[ ${#par_file[@]} -gt 1 ]]; then
-          echo "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
-          for i in ${par_file[@]}; do echo " ${i}"; done
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "Found multiple instances for a file with \"run-${run}\", \"task-${task}\", and \"*bold.par\" in \"$(dirname ${bold})\":"
+          for i in ${par_file[@]}; do echo -e " -${BOLD_GREEN}${i}${RESET}"; done
           exit 1
         else
           par_file=${par_file[0]}
         fi
         
-        fileparts=$(read_par ${par_file} "Protocol name")
+        # read protocol name from par
+        fileparts=$(
+          read_par \
+          "${par_file}" \
+          "Protocol name"
+        )
+
+        # read task_id
         task=$(task_id ${fileparts})
 
         # read echoes from PAR file, verify against specified nr of echoes
-        n_par_echo=$(read_par ${par_file} "number of echoes")
+        n_par_echo=$(
+          read_par \
+          "${par_file}" \
+          "number of echoes"
+        )
+
+        # define echo flag
         if [[ -z ${echo_flag} ]]; then
           if [[ ! -z ${n_par_echo} ]]; then
             if [[ ${run_local} -eq 1 ]]; then
@@ -247,14 +298,14 @@ for subID in ${search}; do
       fi
 
       # set output name
-      outputbase=${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}
+      outputbase="${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}"
       if [[ ${OW} -eq 1 ]]; then
-        rm -r ${outputbase}.mat 2>/dev/null
+        rm -r "${outputbase}.mat" 2>/dev/null
       fi
 
       # decide when to execute command
       execute_cmd=0
-      if [[ ! -f ${outputbase}.mat ]]; then
+      if [[ ! -f "${outputbase}.mat" ]]; then
         execute_cmd=1
       fi
 
@@ -265,27 +316,45 @@ for subID in ${search}; do
       if [[ ${execute_cmd} -eq 1 ]]; then
 
         # find corresponding LSD-image
-        lsd=$(find "${lab_func}" -maxdepth 1 -type f \( -name "*run-${run}*" -and -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null)
+        lsd=$(
+          find "${lab_func}" \
+          -maxdepth 1 \
+          -type f \
+          -name "*run-${run}*" \
+          -and -name "*desc-recon*" \
+          -and -name "*.lab" \
+          2>/dev/null
+        )
         
         ct=0
         for ii in ${lsd[@]}; do ((ct++)); done
         if [[ ${ct} -gt 1 ]]; then
           echo "Found multiple (${ct}) items in input. Please move irrelevant items out pf the directory:"
           for ii in ${lsd[@]}; do
-            echo " $ii"
+            echo -e " -${BOLD_GREEN}${ii}${RESET}"
           done
           exit 1
         fi
 
         # check run-specific LSD?
-        if [[ -z ${lsd} ]]; then
+        if [[ -z "${lsd}" ]]; then
           # old LSD?
-          if [[ ${old_lsd} != "" ]]; then
-            lsd=${old_lsd}
+          if [[ "${old_lsd}" != "" ]]; then
+            lsd="${old_lsd}"
           else
             # try any LSD file..
-            lsd=($(find -L "${lab_func}" -maxdepth 1 -type f \( -name "*desc-recon*" -and -name "*.lab" \) 2>/dev/null))
-            if [[ -z ${lsd} ]]; then
+            lsd=(
+              $(
+                find -L "${lab_func}" \
+                -maxdepth 1 \
+                -type f \
+                -name "*desc-recon*" \
+                -and -name "*.lab" \
+                2>/dev/null
+              )
+            )
+
+            if [[ -z "${lsd}" ]]; then
               echo
               print_line -
               print_file_not_in_dir "${sub_name}" "LSD" "${lab_func}"
@@ -293,15 +362,17 @@ for subID in ${search}; do
             else
               ct=0; for i in ${lsd[@]}; do ((ct++)); done
               if [[ ${ct} -gt 1 ]]; then
-                echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Found multiple LSD images.."
-                for i in ${lsd[@]}; do echo " $i"; done
+                echo
+                print_line -  
+                print_error_msg "$(basename ${0})" "Found multiple LSD images:"
+                for i in ${lsd[@]}; do echo -e" -${BOLD_GREEN}${i}${RESET}"; done
                 exit 1
               fi
             fi
           fi
         fi
 
-        log_file=$(dirname ${bidsfunc})/$(basename ${outputbase}).log
+        log_file="$(dirname ${bidsfunc})/$(basename ${outputbase}).log"
         if [[ ${run_local} -eq 1 && ${verbose} -eq 1 ]]; then
           echo -e "Running recon for run-${BOLD_RED}${run}${RESET} (task-${BOLD_RED}${task}${RESET})"
         fi
@@ -347,15 +418,14 @@ for subID in ${search}; do
 
         # run cmd
         eval "${cmd[@]}"
-
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_linerecon"
           exit 1
         fi
 
-        # set variable with which we can retrieve old LSD-image in case we don't have run-specific LSD-images
-        old_lsd=${lsd}
-
+        # set variable with which we can retrieve old LSD-image in case we don't have run-specific 
+        # LSD-images
+        old_lsd="${lsd}"
       else
         echo -e "${BOLD_GREEN}${outputbase}.mat${RESET} exists"
       fi

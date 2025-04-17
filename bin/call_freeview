@@ -5,7 +5,7 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # HELP
 function Usage {
     cat <<USAGE
@@ -40,7 +40,7 @@ USAGE
 
 }
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Parse args
 point=0
 VIEWPORT=0
@@ -60,7 +60,7 @@ TYPE=${TYPE:-surf}
 
 [[ -z "$SUBJECT" ]] && Usage && exit 0
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # File detection
 FS=${SUBJECTS_DIR:-$HOME/freesurfer/subjects}
 lh_point=$(find "$FS/$SUBJECT/mri" -name "*space-fs*hemi-L*" 2>/dev/null | head -n1)
@@ -80,7 +80,7 @@ function add_fiducials {
     echo "$surf_dir/lh.fiducial:edgecolor=green $surf_dir/rh.fiducial:edgecolor=green"
 }
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Viewport mode
 if [[ $VIEWPORT -eq 1 ]]; then
   surface="fiducial"
@@ -88,7 +88,7 @@ if [[ $VIEWPORT -eq 1 ]]; then
   launch_freeview -f "$surf_dir/lh.$surface" "$surf_dir/rh.$surface" -viewport 3d
 fi
 
-#---------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Main logic
 VOLUMES="$mri_dir/orig.mgz $mri_dir/brainmask.mgz $mri_dir/rawavg.mgz"
 VERTICES=$(add_vertex_points)

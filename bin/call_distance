@@ -136,7 +136,7 @@ nbr = optimal.Neighbours(
     subject="${SUB}",
     verbose=False
 );
-lbl_vert = np.where(nbr.${hemi}_roi_mask == True)[0];
+lbl_vert = np.where(nbr.${hemi}_roi_mask)[0];
 print(list(lbl_vert))
 END
   )

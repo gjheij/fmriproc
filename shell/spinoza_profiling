@@ -24,17 +24,18 @@ Usage:
   spinoza_profiling [arguments] [options] <nighres input> <input folder> <extension for to-be-sampled file>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
 
 Options:
-  -o|--ow             Overwrite existing output
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
 
 Positional:
-  <nighres>           parent directory containing the output files of Nighres
-                        -<nighres>/<subject>/<session>/layering/*boundaries*
-                        -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
-  <suffix>            suffix to use to look for to-be-sampled dataset (e.g., T1map)
+  <nighres>       parent directory containing the output files of Nighres
+                    -<nighres>/<subject>/<session>/layering/*boundaries*
+                    -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
+  <suffix>        suffix to use to look for to-be-sampled dataset (e.g., T1map)
 
 Example:
   spinoza_profiling NIGHRES DIR_DATA_HOME T1map
@@ -53,7 +54,7 @@ fi
 
 # Check for subject & session flags
 OW=0
-while getopts :-:os:n: argument
+while getopts :-:hos:n: argument
 do
   case ${argument} in
     -)
@@ -61,6 +62,9 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -68,6 +72,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -116,34 +122,50 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  nighres_dir=${INPUT}/${base_path}
-  sampled_dir=${TOBESAMPLED}/${base_path}
+  nighres_dir="${INPUT}/${base_path}"
+  sampled_dir="${TOBESAMPLED}/${base_path}"
 
-  #--------------------------------------------------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # Running MASSP with Nighres
 
-  sampled_data=${nighres_dir}/profiling/${base}_acq-${DATA^^}_desc-profile_${TAG}.nii.gz
-  if [[ ! -f ${sampled_data} ]]; then
+  sampled_data="${nighres_dir}/profiling/${base}_acq-${DATA^^}_desc-profile_${TAG}.nii.gz"
+  if [[ ! -f "${sampled_data}" ]]; then
 
     # print header
     print_subject_header ${sub_name}
     print_create_img "${sampled_data}"
     
     #-----------------------------------------------------------------------------
-    # Check if we can mask inputs
-    boundaries=$(find ${nighres_dir}/layering -type f \( -name "*acq-${DATA^^}*" -and -name "*boundaries.nii.gz" \) 2>/dev/null)
-    tobesampled=$(find ${sampled_dir} -maxdepth 2 -type f \( -name "*${TAG}*" \) 2>/dev/null)
+    # find boundaries file
+    boundaries=$(
+      find "${nighres_dir}/layering" \
+      -type f \
+      -name "*acq-${DATA^^}*" \
+      -and -name "*boundaries.nii.gz" \
+      2>/dev/null
+    )
 
     if [[ -z ${boundaries} ]]; then
       print_file_not_in_dir "${sub_name}" "boundaries" "${nighres_dir}/layering" "Create it with spinoza_layering ($(master -l layering))"
       continue
     fi
 
+    # file to sample from
+    tobesampled=$(
+      find "${sampled_dir}" \
+      -maxdepth 2 \
+      -type f \
+      -name "*${TAG}*" \
+      2>/dev/null
+    )
+
     if [[ -z ${tobesampled} ]]; then
       print_file_not_in_dir "${sub_name}" "sampling [\"*${TAG}\"]" "${sampled_dir}"
       continue
     fi
 
+    #-----------------------------------------------------------------------------
+    # compile command
     cmd=(
       call_nighresprofsamp
       --layerimg ${boundaries}
@@ -153,7 +175,7 @@ for subID in ${search}; do
     )
 
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-    if [[ $? != 0 ]]; then
+    if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "call_nighresprofsamp"

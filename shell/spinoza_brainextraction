@@ -13,36 +13,38 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_brainextraction
 
-wrapper for brain extraction with ANTs, FSL, or CAT12 If you use ANTs, specify a prefix; if you use 
-FSL, specify an output name. Not case sensitive (i.e., you can use ANTs/ants or FSL/fsl). Assumes 
-that if you select FSL, we brain extract the INV2 image and if we select ANTs/CAT12, we brain extract 
-the mp2rage T1w with bias field correction. If you want to brain extract something else, either use
-call_fslbet, call_antsbet, or call_cat12. It performs N4 biasfield correction internally. Make sure 
-you added the location of antsBrainExtraction.sh to your path e.g., in your ~/.bash_profile :
-\"export PATH=PATH:/directory/with/antsBrainExtraction.sh\"
+wrapper for brain extraction with ANTs, FSL, or CAT12 If you use ANTs, specify a prefix; if you 
+use FSL, specify an output name. Not case sensitive (i.e., you can use ANTs/ants or FSL/fsl). 
+Assumes that if you select FSL, we brain extract the INV2 image and if we select ANTs/CAT12, we 
+brain extract the mp2rage T1w with bias field correction. If you want to brain extract something 
+else, either use call_fslbet, call_antsbet, or call_cat12. It performs N4 biasfield correction 
+internally. Make sure you added the location of antsBrainExtraction.sh to your path e.g., in your 
+~/.bash_profile : \"export PATH=PATH:/directory/with/antsBrainExtraction.sh\"
 
 Usage:
-  spinoza_brainextraction [arguments] [options] <input dir> <skullstrip output> <mask output> <ants/FSL/cat12>
+  spinoza_brainextraction [arguments] [options] <input dir> <skullstrip output> <mask output> 
+  <ants/FSL/cat12>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
-  -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.99) for call_winsorize
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or n)
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.99) for call_winsorize
 
 Options:
-  -o|--ow             Overwrite existing output
-  --full              do full processing with CAT12 including iterative SANLM filtering and bias 
-                      correction. Default is just tissue segmentation. 
-  --fs                use rawavg.mgz from FreeSurfer; overwrites the specified input
-                      directory 
-  --fprep             use desc-preproc_T1w from fMRIprep. The input is linked the '-n' flag
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --full          do full processing with CAT12 including iterative SANLM filtering and bias 
+                  correction. Default is just tissue segmentation. 
+  --fs            use rawavg.mgz from FreeSurfer; overwrites the specified input
+                  directory 
+  --fprep         use desc-preproc_T1w from fMRIprep. The input is linked the '-n' flag
 
 Positional:
-  <input directory>   directory for inputs
-  <skullstrip>        directory for skull-stripped outputs
-  <mask>              directory for masks
-  <software>          which software to use: ants|FSL|CAT12
+  <input>         directory for inputs
+  <skullstrip>    directory for skull-stripped outputs
+  <mask>          directory for masks
+  <software>      which software to use: ants|FSL|CAT12
 
 Example:
   spinoza_brainextraction dir/to/t1w dir/to/skullstrip /dir/to/masks ants
@@ -55,6 +57,30 @@ USAGE
 
 }
 
+# function to rename FSL output
+rename_fsl_output() {
+  local input="${1}"
+  local fsl_name="${2}"
+  local new_name="${3}"
+
+  if [[ -f "${fsl_name}" ]]; then
+    mv "${fsl_name}" "${new_name}" 2>/dev/null
+    cmd=(
+      call_copyheader
+      "${input}"
+      "${new_name}"
+    )
+
+    print_cmd "${cmd}" && eval "${cmd}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -  
+      print_error_msg "$(basename ${0})" "call_copyheader" "Failed for target image ${BOLD_GREEN}${new_name}${RESET}"
+      exit 1
+    fi
+  fi
+}
+
 # Check for subject & session flags
 OW=0
 mode=""
@@ -62,7 +88,7 @@ use_fs=0
 use_fprep=0
 lower=0.01
 upper=0.99
-while getopts :-:os:n:m:u:l: argument
+while getopts :-:hos:n:m:u:l: argument
 do
   case ${argument} in
     -)
@@ -79,13 +105,18 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -155,7 +186,12 @@ for subID in ${search}; do
     mkdir -p ${MASKS}
   fi
 
-  inv2_mask=$(find -L ${INPUTDIR} -type f -name "*brain_mask.nii.gz" 2>/dev/null)
+  inv2_mask=$(
+    find -L "${INPUTDIR}" \
+    -type f \
+    -name "*brain_mask.nii.gz" \
+    2>/dev/null
+  )
   if [[ ! -z ${inv2_mask} ]]; then
     cp ${inv2_mask} ${MASKS}/${base}_acq-${DATA^^}_desc-spm_mask.nii.gz 2>/dev/null
   fi
@@ -163,32 +199,52 @@ for subID in ${search}; do
   # Decide input/output/command based on the third argument flag (FSL/ANTs)
   if [[ ${SOFTWARE,,} == "ants" ]]; then
 
-    input=$(find -L "${INPUTDIR}" -type f \( -name "*T1w*" -and -name "*.nii.gz" \) 2>/dev/null)
-
+    input=$(
+      find -L "${INPUTDIR}" \
+      -type f \
+      -name "*T1w*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
     if [[ -f ${input} ]]; then
 
       declare -a OUT=(brain mask)
       final_brain=${BET}/${base}_acq-${DATA^^}_desc-ants_brain_T1w.nii.gz
       final_mask=${MASKS}/${base}_acq-${DATA^^}_desc-ants_mask.nii.gz
-      ants_brain=$(dirname ${final_brain})/$(basename ${final_brain} _brain.nii.gz)_BrainExtractionBrain.nii.gz
-      ants_mask=$(dirname ${final_brain})/$(basename ${final_brain} _brain.nii.gz)_BrainExtractionMask.nii.gz
 
-      if [[ ! -f ${final_brain} ]]; then
+      # extract base
+      base=${final_brain%_brain_T1w.nii.gz}
+      ants_brain="${base}_BrainExtractionBrain.nii.gz"
+      ants_mask="${base}_BrainExtractionMask.nii.gz"
+
+      if [[ ! -f "${final_brain}" ]]; then
 
         # print header
         print_subject_header ${sub_name}
         
         echo "ANTs was selected, using following parameters:"
-        echo " -input     = $(basename ${input})"
-        echo " -prefix    = $(basename ${final_brain} _brain.nii.gz)_"
+        echo -e " -input     = ${BOLD_GREEN}$(basename ${input})${RESET}"
+        echo -e " -prefix    = ${base}_"
 
-        call_antsbet ${input} $(dirname ${final_brain})/$(basename ${final_brain} _brain.nii.gz)_
+        cmd=(
+          call_antsbet
+          "${input}"
+          "${base}_"
+        )
 
-        if [[ -f ${ants_brain} ]]; then
-          if [[ ! -f ${final_brain} ]]; then
-            mv ${ants_brain} ${final_brain}
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -  
+          print_error_msg "$(basename ${0})" "call_antsbet"
+          exit 1
+        fi
+
+        if [[ -f "${ants_brain}" ]]; then
+          if [[ ! -f "${final_brain}" ]]; then
+            mv "${ants_brain}" "${final_brain}" 2>/dev/null
           else
-            echo "$(basename ${final_brain}) already present"
+            print_output_exists "${sub_name}" "${ants_brain}"
           fi
         else
           echo "Could not find ANTs output in $(dirname ${ants_brain})"
@@ -201,7 +257,10 @@ for subID in ${search}; do
             echo "$(basename ${final_mask}) already present"
           fi
         else
-          echo "Could not find ANTs output in $(dirname ${ants_mask})"
+          echo
+          print_line -  
+          print_error_msg "$(basename ${0})" "antsBrainExtraction.sh" "Could not find ANTs output in ${BOLD_GREEN}$(dirname ${ants_mask})${RESET}"
+          exit 1
         fi
 
         # Delete affine file if present
@@ -210,12 +269,20 @@ for subID in ${search}; do
         fi
 
         # Orient the output according to fixed image
-        sFormCode=$(fslorient -getsformcode ${final_brain})
-        if [ ${sFormCode} == "0" ]; then
-          echo "copying header info from $(basename ${input}) image"
-          fslcpgeom ${input} ${final_brain}
-        fi
+        echo "copying header info from $(basename ${input}) image"
+        cmd=(
+          call_copyheader
+          "${input}"
+          "${final_brain}"
+        )
 
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -  
+          print_error_msg "$(basename ${0})" "call_antsbet"
+          exit 1
+        fi
       else
         print_output_exists "${sub_name}" "${final_brain}" "Skipping brain extraction"
       fi
@@ -226,64 +293,101 @@ for subID in ${search}; do
 
   elif [[ ${SOFTWARE,,} == "fsl" ]]; then
 
-    input=$(find -L "${INPUTDIR}" -type f \( -name "*inv-2*" -and -name "*${DATA^^}*" \) 2>/dev/null)
+    # fetch input
+    input=$(
+      find -L "${INPUTDIR}" \
+      -type f \
+      -name "*inv-2*" \
+      -and -name "*${DATA^^}*" \
+      2>/dev/null
+    )
+
+    # define outputs
     output_root=${BET}/${base}_acq-${DATA^^}_inv-2_desc-bet
     output_brain=${output_root}_brain.nii.gz
     output_mask=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_mask.nii.gz
     output_skull=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_skull.nii.gz
     output_outside=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_outside.nii.gz
 
-    if [[ ! -f ${output_mask} ]]; then
+    if [[ ! -f "${output_mask}" ]]; then
 
-      if [[ ! -z ${input} ]]; then
+      if [[ ! -z "${input}" ]]; then
 
         # print header
         print_subject_header ${sub_name}
 
-        if [[ ! -d ${BET} ]]; then
-          mkdir -p ${BET}
-        fi
-
-        # echo ${MASKS}
-
-        if [[ ! -d ${MASKS} ]]; then
-          mkdir -p ${MASKS}
-        fi
+        # create directories
+        for d in "${BET}" "${MASKS}"; do
+          if [[ ! -d "${d}" ]]; then
+            mkdir -p "${d}"
+          fi
+        done
 
         echo "FSL was selected, using following parameters:"
-        echo " -input     = $(basename ${input})"
-        echo " -output    = $(basename ${output_root})"
+        echo -e " -input     = ${BOLD_GREEN}$(basename ${input})${RESET}"
+        echo -e " -output    = ${BOLD_GREEN}$(basename ${output_root})${RESET}"
 
         # Don't generate segmented output, only mask (as per specification of "n" as 3rd argument in ./call_fslbet.sh)
-        call_fslbet ${input} ${output_root} y
+        cmd=(
+          call_fslbet
+          "${input}"
+          "${output_root}"
+          "y"
+        )
 
-        if [[ -f ${output_root}.nii.gz ]]; then
-          mv ${output_root}.nii.gz ${output_brain}
-          fslcpgeom ${input} ${output_brain}
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -  
+          print_error_msg "$(basename ${0})" "call_fslbet"
+          exit 1
         fi
 
-        if [[ -f ${output_root}_mask.nii.gz ]]; then
-          mv ${output_root}_mask.nii.gz ${output_mask}
-          fslcpgeom ${input} ${output_mask}
-        fi
+        # rename output
+        rename_fsl_output "${input}" "${output_root}.nii.gz" "${output_brain}"
+        rename_fsl_output "${input}" "${output_root}_mask.nii.gz" "${output_mask}"
+        rename_fsl_output "${input}" "${output_root}_skull_mask.nii.gz" "${output_skull}"
+        rename_fsl_output "${input}" "${output_root}_skull_mask.nii.gz" "${output_skull}"
 
-        if [[ -f ${output_root}_skull_mask.nii.gz ]]; then
-          mv ${output_root}_skull_mask.nii.gz ${output_skull}
-          fslcpgeom ${input} ${output_skull}
-        fi
-
+        # inverse mask of head
         if [[ -f ${output_root}_outskin_mask.nii.gz ]]; then
-          fslmaths ${output_root}_outskin_mask.nii.gz -binv ${output_outside}
-          fslcpgeom ${input} ${output_outside}
+          cmd=(
+            fslmaths
+            "${output_root}_outskin_mask.nii.gz"
+            -binv
+            "${output_outside}"
+          )
+
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -  
+            print_error_msg "$(basename ${0})" "fslmaths"
+            exit 1
+          fi
+
+          cmd=(
+            call_copyheader 
+            "${input}"
+            "${output_outside}"
+          )
+
+          print_cmd "${cmd}" && eval "${cmd}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -  
+            print_error_msg "$(basename ${0})" "call_copyheader" "Failed for target image ${BOLD_GREEN}${output_outside}${RESET}"
+            exit 1
+          fi
         fi
 
         # clean up directory
         echo "Cleaning up directory"
-        for f in $(dirname ${output_brain})/*; do
-          if [[ ${f} == *"skull"* ]] || [[ ${f} == *"outskin"* ]] || [[ ${f} == *"mesh"* ]] && [[ ${f} != *"brain"* ]]; then
-            rm -r ${f}
-          fi
-        done
+        find "$(dirname "${output_brain}")" \
+          -type f \
+          \( -name '*skull*' -o -name '*outskin*' -o -name '*mesh*' \) \
+          ! -name '*brain*' \
+          -exec rm -f {} +
         echo "Done"
       else
         if [[ -z ${input} ]]; then
@@ -297,92 +401,122 @@ for subID in ${search}; do
     fi
   elif [[ ${SOFTWARE,,} == "cat12" ]]; then
 
-    brainmask=${MASKS}/${base}_acq-${DATA^^}_desc-cat_mask.nii.gz
-    spm=${MASKS}/${base}_acq-${DATA^^}_desc-spm_mask.nii.gz
-    corrected_t1w=${BET}/${base}_acq-${DATA^^}_T1w.nii.gz
-    duramask=${MASKS}/${base}_acq-${DATA^^}_desc-cat_dura.nii.gz
+    # define outputs
+    brainmask="${MASKS}/${base}_acq-${DATA^^}_desc-cat_mask.nii.gz"
+    spm="${MASKS}/${base}_acq-${DATA^^}_desc-spm_mask.nii.gz"
+    corrected_t1w="${BET}/${base}_acq-${DATA^^}_T1w.nii.gz"
+    duramask="${MASKS}/${base}_acq-${DATA^^}_desc-cat_dura.nii.gz"
+
+    # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      if [[ -f ${brainmask} ]]; then
-        rm -r ${brainmask}
+      if [[ -f "${brainmask}" ]]; then
+        rm -r "${brainmask}"
       fi
 
-      if [[ -d $(dirname ${corrected_t1w}) ]]; then
-        rm -r $(dirname ${corrected_t1w})
+      if [[ -d $(dirname "${corrected_t1w}") ]]; then
+        rm -r $(dirname "${corrected_t1w}")
       fi
     fi
     
-    if [[ ! -f ${corrected_t1w} ]]; then
+    # start loop
+    if [[ ! -f "${corrected_t1w}" ]]; then
 
       # print header
       print_subject_header ${sub_name}
 
       # create BIDS-compatible output directory
-      if [[ ! -d $(dirname ${corrected_t1w}) ]]; then
-        mkdir -p $(dirname ${corrected_t1w})
+      if [[ ! -d $(dirname "${corrected_t1w}") ]]; then
+        mkdir -p $(dirname "${corrected_t1w}")
       fi
 
       # decide on input; convert FreeSurfer file if necessary
       rename_base=0
       if [[ ${use_fs} -eq 1 ]]; then
-        in_dir=${SUBJECTS_DIR}/${sub_name}/mri
-        if [[ ! -d ${in_dir} ]]; then
-          echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): FreeSurfer directory \"${in_dir}\" does not exist"
+        in_dir="${SUBJECTS_DIR}/${sub_name}/mri"
+        if [[ ! -d "${in_dir}" ]]; then
+          echo
+          print_line -  
+          print_error_msg "$(basename ${0})" "FreeSurfer" "Directory ${BOLD_GREEN}${in_dir}${RESET} does not exist"
           exit 1
         fi
 
         echo -e "Using ${BOLD_RED}FreeSurfer${RESET} input"
-        fs_anat=${in_dir}/rawavg.mgz
-        fs_nii=${in_dir}/rawavg.nii.gz
+        fs_anat="${in_dir}/rawavg.mgz"
+        fs_nii="${in_dir}/rawavg.nii.gz"
         rename_base=1
         if [[ ! -f ${fs_nii} ]]; then
           if [[ -f ${fs_anat} ]]; then
-            call_mriconvert ${fs_anat}
-            if [[ $? -ne 0 ]]; then
+            cmd=(
+              call_mriconvert
+              "${fs_anat}"
+            )
+
+            print_cmd "${cmd}" && eval "${cmd}"
+            if [[ $? -ne 0 || ! -f "${fs_nii}" ]]; then
               print_error_msg "$(basename ${0})" "call_mriconvert"
               exit 1
+            else
+              input="${fs_nii}"
             fi              
           fi
         else
           print_directory_not_exist "${sub_name}" "${fs_anat}"
           exit 1
         fi
-
-        # double check
-        if [[ -f ${fs_nii} ]]; then
-          input=${fs_nii}
-        else
-          print_file_not_exist "${sub_name}" "${fs_nii}" "Converting did not succeed"
-          exit 1
-        fi
       elif [[ ${use_fprep} -eq 1 ]]; then
+        # use fMRIPrep anatomy
         echo -e "Using ${BOLD_RED}fMRIprep${RESET} input"
-        in_dir=${DIR_DATA_DERIV}/fmriprep/${base_path}/anat
+        in_dir="${DIR_DATA_DERIV}/fmriprep/${base_path}/anat"
         if [[ ! -d ${in_dir} ]]; then
           print_directory_not_exist "${sub_name}" "${in_dir}" "Run fMRIPrep first.."
           exit 1
         fi
-        input=$(find -L "${DIR_DATA_DERIV}/fmriprep/${base_path}/anat" -type f \( -name "${base}*" -and -name "*_desc-preproc_T1w.nii.gz" -and -not -name "*space*" \) 2>/dev/null)
+
+        # find input
+        input=$(
+          find -L "${in_dir}" \
+          -type f \
+          -name "${base}*" \
+          -and -name "*_desc-preproc_T1w.nii.gz" \
+          -and -not -name "*space*" \
+          2>/dev/null
+        )
         rename_base=1
       else
-        input=$(find -L "${INPUTDIR}" -type f \( -name "*T1w*" -and -name "*${DATA^^}*" -and -name "*.nii.gz" \) 2>/dev/null)
+        # use T1w from specified input folder
+        input=$(
+          find -L "${INPUTDIR}" \
+          -type f \
+          -name "*T1w*" \
+          -and -name "*${DATA^^}*" \
+          -and -name "*.nii.gz" \
+          2>/dev/null
+        )
       fi
     
       if [[ ! -z ${input} ]]; then
 
-        mask_img=$(find -L ${INPUTDIR} -type f -name "mask*" -print -quit 2>/dev/null)
-        if [[ -z ${mask_img} ]]; then
+        # find spm mask
+        mask_img=$(
+          find -L "${INPUTDIR}" \
+          -type f \
+          -name "mask*" \
+          -print \
+          -quit \
+          2>/dev/null
+        )
 
-          if [[ ! -d ${BET} ]]; then
-            mkdir -p ${BET}
-          fi
+        if [[ -z "${mask_img}" ]]; then
 
-          # echo ${MASKS}
+          # create directories
+          for d in "${BET}" "${MASKS}"; do
+            if [[ ! -d "${d}" ]]; then
+              mkdir -p "${d}"
+            fi
+          done
 
-          if [[ ! -d ${MASKS} ]]; then
-            mkdir -p ${MASKS}
-          fi
-
-          if [[ ! -f ${brainmask} ]]; then
+          # run CAT12
+          if [[ ! -f "${brainmask}" ]]; then
             cmd=(
               call_cat12
               "${mode}"
@@ -390,21 +524,31 @@ for subID in ${search}; do
               "${input}"
               "${BET}"
             )
-            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
-            if [[ $? != 0 ]]; then
+            print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+            if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_cat12"
               exit 1
             fi
 
+            # rename might fail on MacOS!
             if [[ ${rename_base} -eq 1 ]]; then 
               cmd="rename $(basename ${input} .nii.gz) ${base}_acq-${DATA^^}_T1w ${BET}/*"
               ${cmd} 2>dev/null
             fi
 
-            mask_img=$(find -L ${BET} -type f -name "mask*" -print -quit 2>/dev/null)
-            if [[ ! -z ${mask_img} ]]; then
-              cp ${mask_img} ${brainmask}
+            # copy mask to manual_mask folder
+            mask_img=$(
+              find -L "${BET}" \
+              -type f \
+              -name "mask*" \
+              -print \
+              -quit \
+              2>/dev/null
+            )
+            
+            if [[ ! -z "${mask_img}" ]]; then
+              cp "${mask_img}" "${brainmask}" 2>/dev/null
             fi
           
           else
@@ -415,27 +559,55 @@ for subID in ${search}; do
         fi
 
         # this gets T1-weighted and T1map in one directory for spinoza_masking
-        t1map=$(find -L "${INPUTDIR}" -type f \( -name "*T1map*" -and -name "*${DATA^^}*" -and -name "*.nii.gz" \) 2>/dev/null)
-        if [[ ! -z ${t1map} ]]; then
+        t1map=$(
+          find -L "${INPUTDIR}" \
+          -type f \
+          -name "*T1map*" \
+          -and -name "*${DATA^^}*" \
+          -and -name "*.nii.gz" \
+          2>/dev/null
+        )
+
+        if [[ ! -z "${t1map}" ]]; then
           echo "Copying T1map needed for spinoza_segmentmgdm"
-          cp ${t1map} ${BET} 2>/dev/null
+          cp "${t1map}" "${BET}" 2>/dev/null
         else
           echo "WARNING: could not copy T1map to output directory; this might result in problems with MGDM"
         fi
 
-        # clip and rescale m-image if needed:
-        biascorr=$(find -L ${BET} -type f -name "m${sub_name}*" 2>/dev/null)
+        # if mode == FULL; clip and rescale m-image if needed:
+        biascorr=$(
+          find -L "${BET}" \
+          -type f \
+          -name "m${sub_name}*" \
+          2>/dev/null
+        )
         if [[ ! -z ${biascorr} ]]; then
 
           # Apply mask to T1w/T1map for MDGM input
-          mask_img=$(find -L ${BET} -type f -name "mask*" -print -quit 2>/dev/null)
+          mask_img=$(
+            find -L "${BET}" \
+            -type f \
+            -name "mask*" \
+            -print \
+            -quit \
+            2>/dev/null
+          )
           if [[ ! -z ${mask_img} ]]; then
-            cp ${mask_img} ${brainmask}
+            cp "${mask_img}" "${brainmask}"
           fi
 
           # CAT12 can introduce background stuff; mask that out with SPM-mask
-          spm_mask=$(find -L $(dirname ${input}) -type f -name "*spm_mask*" -and -name "*.nii.gz" -print -quit 2>/dev/null)
-          if [[ ! -z ${spm_mask} ]]; then
+          spm_mask=$(
+            find -L "$(dirname ${input})" \
+            -type f \
+            -name "*spm_mask*" \
+            -and -name "*.nii.gz" \
+            -print \
+            -quit \
+            2>/dev/null
+          )
+          if [[ ! -z "${spm_mask}" ]]; then
             echo "Getting rid of CAT12-induced background with SPM-mask"
 
             cmd=(
@@ -447,7 +619,7 @@ for subID in ${search}; do
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-            if [[ $? != 0 ]]; then
+            if [[ $? -ne 0 ]]; then
               echo
               print_line -
               print_error_msg "$(basename ${0})" "call_rmbackground"
@@ -463,7 +635,7 @@ for subID in ${search}; do
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-            if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
+            if [[ ! -f "${corrected_t1w}" || $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_wsd"
               exit 1
             fi
@@ -484,7 +656,7 @@ for subID in ${search}; do
           )
 
           print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-          if [[ ! -f ${corrected_t1w} || $? -ne 0 ]]; then
+          if [[ ! -f "${corrected_t1w}" || $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "call_wsd"
             exit 1
           fi
@@ -500,7 +672,14 @@ for subID in ${search}; do
     fi
 
     # still copy SPM-mask even if heavy CAT12-processing was turned off
-    spm_mask=$(find -L ${INPUTDIR} -type f -name "*spm_mask*" -and -name "*.nii.gz" 2>/dev/null)
+    spm_mask=$(
+      find -L ${INPUTDIR} \
+      -type f \
+      -name "*spm_mask*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
+
     IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
     unset IFS 
     count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
@@ -513,20 +692,21 @@ for subID in ${search}; do
     fi
 
     if [[ ! -z ${spm_mask} ]]; then
-      cp ${spm_mask} ${spm} 2>/dev/null
+      cp "${spm_mask}" "${spm}" 2>/dev/null
     fi
 
     # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
-    if [[ -f ${spm} && -f ${brainmask} ]]; then
+    if [[ -f "${spm}" && -f "${brainmask}" ]]; then
       cmd=(
         fslmaths
-        ${spm}
-        -sub ${brainmask}
+        "${spm}"
+        -sub "${brainmask}"
         -thr 0
-        ${duramask}
+        "${duramask}"
       )
+
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-      if [[ $? != 0 ]]; then
+      if [[ $? -ne 0 ]]; then
         echo
         print_line -
         print_error_msg "$(basename ${0})" "fslmaths"
@@ -535,13 +715,14 @@ for subID in ${search}; do
       echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
     fi
 
-    # If we do not have INV2 images, we did not run spinoza_qmrimaps. So, we dont have a cat_dura mask. 
-    # If we do have a mni_sinus mask (from T2; spinoza_sinusfrommni), we can copy that one as cat_dura 
-    # so spinoza_masking won't crash
-    sinus_out=${MASKS}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz
-    if [[ ! -f ${duramask} ]]; then
-      if [[ -f ${sinus_out} ]]; then
-        cp ${sinus_out} ${duramask} 2>/dev/null
+    # If we do not have INV2 images, we did not run spinoza_qmrimaps. So, we dont have a cat_dura 
+    # mask. 
+    # If we do have a mni_sinus mask (from T2; spinoza_sinusfrommni), we can copy that one as 
+    # cat_dura so spinoza_masking won't crash
+    sinus_out="${MASKS}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz"
+    if [[ ! -f "${duramask}" ]]; then
+      if [[ -f "${sinus_out}" ]]; then
+        cp "${sinus_out}" "${duramask}" 2>/dev/null
       fi
     fi
   else

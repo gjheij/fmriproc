@@ -308,7 +308,7 @@ if [[ ${FS} != "no" ]]; then
     if [[ -d ${FS} && -d ${PROBSEG} ]]; then
       echo "Injecting manual segmentations into FreeSurfer"
       call_gdhinject ${FS} ${PROBSEG}
-      if [[ $? != 0 ]]; then
+      if [[ $? -ne 0 ]]; then
         echo
         print_line -
         echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_gdhinject exited with non-zero status"
@@ -427,7 +427,7 @@ if [[ ${FPREP} != "no" ]]; then
 
   fi
 
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): job submission was unsuccessful"
@@ -472,7 +472,7 @@ if [[ ${RUN_MGDM} != "no" ]]; then
     -d ${dura_fn} \
     -o ${NIGHRES}/${base}/mgdm
 
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): call_gdhmgdm exited with non-zero status"

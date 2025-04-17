@@ -17,16 +17,16 @@ This script contains the registration cascade from single slice/line > multi-sli
 resolution MP2RAGE from session 2 > high resolution MP2RAGE from session 1 > FreeSurfer anatomy.
 In spinoza_lineplanning, we have created a matrix mapping the low resolution anatomy to the high
 resolution anatomy from session 1. Because the single- and multislice images are basically in the
-same space (header-wise) as the low resolution anatomical scan, we can just apply this matrix to the
-single- and multi-slice. We then have everything in the space of the high resolution anatomy from
-session 1.
+same space (header-wise) as the low resolution anatomical scan, we can just apply this matrix to 
+the single- and multi-slice. We then have everything in the space of the high resolution anatomy 
+from session 1.
 
 Now we need a matrix mapping the high resolution anatomical scan from session 1 with the FreeSurfer
 anatomy. For this, we can use FreeSurfer's bbregister, which registers an input image to orig.mgz.
 We can transform both matrices to FSL-format, so we can create a composite transformation matrix
 that we can apply to everything from session 2 with flirt. Because we need all these transformed
-files for pycortex, we will try to store all the files in the pycortex directory, but you can speci-
-fy this yourself (default is the pycortex directory).
+files for pycortex, we will try to store all the files in the pycortex directory, but you can 
+specify this yourself (default is the pycortex directory).
 
 Easiest thing to do is run the "segmentation.ipynb" notebook to warp all segmentations to session 
 1, then everything - HOP - to FreeSurfer and Pycortex space using the matrix created with spinoza_
@@ -36,15 +36,18 @@ Usage:
   spinoza_line2surface -s <subject number> -y <anat session 2> -o <outputdir> -i <input dir>
 
 Arguments:
-  -s <sub number>         number of subject's FreeSurfer directory
-  -y <anat ses 2>         anatomical image from session 2 as outputted by spinoza_lineplanning
-  -o <output directory>   default is bids_root/derivatives/pycortex (easiest to set this to default
-                          other make it the same as Pycortex' filestore) [<sub> will be appended]
-  -i <directory to warp>  input directory that we need to warp to the surface; I'm assuming a struc-
-                          ture like "<input dir>/<sub>/ses-2"
+  -s <sub number> number of subject's FreeSurfer directory
+  -y <anat ses 2> anatomical image from session 2 as outputted by spinoza_lineplanning
+  -o <output dir> default is bids_root/derivatives/pycortex (easiest to set this to default other 
+                  make it the same as Pycortex' filestore) [<sub> will be appended]
+  -i <warp dir>   input directory that we need to warp to the surface; I'm assuming a structure 
+                  like "<input dir>/<sub>/ses-2"
 
+Options:
+  -h|--help       print this help text
+  
 Example:
-  spinoza_line2surface -s ${SUBJECT_PREFIX}001 -y anat_session2 -d /output/directory/whatev
+  spinoza_line2surface -s \${SUBJECT_PREFIX}001 -y anat_session2 -d /output/directory/whatev
 
 ---------------------------------------------------------------------------------------------------
 
@@ -56,9 +59,23 @@ if [[ $# -le 1 ]]; then
   Usage && exit 0
 fi
 
-while getopts hs:y:o:i: arg
+while getopts :-:hs:y:o:i: arg
 do
   case ${arg} in
+    -)
+      case "${OPTARG}" in                  
+        help)
+          Usage && exit 0
+          ;;                      
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;        
     s)  SUB=${OPTARG}
           ;;
     y)  ANAT2=${OPTARG}
@@ -124,13 +141,21 @@ if [[ -z ${ANAT2} ]]; then
 fi
 
 moving=${ANAT2}
-if [[ ! -d ${outputdir}/${SUB}/warped ]]; then
-  mkdir -p ${outputdir}/${SUB}/warped
+if [[ ! -d "${outputdir}/${SUB}/warped" ]]; then
+  mkdir -p "${outputdir}/${SUB}/warped"
 fi
 
 # Fetch matrix
 ses=$(get_id ${moving} "ses")
-tmp_genaff=$(find ${outputdir}/${SUB}/transforms -type f \( -name "*from-fs*" -and -name "*to-ses${ses}*" -and -name "*genaff*" -and -name "*.mat" \) 2>/dev/null)
+tmp_genaff=$(
+  find "${outputdir}/${SUB}/transforms" \
+  -type f \
+  -name "*from-fs*" \
+  -and -name "*to-ses${ses}*" \
+  -and -name "*genaff*" \
+  -and -name "*.mat" \
+  2>/dev/null
+)
 if [[ ! -z ${tmp_genaff} ]]; then
   from_fs_to_ses2=${tmp_genaff}
 else
@@ -151,8 +176,12 @@ fi
 fs_ref=${FS}/${SUB}/mri/orig.nii.gz
 if [[ ! -f ${fs_ref} ]]; then
   echo -e "Converting ${BOLD_RED}orig.mgz${RESET} to ${BOLD_RED}orig.nii.gz${RESET} to use as FS-reference"
-  call_mriconvert $(dirname ${fs_ref})/$(basename ${fs_ref} .nii.gz).mgz ${fs_ref} 2>/dev/null
+  cmd=(
+    call_mriconvert
+    "${fs_ref/.nii.gz/.mgz}"
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
@@ -164,18 +193,29 @@ fi
 
 for f in ${ff[@]}; do
 
-  # assumes a filename ${SUBJECT_PREFIX}xxx_ses-1_acq-MP2RAGE...*.nii.gz and will insert 'space-' after MP2RAGE
-  transform_fs=${outputdir}/${SUB}/warped/$(basename ${f} | cut -d'_' -f-3)_space-fs_$(basename ${f} | cut -d"_" -f4-)
-  if [[ ! -f ${transform_fs} ]]; then
+  # assumes a filename <subject>_ses-1_acq-MP2RAGE...*.nii.gz and will insert 'space-' after MP2RAGE
+  filename=$(basename "${f}")
+  prefix=$(cut -d'_' -f-3 <<< "${filename}")
+  suffix=$(cut -d'_' -f4- <<< "${filename}")
+
+  # compile
+  transform_fs="${outputdir}/${SUB}/warped/${prefix}_space-fs_${suffix}"
+  if [[ ! -f "${transform_fs}" ]]; then
 
     print_create_img "${transform_fs}"
-    if [[ ${f} == *"layers"* ]]; then
-      interp="gen"
-    elif [[ ${f} == *"cortex"* ]]; then
-      interp="mul"
-    else
-      interp="nn"
-    fi
+    case "${f}" in
+      *layers*)
+        interp="gen"
+        ;;
+      *cortex*)
+        interp="mul"
+        ;;
+      *)
+        interp="nn"
+        ;;
+    esac
+
+    # compile command
     cmd=(
       call_antsapplytransforms
       -i 1 
@@ -185,9 +225,9 @@ for f in ${ff[@]}; do
       "${transform_fs}"
       "${from_fs_to_ses2}"
     )
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
-    if [[ $? != 0 ]]; then
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
       exit 1
     fi
@@ -195,7 +235,6 @@ for f in ${ff[@]}; do
   else
     print_output_exists "${SUB}" "${transform_fs}"
   fi
-
 done
 echo "Done"
 
@@ -203,28 +242,37 @@ echo "Done"
 # Step 2; warp all files in FS-space to pycortex space (corrects for pycortex induced offset)
 echo
 echo "[STEP 2]: map warped FreeSurfer files to Pycortex"
-qq=$(find ${outputdir}/${SUB}/warped -type f -name "*space-fs*" -and -name "*.nii.gz" 2>/dev/null)
+qq=$(
+  find "${outputdir}/${SUB}/warped" \
+  -type f \
+  -name "*space-fs*" \
+  -and -name "*.nii.gz" \
+  2>/dev/null
+)
 for f in ${qq[@]}; do
 
   # use linescanning.utils.replace_string to replace 'space-fs' with 'space-ctx'
-  transform_ctx=$(echo ${f} | sed 's,space-fs,space-ctx,')
-  if [[ ! -f ${transform_ctx} ]]; then
+  transform_ctx="$(echo ${f} | sed 's,space-fs,space-ctx,')"
+  if [[ ! -f "${transform_ctx}" ]]; then
 
     print_create_img "${transform_ctx}"
-    cmd="call_ctxsurfmove ${SUB} ${f} ${transform_ctx}"
-    print_cmd "${cmd}" && eval "${cmd}"
+    cmd=(
+      call_ctxsurfmove 
+      "${SUB}"
+      "${f}"
+      "${transform_ctx}"
+    )
 
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "call_ctxsurfmove"
       exit 1
     fi
-
   else
     print_output_exists "${SUB}" "${transform_ctx}"
   fi
-
 done
 echo "Done"
 
@@ -234,7 +282,15 @@ echo
 echo "[STEP 3]: create the warp that pycortex needs for the viewer"
 
 if [[ ! -d "${outputdir}/${SUB}/transforms/fs2ctx" ]]; then
-  ref=$(find ${outputdir}/${SUB}/warped -type f -name "*space-ctx*" -and -name "*.nii.gz" -print -quit 2>/dev/null)
+  ref=$(
+    find "${outputdir}/${SUB}/warped" \
+    -type f \
+    -name "*space-ctx*" \
+    -and -name "*.nii.gz" \
+    -print \
+    -quit 
+    2>/dev/null
+  )
   if [[ ! -z "${ref}" ]]; then
     cmd=(
       call_ctxtransform
@@ -243,7 +299,14 @@ if [[ ! -d "${outputdir}/${SUB}/transforms/fs2ctx" ]]; then
       -i "${ref}"
       -w fs2ctx
     )
+
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "call_ctxsurfmove"
+      exit 1
+    fi    
   fi
 fi
 

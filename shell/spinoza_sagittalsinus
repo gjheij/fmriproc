@@ -53,37 +53,31 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_sagittalsinus
 
-This script creates the sagittal sinus mask based on the R2*-map from pymp2rage. It requires the user
-to refine the mask a bit, because the R2*-map is imperfect especially around the putamen and other
-iron-rich regions inside the brain. It will start ITKsnap for the user to do the editing.
-
-It can be run on a cluster, but then we need to have X-forwarding. If you're on a different SGE than
-the Spinoza Centre cluster, change the 'if [[ hostname != *"login-01"* ]]; then' line to your SGE's
-login node (where you can't open GUIs). It will try to open a GUI for everything other than that spe-
-cified node-name. For instance, if you're running this on your local system, your hostname will be
-that of your system, and will therefore attempt to open the specified GUI (default = ITKsnap, it will
-check if that exists. Other options are 'FSL' or 'FV' for freeview).
-If you have MEMP2RAGE-data, then the script will look for the R2*-file in the specified ANAT folder.
-If this is somewhere else, just copy it into that directory.
+This script creates the sagittal sinus mask based on the R2*-map from pymp2rage. It requires the 
+user to refine the mask a bit, because the R2*-map is imperfect especially around the putamen and 
+other iron-rich regions inside the brain. It will start ITKsnap for the user to do the editing.
+If you have MEMP2RAGE-data, then the script will look for the R2*-file in the specified ANAT 
+folder. If this is somewhere else, just copy it into that directory.
 
 Usage:
   spinoza_sagittalsinus [arguments] [options] <anat folder> <mask folder> <software [itk|fv]>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
-  -t <thresh>         threshold for R2*-file to generate sinus mask (default = 0.07). You can check 
-                      this first with e.g., ITK-Snap ('launch_itksnap'), then call this function
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or n)
+  -t <thresh>     threshold for R2*-file to generate sinus mask (default = 0.07). You can check 
+                  this first with e.g., ITK-Snap ('launch_itksnap'), then call this function
 
 Options:
-  -o|--ow             Overwrite existing output
-  --itk               use ITK-Snap for manual editing [default]
-  --fsl               use FSLeyes for editing
-  --freeview          use FreeView for editing
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --itk           use ITK-Snap for manual editing [default]
+  --fsl           use FSLeyes for editing
+  --freeview      use FreeView for editing
 
 Positional:
-  <input directory>   folder where anatomical files live
-  <skullstrip>        output folder for masks
+  <input dir>     folder where anatomical files live
+  <skullstrip>    output folder for masks
 
 Example:
   spinoza_sagittalsinus --freeview project/derivatives/pymp2rage project/derivatives/manual_masks
@@ -98,7 +92,7 @@ USAGE
 use_software="itk"
 thresh=0.07
 # Check for subject & session flags
-while getopts os:n:t:-: argument
+while getopts hos:n:t:-: argument
 do
   case ${argument} in
     -)
@@ -115,6 +109,9 @@ do
         ow)
           OW=1
           ;;          
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -122,6 +119,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -186,8 +185,8 @@ for subID in ${search}; do
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  input_dir=${ANAT}/${base_path}
-  mask_dir=${MASKS}/${base_path}
+  input_dir="${ANAT}/${base_path}"
+  mask_dir="${MASKS}/${base_path}"
 
   # continue if input directory doesn't exist
   if [[ ! -d ${input_dir} ]]; then
@@ -201,23 +200,38 @@ for subID in ${search}; do
 
   # R2starmap is only present with MP2RAGEME
   if [[ " ${ACQ[*]} " =~ " MP2RAGEME " ]]; then
-    r2star=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}_*" -and -name "*R2starmap.nii.gz" \) 2>/dev/null)
-    if [[ ! -z ${r2star} ]]; then
+    r2star=$(
+      find "${input_dir}" \
+      -type f \
+      -name "*acq-${DATA^^}_*" \
+      -and -name "*R2starmap.nii.gz" \
+      2>/dev/null
+    )
 
-      sinus_mask=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
-      if [[ ! -f ${sinus_mask} || ${OW} -eq 1 ]]; then
+    if [[ ! -z "${r2star}" ]]; then
+
+      sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
+      if [[ ! -f "${sinus_mask}" || ${OW} -eq 1 ]]; then
 
         # print header
         print_subject_header ${sub_name}
 
-        if [[ -f $(dirname ${r2star})/tmp_$(basename ${r2star}) ]]; then
-          rm -r $(dirname ${r2star})/tmp_$(basename ${r2star}) 2>/dev/null
+        if [[ -f "$(dirname ${r2star})/tmp_$(basename ${r2star})" ]]; then
+          rm -r "$(dirname ${r2star})/tmp_$(basename ${r2star})" 2>/dev/null
         fi
 
         # threshold R2star mask and binarize mask
         echo -e "Thresholding [${BOLD_RED}${thresh}${RESET} and binarizing ${BOLD_GREEN}$(basename ${r2star})${RESET}"
-        cmd="fslmaths ${r2star} -thr ${thresh} -bin -fillh ${sinus_mask}"
-        print_cmd "${cmd}" && eval "${cmd}"
+        cmd=(
+          fslmaths
+          "${r2star}"
+          -thr "${thresh}"
+          -bin
+          -fillh
+          "${sinus_mask}"
+        )
+
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -226,12 +240,26 @@ for subID in ${search}; do
         fi
 
         # now manually edit the file
-        t1w=$(find "${input_dir}" -type f \( -name "*T1w*" -and -name "*${DATA^^}*" -and -name "*.nii.gz" \) 2>/dev/null)
+        t1w=$(
+          find "${input_dir}" \
+          -type f \
+          -name "*T1w*" \
+          -and -name "*${DATA^^}*" \
+          -and -name "*.nii.gz" \
+          2>/dev/null
+        )
         if [[ ! -z "${t1w}"  ]]; then
           # launch the viewer
           echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
-          cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
-          print_cmd "${cmd}" && eval "${cmd}"
+          cmd=(
+            launch_viewer
+            "${t1w}"
+            "${sinus_mask}"
+            "${use_software}"
+            \"${msg}\"
+          )
+
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "launch_viewer"
             exit 1
@@ -248,8 +276,8 @@ for subID in ${search}; do
     fi
   else
 
-    sinus_mask=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
-    if [[ ! -f ${sinus_mask} || ${OW} -eq 1 ]]; then
+    sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
+    if [[ ! -f "${sinus_mask}" || ${OW} -eq 1 ]]; then
 
       t1w=$(find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}_*" -and -not -iname "*space-*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
       if [[ ! -z ${t1w} ]]; then
@@ -259,8 +287,13 @@ for subID in ${search}; do
         print_create_img "${sinus_mask}"
 
         # create empty image so we can load it as segmentation
-        cmd="call_createimg ${t1w} ${sinus_mask}"
-        print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
+        cmd=(
+          call_createimg
+          "${t1w}"
+          "${sinus_mask}"
+        )
+
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -270,8 +303,15 @@ for subID in ${search}; do
 
         # launch the viewer
         echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
-        cmd="launch_viewer ${t1w} ${sinus_mask} ${use_software} \"${msg}\""
-        print_cmd "${cmd}" && eval "${cmd}"
+        cmd=(
+          launch_viewer
+          "${t1w}"
+          "${sinus_mask}"
+          "${use_software}"
+          \"${msg}\"
+        )
+
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "launch_viewer"
           exit 1

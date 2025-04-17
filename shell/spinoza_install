@@ -21,9 +21,10 @@ Usage:
   spinoza_install help
 
 Options:
-  no-conda       Do not add currently active conda environment to ~/.bash_profile (or ~/.zshrc).
-                 Beware that the correct environment must be loaded for the scripts to be available
-  config_path    Path to a custom 'spinoza_config' file. If not provided, the default will be used.
+  no-conda        Do not add currently active conda environment to ~/.bash_profile (or ~/.zshrc).
+                  Beware that the correct environment must be loaded for the scripts to be 
+                  available
+  config_path     Path to a custom 'spinoza_config' file. If not provided, the default will be used.
 
 Examples:
   spinoza_install setup

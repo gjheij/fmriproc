@@ -46,32 +46,33 @@ spinoza_segmentfast
 tissue segmentation with FAST using skullstripped inputs created during spinoza_maskaverages. It is
 important that the range of these images is set correctly, with T1w having a range of 0-4095, and
 the T1map having a range of (0,5050). This should automatically be the case if you have ran the py-
-mp2rage module in combination with the masking module prior to running this. If not, run call_rescale
-on these images.
+mp2rage module in combination with the masking module prior to running this. If not, run 
+call_rescale on these images.
 
 Usage:
   spinoza_segmentfast [arguments] [options] <skullstripped dir> <output dir> <overwrite>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -x <kwargs>         Additional commands to be passed to 'FAST'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -x <kwargs>     Additional commands to be passed to 'FAST'. Format should be comma-separated 
+                  flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      e.g.,
-                      "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+                  E.g,:
+                    "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
 
 Options:
-  -o|--ow             Overwrite existing output
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
 
 Positional:
-  <anat folder>       folder containing the files required for FAST. Input must be skullstripped
-  <output>            output folder (<subject>/[<ses->] will be appended!)
+  <anat folder>   folder containing the files required for FAST. Input must be skullstripped
+  <output>        output folder (<subject>/[<ses->] will be appended!)
 
 Example:
   spinoza_segmentfast DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
@@ -85,7 +86,7 @@ USAGE
 
 # Check for subject & session flags
 OW=0
-while getopts os:n:x: argument
+while getopts :-:hos:n:x: argument
 do
   case ${argument} in
     -)
@@ -93,6 +94,9 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -160,7 +164,7 @@ for subID in ${search}; do
     continue
   fi
   
-  #----------------------------------------------------------------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------------------
   # Running FAST with call_fslfast
 
   if [[ ! -d ${input_dir} ]]; then
@@ -168,14 +172,23 @@ for subID in ${search}; do
     continue
   fi
 
-  input_t1w=$(find "${input_dir}" -type f \( -name "*${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-  outputroot=${output_dir}/${base}_acq-${DATA^^}
+  # find input
+  input_t1w=$(
+    find "${input_dir}" \
+    -type f \
+    -name "*${DATA^^}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
-  # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
+  # set output root
+  outputroot="${output_dir}/${base}_acq-${DATA^^}"
+
+  # overwrite
   if [[ ${OW} -eq 1 ]]; then
     if [[ -d ${output_dir} ]]; then
       echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}\""
-      rm -r ${output_dir}/${base}_acq-${DATA^^}* 2>/dev/null
+      rm -r "${output_dir}/${base}_acq-${DATA^^}"* 2>/dev/null
     fi
   fi
 

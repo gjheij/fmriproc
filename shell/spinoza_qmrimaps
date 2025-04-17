@@ -20,39 +20,45 @@ Usage:
   spinoza_qmrimaps [arguments] [options] <project root> <derivatives>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -p <pars file>      specify custom json-file with MP2RAGE(ME) parameters. See 
-                      DIR_SCRIPTS/misc for examples. Format should be like so (for mp2rage):
-                      {
-                          "TR": 5.5,
-                          "inv_times": [0.8,2.7],
-                          "fa": [6,6],
-                          "nZ": 1000,
-                          "FLASH_tr": [0.0062,0.0062]
-                      }
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_SHORT in spinoza_setup
-  -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
-  -x <kwargs>         Additional commands to be passed to 'call_antsbias' [call_mprage]. Format 
-                      should be colon-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -p <pars file>  specify custom json-file with MP2RAGE(ME) parameters. See 
+                  DIR_SCRIPTS/misc for examples. Format should be like so (for mp2rage):
+                    
+                    {
+                        "TR": 5.5,
+                        "inv_times": [0.8,2.7],
+                        "fa": [6,6],
+                        "nZ": 1000,
+                        "FLASH_tr": [0.0062,0.0062]
+                    }
 
-                      combine as:
-                      "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_SHORT in spinoza_setup
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.99) for call_winsorize  
+  -x <kwargs>     Additional commands to be passed to 'mdgm_segmentation'. Format should be comma-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+
+                  This allows bash commands to be translated to python commands
 
 Options:
-  -o|--ow             overwrite existing T1w/T1map files
-  -f|--full           overwrite all existing files (including masks)
-  --ups               use settings for universal pulse (UP) [parameters are hardcoded]
-  --no-reg            do not register separate T1map in case you have MPRAGE image
-  --no-winsor         do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally recommend doing so,
-                      though..
-  --spm               use SPM for bias correction instead of ANTs [call_mprage]
-  --sge               submit job to cluster (called with 'master -m <module> --sge')  
-  --skip-bg           Do not create masks from INV2-image to remove noise from MP2RAGE   
-  --force-exec        Force the execution even if the files exist already
+  -h|--help       print this help text
+  -o|--ow         overwrite existing files (T1w/T1map-files)
+  -f|--full       overwrite all existing files (including masks)
+  --verbose       echo command to terminal
+  --ups           use settings for universal pulse (UP) [parameters are hardcoded]
+  --no-reg        do not register separate T1map in case you have MPRAGE image
+  --no-winsor     do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally 
+                  recommend doing so, though..
+  --spm           use SPM for bias correction instead of ANTs [call_mprage]
+  --sge           submit job to cluster (called with 'master -m <module> --sge')  
+  --skip-bg       Do not create masks from INV2-image to remove noise from MP2RAGE   
+  --force-exec    Force the execution even if the files exist already
 
 Positional:
   <project root>      directory containing the T1w and T2w files; should generally be pymp2rage-
@@ -86,7 +92,7 @@ intensity_flag=""
 upper=""
 lower=""
 SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:ofs:n:p:q:j:x:l:u: argument
+while getopts :-:hofs:n:p:q:j:x:l:u: argument
 do
   case ${argument} in
     -)
@@ -118,14 +124,18 @@ do
         no-winsor)
           intensity_flag="--no-winsor"
           ;;                                      
+        help)
+          Usage && exit 0
+          ;;                      
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            Usage
-            echo "Unknown option --${OPTARG}, did you mean \"--ow\", \"--full\", \"--ups\", \"--skip-bg\", \"--force-exec\", \"--sge\", \"--sge\", \"--spm\", or \"--no-reg\"?"
-            exit 1
-          fi
-          ;;  
-      esac;;    
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;    
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -201,28 +211,67 @@ for subID in ${search}; do
   # loop through available datatype (see spinoza_setup)
   for a in ${ACQ[@]}; do
 
-    t1w=$(find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1w.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
-    t1map=$(find -L "${output_dir}" -maxdepth 1 -type f \( -name "*acq-${a^^}_*" -and -name "*T1map.nii.gz" -and -not -name "*space-*" \) 2>/dev/null)
+    #-----------------------------------------------------------------------------
+    # T1w file
+    t1w=$(
+      find -L "${output_dir}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*acq-${a^^}_*" \
+      -and -name "*T1w.nii.gz" \
+      -and -not -name "*space-*" \
+      2>/dev/null
+    )
 
+    # T1map file
+    t1map=$(
+      find -L "${output_dir}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*acq-${a^^}_*" \
+      -and -name "*T1map.nii.gz" \
+      -and -not -name "*space-*" \
+      2>/dev/null
+    )
+
+    #-----------------------------------------------------------------------------
+    # check input type
     if [[ ${DATA^^} == "MPRAGE" ]]; then
-      in_files=($(find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null))
+      in_files=(
+        $(
+          find -L "${input_dir}" \
+          -type f \
+          -iname "*acq-${a}*" \
+          -and -name "*T1w*" \
+          -and -name "*.nii.gz" | \
+          sort 2>/dev/null
+        )
+      )
     else
-      in_files=$(find -L "${input_dir}" -type f \( -iname "*acq-${a}*" -and -not -name "*T1w*" -and -name "*.nii.gz" \) | sort 2>/dev/null)
+      # mp2rage(me); exclude files with T1w and should have 'inv-' tags
+      in_files=$(
+        find -L "${input_dir}" \
+        -type f \
+        -iname "*acq-${a}*" \
+        -and -name "*inv-*" \
+        -and -name "*.nii.gz" | \
+        sort 2>/dev/null
+      )
     fi
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
-      rm ${t1w} ${t1map} 2>/dev/null
+      rm "${t1w}" "${t1map}" 2>/dev/null
     fi
 
-    if [[ ! -f ${t1w} || ! -f ${t1map} || ${FORCE_EXEC} -eq 1 ]]; then
+    if [[ ! -f "${t1w}" || ! -f "${t1map}" || ${FORCE_EXEC} -eq 1 ]]; then
 
       if [[ ${#in_files[@]} -eq 0 ]]; then
         echo -e "${BOLD_CYAN}${sub_name}${RESET}: ${#in_files[@]} files available for ${a^^}"
         break
       else
-        if [[ ! -d ${output_dir} ]]; then
-          mkdir -p ${output_dir}
+        if [[ ! -d "${output_dir}" ]]; then
+          mkdir -p "${output_dir}"
         fi
 
         # mp2rage(me) job
@@ -230,7 +279,14 @@ for subID in ${search}; do
 
           # decide job execution
           output_base=${base}_acq-${a^^}
-          job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
+          job="$(
+            decide_job_type \
+            "call_${a,,}" \
+            "${output_base}_desc-${a,,}" \
+            "${run_local}" \
+            "${n_cpus}" \
+            "${SGE_QUEUE}"
+          )"
 
           # define command
           cmd=(
@@ -260,14 +316,21 @@ for subID in ${search}; do
           for file in ${in_files[@]}; do
             # set output name based on acquisition strategy
             add_run=""
-            run=$(get_id ${file} run)
+            run=$(get_id "${file}" run)
             if [[ ! -z ${run} ]]; then
               add_run="_run-${run}"
             fi
 
             # decide job execution
-            output_base=${base}_acq-${a^^}${add_run}
-            job="$(decide_job_type "call_${a,,}" "${output_base}_desc-${a,,}" "${run_local}" "${n_cpus}" "${SGE_QUEUE}")"
+            output_base="${base}_acq-${a^^}${add_run}"
+            job="$(
+              decide_job_type \
+              "call_${a,,}" \
+              "${output_base}_desc-${a,,}" \
+              "${run_local}" \
+              "${n_cpus}" \
+              "${SGE_QUEUE}"
+            )"
 
             # define command
             cmd=(
@@ -307,15 +370,20 @@ for subID in ${search}; do
 
     # copy T2w-file to pymp2rage folder for later convenience
     if [[ ${f} != "T1w" ]]; then
-      f_files=$(find -L "${input_dir}" -type f \( -name "*${f}.nii.gz" \) 2>/dev/null)
+      f_files=$(
+        find -L "${input_dir}" \
+        -type f \
+        -name "*${f}.nii.gz" \
+        2>/dev/null
+      )
       if [ ! -z ${f_files} ]; then
         ct=0; for ii in ${f_files[@]}; do ((ct++)); done
         ix=0
         if [[ ${ct} -gt 1 ]]; then
-          echo "Found multiple ${f}-images; taking last one"
+          echo -e "Found multiple ${BOLD_RED}${f}${RESET}-images; taking last one"
           ix=$((${#f_files[@]}-1))
         fi
-        cp ${f_files[ix]} ${output_dir} 2>/dev/null  
+        cp "${f_files[ix]}" "${output_dir}" 2>/dev/null  
       fi
     fi
   done

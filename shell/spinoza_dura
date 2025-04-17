@@ -21,17 +21,18 @@ Usage:
   spinoza_dura [arguments] [options] <anat folder> <INV2 folder> <nighres output> <mask output>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or n)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or n)
 
 Options:
-  -o|--ow             Overwrite existing output
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
 
 Positional:
-  <anat directory>    folder containing the T1w-file
-  <inv2 directory>    folder containing the INV2-image
-  <nighres output>    output folder for Nighres
-  <mask output>       output folder for masks
+  <anat dir>      folder containing the T1w-file
+  <inv2 dir>      folder containing the INV2-image
+  <nighres out>   output folder for Nighres
+  <mask output>   output folder for masks
 
 Example:
   spinoza_dura T1wdir INV2dir nighresdir maskdir
@@ -45,7 +46,7 @@ USAGE
 
 # Check for subject & session flags
 OW=0
-while getopts :-:os:n: argument
+while getopts :-:hos:n: argument
 do
   case ${argument} in
     -)
@@ -53,6 +54,9 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -60,6 +64,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -120,26 +126,69 @@ for subID in ${search}; do
   
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then
-    inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -name "*echo-1*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
+    inv2=$(
+      find "${inv2_dir}" \
+      -type f \
+      -name "${sub_name}*" \
+      -and -name "*echo-1*" \
+      -and -name "*inv-2*" \
+      -and -name "*acq-${DATA^^}_*" \
+      -and -name "*part-mag*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
     search_for=${DATA^^}
   else
     # take the MP2RAGE INV-2 if DATA == AVERAGE
     if [[ ${DATA} == "AVERAGE" ]]; then
-      inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-MP2RAGE_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
+      inv2=$(
+        find "${inv2_dir}" \
+        -type f \
+        -name "${sub_name}*" \
+        -and -not -name "*echo-*" \
+        -and -name "*inv-2*" \
+        -and -name "*acq-MP2RAGE_*" \
+        -and -name "*part-mag*" \
+        -and -name "*.nii.gz" \
+        2>/dev/null
+      )
     else
-      inv2=$(find "${inv2_dir}" -type f \( -name "${sub_name}*" -and -not -name "*echo-*" -and -name "*inv-2*" -and -name "*acq-${DATA^^}_*" -and -name "*part-mag*" -and -name "*.nii.gz" \) 2>/dev/null)
+      inv2=$(
+        find "${inv2_dir}" \
+        -type f \
+        -name "${sub_name}*" \
+        -and -not -name "*echo-*" \
+        -and -name "*inv-2*" \
+        -and -name "*acq-${DATA^^}_*" \
+        -and -name "*part-mag*" \
+        -and -name "*.nii.gz" \
+        2>/dev/null
+      )
     fi
     search_for="MP2RAGE"
   fi
 
-  # LOOK FOR THE T1W IMAGE
-  t1w=$(find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+  #-----------------------------------------------------------------------------
+  # Look for t1w/t1map
+  t1w=$(
+    find "${input_dir}" \
+    -type f \
+    -name "${sub_name}*" \
+    -and -name "*acq-${DATA^^}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
-  # LOOK FOR THE T1-MAP IMAGE
-  t1map=$(find "${input_dir}" -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
+  t1map=$(
+    find "${input_dir}" \
+    -type f \
+    -name "*acq-${DATA^^}*" \
+    -and -name "*T1map.nii.gz" \
+    2>/dev/null
+  )
 
-  #----------------------------------------------------------------------------------------------------------------------------------------------------------
-  # Running dura mask module with call_nighresdura
+  #-----------------------------------------------------------------------------
+  # Set outputs
   output_root="${base}_acq-${DATA^^}_desc"
 	output_dura="${outdir_dura}/${output_root}-dura_proba.nii.gz"
   output_mask="${MASKS}/${base_path}/${output_root}-dura_orig.nii.gz"
@@ -154,7 +203,13 @@ for subID in ${search}; do
     # print header
     print_subject_header ${sub_name}
 
-    inv2_mask=$(find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
+    inv2_mask=$(
+      find "${mask_dir}" \
+      -type f \
+      -name "*${DATA^^}*" \
+      -and -name "*spm_mask.nii.gz" \
+      2>/dev/null
+    )
     
     # look for a bunch of files
     if [[ -z ${inv2} ]]; then
@@ -236,14 +291,11 @@ for subID in ${search}; do
       rm "${tmp_dura}" 2>/dev/null
     fi
 
-    # thresholding
+    # thresholding/binarizing
     if [[ -f "${output_dura}" ]]; then
       fslmaths "${output_dura}" -thr 0.8 "${tmp_dura}"
-
-      # binarizing
       fslmaths "${tmp_dura}" -bin "${output_mask}"
       fslcpgeom "${inv2_mask}" "${output_mask}"
-
     else
       print_file_not_exist "${sub_name}" "${output_dura}"
     fi
@@ -257,7 +309,7 @@ for subID in ${search}; do
     print_output_exists "${sub_name}" "${output_mask}"
   fi
 
-  #----------------------------------------------------------------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------------------
   # Running skullstrip module with call_nighresskullstrip.py
 
 	output_skullstrip="${outdir_skull}/${output_root}-strip_mask.nii.gz"
@@ -289,30 +341,15 @@ for subID in ${search}; do
       )
 
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-      
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
         print_error_msg "$(basename ${0})" "call_nighresskullstrip"
         exit 1
       fi
-    else
-      echo "Found nighres output for skullstripping module"
     fi
-
-    declare -a NIGH_OUT=(mask inv2 t1w t1map)
-    for f in ${NIGH_OUT[@]}; do
-      out=$(find "${outdir_skull}" -type f \( -name "*${f}*" -and -name "*${DATA^^}*" \) 2>/dev/null)
-
-      if [[ ! -f ${outdir_skull}/${output_root}-strip_${f}.nii.gz ]]; then
-        if [[ ! -z ${out} ]]; then
-          mv ${out} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
-          call_copyheader ${inv2} ${outdir_skull}/${output_root}-strip_${f}.nii.gz
-        else
-          print_file_not_in_dir "${sub_name}" "${f}" "${outdir_skull}"
-        fi
-      fi
-    done
+  else
+    print_output_exists "${sub_name}" "${output_skullstrip}"
   fi
 done
 

@@ -15,34 +15,35 @@ spinoza_masking
 
 Mask out the dura and skull from the T1-image to reduce noise. It follow Gilles' masking procedure,
 by setting the contents of dura ('outside') and other masks ('inside') to zero. The idea is to run
-this, run fMRIprep, check segmentations, manually edit it as "${SUBJECT_PREFIX}xxx_ses-1_acq-MP2RAGE_desc-manual
-wmseg" or something alike. These 'manualseg' will be taken as 'inside' to boost areas that were not
-counted as brain.
+this, run fMRIprep, check segmentations, manually edit it as "\<subject>_ses-1_acq-
+MP2RAGE_desc-manualwmseg" or something alike. These 'manualseg' will be taken as 'inside' to boost 
+areas that were not counted as brain.
 
 Usage:
-  spinoza_masking [arguments] [options] <directory to anats> <output dir> <mask dir> <skullstrip dir> 
+  spinoza_masking [arguments] [options] <anat dir> <output dir> <mask dir> <skullstrip dir> 
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.95) for call_winsorize. NOTE this is more ex-
-                      treme than the default for call_winsorize.
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.95) for call_winsorize. NOTE this is more ex-
+                  treme than the default for call_winsorize.
 
 Options:
-  -o|--ow             Overwrite existing output
-  --no-manual         do not do any further manual editing; just combine all masks and apply
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --no-manual     do not do any further manual editing; just combine all masks and apply
 
 Positional:
-  <anat dir>          parent directory containing the sub-xxx folders for anatomies
-  <output skull>      output folder for masked T1w-image (with skull)
-  <mask dir>          folder containing a bunch of masks from previous modules. Should contains files 
-                      ending on;
-                        -dura:   \"*dura_dil.nii.gz\", \"*cat_dura.nii.gz\", or \"*dura_orig.nii.gz\"
-                        -brain:  \"*cat_mask.nii.gz\" or \"*gdh_mask.nii.gz\" 
-                        -inv2:   \"*spm_mask.nii.gz\"
-                        -sinus:  \"*sinus\"
-  <output no skull>   output folder for brain-extracted output (generally the input for Nighres)
+  <anat dir>      parent directory containing the sub-xxx folders for anatomies
+  <output skull>  output folder for masked T1w-image (with skull)
+  <mask dir>      folder containing a bunch of masks from previous modules. Should contains files 
+                  ending on;
+                    -dura:   \"*dura_dil.nii.gz\", \"*cat_dura.nii.gz\", or \"*dura_orig.nii.gz\"
+                    -brain:  \"*cat_mask.nii.gz\" or \"*gdh_mask.nii.gz\" 
+                    -inv2:   \"*spm_mask.nii.gz\"
+                    -sinus:  \"*sinus\"
+  <skullstr.>     output folder for brain-extracted output (generally the input for Nighres)
 
 Example:
   spinoza_masking <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
@@ -59,7 +60,7 @@ OW=0
 man_flag=""
 lower=0.01
 upper=0.95
-while getopts :-:os:n:l:u: argument
+while getopts :-:hos:n:l:u: argument
 do
   case ${argument} in
     -)
@@ -70,6 +71,9 @@ do
         ow)
           OW=1
           ;;                                                                                                  
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -77,6 +81,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -137,26 +143,62 @@ for subID in ${search}; do
   mask_dir=${MASKS}/${base_path}
   skull_dir=${SKULL}/${base_path}
 
-  if [[ ! -d ${input_dir} ]]; then
+  if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   else
     search_for_mask="cat_dura"
-    t1w_fn=$(find ${input_dir} -type f \( -name "${sub_name}*" -and -name "*acq-${DATA^^}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-    t1m_fn=$(find ${input_dir} -type f \( -name "*acq-${DATA^^}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
-    MASKED=$(find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
-    MASK=$(find "${mask_dir}" -type f \( -name "*${DATA^^}*" -and -name "*${search_for_mask}*" \) 2>/dev/null)
+
+    # T1w file
+    t1w_fn=$(
+      find "${input_dir}" \
+      -type f \
+      -name "${sub_name}*" \
+      -and -name "*acq-${DATA^^}*" \
+      -and -name "*T1w.nii.gz" \
+      2>/dev/null
+    )
+
+    # T1map file
+    t1m_fn=$(
+      find "${input_dir}" \
+      -type f \
+      -name "*acq-${DATA^^}*" \
+      -and -name "*T1map.nii.gz" \
+      2>/dev/null
+    )
+
+    # masked anat
+    masked_anat=$(
+      find "${output_dir}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*${DATA^^}*" \
+      -and -name "*masked_T1w.nii.gz" \
+      2>/dev/null
+    )
+
+    # mask
+    brain_mask=$(
+      find "${mask_dir}" \
+      -type f \
+      -name "*${DATA^^}*" \
+      -and -name "*${search_for_mask}*" \
+      2>/dev/null
+    )
 
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      rm -r ${output_dir}/*acq-${DATA^^}* 2>/dev/null
-      rm -r ${MASKED} 2>/dev/null
+      rm -r "${output_dir}"/*acq-${DATA^^}* 2>/dev/null
+      rm -r "${masked_anat}" 2>/dev/null
     fi
 
-    if [[ -f ${MASKED} ]]; then
-      print_output_exists "${sub_name}" "${MASKED}"
+    #-----------------------------------------------------------------------------
+    # MASKING PROCEDURE
+    if [[ -f "${masked_anat}" ]]; then
+      print_output_exists "${sub_name}" "${masked_anat}"
     else
-      if [[ ! -f ${MASKED} ]]; then
+      if [[ ! -f "${masked_anat}" ]]; then
         if [[ ! -f ${t1w_fn} ]]; then
           print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
           continue
@@ -166,7 +208,7 @@ for subID in ${search}; do
         print_subject_header ${sub_name}
 
         # if we cannot do masking, then just copy the input image as "masked" image
-        if [[ ! -z ${MASK} ]]; then
+        if [[ ! -z "${brain_mask}" ]]; then
           cmd=(
             call_gdhmasking
             "${man_flag}"
@@ -177,27 +219,34 @@ for subID in ${search}; do
 
           # echo command
           print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-          if [[ $? != 0 ]]; then
+          if [[ $? -ne 0 ]]; then
             echo
             print_line -
             print_error_msg "$(basename ${0})" "call_gdhmasking"
             exit 1
           fi
 
-          MASKED=$(find "${output_dir}" -maxdepth 1 -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
-          if [[ ! -z ${MASKED} ]]; then
+          # masked anat
+          masked_anat=$(
+            find "${output_dir}" \
+            -maxdepth 1 \
+            -type f \
+            -name "*${DATA^^}*" \
+            -and -name "*masked_T1w.nii.gz" \
+            2>/dev/null
+          )
 
+          # check if file was created..
+          if [[ ! -z "${masked_anat}" ]]; then
             echo
             print_line -
-
             # truncate image intensities
             echo "Running post-processing to fix intensities and datatype"
             cmd=(
               call_wsd
               -l ${lower}
               -u ${upper}
-              "${MASKED}"
+              "${masked_anat}"
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -208,44 +257,69 @@ for subID in ${search}; do
           fi
         else
           echo "Could not find \"${search_for_mask}\" mask; copying input image to ${output_dir}"
-          if [[ ! -d ${output_dir} ]]; then
-            mkdir -p ${output_dir}
+          if [[ ! -d "${output_dir}" ]]; then
+            mkdir -p "${output_dir}"
           fi
-          cp -r ${t1w_fn} ${output_dir}
+          cp -r "${t1w_fn}" "${output_dir}" 2>/dev/null
           continue 3
         fi
       else
-        print_output_exists "${sub_name}" "${MASKED}"
+        print_output_exists "${sub_name}" "${masked_anat}"
       fi
     fi
 
-    # define skullstrip output (input for Nighres)
-    bet_t1w=${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1w.nii.gz
-    bet_t1m=${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1map.nii.gz
+    #-----------------------------------------------------------------------------
+    # SKULLSTRIPPING PROCEDURE
+    bet_t1w="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1w.nii.gz"
+    bet_t1m="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1map.nii.gz"
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
-      rm -r ${bet_t1m} ${bet_t1w} 2>/dev/null
+      rm -r "${bet_t1m}" "${bet_t1w}" 2>/dev/null
     fi
 
-    if [[ ! -f ${bet_t1w} ]] || [[ ! -f ${bet_t1m} ]]; then
+    if [[ ! -f "${bet_t1w}" ]] || [[ ! -f "${bet_t1m}" ]]; then
 
-      if [[ ! -d ${skull_dir} ]]; then
-        mkdir -p ${skull_dir}
+      if [[ ! -d "${skull_dir}" ]]; then
+        mkdir -p "${skull_dir}"
       fi
 
-      MASKED=$(find "${output_dir}" -type f \( -name "*${DATA^^}*" -and -name "*masked_T1w.nii.gz" \) 2>/dev/null)
-      mask_img=$(find ${mask_dir} -type f \( -name "*acq-${DATA^^}_*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
-      t1map=$(find "${input_dir}" -type f \( -name "*T1map*" -and -name "*acq-${DATA^^}_*" -and -name "*.nii.gz" \) 2>/dev/null)
+      # masked_anat
+      masked_anat=$(
+        find "${output_dir}" \
+        -type f \
+        -name "*${DATA^^}*" \
+        -and -name "*masked_T1w.nii.gz" \
+        2>/dev/null
+      )
 
-      if [[ ! -z ${mask_img} ]]; then
+      # spm_mask
+      mask_img=$(
+        find "${mask_dir}" \
+        -type f \
+        -name "*acq-${DATA^^}_*" \
+        -and -name "*spm_mask.nii.gz" \
+        2>/dev/null
+      )
+
+      # t1 map
+      t1map=$(
+        find "${input_dir}" \
+        -type f \
+        -and -name "*acq-${DATA^^}_*" \
+        -name "*T1map.nii.gz" \
+        2>/dev/null
+      )
+
+      # check if stuff exists
+      if [[ ! -z "${mask_img}" ]]; then
         echo
         print_line -
         echo "Skullstripping files for mgdm-input"
         inputs=("T1w" "T1map")
         ct=1
-        for f in "${MASKED}" "${t1map}"; do
-          if [[ ! -z ${f} ]]; then
+        for f in "${masked_anat}" "${t1map}"; do
+          if [[ ! -z "${f}" ]]; then
             # echo " apply mask to masked T1-weighted image"
             cmd=(
               fslmaths
@@ -271,8 +345,10 @@ for subID in ${search}; do
   fi
 done
 
-# the dataset_description file is required by fMRIprep, so create a symlink to masked_<> directory to be able
-# to input this directory as project root for fMRIprep
+#-----------------------------------------------------------------------------
+# the dataset_description file is required by fMRIprep, so create a symlink to 
+# masked_<> directory to be able to input this directory as project root for
+# fMRIprep
 if [[ -f "${DIR_DATA_HOME}/dataset_description.json" ]]; then
   if [[ ! -f "${OUTPUT}/dataset_description.json" ]]; then
     ln -s "${DIR_DATA_HOME}/dataset_description.json" "${OUTPUT}/dataset_description.json" 2>/dev/null

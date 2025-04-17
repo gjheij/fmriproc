@@ -23,29 +23,30 @@ Usage:
   spinoza_layering [arguments] [options] <input dir> <software>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -l <nr_layers>      number of layers to estimate (defaults: nighres=10; FreeSurfer=5)
-  -x <kwargs>         Additional commands to be passed to 'volumetric_layering'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -l <nr_layers>  number of layers to estimate (defaults: nighres=10; FreeSurfer=5)
+  -x <kwargs>     Additional commands to be passed to 'volumetric_layering'. Format should
+                  be comma-separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands
+                  This allows bash commands to be translated to python commands
 
 Options:
-  -o|--ow             Overwrite existing output
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
 
 Positional:
-  <input folder>      if software == 'nighres', then we need the nighres output folder (generally 
-                      DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the SUB-
-                      JECTS_DIR
-  <software>          Possible inputs for software are:
-                        Nighres: voxel-based layering
-                        surface_tools: surface-based layering with Wagstyl's method
+  <input folder>  if software == 'nighres', then we need the nighres output folder (generally 
+                  DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the \$SUB-
+                  JECTS_DIR
+  <software>      Possible inputs for software are:
+                    - 'nighres': voxel-based layering
+                    - 'surface': surface-based layering with Wagstyl's method
 
 Example:
   spinoza_layering SUBJECTS_DIR surface
@@ -54,9 +55,9 @@ Example:
 Notes:
   - The script will recognize any of the software inputs specified above, with these variations in
     capitalization.
-  - The script will look for a surface_tools installation on the PATH and if it can't find it there,
-    it will look for the first match in the HOME directory. To be sure, place the script either in
-    the home directory or place it on the PATH.
+  - The script will look for a surface_tools installation on the PATH and if it can't find it 
+    there, it will look for the first match in the HOME directory. To be sure, place the script 
+    either in the home directory or place it on the PATH.
   - If the script doesn't give an error before printing the starting time, it means it found the
     script.
 
@@ -66,7 +67,8 @@ USAGE
     exit 1
 
 }
-#---------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
 # Define possible inputs
 function Options {
     cat <<EOF
@@ -78,14 +80,13 @@ EOF
 }
 
 if [[ $# -lt 2 ]] ; then
-  echo NOT ENOUGH ARGUMENTS SPECIFIED
   Usage && exit 0
 fi
 
 # Check for subject & session flags
 OW=0
 kwargs_flag=""
-while getopts os:n:l:x: argument
+while getopts :-:hos:n:l:x: argument
 do
   case ${argument} in
     -)
@@ -93,6 +94,9 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -100,6 +104,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -130,26 +136,37 @@ else
   unset IFS
 fi
 
-if [[ ${SOFTWARE,,} == "nighres" || ${SOFTWARE} == "nigh" ]]; then
-  software="NIGHRES"
-  if [[ -z ${nr_layers} ]]; then
-    nr_layers=10
-  fi
-elif [[ ${SOFTWARE,,} == "surface" || ${SOFTWARE,,} == "surface_tools" || ${SOFTWARE,,} == "st" ]]; then
-  software="SURFACE"
-  if [[ -z ${nr_layers} ]]; then
-    nr_layers=5
-  fi
-else
-  if [[ ! -z ${SOFTWARE} ]]; then
-    echo "You specified \"${SOFTWARE}\", accepted strings are:"
+# Normalize input (lowercase)
+software_input="${SOFTWARE,,}"
+
+#-----------------------------------------------------------------------------
+# settings based on software
+software=""
+default_layers=""
+
+case "${software_input}" in
+  nighres | nigh)
+    software="NIGHRES"
+    default_layers=10
+    ;;
+  surface | surface_tools | st)
+    software="SURFACE"
+    default_layers=5
+    ;;
+  *)
+    if [[ -n "${SOFTWARE}" ]]; then
+      echo "You specified \"${SOFTWARE}\". Accepted values are:" >&2
+    else
+      echo "Please specify a software option." >&2
+    fi
     Options >&2
     exit 1
-  else
-    echo "Please specify one of the following"
-    Options >&2
-    exit 1
-  fi
+    ;;
+esac
+
+# Set nr_layers if not already defined
+if [[ -z ${nr_layers} ]]; then
+  nr_layers=${default_layers}
 fi
 
 #-----------------------------------------------------------------------------
@@ -188,12 +205,11 @@ for subID in ${search}; do
     base="${sub_name}_ses-${nr}"
   fi
 
+  #-----------------------------------------------------------------------------
+  # Running equivolumetric layering with nighres
   if [[ ${software,,} == "nighres" ]]; then
 
-    #----------------------------------------------------------------------------------------------------------------------------------------------------------
-    # Running equivolumetric layering with nighres
-
-    if [[ ! -d ${input_dir}/cruise ]]; then
+    if [[ ! -d "${input_dir}/cruise" ]]; then
       print_directory_not_exist "${sub_name}" "${input_dir}/cruise"
       continue
     fi
@@ -201,9 +217,17 @@ for subID in ${search}; do
     declare -a LAYER=(gwb cgb)
     declare -a INPUTS=()
     for r in ${LAYER[@]}; do
-      file=$(find "${input_dir}/cruise" -type f \( -name "*acq-${DATA^^}*" -and -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
-      if [[ -f ${file} ]]; then
-        INPUTS+=(${file})
+      file=$(
+        find "${input_dir}/cruise" \
+        -type f \
+        -name "*acq-${DATA^^}*" \
+        -and -name "*${r}*" \
+        -and -name "*.nii.gz" \
+        2>/dev/null
+      )
+    
+      if [[ -f "${file}" ]]; then
+        INPUTS+=("${file}")
       else
         print_file_not_in_dir "${sub_name}" "*${r}*" "${input_dir}/cruise"
         continue
@@ -230,8 +254,9 @@ for subID in ${search}; do
       
       # print header
       print_subject_header ${sub_name}
-      
       print_create_img "${output}" "N_layers=${nr_layers} (unless specified otherwise in kwargs)"
+
+      # define cmd
       cmd=(
         call_nighreslayering
         --inner "${INPUTS[0]}"
@@ -239,12 +264,11 @@ for subID in ${search}; do
         --layers "${nr_layers}"
         --outputdir "$(dirname ${output_root})"
         --name "$(basename ${output_root})"
-        ${kwargs_flag}
+        "${kwargs_flag}"
       )
 
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-      if [[ $? != 0 ]]; then
+      if [[ $? -ne 0 ]]; then
         echo
         print_line -
         print_error_msg "$(basename ${0})" "call_nighreslayering"
@@ -258,7 +282,7 @@ for subID in ${search}; do
 
     print_subject_header ${sub_name}  
 
-    #----------------------------------------------------------------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------
     # Running equivolumetric layering with surface tools
 
     if [[ ! -d ${input_dir} ]]; then
@@ -280,7 +304,7 @@ for subID in ${search}; do
       # run cmd
       echo -e "Running ${BOLD_BLUE}generate_equivolumetric_surfaces${RESET} on ${i} with ${nr_layers} layers"
       run_cmd=(
-        ${CMD}
+        "${CMD}"
         --smoothing  0
         ${input_dir}/surf/${i}.pial
         ${input_dir}/surf/${i}.white
@@ -299,14 +323,12 @@ for subID in ${search}; do
       # run command
       echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
       print_cmd "${run_cmd[@]}" && eval "${run_cmd[@]}"
-
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
-        print_error_msg "$(basename ${0})" "$(basename ${run_cmd})"
+        print_error_msg "$(basename ${0})" "${CMD}"
         exit 1
       fi
-
     done
 
     echo "Stored outputs in ${SUBJECTS_DIR}/${sub_name}/surf/?h.equi*"

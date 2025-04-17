@@ -451,7 +451,7 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   # execute
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "${run_cmd}" "Job submission/execution was unsuccessful."

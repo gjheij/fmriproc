@@ -102,8 +102,8 @@ cmd=(
   -u "${upper}"
   "${in_file}"
 )
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   print_error_msg "$(basename ${0})" "call_winsorize"
   exit 1
@@ -118,8 +118,8 @@ cmd=(
   0
   "${max_value}"
 )
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -  
@@ -135,8 +135,8 @@ cmd=(
   "${in_file}"
   "${dtype}"
 )
-print_cmd "${cmd}" && eval "${cmd}"
 
+print_cmd "${cmd}" && eval "${cmd}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -  

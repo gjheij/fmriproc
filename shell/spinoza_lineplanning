@@ -13,33 +13,106 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_lineplanning
 
-Quick registration of partial anatomy from ses-2 with whole brain anatomy from ses-1 to plan the line
-as accurately as possible.
+This is the main planning script that will print the translation and rotation values that should be
+entered in the MR console during a line-scanning session (ses-X). Prior to running this script, you
+should have generated a *desc-coords.csv-file with 'spinoza_bestvertex' [module 18]. This informa-
+tion is in "ses-1" space, so we need to translate this to the currently active session. We do so by
+acquiring a quick whole-brain anatomical scan. In case of surface coils, we use the 2 channels used
+for transmission also for receiving of the signal, allowing whole-brain coverage at a lower resolu-
+tion. In case of regular coils, we can acquire fast 3D T1-weighted scans. In any case, this script
+expects the PAR/RECs of these acquisitions to be placed in:
 
-Assumes you have run the pycortex notebook to obtain the text file with the values describing the
-orientation of the line in the first session anatomy based on the minimal curvature (and pRF-mapping).
-This notebook should ouput a line_orientation.txt file in the pycortex/sub-xxx directory. It will
-complain if this file's not here, we need it!!
+  \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
 
-Steps:
-  - Convert data                          (call_dcm2niix)
-  - Create initial matrix                 (itksnap)
-  - Registration                          (call_antsregistration; ANTs)
-  - Store output registration in txt file
-  - Fetch output from pycortex notebook or spinoza_bestvertex
-  - Calculate values from both files      (call_mrconsole)
+That should look like this:
+sourcedata/sub-022/ses-2/planning
+├── sub-01_ses-2_WIP_-_MP2RAGE_2_4.PAR
+└── sub-01_ses-2_WIP_-_MP2RAGE_2_4.REC
+
+In this case, the acquisition was an MP2RAGE, so we can look for a trigger delay in the file:
+
+  anat_session2=\$(
+    find "\$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning" \\
+      -type f \\
+      -name "*t\${ttime}*" \\
+      -and -name "*.nii.gz" \\
+      2>/dev/null
+  )
+
+In any other case, we will look for these tags in the folder with converted files:
+
+  anat_session2=\$(
+    find "\$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning \\
+      -type f \\
+      -name "*3DFFE*" \\
+      -and -name "*.nii.gz" \\
+      2>/dev/null
+  )
+
+So make sure you sequence naming conforms to one of these schemes!
+
+These files will then be converted to nifti using 'call_dcm2niix' and registered to the FreeSurfer
+anatomy of that subject (orig.mgz). However, the coordinates are in "pycortex" space. Pycortex has
+an extra offset relative to FreeSurfer coordinates (see 'call_ctxsurfmove'). Internally, we will
+apply all these corrections and it also ensures the final angles are co-planar. This means that the
+angles with the x-/and y-axis of the magnet are calculated after correcting for the angle with the 
+z-axis. If you do not apply this correction, you'll end up with slight inaccuracies, resulting in
+your line not being perpendicular to the cortex.
+
+The final output will look something like this:
+
+---------------------------------------------------------------------------------------------------
+ENTER THE FOLLOWING VALUES IN THE MR-CONSOLE
+
+set orientation to coronal and foldover to FH
+ FH: 18.69 deg
+ AP: 37.14 deg
+ RL: 0 deg
+
+set translation to:
+ AP: 104.74 mm
+ RL: 19.75 mm
+ FH: -20.92 mm
+Targeted hemisphere: left
+Vertex number:       968
+Isocenter RAS:       [ -19.7527 -104.742   -20.923 ]
+Isocenter LPS:       [ 19.7527 104.742  -20.923 ]
+---------------------------------------------------------------------------------------------------
+
+These values are to be entered in the console in the exact order as they are printed. This is be-
+cause angles will affect one another, so first the FH>AP>RL. As you really only need two angles to
+get the correct orientation, either AP or RL is set to 0, depending on what the orientation is. The
+target vertex' number is printed so you can compare the location live using FreeView on your local
+system.
 
 Usage:
-  spinoza_lineplanning  -s <subject ID>
-                        -n <session ID>
-                        -i <path to raw session 2 anatomy>
-                        -p <path to file containing the orientation of the line>
-                        -h <which hemisphere> (left | right)
-                        -o <overwrite point files> (omit if we should not overwrite)
+  spinoza_lineplanning [options] [mandatory]
+
+Mandatory:
+  -s <subject>    subject ID (e.g., sub-01)
+  -n <session>    line-scanning session ID (>1)
+  -i <anat>       path to PAR/RECs of anatomical file in line-scanning session. Typically, this is
+                  \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
+  -p <coords>     csv-file containing the coordinates/normal vectors indexed by hemisphere. This
+                  is typically the output of 'spinoza_bestvertex'
+                  E.g., "\${DIR_DATA_DERIV}/pycortex/<sub>/ses-<session/
+                  <sub>_ses-<ses>_desc-coords.csv"
+
+Options:
+  -h|--help       print this help text
+  --lh            consider the left hemisphere for the line-scanning session [default due to better
+                  signal homogeneity at this location of the coils]
+  --rh            consider the right hemisphere for the line-scanning session
+  --ident(ity)    debugging mode: sets the transformation matrix to the identity matrix so we can
+                  verify if the workflow runs as planned.
 
 Example:
-  spinoza_lineplanning -s sub-001 -n 3 -i /path/to/raw/ses-2 -a /path/to/ses-1_anat.nii.gz -p /path/to
-                        /pycortex_file.csv -h "left"
+  spinoza_lineplanning \
+    -s sub-001 \
+    -n 3 \
+    -i /path/to/raw/ses-2 \
+    -p /path/to/pycortex_file.csv \
+    --lh
 
 Notes:
   - You NEED ANTs for this to run
@@ -47,9 +120,14 @@ Notes:
     with python -m pip install <package> --upgrade
 
 Command with master:
-  master -m 00 -s <subject> -h <hemi> -n <session>
-  master -m 00 -s 001 --lh -n 3               # use session 3
-  master -m 00 -s 001 --rh -n 2 --identity    # use session 1 (uses identity matrix)
+  # vanilla master command
+  master -m 00 -s <subject> -n <session> {--lh|--rh}
+  
+  # use session 3
+  master -m 00 -s 001 -n 3 --lh # though --lh is default
+
+  # use session 1 (uses identity matrix) for debugging purposes
+  master -m 00 -s 001 -n 2 --rh --identity
 
 ---------------------------------------------------------------------------------------------------
 
@@ -64,7 +142,7 @@ fi
 # Allocate input arguments to variables
 #
 debug=0
-while getopts :-:uos:i:p:h:n: argument
+while getopts :-:huos:i:p:n: argument
 do
   case ${argument} in
     -)
@@ -83,26 +161,37 @@ do
         identity)
           debug=1
           ;;               
+        help)
+          Usage && exit 0
+          ;;                      
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-        esac;;  
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;   
     s)  subject=${OPTARG}
           ;;
     n)  session=${OPTARG}
           ;;            
     i)  nifti=${OPTARG}
           ;;
-    p)  ctxfile=${OPTARG}
-          ;;
-    h)  hemi=${OPTARG}
-        hemi_flag="--hemi ${hemi}"
+    p)  coord_file=${OPTARG}
           ;;
   esac
 done
+
+#-----------------------------------------------------------------------------
+# Validate input
+if [[ ! -f "${coord_file}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename $0)" "input" "Coordinate file ${BOLD_GREEN}${coord_file}${RESET} does not exist"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # intro
@@ -138,8 +227,8 @@ else
 fi
 
 # double double check
-anat_session1=${fs_dir}/${subject}/mri/orig.nii.gz
-if [[ ! -f ${anat_session1} ]]; then
+anat_session1="${fs_dir}/${subject}/mri/orig.nii.gz"
+if [[ ! -f "${anat_session1}" ]]; then
   print_file_not_exist "${subject}" "${anat_session1}"
   exit 1
 fi
@@ -153,12 +242,32 @@ if [[ ${debug} -ne 1 ]]; then
   else
     if [[ ! -d ${nifti}/nifti ]]; then
       echo "Converting data with dcm2niix"
-      call_dcm2niix -i ${nifti} -o ${nifti}/nifti
+    
+      # define command
+      cmd=(
+        call_dcm2niix
+        -i "${nifti}"
+        -o "${nifti}/nifti"
+      )
+
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        print_error_msg "$(basename ${0})" "call_dcm2niix"
+        exit 1
+      fi      
       echo
     fi
 
     # find delay time for nifti file
-    PAR_FILE=$(find ${nifti} -maxdepth 1 -type f -name "*.PAR" 2>/dev/null)
+    PAR_FILE=$(
+      find "${nifti}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*.PAR" \
+      2>/dev/null
+    )
+
+    # extra trigger delay
     ttime=$(cat ${PAR_FILE} | awk '/^\s*$/ {next;} {print $33}' | grep -oE '[0-9]+' | head -n 1)
           # echo content      #extract 33rd column              # filter numbers    # get first value (= trigger delay)
 
@@ -170,18 +279,37 @@ if [[ ${debug} -ne 1 ]]; then
       echo -e "Trigger Delay time                 = ['${BOLD_RED}${ttime}${RESET}']"
     fi
 
-    anat_session2=$(find "${nifti}/nifti" -type f \( -name "*t${ttime}*" -and -name "*real*" -and -name "*.nii.gz" \) 2>/dev/null)
+    anat_session2=$(
+      find "${nifti}/nifti" \
+      -type f \
+      -name "*t${ttime}*" \
+      -and -name "*real*" \
+      -and -name "*.nii.gz" \
+      2>/dev/null
+    )
     if [[ -z ${anat_session2} ]]; then
 
       # look for fast 3D T1 (3DFFE)
-      anat_session2=$(find "${nifti}/nifti" -type f \( -name "*3DFFE*" -and -name "*.nii.gz" \) 2>/dev/null)
-      if [[ -z ${anat_session2} ]]; then
-        echo "ERROR: Couldn't find low-res anatomy file, please specify correctly.."
+      anat_session2=$(
+        find "${nifti}/nifti" \
+        -type f \
+        -name "*3DFFE*" \
+        -and -name "*.nii.gz" \
+        2>/dev/null
+      )
+
+      if [[ ! -f "${input}" ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename $0)" "find" "Could not find anatomical file in ${BOLD_GREEN}${nifti}/nifti${RESET} does not exist. Check docs for naming patterns:"
+        Usage
         exit 1
       fi
     elif [ $(echo ${anat_session2} | wc -w) -gt 1 ]; then
-      echo "ERROR: Found more than 1 file, make sure only one file is specified for session 2 anatomy:"
-      for i in ${anat_session2[@]}; do echo "  ${i}"; done
+      echo
+      print_line -
+      print_error_msg "$(basename $0)" "Found more than 1 file, make sure only one file is specified for session 2 anatomy:"
+      for i in ${anat_session2[@]}; do echo -e " - ${BOLD_GREEN}${i}${RESET}"; done
       exit 1
     fi
   fi
@@ -210,7 +338,7 @@ if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
   # run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_antsregistration"
@@ -224,13 +352,12 @@ fi
 # Fetch the file created with the jupyter notebook containing the orientation
 # of the line in session 1 anatomy calculated based on the minimal curvature
 # and pRF-mapping
-line_orientation_file=${ctxfile}
-if [[ ! -f ${line_orientation_file} ]]; then
-  print_file_not_exist "${subject}" "${line_orientation_file}"
+if [[ ! -f ${coord_file} ]]; then
+  print_file_not_exist "${subject}" "${coord_file}"
   exit 1
 fi
 
-echo -e "File containing coordinates        = ['${BOLD_RED}$(basename ${line_orientation_file})${RESET}']"
+echo -e "File containing coordinates        = ['${BOLD_RED}$(basename ${coord_file})${RESET}']"
 if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
 
   cmd=(
@@ -240,14 +367,13 @@ if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
     --deriv "${DIR_DATA_DERIV}"
     --ses2 "${anat_session2}"
     --tfm "${genaff}"
-    --line "${line_orientation_file}"
+    --line "${coord_file}"
     "${hemi_flag}"
   )
 
   # run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-  if [[ $? != 0 ]]; then
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_mrconsole"
@@ -260,14 +386,14 @@ else
 fi
 
 # overwrite file earlier created with call_fs_to_ses2 or something
-ctx_dir=${DIR_DATA_DERIV}/pycortex/${subject}/transforms
-if [ ! -d ${ctx_dir} ]; then
-  mkdir -p ${ctx_dir}
+ctx_dir="${DIR_DATA_DERIV}/pycortex/${subject}/transforms"
+if [ ! -d "${ctx_dir}" ]; then
+  mkdir -p "${ctx_dir}"
 fi
 
 # copy from-fs_to-ses to pycortex directory for later reference
-if [[ ${genaff} != "identity" ]]; then
-  cp ${genaff} ${ctx_dir} 2>/dev/null
+if [[ "${genaff}" != "identity" ]]; then
+  cp "${genaff}" "${ctx_dir}" 2>/dev/null
 fi
 
 #-----------------------------------------------------------------------------

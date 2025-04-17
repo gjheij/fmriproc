@@ -1,10 +1,10 @@
 Input arguments:
 
 -a <keep runs>    used for:
-                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: use suffixes to store other anatomical files in the
-                      BIDS folder. This overwrites the SEARCH_ANATOMICALS-variable in the setup-
-                      file. For instance, if you have qMRI-data that did not come from MP2RAGEME,
-                      you can specify:
+                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: use suffixes to store other 
+                      anatomical files in the BIDS folder. This overwrites the  SEARCH_ANATOMICALS
+                      -variable in the setup-file. For instance, if you have qMRI-data that did 
+                      not come from MP2RAGEME, you can specify:
 
                       Example:
                         '-a T2star,QSM,T1map'
@@ -15,45 +15,50 @@ Input arguments:
                       Example:
                         '-a 1,2,5'. Use '-a all' to keep all runs (not recommended..)
 
-                    - ${BOLD_BLUE}spinoza_fmriprep${RESET}: if you're running fMRIprep with MNI152* as output space,
-                      you're creating massive files; oftentimes, you're mostly interested in the
-                      registration matrices, so by default I'll remove the output nifti's so that
-                      the folder is not clogged. With this argument you can specify which runs to 
-                      keep. Again, if not specified, all files with space-MNI152*.nii.gz will be
-                      removed. The transformation matrices will be left alone. Similarly to '-s',
-                      use comma-separated input
+                    - ${BOLD_BLUE}spinoza_fmriprep${RESET}: if you're running fMRIprep with 
+                      MNI152* as output space, you're creating massive files; oftentimes, you're 
+                      mostly interested in the registration matrices, so by default I'll remove 
+                      the output nifti's so that the folder is not clogged. With this argument you 
+                      can specify which runs to keep. Again, if not specified, all files with 
+                      space-MNI152*.nii.gz will be removed. The transformation matrices will be 
+                      left alone. Similarly to '-s', use comma-separated input
 
                       Example:
                         '-a 1,2,5'. Use '-a all' to keep all runs (not recommended..)
 
 -c <arg>          used for:
-                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}: list of values used for clipping of design matrix. Format 
-                      must be [<top>,<bottom>,<left>,<right>]. Negative values will be set to 
-                      zero within 'linescanning.prf.get_prfdesign'
-                    - ${BOLD_BLUE}spinoza_denoising${RESET}: number of components to use for PCA. Overwrites the 
-                      PYBEST_N_COMPS-variable in the setup file
+                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}: list of values used for clipping of 
+                      design matrix. Format must be [<top>,<bottom>,<left>,<right>]. Negative 
+                      values will be set to zero within 'linescanning.prf.get_prfdesign'
+                    - ${BOLD_BLUE}spinoza_denoising${RESET}: number of components to use for PCA. 
+                      Overwrites the PYBEST_N_COMPS-variable in the setup file
 
 -d <depth>        used for:
-                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}; search depth for dcm2niix for converting to nifti
+                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}; search depth for dcm2niix for 
+                      converting to nifti
                     - all anatomical steps; controls from which anatomical step we should select
                       for the T1w-file.
 
 -e <echos|stage>  used for:
-                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: specify the amount of echoes of the acquisition
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: specify the amount of echoes of the 
+                      acquisition
                     - ${BOLD_BLUE}spinoza_freesurfer${RESET}: maps to '-e' from call_freesurfer
                     - ${BOLD_BLUE}spinoza_bestvertex${RESET}; specify manual EPI-file
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: set the number of pixels (default = 100)
 
 -f <n_folds>      used for:
-                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: use a custom suffix for the output BOLD file
-                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}: for within-run averaging before percent-changing
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: use a custom suffix for the output 
+                      BOLD file
+                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}: for within-run averaging before 
+                      percent-changing
 
 -h <hemisphere>   used for lineplanning, denotes which hemisphere to process
 
 -i <image path>   specify custom path to:
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: PNG's for pRF-fitting
                     - ${BOLD_BLUE}spinoza_denoising${RESET}: input directory for pybest
-                    - ${BOLD_BLUE}spinoza_lineplanning${RESET}: file to use for registration with ses-1
+                    - ${BOLD_BLUE}spinoza_lineplanning${RESET}: file to use for registration with 
+                      ses-1
 
 -j <n-jobs>       number of jobs to use when submitting to SoGE. Used in multiple modules
 
@@ -62,11 +67,12 @@ Input arguments:
 -l <value>        used for:
                     - general: look for a module number given a string to search for (e.g., master
                       -l layer)
-                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify upper percentile for winsorizing image intensities
-                      using call_winsorize
-                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: specify from which line-scanning session to use the
-                      coordinates/normal vector from. Default = '2'
-                    - ${BOLD_BLUE}spinoza_layering${RESET}: specify the number of layers to define. Default = '10'
+                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify upper percentile for 
+                      winsorizing image intensities using call_winsorize
+                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: specify from which line-scanning 
+                      session to use the coordinates/normal vector from. Default = '2'
+                    - ${BOLD_BLUE}spinoza_layering${RESET}: specify the number of layers to 
+                      define. Default = '10' for nighres, '5' for equivolumetric_layering
 
 -m <module>       always required, specifies which module to run.
 
@@ -75,13 +81,15 @@ Input arguments:
 -o|--ow           turn on overwrite mode.
 
 -p <input>        used for:
-                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: pattern for file-name reconstruction (default = %n_%p,
-                      representing Patient-Name & Protocol Name). You can change this, but then I
-                      don't bear any responsibilities over the consequences in later scripts..
-                      This option is only available for 'dcm2niix' (DCM-files), not 'parrec2nii'
-                      (PAR/REC-files).
-                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}/${BOLD_BLUE}spinoza_bestvertex${RESET}: switch to specify model type
-                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify custom json-file with MP2RAGE(ME) parameters
+                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: pattern for file-name 
+                      reconstruction (default = %n_%p, representing Patient-Name & Protocol Name). 
+                      You can change this, but then I don't bear any responsibilities over the 
+                      consequences in later scripts.. This option is only available for 'dcm2niix' 
+                      (DCM-files), not 'parrec2nii' (PAR/REC-files).
+                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}/${BOLD_BLUE}spinoza_bestvertex${RESET}: 
+                      switch to specify model type
+                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify custom json-file with MP2RAGE
+                      (ME) parameters
 
 -q <sge queue>    send jobs to specific queue.
 
@@ -93,25 +101,32 @@ Input arguments:
 -s <subject>      Subject ID (e.g., 01).
 
 -t <type|task>    used for:
-                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: set RepetitionTime manually (discouraged..)
-                    - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: set threshold for R2* manually (default = 0.07)
+                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: set RepetitionTime manually 
+                      (discouraged..)
+                    - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: set threshold for R2* manually 
+                      (default = 0.07)
                     - ${BOLD_BLUE}spinoza_fmriprep${RESET}: type of workflow (anat/func/task).
-                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}/${BOLD_BLUE}spinoza_denoising${RESET}: limit process to a given task.
-                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: select pRF-parameters from specific task.
+                    - ${BOLD_BLUE}spinoza_fitprfs${RESET}/${BOLD_BLUE}spinoza_denoising${RESET}: 
+                      limit process to a given task.
+                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: select pRF-parameters from specific 
+                      task.
 
 -u <input>         used for:
-                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify lower percentile for winsorizing image
+                    - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify lower percentile for 
+                      winsorizing image
                       intensities using call_winsorize
-                    - ${BOLD_BLUE}spinoza_fmriprep${RESET}: specify configuration file for fMRIprep.
+                    - ${BOLD_BLUE}spinoza_fmriprep${RESET}: specify configuration file for 
+                      fMRIprep.
 
 -v <value>        used for:
-                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: remove first X volumes from the FUNC and FMAP during
-                      conversion. Alternatively, you can keep the volumes, run fMRIPrep, and then
-                      use 'call_truncate' to remove the first X volumes from the time series. By
-                      default, the volumes are cut from both the FUNC and FMAP, unless
-                      '--skip-fmap' is specified, in which case it leaves the FMAPs alone and
-                      only removes the X first volumes from the FUNC.
-                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: manually insert vertices for best_vertex.
+                    - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: remove first X volumes from the 
+                      FUNC and FMAP during conversion. Alternatively, you can keep the volumes, 
+                      run fMRIPrep, and then use 'call_truncate' to remove the first X volumes 
+                      from the time series. By default, the volumes are cut from both the FUNC and 
+                      FMAP, unless '--skip-fmap' is specified, in which case it leaves the FMAPs 
+                      alone and only removes the X first volumes from the FUNC.
+                    - ${BOLD_BLUE}spinoza_bestvertex${RESET}: manually insert vertices for 
+                      best_vertex.
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: volumes to cut from timeseries.
 
 -x <kwargs>       used for various extra options passed to specific modules.
@@ -141,12 +156,16 @@ Options:
 
 --docker          use docker images for fmriprep/mriqc.
 
---fast            Use DIR_DATA_DERIV/fast-output instead of fMRIPrep for ${BOLD_BLUE}spinoza_extractregions${RESET}.
+--fast            Use DIR_DATA_DERIV/fast-output instead of fMRIPrep for ${BOLD_BLUE}
+                  spinoza_extractregions${RESET}.
                   This allows you to run the full combination strategy without fMRIprep. You will
                   still need output from:
-                    - CAT12 (${BOLD_BLUE}spinoza_brainextraction${RESET}) [master -m ${BOLD_MAGENTA}09${RESET}]
-                    - FreeSurfer (${BOLD_BLUE}spinoza_freesurfer${RESET}) [master -m ${BOLD_MAGENTA}14${RESET}]
-                    - MGDM (${BOLD_BLUE}spinoza_mgdm${RESET}) [master -m ${BOLD_MAGENTA}20${RESET}]
+                    - CAT12 (${BOLD_BLUE}spinoza_brainextraction${RESET})
+                      [master -m ${BOLD_MAGENTA}09${RESET}]
+                    - FreeSurfer (${BOLD_BLUE}spinoza_freesurfer${RESET})
+                      [master -m ${BOLD_MAGENTA}14${RESET}]
+                    - MGDM (${BOLD_BLUE}spinoza_mgdm${RESET})
+                      [master -m ${BOLD_MAGENTA}20${RESET}]
 
 --fd              only get FD-timecourse file.
 
@@ -239,7 +258,8 @@ Options:
 
 --fsl             used in:
                     - ${BOLD_BLUE}spinoza_registration${RESET}: output FSL-compatible matrix.
-                    - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: edit sinus mask with FSLeyes (default is ITK-Snap)
+                    - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: edit sinus mask with FSLeyes 
+                      (default is ITK-Snap)
 
 --phys            run physiology-only conversion.
 
@@ -275,9 +295,9 @@ Options:
                   exit after nighres is done
 
 --skip-fmap       do not trim the time series from FMAPs when '-v <cut volumes' is specified with
-                  ${BOLD_BLUE}spinoza_scanner2bids${RESET}. By default, it is assumed that all your functional files
-                  have dummy-saving turned on, so if '-v 5' is specified, the first 5 volumes will
-                  be removed from both the FUNC and FMAPs.
+                  ${BOLD_BLUE}spinoza_scanner2bids${RESET}. By default, it is assumed that all 
+                  your functional files have dummy-saving turned on, so if '-v 5' is specified, 
+                  the first 5 volumes will be removed from both the FUNC and FMAPs.
 
 --skip-tr         do not overwrite the TR in the header during call_bids. Generally not recommen-
                   ded, but exists for debugging purposes.

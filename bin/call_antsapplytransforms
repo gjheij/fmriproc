@@ -229,7 +229,7 @@ fi
 # eval doesn't quit script like 'exec' does
 eval "${cmd[@]}"
 
-if [[ $? != 0 ]]; then
+if [[ $? -ne 0 ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "antsApplyTransforms"

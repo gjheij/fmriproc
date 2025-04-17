@@ -14,46 +14,47 @@ function Usage {
 spinoza_biassanlm
 
 Sometimes CAT12 can be a bit of an overkill with smoothing and bias corrections. This script should
-be run prior to "spinoza_brainextraction", and runs a SANLM-filter over the image as well as an bias
-field correction with SPM. The subsequent "spinoza_brainextraction" should be run with the "-m brain"
-flag as to turn off bias correction and denoising with CAT12. The input image is expected to reside 
-in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz. By default, the pre-
-viously created mask with SPM is used to boost performance on ANTs functions (e.g., SANLM/Bias cor-
-rection).
+be run prior to "spinoza_brainextraction", and runs a SANLM-filter over the image as well as an 
+bias field correction with SPM. The subsequent "spinoza_brainextraction" should be run with the 
+"-m brain" flag as to turn off bias correction and denoising with CAT12. The input image is 
+expected to reside in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz. 
+By default, the previously created mask with SPM is used to boost performance on ANTs functions (e.
+g., SANLM/Bias correction).
 
 Usage:
   spinoza_biassanlm [arguments] [options] <anat folder> <output folder>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -j <cpus>           number of cores to use (default is 1)
-  -l <lower>          lower percentile (default = 0.01) for call_winsorize
-  -u <upper>          upper percentile (default = 0.99) for call_winsorize  
-  -o                  overwrite existing files
-  -x <kwargs>         Additional commands to be passed to 'call_antsbias'. Format should
-                      be colon-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -j <cpus>       number of cores to use (default is 1)
+  -l <lower>      lower percentile (default = 0.01) for call_winsorize
+  -u <upper>      upper percentile (default = 0.99) for call_winsorize  
+  -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should
+                  be colon-separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
-                      e.g.,
-                      "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
+                  e.g.,
+                    "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
 
-Options
-  --spm               run bias correction with SPM (default = False)
-  --no-sanlm          do not run SANLM denoising (in case you don't have CAT12..)
-  --no-mask           do not use SPM mask for SANLM/Bias correction with ANTs
-  --n4                run bias correction with N4BiasCorrection (ANTs)
-  --denoise           use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
-                      CAT12.
+Options:
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --spm           run bias correction with SPM (default = False)
+  --no-sanlm      do not run SANLM denoising (in case you don't have CAT12..)
+  --no-mask       do not use SPM mask for SANLM/Bias correction with ANTs
+  --n4            run bias correction with N4BiasCorrection (ANTs)
+  --denoise       use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
+                  CAT12.
 
 Positional:
-  <anat dir>          parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
-                      DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
-  <output>            Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
+  <anat dir>      parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
+                  DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
+  <output>        Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
 
 Example:
   spinoza_biassanlm DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
@@ -79,7 +80,7 @@ n_cpu=1
 use_mask=1
 lower=0.01
 upper=0.99
-while getopts :-:bos:n:x:j:u:l: argument
+while getopts :-:hbos:n:x:j:u:l: argument
 do
   case ${argument} in
     -)
@@ -101,6 +102,12 @@ do
         no-mask)
           use_mask=0
           ;;                                                  
+        ow)
+          OW=1
+          ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -108,6 +115,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -143,8 +152,7 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Start clock
-#-----------------------------------------------------------------------------
+# intro
 start_timer "Bias field correction and sanlm-filtering"
 
 #-----------------------------------------------------------------------------
@@ -177,7 +185,14 @@ for subID in ${search}; do
     mkdir -p ${OUTPUTDIR}
   fi
 
-  spm_mask=$(find "${INPUTDIR}" -type f \( -name "*acq-${DATA}*" -and -name "*spm_mask.nii.gz" \) 2>/dev/null)
+  spm_mask=$(
+    find "${INPUTDIR}" \
+    -type f \
+    -name "*acq-${DATA}*" \
+    -and -name "*spm_mask.nii.gz" \
+    2>/dev/null
+  )
+
   IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
   unset IFS 
   count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
@@ -208,7 +223,14 @@ for subID in ${search}; do
     kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ':' ' ')
   fi
 
-  input=$(find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+  input=$(
+    find "${INPUTDIR}" \
+    -maxdepth 1 \
+    -type f \
+    -name "*acq-${DATA}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
   if [[ ! -z ${input} ]]; then
 
     output=${OUTPUTDIR}/$(basename ${input})
@@ -217,13 +239,20 @@ for subID in ${search}; do
       rm ${output} 2>/dev/null
     fi
 
-    t1map=$(find "${INPUTDIR}" -maxdepth 1 -type f \( -name "*acq-${DATA}*" -and -name "*T1map.nii.gz" \) 2>/dev/null)
+    t1map=$(
+      find "${INPUTDIR}" \
+      -maxdepth 1 \
+      -type f \
+      -name "*acq-${DATA}*" \
+      -and -name "*T1map.nii.gz" \
+      2>/dev/null
+    )
     if [[ ! -z ${t1map} ]]; then
       # copy t1map to output for later reference
-      cp ${t1map} $(dirname ${output})
+      cp "${t1map}" "$(dirname ${output})" 2>/dev/null
     fi
     
-    if [[ ! -f ${output} ]]; then
+    if [[ ! -f "${output}" ]]; then
 
       # print header
       print_subject_header ${sub_name}
@@ -262,19 +291,19 @@ for subID in ${search}; do
           echo "Running bias field correction with SPM"
           call_="call_spmbias"
           cmd=(
-            ${call_}
-            ${input_for_bias}
-            ${output}
+            "${call_}"
+            "${input_for_bias}"
+            "${output}"
           )
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
           call_="call_antsbias"
           cmd=(
-            ${call_}
-            ${input_for_bias}
-            ${output}
-            ${kwargs}
+            "${call_}"
+            "${input_for_bias}"
+            "${output}"
+            "${kwargs}"
           )
         fi
 

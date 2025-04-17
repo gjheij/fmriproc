@@ -4,7 +4,7 @@ import mkl
 mkl.set_num_threads=1
 
 import getopt
-from fmriproc import prf
+from fmriproc import prf import prf
 from lazyfmri import (
     utils,
     dataset,
@@ -14,7 +14,7 @@ import sys
 import json
 import yaml
 import numpy as np
-from scipy import io
+from scipy import ioo
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -226,6 +226,8 @@ Models:
   --dog           run difference-of-gaussian model (suppression) [Zuiderbaan, et al. 2013]
   --css           run compressive spatial summation model (compression) [Kay, et al. 2013]
   --norm          run divisive normalization model (suppresion+compression) [Aqil, et al. 2021]
+  --abd           DN-model with fixed C-parameter [Aqil, et al. 2021]
+  --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
 
 Example:
   call_prf \
@@ -491,7 +493,7 @@ Notes:
                 empty = np.zeros_like(m_prf_tc_data)
 
                 # insert timecourses 
-                lbl_true = np.where(surf_obj.whole_roi == True)[0]
+                lbl_true = np.where(surf_obj.whole_roi)[0]
                 empty[:,lbl_true] = m_prf_tc_data[:,lbl_true]
 
                 # overwrite m_prf_tc_data

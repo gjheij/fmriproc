@@ -16,52 +16,110 @@ spinoza_registration
 Wrapper for registration with ANTs. This script should be preceded by spinoza_qmri maps. It utili-
 zes the variable ACQ in the setup script to derive what should be registered to what. In theory, 
 the first element of ACQ is taken as reference, and the second element will be registered to that. 
-If ACQ has only one element and 'MNI' is specified, this first element is registered to the MNI tem-
-plate. This step is relatively obsolete given that we don't really need it in MNI space + we can do 
-that step with fMRIprep, but can be useful if you need the registration file mapping T1w-to-MNI, 
-without warping the actual 4D file to MNI-space (saves disk space).
+If ACQ has only one element and 'MNI' is specified, this first element is registered to the MNI 
+template. This step is relatively obsolete given that we don't really need it in MNI space + we 
+can do that step with fMRIprep, but can be useful if you need the registration file mapping 
+T1w-to-MNI, without warping the actual 4D file to MNI-space (saves disk space).
+
+Scenarios:
+  - MP2RAGE+MP2RAGEME [ACQ=("MP2RAGE" "MP2RAGEME")], 1st element is reference ('MP2RAGE'):
+
+      # fixed
+      fixed_file=\$(
+        find -L "\${input_dir}" \
+        -type f \
+        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
+      # moving
+      moving_files=\$(
+        find -L "\${input_dir}" \
+        -type f \
+        -iname "*\${ACQ[1]^^}_*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
+  - Multiple MPRAGE(s) [ACQ=("MP2RAGE)]; ref should have 'run-1', subsequent files should have 
+    'run-[2-i]':
+
+      # fixed
+      fixed_file=\$(
+        find -L "\${input_dir}" \
+        -type f \
+        -iname "*\${ACQ[0]^^}_run-1*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
+      # moving
+      moving_files=\$(
+        find -L "\${input_dir}" \
+        -type f \
+        -iname "*\${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
+    - To MNI [acq=("MP2RAGE") | acq=("MP2RAGEME") | acq=("MPRAGE")]:
+
+      # fixeds
+      fixed_file=\${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
+
+      # moving
+      moving_files=\$(
+        find -L "\${input_dir}" \
+        -type f \
+        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+        -not -name "._*"
+      )      
+
+Resulting transformation will be applied to files containing the suffixes in \$WARP_2_MP2RAGE-
+variable if the registration does NOT involve the MNI-template!. If nothing is 
+specified in the \$CONFIG_FILE, it will be set to:
+
+  WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
 
 Usage:
   spinoza_registration [arguments] [options] <anat folder> <output folder> <registration type>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -j <n_cpus>         number of CPUs to use (default = 1)
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -j <n_cpus>     number of CPUs to use (default = 1)
 
 Options:
-  -o|--ow             Overwrite existing output
-  --affine            use affine-registration (12 parameters)
-  --rigid             use rigid-body registration (6 parameters). Default if <registration type> 
-                      != 'mni' and no registration method is specified
-  --syn               use SyN-diffeomorphic registration. Default if <registration type> == 'mni'
-                      and no registration method is specified
-  --fsl               also output the matrix in FSL-compatible format (not available for SyN)
-  -c|--sge            submit job to cluster (SGE); given that we have to rename files after regi-
-                      stration, we'll wait for the job to finish if submitted. This can still help
-                      with memory issues (e.g., if your local machine does not have enough RAM).
-  --cmd               only echo command; can be useful to submit multiple subjects without waiting 
-                      for the process to finish. This requires the master command to be re-run again
-                      to apply and files
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --affine        use affine-registration (12 parameters)
+  --rigid         use rigid-body registration (6 parameters). Default if <registration type> 
+                  != 'mni' and no registration method is specified
+  --syn           use SyN-diffeomorphic registration. Default if <registration type> == 'mni'
+                  and no registration method is specified
+  --fsl           also output the matrix in FSL-compatible format (not available for SyN)
+  -c|--sge        submit job to cluster (SGE); given that we have to rename files after regi-
+                  stration, we'll wait for the job to finish if submitted. This can still help
+                  with memory issues (e.g., if your local machine does not have enough RAM).
+  --cmd           only echo command; can be useful to submit multiple subjects without waiting 
+                  for the process to finish. This requires the master command to be re-run again
+                  to apply and files
 
 Positional:
-  <anat folder>       folder containing images for registration. If DATA == "AVERAGE", we'll look
-                      for T1w-images containing 'acq-MP2RAGE_' and 'acq-MP2RAGEME_', create a warp
-                      file, and apply this file to MP2RAGEME-files with ('T1w' 'T1map' 'R2starmap
-                      Files ending with something other than 'T1w' or 'T1map' will also be copied 
-                      to have 'acq-AVERAGE' in the filename, rather than 'space-MP2RAGE'. This en-
-                      sures compatibility with 'spinoza_sagittalsinus' when DATA == AVERAGE. Regis-
-                      tered files will end up in the <anat folder>, the warp file itself in <output
-                      folder>
-  <output folder>     folder where warp files are stored. Registered files are stored in <anat fol-
-                      der>
-  <registration type> which registration should be carried out. If empty, we'll default to a regis-
-                      tration between MP2RAGEME and MP2RAGE (assumes that DATA == AVERAGE). This 
-                      version is called as 'master -m 05a'. If 'mni', we'll register the T1w-file
-                      in <anat folder> with FSL's 1mm template (MNI152NLin6Asym). This version is 
-                      called as 'master -m 05b'. If type == 'mni', we'll default to the first ele-
-                      ment in ${ACQ[@]} to register to MNI. Generally, this will/should be MP2RAGE     
+  <anat folder>   folder containing images for registration. If DATA == "AVERAGE", we'll look
+                  for T1w-images containing 'acq-MP2RAGE_' and 'acq-MP2RAGEME_', create a warp
+                  file, and apply this file to MP2RAGEME-files with ('T1w' 'T1map' 'R2starmap
+                  Files ending with something other than 'T1w' or 'T1map' will also be copied 
+                  to have 'acq-AVERAGE' in the filename, rather than 'space-MP2RAGE'. This en-
+                  sures compatibility with 'spinoza_sagittalsinus' when DATA == AVERAGE. Regis-
+                  tered files will end up in the <anat folder>, the warp file itself in <output
+                  folder>
+  <output folder> folder where warp files are stored. Registered files are stored in <anat folder>
+  <reg type>      which registration should be carried out. If empty, we'll default to a regis-
+                  tration between MP2RAGEME and MP2RAGE (assumes that DATA == AVERAGE). This 
+                  version is called as 'master -m 05a'. If 'mni', we'll register the T1w-file
+                  in <anat folder> with FSL's 1mm template (MNI152NLin6Asym). This version is 
+                  called as 'master -m 05b'. If type == 'mni', we'll default to the first ele-
+                  ment in \${ACQ[@]} to register to MNI. Generally, this will/should be 
+                  MP2RAGE     
 
 Example:
   spinoza_registration <project>/derivatives/pymp2rage <project>/derivatives/ants mp2rage
@@ -88,7 +146,7 @@ n_cpus=1
 echo_cmd=0
 
 # Check for subject flag
-while getopts :-:ocs:n:q:j: argument
+while getopts :-:hocs:n:q:j: argument
 do
   case ${argument} in
     -)
@@ -119,13 +177,18 @@ do
         ow)
           OW=1
           ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;                  
+      ;;
+    h)  Usage && exit 0
+          ;;             
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -201,13 +264,41 @@ for subID in ${search}; do
       # set code
       code=1 # MP2RAGE+MP2RAGEME
 
-      # find files
-      moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[1]^^}_*T1w.nii.gz" -not -name "*space-*")
-      fixed_file=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_*T1w.nii.gz" -not -name "*space-*")
+      # fixed
+      fixed_file=$(
+        find -L "${input_dir}" \
+        -type f \
+        -iname "*${ACQ[0]^^}_*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+      
+      # moving
+      moving_files=$(
+        find -L "${input_dir}" \
+        -type f \
+        -iname "*${ACQ[1]^^}_*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
     else
       code=2 # Multiple MP(2)RAGES
-      fixed_file=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_run-1*T1w.nii.gz" -not -name "*space-*")
-      moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" -not -name "*space-*")
+
+      # fixed
+      fixed_file=$(
+        find -L "${input_dir}" \
+        -type f \
+        -iname "*${ACQ[0]^^}_run-1*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
+      # moving
+      moving_files=$(
+        find -L "${input_dir}" \
+        -type f \
+        -iname "*${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \
+        -not -name "*space-*"
+      )
+
     fi
   elif [[ ${TYPE,,} == "mni" ]]; then
     if [[ -z ${reg_type} ]]; then
@@ -215,20 +306,25 @@ for subID in ${search}; do
     fi
     code=3
     fixed_file=${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
-    moving_files=$(find -L "${input_dir}" -type f -iname "*${ACQ[0]^^}_*T1w.nii.gz" -not -name "._*")
+    moving_files=$(
+      find -L "${input_dir}" \
+      -type f \
+      -iname "*${ACQ[0]^^}_*T1w.nii.gz" \
+      -not -name "._*"
+    )
   else
     echo "Incorrect usage. Please specify mp2rage or mni"
     Usage
   fi
 
   # Check if required files exist
-  if [[ ! -f ${fixed_file} || -z ${moving_files} ]]; then
+  if [[ ! -f "${fixed_file}" || -z "${moving_files}" ]]; then
     print_error_msg "$(basename ${0})" "find" "Could not find ${BOLD_GREEN}FIXED${RESET} and ${BOLD_GREEN}MOVING${RESET} images for TYPE=\"${BOLD_RED}${TYPE}${RESET}\" (code=\"${BOLD_RED}${code}${RESET}\"). Is your setup correct?"
     exit 1
   fi
 
-  if [[ ! -d ${output_dir} ]]; then
-    mkdir -p ${output_dir}
+  if [[ ! -d "${output_dir}" ]]; then
+    mkdir -p "${output_dir}"
   fi
   
   # loop through moving files
@@ -242,8 +338,8 @@ for subID in ${search}; do
     elif [[ ${code} -eq 2 ]]; then
       # Multiple MP(2)RAGES
       txt="Registering ${moving} to ${fixed_file}"
-      run_mv=$(get_id ${moving} run)
-      run_fx=$(get_id ${fixed_file} run)
+      run_mv=$(get_id "${moving}" run)
+      run_fx=$(get_id "${fixed_file}" run)
       space="run${run_fx}"
       ext="from-run${run_mv}_to-run${run_fx}"
     elif [[ ${code} -eq 3 ]]; then
@@ -318,7 +414,7 @@ for subID in ${search}; do
         
         # check if file exists and warp it
         suff=$(echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1)
-        in_file=$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz
+        in_file="$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz"
         if [ -f "${in_file}" ]; then
 
           # define output

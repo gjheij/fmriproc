@@ -20,40 +20,41 @@ Usage:
   spinoza_subcortex [arguments] [options] <project root dir> <prob seg dir> <region> <overwrite>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., 1, 2, or none)
-  -j <cpus>           number of cores to use (default is 1)
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -x <kwargs>         Additional commands to be passed to 'antsRegistration'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none)
+  -j <cpus>       number of cores to use (default is 1)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>     Additional commands to be passed to 'antsRegistration'. Format should be comma-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands
+                  This allows bash commands to be translated to python commands
 
-  -p <kwargs>         Additional commands to be passed to 'MASSP'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -p <kwargs>     Additional commands to be passed to 'MASSP'. Format should be comma-separated 
+                  flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands
+                  This allows bash commands to be translated to python commands
 
 Options:
-  -o|--ow             Overwrite existing output
-  --sge               submit job to cluster
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  --sge           submit job to cluster
 
 Positional:
-  <anat folder>       folder containing the files required for MASSP. Files should end with:
-                        -"*_R1.nii.gz"   > 1/T1map file
-                        -"*_R2s.nii.gz"  > 1/T2* file
-                        -"*_QSM.nii.gz"  > QSM file
-  <output>            output folder (<subject>/[<ses->] will be appended!)
+  <anat folder>   folder containing the files required for MASSP. Files should end with:
+                    -"*_R1.nii.gz"   > 1/T1map file
+                    -"*_R2s.nii.gz"  > 1/T2* file
+                    -"*_QSM.nii.gz"  > QSM file
+  <output>        output folder (<subject>/[<ses->] will be appended!)
 
 Example:
   spinoza_subcortex DIR_DATA_HOME DIR_DATA_DERIV/nighres
@@ -76,7 +77,7 @@ SGE_QUEUE=${SGE_QUEUE_LONG}
 kws_ants=""
 kws_massp=""
 # Check for subject & session flags
-while getopts s:n:j:q:x:p: argument
+while getopts :-:hs:n:j:q:x:p: argument
 do
   case ${argument} in
     -)
@@ -87,6 +88,9 @@ do
         ow)
           OW=1
           ;;
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -94,6 +98,8 @@ do
           ;;
       esac
       ;;
+    h)  Usage && exit 0
+          ;;  
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -159,37 +165,63 @@ for subID in ${search}; do
     fi
   done
 
-  #----------------------------------------------------------------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------------------
   # Running MASSP with Nighres
 
-  massp=${output_dir}/${base}_acq-${DATA^^}_desc-massp_label.nii.gz
+  massp="${output_dir}/${base}_acq-${DATA^^}_desc-massp_label.nii.gz"
 
-  if [[ ! -f ${massp} ]]; then
+  if [[ ! -f "${massp}" ]]; then
 
     # print header
     print_subject_header ${sub_name}
 
     #-----------------------------------------------------------------------------
     # Check if we can mask inputs
-    mask=$(find ${DIR_DATA_DERIV}/manual_masks/${base_path} -type f \( -name "*acq-${DATA^^}*" -and -name "*brainmask.nii.gz" \) 2>/dev/null)
+    mask=$(
+      find "${DIR_DATA_DERIV}/manual_masks/${base_path}" \
+      -type f \
+      -name "*acq-${DATA^^}*" \
+      -and -name "*brainmask.nii.gz" \
+      2>/dev/null
+    )
     declare -a INPUTS=()
 
     echo "Should we mask inputs?"
     for i in "R1" "R2s" "QSM"; do
-      fn=$(find ${input_dir} -type f \( -name "*${i}.nii.gz" \) 2>/dev/null)
+      fn=$(
+        find "${input_dir}" \
+        -type f \
+        -name "*${i}.nii.gz" \
+        2>/dev/null
+      )
 
       j=0; for k in ${fn[@]}; do ((j++)); done; if [[ ${j} -ne 1 ]]; then echo -e "${BOLD_CYAN}${sub_name}${RESET}: Found more than 1 file for ${r}"; continue 2; fi
 
-      if [[ -z ${fn} ]]; then
+      if [[ -z "${fn}" ]]; then
         print_file_not_in_dir "${sub_name}" "*${i}.nii.gz" "${input_dir}"
         continue
       else
         # check if we can mask inputs; otherwise continue as usual
         if [[ ! -z ${mask} ]]; then
           printf " applying mask to ${i}-image; "
-          out=${skull_dir}/$(basename ${fn} "_${i}.nii.gz")_desc-skullstrip_${i}.nii.gz
-          fslmaths ${fn} -mas ${mask} ${out}
-          use_dir=${skull_dir}
+          out="${skull_dir}/$(basename ${fn} "_${i}.nii.gz")_desc-skullstrip_${i}.nii.gz"
+          cmd=(
+            fslmaths
+            "${fn}"
+            -mas "${mask}"
+            "${out}"
+          )
+
+          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename $0)" "BET"
+            exit 1
+          fi
+
+          # set dir
+          use_dir="${skull_dir}"
           printf "[$(fslstats ${out} -R)]\n"
         else
           use_dir=${input_dir}
@@ -200,16 +232,24 @@ for subID in ${search}; do
     print_create_img "${massp}"
 
     # decide the job type
-    job="$(decide_job_type "call_nighresmassp" "${base}_acq-${DATA^^}_desc-massp" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+    job="$(
+      decide_job_type \
+      "call_nighresmassp" \
+      "${base}_acq-${DATA^^}_desc-massp" \
+      "${run_local}" \
+      "${DIR_LOGS}" \
+      "${n_cpus}" \
+      "${SGE_QUEUE}"
+    )"
 
     # define command
     cmd=(
-      ${job}
-      --inputdir ${use_dir}
+      "${job}"
+      --inputdir "${use_dir}"
       --outputdir ${output_dir}
-      --name ${base}_acq-${DATA^^}_desc
-      ${kws_ants}
-      ${kws_massp}
+      --name "${base}_acq-${DATA^^}_desc"
+      "${kws_ants}"
+      "${kws_massp}"
     )
 
     # print command

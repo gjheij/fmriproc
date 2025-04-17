@@ -15,11 +15,11 @@ spinoza_nordic
 
 Run NORDIC denoising on whole-brain functional data. Expects a BIDS-like folder structure with the
 magnitude data in 'func' and the phase data in 'phase'. If phase data is not present, we'll attempt
-a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no-nordic' 
-folder to denote that not preprocessing has taken place, while keeping the data close. The NORDIC'ed 
-data will be placed in 'func', without any special tags to avoid that fMRIPrep gets confused. How-
-ever, it's likely you've produced the phase output with 'spinoza_scanner2bids', in which case the 
-files will be named properly. Thus, the folder structure is expected to be like:
+a magnitude-only NORDIC process. If NORDIC is being run, we'll copy the 'func'-folder as 'no-
+nordic'-folder to denote that not preprocessing has taken place, while keeping the data close. The 
+NORDIC'ed data will be placed in 'func', without any special tags to avoid that fMRIPrep gets 
+confused. However, it's likely you've produced the phase output with 'spinoza_scanner2bids', in 
+which case the files will be named properly. Thus, the folder structure is expected to be like:
 
 <dir_projects>
 └── <project>
@@ -39,20 +39,21 @@ Usage:
   spinoza_nordic [arguments] [options] <bids folder>
 
 Arguments:
-  -s <subject>  subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>  session ID (e.g., 1, 2, or none
-  -r <run>      run ID (e.g., 1). Can also be comma-separated list: 1,3,4
-  -q <queue>    submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., 1, 2, or none
+  -r <run>        run ID (e.g., 1). Can also be comma-separated list: 1,3,4
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
 
 Options:
-  --sge         submit individual NORDIC processes to the cluster for parallellization. If you do 
-                this, it's advised to have identifiable 'run-' flags in your filenames so that the 
-                template file is not overwritten; this can cause problems. If you do not have run 
-                identifiers in your filenames, please run serially. This flag is inherited from 
-                'master', so calling it there will pass on the flag here.
-  -o|--ow       overwrite existing files even if "Nordic"-field is populated in json file
-  --mag         use magnitude only
-  --no-tsnr     skip tSNR maps before/after NORDIC
+  -h|--help       print this help text
+  -o|--ow         overwrite existing files even if "Nordic"-field is populated in json file
+  --sge           submit individual NORDIC processes to the cluster for parallellization. If you 
+                  do this, it's advised to have identifiable 'run-' flags in your filenames so 
+                  that the template file is not overwritten; this can cause problems. If you do 
+                  not have run identifiers in your filenames, please run serially. This flag is 
+                  inherited from 'master', so calling it there will pass on the flag here.
+  --mag           use magnitude only
+  --no-tsnr       skip tSNR maps before/after NORDIC
 
 Positional:
   <bids folder> parent directory containing the sub-xxx folders for functional data. Generally, 
@@ -80,7 +81,7 @@ run_local=1
 mag_only=0
 tsnr_flag="--tsnr"
 SGE_QUEUE=${SGE_QUEUE_LONG}
-while getopts :-:os:n:r:q:j: argument
+while getopts :-:hos:n:r:q:j: argument
 do
   case ${argument} in
     -)
@@ -96,14 +97,19 @@ do
           ;;    
         ow)
           OW=1
-          ;;                                                                                               
+          ;;
+        help)
+          Usage && exit 0
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
+      ;;
+    h)  Usage && exit 0
+          ;;          
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -154,9 +160,9 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  func_folder=${INPUT}/${base_path}/func
-  tmp_folder=${INPUT}/${base_path}/no_nordic
-  phase_folder=${INPUT}/${base_path}/phase
+  func_folder="${INPUT}/${base_path}/func"
+  tmp_folder="${INPUT}/${base_path}/no_nordic"
+  phase_folder="${INPUT}/${base_path}/phase"
 
   # print header
   print_subject_header ${sub_name}
@@ -172,18 +178,28 @@ for subID in ${search}; do
       # only copy nifit's/json's, so that .mat files remain
       mkdir -p ${tmp_folder}
 
-      # skip 3D images
-      func_files=($(find ${func_folder} -type f -name "*.nii.gz" 2>/dev/null))
+      # find functional files
+      func_files=(
+        $(
+          find "${func_folder}" \
+          -type f \
+          -name "*.nii.gz" \
+          2>/dev/null
+        )
+      )
+
+      # check dimensions to skip 3D files
       for ff in ${func_files[@]}; do
         dim=$(fslval ${ff} dim0)
         if [[ ${dim} -gt 3 ]]; then
-          cp ${ff} ${tmp_folder} 2>/dev/null
+          cp "${ff}" "${tmp_folder}" 2>/dev/null
           
-          json_f=$(dirname ${ff})/$(basename ${ff} .nii.gz).json
-          if [[ -f ${json_f} ]]; then
-            cp ${json_f} ${tmp_folder} 2>/dev/null
+          # define json
+          json_f="${ff/.nii.gz/.json}"
+          if [[ -f "${json_f}" ]]; then
+            cp "${json_f}" "${tmp_folder}" 2>/dev/null
           fi
-          rm -r ${ff} 2>/dev/null
+          rm -r "${ff}" 2>/dev/null
         fi
       done
     else
@@ -193,28 +209,45 @@ for subID in ${search}; do
 
   # check BOLD files
   if [[ -z ${runs} ]]; then
-    IMGS=$(find "${tmp_folder}" -type f \( -name "*bold.nii.gz" \) 2>/dev/null)
+    IMGS=$(
+      find "${tmp_folder}" \
+      -type f \
+      -name "*bold.nii.gz" \
+      2>/dev/null
+    )
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       IMGS=()
       for r in ${n_runs[@]}; do
-        run_f=$(find "${tmp_folder}" -type f \( -name "*run-${r}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
-        IMGS+=(${run_f})
+        run_f=$(
+          find "${tmp_folder}" \
+          -type f \
+          -name "*run-${r}*" \
+          -and -name "*bold.nii.gz" \
+          2>/dev/null
+        )
+        IMGS+=("${run_f}")
       done
     else
-      IMGS=$(find "${tmp_folder}" -type f \( -name "*run-${n_runs}*" -and -name "*bold.nii.gz" \) 2>/dev/null)
+      IMGS=$(
+        find "${tmp_folder}" \
+        -type f \
+        -name "*run-${n_runs}*" \
+        -and -name "*bold.nii.gz" \
+        2>/dev/null
+      )
     fi
   fi
   IFS=$'\n' mag_imgs=($(sort <<<"${IMGS[*]}"))
   unset IFS
 
-  if [[ -z ${mag_imgs} ]]; then
+  if [[ -z "${mag_imgs}" ]]; then
     print_file_not_in_dir "${sub_name}" "*bold.nii.gz" "${tmp_folder}"
     exit 1
   fi
 
   # loop through magnitude images
-  for mag_img in ${mag_imgs[@]}; do
+  for mag_img in "${mag_imgs[@]}"; do
 
     # check if dim>3
     dim=$(fslval ${mag_img} dim0)
@@ -222,9 +255,9 @@ for subID in ${search}; do
       
       # check if json has "NORDIC" field; definitely do nordic if there's no json file; also do it if there's no nifti in func/
       do_nordic=1
-      json_f=${func_folder}/$(basename ${mag_img} .nii.gz).json
-      if [[ -f ${json_f} ]]; then
-        if [[ ! -f ${func_folder}/$(basename ${mag_img}) ]]; then
+      json_f="${func_folder}/$(basename ${mag_img} .nii.gz).json"
+      if [[ -f "${json_f}" ]]; then
+        if [[ ! -f "${func_folder}/$(basename ${mag_img})" ]]; then
           do_nordic=1
         else
           did_nordic=$(cat ${json_f} | grep "Nordic")
@@ -247,8 +280,8 @@ for subID in ${search}; do
         # check if there's a phase directory
         if [[ ${mag_only} -eq 0 ]]; then
           # get corresponding phase image or insert magnitude image; if no phase, run magnitude only
-          ph_img=${phase_folder}/$(basename ${mag_img} .nii.gz)_ph.nii.gz
-          if [[ ! -f ${ph_img} ]]; then
+          ph_img="${phase_folder}/$(basename ${mag_img} .nii.gz)_ph.nii.gz"
+          if [[ ! -f "${ph_img}" ]]; then
             echo "No phase image for $(basename ${mag_img}); switching to magnitude-only"
             mag_only=1
           fi
@@ -262,7 +295,7 @@ for subID in ${search}; do
           mag_flag="--mag"
           ph_tag=""
           tt="[magnitude only]"
-          ph_img=${mag_img}
+          ph_img="${mag_img}"
         fi
 
         # decide on job execution
@@ -275,11 +308,22 @@ for subID in ${search}; do
         fi
 
         # decide the job type
-        job="$(decide_job_type "call_nordic" "$(basename ${mag_img} _bold.nii.gz)_desc-nordic" "${run_local}" "${DIR_LOGS}" "${n_cpus}" "${SGE_QUEUE}")"
+        job="$(
+          decide_job_type \
+          "call_nordic" \
+          "$(basename \
+          ${mag_img} _bold.nii.gz)_desc-nordic" \
+          "${run_local}" \
+          "${DIR_LOGS}" \
+          "${n_cpus}" \
+          "${SGE_QUEUE}"
+        )"
 
         # run if basenames of phase and magnitude match
-        if [[ $(basename ${ph_img} ${ph_tag}.nii.gz) == $(basename ${mag_img} .nii.gz) ]]; then
-          out=${func_folder}/$(basename ${mag_img})
+        base_ph="$(basename ${ph_img} ${ph_tag}.nii.gz)"
+        base_bl="$(basename ${mag_img} .nii.gz)"
+        if [[ "${base_ph}" == "${base_bl}" ]]; then
+          out="${func_folder}/$(basename ${mag_img})"
           
           # define command
           cmd=(
@@ -316,9 +360,14 @@ for subID in ${search}; do
 
   if [[ ${run_local} -eq 1 ]]; then
     # remove any left over unzipped files
-    nii_files=$(find ${func_folder} -type f -name "*.nii" 2>/dev/null)
-    if [[ ! -z ${nii_files} ]]; then
-      rm -r ${nii_files} 2>/dev/null
+    nii_files=$(
+      find "${func_folder}" \
+      -type f \
+      -name "*.nii" \
+      2>/dev/null
+    )
+    if [[ ! -z "${nii_files}" ]]; then
+      rm -r "${nii_files}" 2>/dev/null
     fi
   fi
 done

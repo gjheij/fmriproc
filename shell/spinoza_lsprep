@@ -21,37 +21,43 @@ Usage:
   spinoza_lsprep [arguments] [options] <project root directory> <sourcedata>
 
 Arguments:
-  -s <subject>        subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
-  -n <session>        session ID (e.g., "2,3" or "3"). Defaults to '2'; specify multiple 
-                      sessions in a comma-separated list: "2,3,4"
-  -j <n_cpus>         number of CPUs to use (default = 1)
-  -q <queue>          submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -x <kwargs>         Additional commands to be passed to 'call_lsprep'. Format should
-                      be comma-separated flags as follows: 
-                        - if you specify a flag and values | <flag>=<value>
-                        - if you specify a flag only | <flag>
+  -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
+  -n <session>    session ID (e.g., "2,3" or "3"). Defaults to '2'; specify multiple 
+                  sessions in a comma-separated list: "2,3,4"
+  -j <n_cpus>     number of CPUs to use (default = 1)
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -x <kwargs>     Additional commands to be passed to 'call_lsprep'. Format should be comma-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
 
-                      combine as:
-                      "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                  combine as:
+                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
 
-                      This allows bash commands to be translated to python commands
+                  This allows bash commands to be translated to python commands
 
 Options:
-  -o|--ow             Overwrite existing output
-  -c|--sge            submit job to cluster (SGE/SLURM)
+  -h|--help       print this help text
+  -o|--ow         Overwrite existing output
+  -c|--sge        submit job to cluster (SGE/SLURM)
 
 Positional:
-  <project root>      base directory containing the derivatives and the subject's folders.
-  <derivatives>       base directory to store the 'lsprep'-folder in 
+  <project root>  base directory containing the derivatives and the subject's folders.
+  <derivatives>   base directory to store the 'lsprep'-folder in 
 
 Eample:
   spinoza_lsprep -s 001 -n 3 --sge DIR_DATA_SOURCE DIR_DATA_DERIV
   spinoza_lsprep -s 001 -n 3 -x --filter-pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
 
 run with master:  
-  "master -m 03b -s 008 -n 3" # use all defaults from call_lsprep
-  "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" # customize
-  "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" # customize # submit
+  # use all defaults from call_lsprep
+  "master -m 03b -s 008 -n 3"
+
+  # customize
+  "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" 
+
+  # submit to cluster
+  "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" 
 
 ---------------------------------------------------------------------------------------------------
 
@@ -67,7 +73,7 @@ fi
 OW=0
 run_local=1
 SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:cs:n:q:x:j: argument
+while getopts :-:hcs:n:q:x:j: argument
 do
   case ${argument} in
     -)
@@ -75,13 +81,21 @@ do
         sge)
           run_local=0
           ;;                                                                        
+        ow)
+          OW=1
+          ;;            
+        help)
+          Usage && exit 0
+          ;;                      
         *)
-          if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-            echo "Unknown option --${OPTARG}"
-            exit 1
-          fi
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
           ;;
-      esac;;    
+      esac
+      ;;
+    h)  Usage && exit 0
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
