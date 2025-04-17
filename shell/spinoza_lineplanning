@@ -269,7 +269,7 @@ if [[ ${debug} -ne 1 ]]; then
     ttime=$(cat ${PAR_FILE} | awk '/^\s*$/ {next;} {print $33}' | grep -oE '[0-9]+' | head -n 1)
           # echo content      #extract 33rd column              # filter numbers    # get first value (= trigger delay)
 
-    if [[ -z ${ttime} ]]; then
+    if [[ -z "${ttime}" ]]; then
       # set ttime to 1008 if command above did not work
       ttime="1008"
       echo -e "Could not find Trigger Delay time in .PAR file, setting it to \"${BOLD_RED}${ttime}${RESET}\""
@@ -285,7 +285,7 @@ if [[ ${debug} -ne 1 ]]; then
       -and -name "*.nii.gz" \
       2>/dev/null
     )
-    if [[ -z ${anat_session2} ]]; then
+    if [[ -z "${anat_session2}" ]]; then
 
       # look for fast 3D T1 (3DFFE)
       anat_session2=$(
@@ -303,7 +303,7 @@ if [[ ${debug} -ne 1 ]]; then
         Usage
         exit 1
       fi
-    elif [ $(echo ${anat_session2} | wc -w) -gt 1 ]; then
+    elif [ $(echo "${anat_session2}" | wc -w) -gt 1 ]; then
       echo
       print_line -
       print_error_msg "$(basename $0)" "Found more than 1 file, make sure only one file is specified for session 2 anatomy:"
@@ -316,10 +316,10 @@ if [[ ${debug} -ne 1 ]]; then
 
   #-----------------------------------------------------------------------------
   # Call ANTs registration with Rigid body transformation
-  genaff=${nifti}/nifti/${subject}_from-fs_to-ses${session}_desc-genaff.mat
+  genaff="${nifti}/nifti/${subject}_from-fs_to-ses${session}_desc-genaff.mat"
 else
   genaff="identity"
-  anat_session2=${anat_session1}
+  anat_session2="${anat_session1}"
 fi
 
 if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
