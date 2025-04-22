@@ -135,13 +135,13 @@ Notes:
 
 Call with master:
   # vanilla
-  master -m 00 -s <subject> -n <session> {--lh|--rh}
+  master -m $(get_module_nr $(basename ${0})) -s 01 -n 2 --lh
   
   # use session 3
-  master -m 00 -s 001 -n 3 --lh # though --lh is default
+  master -m $(get_module_nr $(basename ${0})) -s 001 -n 3 --lh # though --lh is default
 
   # use session 1 (uses identity matrix) for debugging purposes
-  master -m 00 -s 001 --rh --identity
+  master -m $(get_module_nr $(basename ${0})) -s 001 --rh --identity
 
 ---------------------------------------------------------------------------------------------------
 
@@ -149,7 +149,7 @@ USAGE
 
 }
 
-if [[ $# -le 8 ]]; then
+if [[ $# -le 6 ]]; then
   Usage && exit 0
 fi
 
