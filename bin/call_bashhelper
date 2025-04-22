@@ -1434,6 +1434,8 @@ function get_module_nr() {
     print_line -
     echo
   else
+
+    local find_mod="${1}"
     # Path to the modules.txt file
     modules_txt="${REPO_DIR}/misc/modules.txt"
 
@@ -1444,14 +1446,14 @@ function get_module_nr() {
     fi
 
     # Process file to extract module numbers that match the search string(s)
-    mods=$(grep "$1" "$modules_txt" | awk '{print $1}' | cut -d"-" -f2 | cut -d':' -f1)
+    mods=$(grep "$find_mod" "$modules_txt" | awk '{print $1}' | cut -d"-" -f2 | cut -d':' -f1)
 
     # Sort and return results (space-separated)
     if [[ -n "$mods" ]]; then
-      echo "$mods" | sort | tr '\n' ' '
+      echo "${mods}" | cut -d"}" -f2 | cut -d "$" -f1
       echo
     else
-      echo "No matching module found for \"$1\"" >&2
+      echo "No matching module found for \"$find_mod\"" >&2
       return 1
     fi
   fi
@@ -2172,4 +2174,3 @@ launch_fsleyes() {
       ;;
   esac
 }
-
