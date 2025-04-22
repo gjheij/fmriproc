@@ -49,7 +49,7 @@ def correct_angle(x, verbose=False, only_angles=True):
         # 3) Small X | Large Y > vector = center to top-right       (flip sign)
         # 4) Large X | Small Y > vector = center to bottom-left     (flip sign)
 
-        #---------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # deal with x-axis
         if 0 <= x[0] <= 45: # here we can decide on case 2 and 3 (small X's)
             # 1) angles living between 0 deg and 45 deg can freely do so, nothing to update > most likely coronal slice
@@ -156,7 +156,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                     pass
 
 
-        #---------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # now, if we found a suitable angle for X, we can ignore Y because we only need one of the two to get our line
         # we could've obtained the Y-angle above if the X-angle was in the 45-90 range. In that case the first two positions
         # are already filled.
@@ -191,7 +191,7 @@ def correct_angle(x, verbose=False, only_angles=True):
                 #    it from 180 degrees
                 scanner_angles[1] = 180-x[1]
 
-        #---------------------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # deal with z-axis > this is a special angle as it can reflect an angle around the Z-axis OR the Y-axis, depending on 
         # the slice orientation. If slice == coronal > z-axis = angle AROUND Y-axis. If slice == sagittal > z-axis is angle
         # around X-axis. Previously we've also flattened this angle to the YZ-plane, so it's now a planar angle.
