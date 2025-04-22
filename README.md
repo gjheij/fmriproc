@@ -160,7 +160,6 @@ The following functions can be submitted (regardless of SoGE/SLURM) with `--sge`
 - `spinoza_scanner2bids`    [-m 02a]
 - `spinoza_mriqc`           [-m 02b]
 - `spinoza_qmrimap`         [-m 04]
-- `spinoza_registration`    [-m 05*]
 - `spinoza_nordic`          [-m 10]
 - `spinoza_freesurfer`      [-m 14]
 - `spinoza_fmriprep`        [-m 15]

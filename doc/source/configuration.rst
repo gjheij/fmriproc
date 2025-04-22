@@ -133,7 +133,6 @@ The following functions can be submitted (regardless of SoGE/SLURM) using the ``
 - spinoza_scanner2bids_ [-m 02a]
 - spinoza_mriqc_ [-m 02b]
 - spinoza_qmrimaps_ [-m 04]
-- spinoza_registration_ [-m 05*]
 - spinoza_nordic_ [-m 10]
 - spinoza_freesurfer_ [-m 14]
 - spinoza_fmriprep_ [-m 15]
