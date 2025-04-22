@@ -11,10 +11,10 @@ spinoza_averageanatomies_
 
     spinoza_averagesanatomies
     
-    This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average. This re-
-    sults in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the QSM-properties
-    of the MEMP2RAGE sequence. This will only happen if you have two elements in the ACQ variable of the setup
-    script and if the DATA-variable is set to "AVERAGE"
+    This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average.
+    This results in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the
+    QSM-properties of the MEMP2RAGE sequence. This will only happen if you have two elements in the
+    \$ACQ variable of the \$CONFIG_FILE and if the DATA-variable is set to "AVERAGE".
     
     Usage:
       spinoza_averagesanatomies [arguments] [options] <anat folder> <output folder>
@@ -28,13 +28,17 @@ spinoza_averageanatomies_
       -o|--ow         Overwrite existing output
     
     Positional:
-      <input>         directory containing the files to be registered; generally the output from pymp2rage
-                      (see 'spinoza_qmrimaps')
+      <input>         directory containing the files to be registered; generally the output from
+                      pymp2rage (see 'spinoza_qmrimaps')
       <output>        path to directory where registration file/outputs should be stored
     
     Example:
-      spinoza_averagesanatomies DIR_DATA_DERIV DIR_DATA_DERIV
-      spinoza_averagesanatomies -s 001 -n 1 DIR_DATA_DERIV DIR_DATA_DERIV
+      spinoza_averagesanatomies \$DIR_DATA_DERIV \$DIR_DATA_DERIV
+      spinoza_averagesanatomies -s 001 -n 1 \$DIR_DATA_DERIV \$DIR_DATA_DERIV
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
 
 spinoza_bestvertex_
 ====================================================================================================
@@ -56,7 +60,7 @@ spinoza_bestvertex_
     Arguments:
       -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
       -n <session>    session ID used to extract the correct pRF-parameters. Will combined with
-                      <derivatives>/prf/ses-<session>
+                      \$DIR_DATA_DERIV/prf/ses-<session>
       -l <line ses>   session ID for new line-scanning session; default = 2
       -t <task>       select pRF estimates from a particular task; by default the first element of
                       TASK_IDS in \$CONFIG_FILE
@@ -65,7 +69,7 @@ spinoza_bestvertex_
                       rh>". Always try to specify two vertices; doesn't matter too much if one is not
                       relevant
       -e <epi_file>   Specify custom EPI-intensity file rather than looking in \$DIR_DATA_DERIV/
-                      fmriprep. Automatically sets --use_epi.
+                      fmriprep. Automatically sets --use-epi.
     
     Options:
       -h|--help       print this help text
@@ -154,9 +158,19 @@ spinoza_bestvertex_
       spinoza_bestvertex [options] <sourcedata> <derivatives> <ROI>
     
     Example:
-      spinoza_bestvertex DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
-      spinoza_bestvertex -s 001 DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
-      spinoza_bestvertex -s 001 -v "1957,8753" DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
+      spinoza_bestvertex \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+      spinoza_bestvertex -s 001 \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+      spinoza_bestvertex -s 001 -v "1957,8753" \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+    
+    Call with master:
+      # search motor cortex
+      master -m $(get_module_nr $(basename ${0})) --aparc -r precentral
+    
+      # use pRFs and select vertex manually
+      master -m 18 -s 01 --norm --manual
+    
+      # use SRF and EPI files
+      master -m $(get_module_nr $(basename ${0})) -s 01 --norm --manual -e mean_func.nii.gz --srf-file
 
 spinoza_biassanlm_
 ====================================================================================================
@@ -169,9 +183,9 @@ spinoza_biassanlm_
     be run prior to "spinoza_brainextraction", and runs a SANLM-filter over the image as well as an
     bias field correction with SPM. The subsequent "spinoza_brainextraction" should be run with the
     "-m brain" flag as to turn off bias correction and denoising with CAT12. The input image is
-    expected to reside in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz.
-    By default, the previously created mask with SPM is used to boost performance on ANTs functions (e.
-    g., SANLM/Bias correction).
+    expected to reside in the input directory and to contain "acq-\${DATA}" and end with *T1w.nii.gz.
+    By default, the previously created mask with SPM is used to boost performance on ANTs functions
+    (e.g., SANLM/Bias correction).
     
     Usage:
       spinoza_biassanlm [arguments] [options] <anat folder> <output folder>
@@ -205,16 +219,27 @@ spinoza_biassanlm_
     
     Positional:
       <anat dir>      parent directory containing the sub-xxx folders for anatomies. Can be e.g.,
-                      DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
-      <output>        Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
+                      \$DIR_DATA_HOME or \$DIR_DATA_DERIV/pymp2rage
+      <output>        Output directory for the denoised images (something like \$DIR_DATA_DERIV/
+                      denoised)
     
     Example:
-      spinoza_biassanlm DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
-      spinoza_biassanlm -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
-      spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
+      spinoza_biassanlm DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/denoised
+      spinoza_biassanlm -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised
+      spinoza_biassanlm -s 001 -n 1 -b \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised
     
       # run SANLM and Bias correction with ANTs
-      spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised --n4 --denoise
+      spinoza_biassanlm -s 001 -n 1 -b \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised --n4 --denoise
+    
+    Call with master:
+      # vanilla | use SPM for bias corr and SANLM
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # use ANTs
+      master -m $(get_module_nr $(basename ${0})) -s 01 --n4 --denoise
+    
+      # pass kwargs to call_antsbias
+      master -m $(get_module_nr $(basename ${0})) -s 01 --n4 -x -t=[0.25,0.005,250];-x=some_mask.nii.gz
 
 spinoza_brainextraction_
 ====================================================================================================
@@ -257,9 +282,29 @@ spinoza_brainextraction_
       <software>      which software to use: ants|FSL|CAT12
     
     Example:
-      spinoza_brainextraction dir/to/t1w dir/to/skullstrip /dir/to/masks ants
-      spinoza_brainextraction -o dir/to/pymp2rage dir/to/cat12 /dir/to/masks cat12
-      spinoza_brainextraction -s 01,02 -n 2 dir/to/inv2 dir/to/skullstrip /dir/to/masks inv2
+      spinoza_brainextraction \\
+        \$DIR_DATA_DERIV/pymp2rage \\
+        \$DIR_DATA_DERIV/cat12 \\
+        \$DIR_DATA_DERIV/manual_masks \\
+        cat12
+    
+      spinoza_brainextraction \\
+        -s 01,02 \\
+        -n 2 \\
+        \$DIR_DATA_HOME \\
+        \$DIR_DATA_DERIV/skullstripped \\
+        \$DIR_DATA_DERIV/manual_masks \\
+        fsl
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # use fMRIprep input
+      master -m $(get_module_nr $(basename ${0})) -s 01 --fprep
+    
+      # specify bounds for call_winsorize
+      master -m $(get_module_nr $(basename ${0})) -s 01 -l 0.05 -u 0.95
 
 spinoza_config_
 ====================================================================================================
@@ -304,11 +349,36 @@ spinoza_cortexrecon_
     
     Positional
       <project>       output folder for nighres
-      <region>        region you wish to reconstruct. Should be same as spinoza_extractregions
+      <region>        region you wish to reconstruct. Should be same as spinoza_extractregions:
+                        > left_cerebrum
+                        > right_cerebrum
+                        > cerebrum
+                        > cerebellum
+                        > cerebellum_brainstem
+                        > subcortex
+                        > tissues(anat)
+                        > tissues(func)
+                        > brain_mask
     
     Example:
-      spinoza_cortexrecon PROBSEGS CRUISE cerebrum
-      spinoza_cortexrecon -s 001 -n 1 -o PROBSEGS CRUISE cerebellum
+      spinoza_cortexrecon \${DIR_DATA_DERIV}/manual_masks \${DIR_DATA_DERIV}/nighres cerebrum
+      spinoza_cortexrecon \\
+        -s 001 \\
+        -n 1 \\
+        \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/nighres cerebellum
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # run with nighres' segmentations rather than combined segmentations
+      master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex -l nighres
+    
+      # specify ROI
+      master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex
+    
+      # pass kwargs
+      master -m $(get_module_nr $(basename ${0})) -s 01 -x max_iterations=100,wm_dropoff_dist=0.5
 
 spinoza_denoising_
 ====================================================================================================
@@ -330,9 +400,9 @@ spinoza_denoising_
       -t <task ID>    limit pybest processing to a specific task. Default is all tasks in TASK_IDS
                       in the spinoza_setup-file Can also be comma-separated list: task1,task2
       -j <n_cpus>     number of CPUs to use (default = 1)
-      -c <n_comps>    overwrite the PYBEST_N_COMPS-variable deciding the number of components for
-                      the PCA (default = 10)
-      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+      -c <n_comps>    overwrite the \$PYBEST_N_COMPS-variable deciding the number of components for
+                      the PCA (default = 20 as per Marco's investigations)
+      -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG in \$CONFIG_FILE
       -x <kwargs>     Additional commands to be passed to 'pybest'. Format should be comma-separated
                       flags as follows:
                         - if you specify a flag and values | <flag>=<value>
@@ -370,13 +440,26 @@ spinoza_denoising_
       <derivatives>   path to the derivatives folder
     
     Eample:
-      spinoza_denoising DIR_DATA_HOME DIR_DATA_DERIV
-      spinoza_denoising -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV
-      spinoza_denoising -o DIR_DATA_HOME DIR_DATA_DERIV
+      spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV
+      spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV
+      spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # submit with 10 cores
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 10 --sge
+    
+      # use volumetric space
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func
+    
+      # limit to specific tasks rather than \$TASK_IDS in \$CONFIG_FILE
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func -t rest,task1
     
     Notes:
-      There are multiple flags to change the PYBEST_SPACE-variable. If your desired space is not speci-
-      fied, update the variable in the setup file.
+      There are multiple flags to change the \$PYBEST_SPACE-variable. If your desired space is not
+      specified, update the variable in the setup file.
 
 spinoza_dura_
 ====================================================================================================
@@ -407,8 +490,15 @@ spinoza_dura_
       <mask output>   output folder for masks
     
     Example:
-      spinoza_dura T1wdir INV2dir nighresdir maskdir
-      spinoza_dura -s 001 -n 1 T1wdir INV2dir nighresdir maskdir
+      spinoza_dura \${DIR_DATA_HOME} \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/manual_masks
+      spinoza_dura \\
+        -s 001 \\
+        -n 1 \\
+        \${DIR_DATA_HOME} \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/manual_masks
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
 
 spinoza_extractregions_
 ====================================================================================================
@@ -425,11 +515,11 @@ spinoza_extractregions_
     custom levelset (see call_gdhcombine).
     
     For this, you will need four directories: the REGION directory (with tissue classification from
-    MGDM), the FreeSurfer directory (read from you SUBJECTS_DIR), the fMRIprep-directory with tissue
+    MGDM), the FreeSurfer directory (read from you \$SUBJECTS_DIR), the fMRIprep-directory with tissue
     classification from FAST, and the MASK-directory containing manual edits. The REGION directory is
     the directory that will be created first, the FreeSurfer directory will be read from the
     \$SUBJECTS_DIR-variable, the fMRIprep-directory you'll need to specify with the -f flag BEFORE
-    (!!) the positional arguments, and the MASK-directory you will already specify.
+    (!!) the positional arguments, and the \$MASKS-directory you will already specify.
     
     Usage:
       spinoza_extractregions [arguments] [options] <nighres out> <probability folder> <ROI>
@@ -449,8 +539,21 @@ spinoza_extractregions_
       <region>        region to extract with Nighres
     
     Example:
-      spinoza_extractregions DIR_DATA_DERIV/nighres DIR_DATA_DERIV/manual_masks cerebrum
-      spinoza_extractregions -s -001 -n 1 -o DIR_DATA_DERIV/nighres DIR_DATA_DERIV/manual_masks cerebrum
+      spinoza_extractregions \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/manual_masks cerebrum
+      spinoza_extractregions \\
+        -s -001 \\
+        -n 1 \\
+        \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/manual_masks cerebrum
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # specify ROI
+      master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex
+    
+      # only run Nighres
+      master -m $(get_module_nr $(basename ${0})) -s 01 --skip-combine
     
     Notes:
       - If you want a custom levelset, specify the '-f' flag pointing to the fMRIprep-directory
@@ -458,7 +561,7 @@ spinoza_extractregions_
       - Region to be extracted can be one of:
         > left_cerebrum
         > right_cerebrum
-        > cerebrum,
+        > cerebrum
         > cerebellum
         > cerebellum_brainstem
         > subcortex
@@ -567,10 +670,10 @@ spinoza_fitprfs_
       --sge           submit job to cluster (SGE/SLURM)
     
     Positional:
-      <input dir>     base input directory with pybest data (e.g., 'DIR_DATA_DERIV/pybest'). You can
+      <input dir>     base input directory with pybest data (e.g., '\$DIR_DATA_DERIV/pybest'). You can
                       also point to the fmriprep-folder, in which case the gifti's of 'fsnative' will
                       be used.
-      <output dir>    base output directory for prf data (e.g., 'DIR_DATA_DERIV/prf')
+      <output dir>    base output directory for prf data (e.g., '\$DIR_DATA_DERIV/prf')
       <png dir>       base path of where sourcedata of subjects live. In any case, the subject ID will
                       be appended to this path (if applicable, so will session ID). Inside THAT
                       directory, we'll search for directories with 'Screenshots'. So, if you specify
@@ -590,11 +693,23 @@ spinoza_fitprfs_
       --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
     
     Eample:
-      spinoza_fitprfs DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-      spinoza_fitprfs -s 001 -n 1 DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-      spinoza_fitprfs --multi-design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-      spinoza_fitprfs -g -l DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-      spinoza_fitprfs -o DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
+      spinoza_fitprfs \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+      spinoza_fitprfs -s 001 -n 1 \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+      spinoza_fitprfs --multi-design \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+      spinoza_fitprfs -o \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+    
+    Call with master:
+      # vanilla (runs gaussian model)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # norm+submit
+      master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge
+    
+      # use l-bgfs for all stages
+      master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge --bgfs
+    
+      # refit existing parameters
+      master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge --refit
 
 spinoza_fmriprep_
 ====================================================================================================
@@ -689,20 +804,35 @@ spinoza_fmriprep_
     Positional:
       <anat dir>      directory containing the anatomical data. Can also be the regular project root
                       folder if you want fMRIprep do the surface reconstruction
-      <derivatives>   output folder for fMRIprep; generally this will be <project>/derivatives
+      <derivatives>   output folder for fMRIprep; generally this will be \$DIR_DATA_DERIV
       <mode>          run anatomical workflow only with 'anat', or everything with 'func'
       <T2 dir>        if you have a T2w-file, but that is not in <anat dir> (because you preprocessed
                       the T1w-file, but not the T2w-file), you can specify the directory where it lives
                       here. Generally this will be the same as <func dir>
     
     Example:
-      spinoza_fmriprep <project>/derivatives/masked_mp2rage <project>/derivatives anat
-      spinoza_fmriprep -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
-                       vatives anat
+      spinoza_fmriprep \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV \$DIR_DATA_HOME
+      spinoza_fmriprep \\
+        -s 001 \\
+        -n 1 \\
+        -f \$DIR_DATA_HOME \\
+        \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV \$DIR_DATA_HOME
     
-      master -m 15 -s 01 -n 1 --func              # run locally via master
-      master -m 15 -s 01 -n 1 --func -j 15 --sge  # run via master with singularity and 15 cores
-      master -m 15 -s 01 -n 1 --func --docker     # run via master with docker
+    Call with master:
+      # vanilla (runs --anat-only)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # include FUNC & run via master with singularity and 15 cores
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge
+    
+      # run via master with docker
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func --docker
+    
+      # remove single subject workflow folder
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --remove-wf
+    
+      # remove surface workflow folder
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --remove-surf-wf
 
 spinoza_freesurfer_
 ====================================================================================================
@@ -743,10 +873,10 @@ spinoza_freesurfer_
     Positional arguments:
       <anat folder>   folder containing the T1w-file. In 'master', we'll look through various fol-
                       ders. In order of priority:
-                        -'<derivatives>/masked_\${DATA,,}'
-                        -'<derivatives>/denoised'
-                        -'<derivatives>/pymp2rage'
-                        -'DIR_DATA_HOME'
+                        -'\$DIR_DATA_DERIV/masked_\${DATA,,}'
+                        -'\$DIR_DATA_DERIV/denoised'
+                        -'\$DIR_DATA_DERIV/pymp2rage'
+                        -'\$DIR_DATA_HOME'
                       this ensures a level of agnosticity about anatomical preprocessing. I.e., you
                       don't have to run the full pipeline if you don't want to.
       <stage>         stage to run for FreeSurfer. By default 'all'
@@ -758,17 +888,19 @@ spinoza_freesurfer_
       - Fix skullstrip:   call_freesurfer -s <subj ID> -o gcut                    ~10 minutes
       - Run autorecon2:   call_freesurfer -s <subj ID> -r 2                       ~few hours
       - Fix errors with:
-          - norm; then run:
-              call_freesurfer -s sub-001 -r 23 -e cp    ~few hours
-          - pia;  then run:
-              call_freesurfer -s sub-001 -r 23 -e pial  ~few hours
+        - norm; then run:
+          # control points
+          call_freesurfer -s sub-001 -r 23 -e cp
+        - pia;  then run:
+          # pial edits
+          call_freesurfer -s sub-001 -r 23 -e pial
     
     You can specify in which directory to look for anatomical scans in the first argument. Usually,
     this is one of the following options: DIR_DATA_HOME if we should use the T1w in the project/
-    sub-xxx/anat directory, or DIR_DATA_DERIV/pymp2rage to use T1w-images derived from
-    pymp2rage, or DIR_DATA_DERIV/masked_mp2rage to use T1w-images where the dura and sagittal sinus
+    sub-xxx/anat directory, or \$DIR_DATA_DERIV/pymp2rage to use T1w-images derived from
+    pymp2rage, or \$DIR_DATA_DERIV/masked_mp2rage to use T1w-images where the dura and sagittal sinus
     are masked out (should be default!). In any case, it assumes that the file is in YOURINPUT/
-    sub-xxx/ses-1/. If the input is equal to the DIR_DATA_HOME variable, this will
+    sub-xxx/ses-1/. If the input is equal to the \$DIR_DATA_HOME variable, this will
     be recognize and 'anat' will be appended to YOURINPUT/sub-xxx/ses-1/anat.
     
     You can also specify a directory where the T2-weighted image is located. Do this the same way as
@@ -777,8 +909,21 @@ spinoza_freesurfer_
     as well.
     
     Example:
-      spinoza_freesurfer DIR_DATA_DERIV/masked_mp2rage all DIR_DATA_HOME
-      spinoza_freesurfer -s 001 -n 1 DIR_DATA_ANAT all DIR_DATA_HOME
+      spinoza_freesurfer \$DIR_DATA_DERIV/masked_mp2rage "all" \$DIR_DATA_HOME
+      spinoza_freesurfer -s 001 -n 1 \$DIR_DATA_HOME "all" \$DIR_DATA_HOME
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # submit
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 15 --sge
+    
+      # exclude T2 if present but you don't want to use it (e.g., it is a slab)
+      master -m $(get_module_nr $(basename ${0})) -s 01 --no-t2
+    
+      # turn off highres-mode
+      master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --no-highres
     
     Notes:
       When an expert options is passed, it will be copied to scripts/expert-options. Future calls to
@@ -857,7 +1002,7 @@ spinoza_install_
 
 .. code-block:: none
 
-    spinoza_insall
+    spinoza_install
     
     This script configures the fMRIproc repository environment by:
     
@@ -889,9 +1034,9 @@ spinoza_layering_
     
     Equivolumetric layering with either nighres or Wagstyl's surface_tools, as specified by the third
     argument. Surface_tools is based on FreeSurfer, so make sure that has run before it. This script is
-    by default in overwrite mode, meaning that the files created earlier will be overwritten when re-ran.
-    This doesn't take too long, so it doesn't really matter and prevents the need for an overwrite switch.
-    To disable, you can specify a condition before running this particular script.
+    by default in overwrite mode, meaning that the files created earlier will be overwritten when
+    re-ran. This doesn't take too long, so it doesn't really matter and prevents the need for an
+    overwrite switch. To disable, you can specify a condition before running this particular script.
     
     Usage:
       spinoza_layering [arguments] [options] <input dir> <software>
@@ -916,15 +1061,28 @@ spinoza_layering_
     
     Positional:
       <input folder>  if software == 'nighres', then we need the nighres output folder (generally
-                      DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the \$SUB-
+                      \$DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the \$SUB-
                       JECTS_DIR
       <software>      Possible inputs for software are:
-                        - 'nighres': voxel-based layering
+                        - 'nighres': voxel-based layering [default]
                         - 'surface': surface-based layering with Wagstyl's method
     
     Example:
-      spinoza_layering SUBJECTS_DIR surface
-      spinoza_layering DIR_DATA_DERIV/nighres nighres
+      spinoza_layering \$SUBJECTS_DIR surface
+      spinoza_layering \$DIR_DATA_DERIV/nighres nighres
+    
+    Call with master:
+      # vanilla (runs nighres)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # use 20 depths
+      master -m $(get_module_nr $(basename ${0})) -s 01 -l 20
+    
+      # layering kwargs
+      master -m $(get_module_nr $(basename ${0})) -s 01 -x n_layers=20,layer_dir='inward'
+    
+      # run surface-based layering
+      master -m $(get_module_nr $(basename ${0})) -s 01 --surface
     
     Notes:
       - The script will recognize any of the software inputs specified above, with these variations in
@@ -976,7 +1134,18 @@ spinoza_line2surface_
       -h|--help       print this help text
     
     Example:
-      spinoza_line2surface -s \${SUBJECT_PREFIX}001 -y anat_session2 -d /output/directory/whatev
+      spinoza_line2surface \\
+        -s sub-01 \\
+        -y \$DIR_DATA_HOME/sub-01/ses-2/anat/sub-01_ses-2_acq-MP2RAGE_T1w.nii.gz \\
+        -o \$DIR_DATA_DERIV/pycortex \\
+        -i \${NIGHRES/sub-01/ses-2
+    
+    Call with master:
+      # vanilla (defaults to ses-2 for line-scanning)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # set session to 3
+      master -m $(get_module_nr $(basename ${0})) -s 01 -l 3
 
 spinoza_lineplanning_
 ====================================================================================================
@@ -996,10 +1165,10 @@ spinoza_lineplanning_
     
       \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
     
-    That should look like this:
-    sourcedata/sub-022/ses-2/planning
-    ├── sub-01_ses-2_WIP_-_MP2RAGE_2_4.PAR
-    └── sub-01_ses-2_WIP_-_MP2RAGE_2_4.REC
+      That should look like this:
+      sourcedata/sub-022/ses-2/planning
+      ├── sub-01_ses-2_WIP_-_MP2RAGE_2_4.PAR
+      └── sub-01_ses-2_WIP_-_MP2RAGE_2_4.REC
     
     In this case, the acquisition was an MP2RAGE, so we can look for a trigger delay in the file:
     
@@ -1062,7 +1231,8 @@ spinoza_lineplanning_
       -s <subject>    subject ID (e.g., sub-01)
       -n <session>    line-scanning session ID (>1)
       -i <anat>       path to PAR/RECs of anatomical file in line-scanning session. Typically, this is
-                      \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
+                      \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning. Can also be a path directly pointing
+                      to a nifti file for more custom inputs.
       -p <coords>     csv-file containing the coordinates/normal vectors indexed by hemisphere. This
                       is typically the output of 'spinoza_bestvertex'
                       E.g., "\${DIR_DATA_DERIV}/pycortex/<sub>/ses-<session/
@@ -1077,27 +1247,42 @@ spinoza_lineplanning_
                       verify if the workflow runs as planned.
     
     Example:
-      spinoza_lineplanning \
-        -s sub-001 \
-        -n 3 \
-        -i /path/to/raw/ses-2 \
-        -p /path/to/pycortex_file.csv \
+      # standard
+      spinoza_lineplanning \\
+        -s sub-001 \\
+        -n 3 \\
+        -i /path/to/raw/ses-2 \\
+        -p /path/to/pycortex_file.csv \\
         --lh
+    
+      # specify custom input
+        spinoza_lineplanning \\
+        -s sub-01
+        -n 2
+        -i "/path/to/a/nifti_file.nii.gz"
+        -p "\$DIR_DATA_DERIV/pycortex/sub-01/ses-2/sub-01_ses-2_desc-coords.csv"
+    
+      # test workflow
+      spinoza_lineplanning \\
+        -s sub-001 \\
+        -n 1 \\
+        -p /path/to/pycortex_file.csv \\
+        --identity
     
     Notes:
       - You NEED ANTs for this to run
       - It also depends on python3; if something doesn't seem to work, try to update the package
         with python -m pip install <package> --upgrade
     
-    Command with master:
-      # vanilla master command
-      master -m 00 -s <subject> -n <session> {--lh|--rh}
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01 -n 2 --lh
     
       # use session 3
-      master -m 00 -s 001 -n 3 --lh # though --lh is default
+      master -m $(get_module_nr $(basename ${0})) -s 001 -n 3 --lh # though --lh is default
     
       # use session 1 (uses identity matrix) for debugging purposes
-      master -m 00 -s 001 -n 2 --rh --identity
+      master -m $(get_module_nr $(basename ${0})) -s 001 --rh --identity
 
 spinoza_linerecon_
 ====================================================================================================
@@ -1129,7 +1314,7 @@ spinoza_linerecon_
       -o|--ow         Overwrite existing output
       --debug         don't submit job, just print inputs/outputs
       --no-nordic     turn off NORDIC denoising during reconstruction
-      --sge           submit job to cluster (SGE)
+      --sge           submit job to cluster (SoGE/SLURM)
     
     Positional:
       <project root>  base directory containing the derivatives and the subject's folders.
@@ -1137,15 +1322,23 @@ spinoza_linerecon_
     
     Example:
       # call the module
-      spinoza_linerecon DIR_DATA_HOME DIR_DATA_SOURCE
+      spinoza_linerecon \$DIR_DATA_HOME \$DIR_DATA_SOURCE
     
-      # run with master:
-        "master -m 03a -s 003 -n 4 -e 5" # (sub-003, ses-4, multi-echo (5) acquisition)
-        "master -m 03a -s 003 -n 4"      # (sub-003, ses-4, single-echo acquisition)
-        "master -m 03a --sge"            # (submit to cluster)
-        "master -m 03a -o"               # (overwrite existing files)
-        "master -m 03a -o --sge"         # (overwrite and submit)
-        "master -m 03a -s 003 --debug"   # (debug mode)
+    Call with master:
+      # sub-01, ses-4, multi-echo (5) acquisition
+      master -m $(get_module_nr $(basename ${0})) -s 01 -n 4 -e 5
+    
+      # sub-01, ses-4, single-echo acquisition
+      master -m $(get_module_nr $(basename ${0})) -s 01 -n 4
+    
+      # submit to cluster
+      master -m $(get_module_nr $(basename ${0})) -s --sge
+    
+      # turn off nordic (in case of surface coils)
+      master -m $(get_module_nr $(basename ${0})) -s --sge --no-nordic
+    
+      # debug mode
+      master -m $(get_module_nr $(basename ${0})) -s 01 --debug
     
     Notes:
       Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
@@ -1191,18 +1384,25 @@ spinoza_lsprep_
       <derivatives>   base directory to store the 'lsprep'-folder in
     
     Eample:
-      spinoza_lsprep -s 001 -n 3 --sge DIR_DATA_SOURCE DIR_DATA_DERIV
-      spinoza_lsprep -s 001 -n 3 -x --filter-pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
+      spinoza_lsprep -s 01 -n 3 --sge \$DIR_DATA_SOURCE \$DIR_DATA_DERIV
+      spinoza_lsprep -s 01 -n 3 -x --filter-pca=0.18,--verbose \$DIR_DATA_SOURCE \$DIR_DATA_DERIV
     
-    run with master:
+    Call with master:
       # use all defaults from call_lsprep
-      "master -m 03b -s 008 -n 3"
+      master -m $(get_module_nr $(basename ${0})) -s 01 -n 3
     
-      # customize
-      "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica"
+      # use kwargs
+      master -m $(get_module_nr $(basename ${0})) \\
+        -s 01 \\
+        -n 3 \\
+        -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica
     
-      # submit to cluster
-      "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica"
+      # submit to cluster+kwargs
+      master -m $(get_module_nr $(basename ${0})) \\
+        -s 01 \\
+        -n 3 \\
+        --sge \\
+        -x --filter-pca=0.18,--verbose,--ica
 
 spinoza_masking_
 ====================================================================================================
@@ -1244,8 +1444,29 @@ spinoza_masking_
       <skullstr.>     output folder for brain-extracted output (generally the input for Nighres)
     
     Example:
-      spinoza_masking <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
-      spinoza_masking -s 01 -n 1 <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
+      spinoza_masking \\
+        \$DIR_DATA_DERIV/pymp2rage \\
+        \$DIR_DATA_DERIV/masked_mp2rage \\
+        \$DIR_DATA_DERIV/manual_masks \\
+        \$DIR_DATA_DERIV/skullstripped
+    
+      spinoza_masking \\
+        -s 01 \\
+        -n 1 \\
+        \$DIR_DATA_DERIV/pymp2rage \\
+        \$DIR_DATA_DERIV/masked_mp2rage \\
+        \$DIR_DATA_DERIV/manual_masks \\
+        \$DIR_DATA_DERIV/skullstripped
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # skip ITK-snap
+      master -m $(get_module_nr $(basename ${0})) -s 01 --no-manual
+    
+      # specify lower/upper bound for call_winsorize
+      master -m $(get_module_nr $(basename ${0})) -s 01 --no-manual -l 0.05 -u 0.95
 
 spinoza_mgdm_
 ====================================================================================================
@@ -1267,7 +1488,36 @@ spinoza_mgdm_
       -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
       -n <session>    session ID (e.g., 1, 2, or none)
       -j <n_cpus>     number of CPUs to use (default = 1)
-      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in \$CONFIG_FILE.
+      -p|--priors     The algorithm accepts 4 input files, each representing a different prior. In any
+                      case, we need a T1w and T1map-file, which can come from different sources (e.g.,
+                      field strength, atlases, or sequence). These sources include:
+                      ['DWIFA3T', 'DWIMD3T', 'T1map9T', 'Mp2rage9T', 'T1map7T', 'Mp2rage7T', 'PV',
+                      'Filters', 'T1pv', 'Mprage3T', 'T1map3T', 'Mp2rage3T', 'HCPT1w', 'HCPT2w',
+                      'NormMPRAGE'].
+    
+                      For each input file, one of these sources must be specified. By default, the
+                      priors are set to:
+    
+                      prior_list = [
+                        "Mp2rage7T",
+                        "T1map7T",
+                        "Filters",
+                        "Filters"
+                      ]
+    
+                      where:
+                        - T1w-file (-t|--t1w) comes from a 7T MP2RAGE sequence
+                        - T1map-file (-m|--t1map) comes from a 7T MP2RAGE sequence
+                        - Mask representing the skull (-s|--skull) is a "Filters"
+                        - Mask representing the dura (-d|--dura) is a "Filters"
+    
+                      Format should be comma-separated list for the number of inputs used. For the
+                      regular version, this means 4 (T1w, T1map, skull, and dura). For GdH-version,
+                      this means 2 (T1w, T1map):
+    
+                        E.g., "-p Mprage3T,T1map3T,Filters,Filters"
+    
       -x <kwargs>     Additional commands to be passed to 'mdgm_segmentation'. Format should be comma-
                       separated flags as follows:
                         - if you specify a flag and values | <flag>=<value>
@@ -1291,9 +1541,22 @@ spinoza_mgdm_
       <masks>         path to masks
     
     Example:
-      spinoza_mgdm SKULLSTRIP NIGHRES/mgdm MASKS
-      spinoza_mgdm -s 001 -n 1 SKULLSTRIP NIGHRES/mgdm MASKS
-      spinoza_mgdm -s 001 -n 1 --gdh SKULLSTRIP NIGHRES/mgdm MASKS
+      spinoza_mgdm \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+      spinoza_mgdm -s 001 -n 1 \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+      spinoza_mgdm -s 001 -n 1 --gdh \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # run Gilles' version
+      master -m $(get_module_nr $(basename ${0})) -s 01 --gdh
+    
+      # customize priors (default = Mp2rage7T,T1map7T,Filters,Filters)
+      master -m $(get_module_nr $(basename ${0})) -s 01 -p Mprage3T,T1map3T,Filters,Filters
+    
+      # submit and specify kwargs
+      master -m $(get_module_nr $(basename ${0})) -s 01 --sge -x diffuse_probabilities=True
 
 spinoza_mriqc_
 ====================================================================================================
@@ -1303,7 +1566,7 @@ spinoza_mriqc_
     spinoza_mriqc
     
     Quality control using MRIqc. It uses the singularity container defined in the setup file (variable
-    MRIQC_SIMG).
+    \$MRIQC_SIMG).
     
     Usage:
       spinoza_mriqc [arguments] [options] <project dir> <derivatives>
@@ -1328,12 +1591,22 @@ spinoza_mriqc_
     Positional:
       <project dir>   directory containing the anatomical data. Can also be the regular project root
                       folder if you want MRIqc do the surface reconstruction
-      <derivatives>   output folder for MRIqc; generally this will be <project>/derivatives
+      <derivatives>   output folder for MRIqc; generally this will be \$DIR_DATA_DERIV
     
     Example:
-      spinoza_mriqc <project>/derivatives/masked_mp2rage <project>/derivatives anat
-      spinoza_mriqc -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
-                       vatives anat
+      spinoza_mriqc \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV anat
+      spinoza_mriqc \\
+        -s 001 \\
+        -n 1 \\
+        -f <project> \\
+        \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV anat
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # retrieve Framewise Displacement files after MRIqc
+      master -m $(get_module_nr $(basename ${0})) -s 01 --fd
 
 spinoza_nordic_
 ====================================================================================================
@@ -1386,12 +1659,24 @@ spinoza_nordic_
     
     Positional:
       <bids folder> parent directory containing the sub-xxx folders for functional data. Generally,
-                    this should be DIR_DATA_HOME
+                    this should be \$DIR_DATA_HOME
     
     Example:
-      spinoza_nordic DIR_DATA_HOME                          # run for all subjects
-      spinoza_nordic -s 001 -n 1 DIR_DATA_HOME              # run for specific subject/session
-      spinoza_nordic --sge DIR_DATA_HOME                    # submit to cluster
+      # run for all subjects
+      spinoza_nordic \$DIR_DATA_HOME
+    
+      # run for specific subject/session
+      spinoza_nordic -s 001 -n 1 \$DIR_DATA_HOME
+    
+      # submit to cluster
+      spinoza_nordic --sge DIR_DATA_HOME
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0}))
+    
+      # submit
+      master -m $(get_module_nr $(basename ${0})) -s 01,02 --sge
     
     Notes:
     - By default, tSNR maps from before/after NORDIC clipped to 100 will be produced and stored in the
@@ -1417,6 +1702,11 @@ spinoza_profiling_
     Arguments:
       -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
       -n <session>    session ID (e.g., 1, 2, or none)
+      -i <image>      directly specify an image to sample the profile from. This assumes that the
+                      image is in the same space as the specified input subjects. Generally, this is
+                      not the case, as each subject has a slightly different space. However, in some
+                      scenarios, I can see how this could be useful. E.g., with images in MNI space
+                      (although I discourage layerifaction in MNI-space) or you only have 1 subject.
     
     Options:
       -h|--help       print this help text
@@ -1424,13 +1714,36 @@ spinoza_profiling_
     
     Positional:
       <nighres>       parent directory containing the output files of Nighres
-                        -<nighres>/<subject>/<session>/layering/*boundaries*
-                        -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
+                        - \$DIR_DATA_DERIV/nighres/<subject>/<session>/layering/*boundaries*
+    
+                          # logic to find boundaries file (nighres_dir is compiled from input folder,
+                          # subject ID and session ID)
+                          boundaries=\$(
+                            find "\${nighres_dir}/layering" \\
+                            -type f \\
+                            -name "*acq-\${DATA^^}*" \\
+                            -and -name "*boundaries.nii.gz"
+                          )
+      <sample loc.>   directory where the to-be-sampled lives:
+                        - If you want to sample T1-values that are reconstructed by the scanner, this
+                          is \$DIR_DATA_HOME (output from 'spinoza_scanner2bids' [module $(get_module_nr spinoza_scanner2bids)]).
+                        - If this is data from pymp2rage (output from 'spinoza_scanner2bids' [module
+                          $(get_module_nr spinoza_qmrimaps)]), this is \$DIR_DATA_DERIV/pymp2rage
       <suffix>        suffix to use to look for to-be-sampled dataset (e.g., T1map)
     
     Example:
-      spinoza_profiling NIGHRES DIR_DATA_HOME T1map
-      spinoza_profiling -s 01 -n 2 NIGHRES DIR_DATA_HOME T1map
+      spinoza_profiling \$DIR_DATA_DERIV/nighres \$DIR_DATA_HOME T1map
+      spinoza_profiling -s 01 -n 2 \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/pymp2rage T1map
+    
+    Call with master:
+      # vanilla (defaults to 'T2starmap')
+      master -m $(get_module_nr $(basename ${0}))
+    
+      # use -x flag to change suffix
+      master -m $(get_module_nr $(basename ${0})) -x T1map
+    
+      # directly specify image
+      master -m $(get_module_nr $(basename ${0})) -i some_image_space-MNI152NLin6Asym_T1map.nii.gz
 
 spinoza_qmrimaps_
 ====================================================================================================
@@ -1440,7 +1753,7 @@ spinoza_qmrimaps_
     spinoza_qmrimaps
     
     wrapper for estimation of T1 and other parametric maps from the (ME)MP2RAGE sequences by throwing
-    the two inversion and phase images in PYMP2RAGE (https://github.com/Gilles86/pymp2rage).
+    the two inversion and phase images in Pymp2rage (https://github.com/Gilles86/pymp2rage).
     
     Usage:
       spinoza_qmrimaps [arguments] [options] <project root> <derivatives>
@@ -1449,7 +1762,7 @@ spinoza_qmrimaps_
       -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
       -n <session>    session ID (e.g., 1, 2, or none)
       -p <pars file>  specify custom json-file with MP2RAGE(ME) parameters. See
-                      DIR_SCRIPTS/misc for examples. Format should be like so (for mp2rage):
+                      \$REPO_DIR/misc for examples. Format should be like so (for mp2rage):
     
                         {
                             "TR": 5.5,
@@ -1459,18 +1772,18 @@ spinoza_qmrimaps_
                             "FLASH_tr": [0.0062,0.0062]
                         }
     
-      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_SHORT in spinoza_setup
+      -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_SHORT in spinoza_setup
       -l <lower>      lower percentile (default = 0.01) for call_winsorize
       -u <upper>      upper percentile (default = 0.99) for call_winsorize
-      -x <kwargs>     Additional commands to be passed to 'mdgm_segmentation'. Format should be comma-
-                      separated flags as follows:
+      -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be
+                      comma-separated flags as follows:
                         - if you specify a flag and values | <flag>=<value>
                         - if you specify a flag only | <flag>
     
                       combine as:
                         "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
     
-                      This allows bash commands to be translated to python commands
+                      This allows bash commands to be translated to 'N4BiasFieldCorrection' commands
     
     Options:
       -h|--help       print this help text
@@ -1487,14 +1800,25 @@ spinoza_qmrimaps_
       --force-exec    Force the execution even if the files exist already
     
     Positional:
-      <project root>      directory containing the T1w and T2w files; should generally be pymp2rage-
-                          folder
-      <derivatives>       path to output mask directory
+      <project root>  directory containing the T1w and T2w files; should generally be pymp2rage-folder
+      <derivatives>   path to output mask directory
     
     Example:
-      spinoza_qmrimaps DIR_DATA_HOME DERIVATIVES/pymp2rage
-      spinoza_qmrimaps DIR_DATA_HOME DIR_DATA_DERIV
-      spinoza_qmrimaps -s 999 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/pymp2rage
+      spinoza_qmrimaps \$DIR_DATA_HOME \$DIR_DATA_DERIV/pymp2rage
+      spinoza_qmrimaps -s 01 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/pymp2rage
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0}))
+    
+      # use UPs and submit
+      master -m $(get_module_nr $(basename ${0})) --ups --sge
+    
+      # custom parameters
+      master -m $(get_module_nr $(basename ${0})) -p some_file.json
+    
+      # specify kwargs
+      master -m $(get_module_nr $(basename ${0})) -x -b=[1x1x1,3],-r=0
 
 spinoza_registration_
 ====================================================================================================
@@ -1515,18 +1839,27 @@ spinoza_registration_
       - MP2RAGE+MP2RAGEME [ACQ=("MP2RAGE" "MP2RAGEME")], 1st element is reference ('MP2RAGE'):
     
           # fixed
+          The fixed image is the first element of \${ACQ[@]}. In this case, 'MP2RAGE'. We search for
+          this file in \${input_dir}, which is given by the input directory to this function (see
+          <anat folder>), combined with the subject ID (and session ID if given). Thus, this file
+          must contain 'MP2RAGE' and 'T1w.nii.gz' and must be in native space (if the file is
+          transformed, it will have a 'space-' tag, this must be absent!).
+    
           fixed_file=\$(
-            find -L "\${input_dir}" \
-            -type f \
-            -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+            find -L "\${input_dir}" \\
+            -type f \\
+            -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \\
             -not -name "*space-*"
           )
     
           # moving
+          The moving file is the second element of \${ACQ[@]}. In this case, 'MP2RAGEME'. The same
+          logic holds for this file.
+    
           moving_files=\$(
-            find -L "\${input_dir}" \
+            find -L "\${input_dir}" \\
             -type f \
-            -iname "*\${ACQ[1]^^}_*T1w.nii.gz" \
+            -iname "*\${ACQ[1]^^}_*T1w.nii.gz" \\
             -not -name "*space-*"
           )
     
@@ -1534,31 +1867,41 @@ spinoza_registration_
         'run-[2-i]':
     
           # fixed
+          If multple MPRAGEs are acquired, they must have a 'run-' identifier and \${ACQ[@]} should
+          only contain 'MPRAGE'. In this scenario, 'run-1' will be taken as reference. Therefore, it
+          should have 'MPRAGE', 'run-1', and 'T1w.nii.gz' in its filename.
+    
           fixed_file=\$(
-            find -L "\${input_dir}" \
-            -type f \
-            -iname "*\${ACQ[0]^^}_run-1*T1w.nii.gz" \
+            find -L "\${input_dir}" \\
+            -type f \\
+            -iname "*\${ACQ[0]^^}_run-1*T1w.nii.gz" \\
             -not -name "*space-*"
           )
     
           # moving
+          The moving files are found based on the same logic, other than a run-identifier greater
+          than 1.
+    
           moving_files=\$(
-            find -L "\${input_dir}" \
-            -type f \
-            -iname "*\${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \
+            find -L "\${input_dir}" \\
+            -type f \\
+            -iname "*\${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \\
             -not -name "*space-*"
           )
     
         - To MNI [acq=("MP2RAGE") | acq=("MP2RAGEME") | acq=("MPRAGE")]:
     
-          # fixeds
+          # fixed
+          The fixed file is the 1mm MNI template from FSL (MNI152NLin6Asym).
           fixed_file=\${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
     
           # moving
+          Moving files are all files containing the first element of \${ACQ[@]}.
+    
           moving_files=\$(
-            find -L "\${input_dir}" \
-            -type f \
-            -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+            find -L "\${input_dir}" \\
+            -type f \\
+            -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \\
             -not -name "._*"
           )
     
@@ -1574,8 +1917,9 @@ spinoza_registration_
     Arguments:
       -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
       -n <session>    session ID (e.g., 1, 2, or none)
-      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-      -j <n_cpus>     number of CPUs to use (default = 1)
+      -j <cpus>       number of cores to use (default is 1), internally sets the ITK-variable:
+                      'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS', which will be reset to 1 after the
+                      process
     
     Options:
       -h|--help       print this help text
@@ -1585,35 +1929,40 @@ spinoza_registration_
                       != 'mni' and no registration method is specified
       --syn           use SyN-diffeomorphic registration. Default if <registration type> == 'mni'
                       and no registration method is specified
-      --fsl           also output the matrix in FSL-compatible format (not available for SyN)
-      -c|--sge        submit job to cluster (SGE); given that we have to rename files after regi-
-                      stration, we'll wait for the job to finish if submitted. This can still help
-                      with memory issues (e.g., if your local machine does not have enough RAM).
-      --cmd           only echo command; can be useful to submit multiple subjects without waiting
-                      for the process to finish. This requires the master command to be re-run again
-                      to apply and files
+      --fsl           also output the matrix in FSL-compatible format (not available for SyN, though
+                      see: https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md)
     
     Positional:
-      <anat folder>   folder containing images for registration. If DATA == "AVERAGE", we'll look
+      <anat folder>   folder containing images for registration. If \$DATA == "AVERAGE", we'll look
                       for T1w-images containing 'acq-MP2RAGE_' and 'acq-MP2RAGEME_', create a warp
                       file, and apply this file to MP2RAGEME-files with ('T1w' 'T1map' 'R2starmap
                       Files ending with something other than 'T1w' or 'T1map' will also be copied
                       to have 'acq-AVERAGE' in the filename, rather than 'space-MP2RAGE'. This en-
-                      sures compatibility with 'spinoza_sagittalsinus' when DATA == AVERAGE. Regis-
+                      sures compatibility with 'spinoza_sagittalsinus' when \$DATA == AVERAGE. Regis-
                       tered files will end up in the <anat folder>, the warp file itself in <output
                       folder>
       <output folder> folder where warp files are stored. Registered files are stored in <anat folder>
       <reg type>      which registration should be carried out. If empty, we'll default to a regis-
-                      tration between MP2RAGEME and MP2RAGE (assumes that DATA == AVERAGE). This
+                      tration between MP2RAGEME and MP2RAGE (assumes that \$DATA == AVERAGE). This
                       version is called as 'master -m 05a'. If 'mni', we'll register the T1w-file
-                      in <anat folder> with FSL's 1mm template (MNI152NLin6Asym). This version is
+                      in <anat folder> with FSL's 1mm template ('MNI152NLin6Asym'). This version is
                       called as 'master -m 05b'. If type == 'mni', we'll default to the first ele-
                       ment in \${ACQ[@]} to register to MNI. Generally, this will/should be
                       MP2RAGE
     
     Example:
-      spinoza_registration <project>/derivatives/pymp2rage <project>/derivatives/ants mp2rage
-      spinoza_registration -s 001 -n 1 <project>/derivatives/pymp2rage <project>/derivatives/ants
+      spinoza_registration \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/ants mp2rage
+      spinoza_registration -s 001 -n 1 \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/ants
+    
+    Call with master:
+      # anat to anat
+      master -m 05a -s 01
+    
+      # also save transformations following FSL-convention
+      master -m 05a -s 01 --fsl
+    
+      # anat to MNI with 10 jobs
+      master -m 05b -s 01 -j 10
 
 spinoza_sagittalsinus_
 ====================================================================================================
@@ -1649,8 +1998,15 @@ spinoza_sagittalsinus_
       <skullstrip>    output folder for masks
     
     Example:
-      spinoza_sagittalsinus --freeview project/derivatives/pymp2rage project/derivatives/manual_masks
-      spinoza_sagittalsinus --itk -s 01 project/derivatives/pymp2rage project/derivatives/manual_masks
+      spinoza_sagittalsinus --freeview \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+      spinoza_sagittalsinus --itk -s 01 \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+    
+    Call with master:
+      # vanilla (runs with ITK-Snap)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # run with FSLeyes
+      master -m $(get_module_nr $(basename ${0})) -s 01 --fsl
 
 spinoza_scanner2bids_
 ====================================================================================================
@@ -1726,7 +2082,7 @@ spinoza_scanner2bids_
                       sibilities over the consequences in later scripts.. This option is only avai-
                       lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
       -a <suffixes>   use suffixes to store other anatomical files in the BIDS folder. This over-
-                      writes the SEARCH_ANATOMICALS-variable in the setup-file. For instance, if
+                      writes the \$SEARCH_ANATOMICALS-variable in the setup-file. For instance, if
                       you have qMRI-data that did not come from MP2RAGEME, you can specify:
                       "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
                       will be added to the search. 'acq' and 'run' tags are derived from the file-
@@ -1758,14 +2114,43 @@ spinoza_scanner2bids_
                       functional files have dummy-saving turned on.
     
     Positional:
-      <project root>      directory to output BIDSified data to
-      <sourcedata>        directory containing to be converted data
+      <project root>  directory to output BIDSified data to
+      <sourcedata>    directory containing to be converted data
     
     Example:
-      spinoza_scanner2bids /path/to/project_root /path/to/your/project/sourcedata     # regular
-      spinoza_scanner2bids -n 1/path/to/project_root /path/to/your/project/sourcedata # regular|ses-1
-      spinoza_scanner2bids (shows this help text)                                     # help
-      spinoza_scanner2bids --lines -n 2 DIR_DATA_HOME DIR_DATA_SOURCE                 # lines|ses-2
+      # regular
+      spinoza_scanner2bids \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+    
+      # regular whole-brain session
+      spinoza_scanner2bids -s 01 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+    
+      # line-scanning session
+      spinoza_scanner2bids --lines -n 2 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+    
+      # mixed with MP2RAGE (assumes BOLD files have 'acq-3DEPI' tag to unmix BOLD files)
+      spinoza_scanner2bids --lines --inv -n 2 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # fix TR
+      master -m $(get_module_nr $(basename ${0})) -s 01 -t 1.32
+    
+      # fix PhaseEncodingDirection
+      master -m $(get_module_nr $(basename ${0})) -s 01 --ap
+    
+      # cut volumes from BOLD, but not FMAP
+      master -m $(get_module_nr $(basename ${0})) -s 01 -v 4 --skip-fmap
+    
+      # skip reorientation to LPI
+      master -m $(get_module_nr $(basename ${0})) -s 01 --no-lpi
+    
+      # mixed line-scanning session
+      master -m $(get_module_nr $(basename ${0})) -s 01 --lines --inv
+    
+      # run specific runs
+      master -m $(get_module_nr $(basename ${0})) -s 01 -r 1,2,4
     
     Notes:
       Assumes the following data structure:
@@ -1785,7 +2170,6 @@ spinoza_scanner2bids_
               ├── fmap
               └── phase
     
-    Notes:
       see https://fmriproc.readthedocs.io/en/latest/pipeline_steps.html for more tips and tricks regar-
       ding filenaming
 
@@ -1828,8 +2212,15 @@ spinoza_segmentfast_
       <output>        output folder (<subject>/[<ses->] will be appended!)
     
     Example:
-      spinoza_segmentfast DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
-      spinoza_segmentfast -s 001 -n 1 DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
+      spinoza_segmentfast \$DIR_DATA_DERIV/skullstripped \$DIR_DATA_DERIV/fast
+      spinoza_segmentfast -s 001 -n 1 \$DIR_DATA_DERIV/skullstripped \$DIR_DATA_DERIV/fast
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # kwargs
+      master -m $(get_module_nr $(basename ${0})) -s 01 -x -R=0.5,-S=3,--nopve
 
 spinoza_setup_
 ====================================================================================================
@@ -1868,9 +2259,16 @@ spinoza_sinusfrommni_
       <reg dir>       path to directory where registration file is (output from spinoza_registration)
       <mask dir>      path to output mask directory (to put final 'sinus'-mask)
     
-    Eample:
-      spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
-      spinoza_sinusfrommni -s 001 -n 1 DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
+    Example:
+      spinoza_sinusfrommni --freeview \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+      spinoza_sinusfrommni --itk -s 01 \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+    
+    Call with master:
+      # vanilla (runs with ITK-Snap)
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # run with FSLeyes
+      master -m $(get_module_nr $(basename ${0})) -s 01 --fsl
 
 spinoza_subcortex_
 ====================================================================================================
@@ -1889,7 +2287,7 @@ spinoza_subcortex_
       -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
       -n <session>    session ID (e.g., 1, 2, or none)
       -j <cpus>       number of cores to use (default is 1)
-      -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+      -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG in spinoza_setup
       -x <kwargs>     Additional commands to be passed to 'antsRegistration'. Format should be comma-
                       separated flags as follows:
                         - if you specify a flag and values | <flag>=<value>
@@ -1923,5 +2321,19 @@ spinoza_subcortex_
       <output>        output folder (<subject>/[<ses->] will be appended!)
     
     Example:
-      spinoza_subcortex DIR_DATA_HOME DIR_DATA_DERIV/nighres
-      spinoza_subcortex -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/nighres
+      spinoza_subcortex \$DIR_DATA_HOME \$DIR_DATA_DERIV/nighres
+      spinoza_subcortex -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/nighres
+    
+    Call with master:
+      # vanilla
+      master -m $(get_module_nr $(basename ${0})) -s 01
+    
+      # kwargs for antsRegistration
+      master -m $(get_module_nr $(basename ${0})) -s 01 -x rigid_iterations=250,affine_iterations=200
+    
+      # kwargs for MASSP
+      master -m $(get_module_nr $(basename ${0})) -s 01 -p max_iterations=250,intensity_prior=0.45
+    
+    Notes:
+      - embedded_antsreg_multi: https://nighres.readthedocs.io/en/latest/registration/embedded_antsreg_multi.html
+      - MASSP: https://nighres.readthedocs.io/en/latest/auto_examples/example_07_massp_subcortex_parcellation.html
