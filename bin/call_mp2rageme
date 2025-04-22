@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from pymp2rage import MEMP2RAGE
 import os
-import pathlib
 import sys
 import getopt
 import shutil
+import pathlib
 from lazyfmri import utils
 from fmriproc import image
+from pymp2rage import MEMP2RAGE
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["input_dir"])
@@ -17,8 +17,8 @@ def main(context):
 ---------------------------------------------------------------------------------------------------
 call_mp2rageme
 
-This script is a wrapper for the memp2rage object that can calculate a Unified T1-weighted image and 
-a quantitative T1 map, based on the magnitude and phase-information of the two volumes of a MP2RAGE-
+This script is a wrapper for the memp2rage object that can calculate a Unified T1-weighted image 
+and a quantitative T1 map, based on the magnitude and phase-information of the two volumes of a 
 sequence (Marques et al., 2010). It can also further correct this map for B1 inhomogenieties using 
 a B1 map (Marques et al., 2014) and calculated several parametric maps (R2*, t1map, t2*)
 
@@ -26,60 +26,60 @@ Usage:
   call_mp2rageme [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    -i|--inputdir   project root directory with the subject-directories on which we need to run
-                    the script. Should be BIDS-compliant, up until 'anat' folder
+  -i|--inputdir   project root directory with the subject-directories on which we need to run
+                  the script. Should be BIDS-compliant, up until 'anat' folder
 
 Optional (flags with defaults):
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'pymp2rage'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGEME"). '*_{suffix}.nii.gz'
-                    will be added
-    -l|--lower      lower bound for truncing image intensities using 'call_winsorize'. Default
-                    is 0.01
-    -u|--upper      upper bound for truncing image intensities using 'call_winsorize'. Default
-                    is 0.99                            
-    -p|--pars       json-file with custom parameter settings. Should have the following format:
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'pymp2rage'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGEME"). '*_{suffix}.nii.gz'
+                  will be added
+  -l|--lower      lower bound for truncing image intensities using 'call_winsorize'. Default
+                  is 0.01
+  -u|--upper      upper bound for truncing image intensities using 'call_winsorize'. Default
+                  is 0.99                            
+  -p|--pars       json-file with custom parameter settings. Should have the following format:
 
-                    {
-                        "TR": 6.723,
-                        "inv_times": [0.67, 3.68],
-                        "fa": [4,4],
-                        "nZ": 150,
-                        "FLASH_tr": [0.0062,0.31246],
-                        "echo_times": [0.006, 0.0145, 0.023, 0.0315]
-                    }
-                    see: $REPO_DIR/misc/mp2rageme_pars.json
+                  {
+                      "TR": 6.723,
+                      "inv_times": [0.67, 3.68],
+                      "fa": [4,4],
+                      "nZ": 150,
+                      "FLASH_tr": [0.0062,0.31246],
+                      "echo_times": [0.006, 0.0145, 0.023, 0.0315]
+                  }
+                  see: $REPO_DIR/misc/mp2rageme_pars.json
 
 Options (extra):
-    -h|--help       print this help text
-    -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the combina-
-                    tion of INV-images. Note that not doing this will results in patterns of noise
-                    around the brain which will confuse automated segmentation softwares 
-    --skip-bg       Skip background stuff (default = remove noise around brain)
+  -h|--help       print this help text
+  -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the combina-
+                  tion of INV-images. Note that not doing this will results in patterns of noise
+                  around the brain which will confuse automated segmentation softwares 
+  --skip-bg       Skip background stuff (default = remove noise around brain)
 
 Outputs:
-    r2star (Nifti1Image):       Relaxation map (1/T2*)
-    t2star (Nifti1Image):       T2*-weighted image
-    t2starmap (Nifti1Image):    Quantitative T2* map
-    t1map (Nifti1Image):        Quantitative T1 map
-    t1w_uni (Nifti1Image):      Bias-field corrected T1-weighted image
-    s0 (Nifti1Image):           Residual (S0) map
+  r2star (Nifti1Image):       Relaxation map (1/T2*)
+  t2star (Nifti1Image):       T2*-weighted image
+  t2starmap (Nifti1Image):    Quantitative T2* map
+  t1map (Nifti1Image):        Quantitative T1 map
+  t1w_uni (Nifti1Image):      Bias-field corrected T1-weighted image
+  s0 (Nifti1Image):           Residual (S0) map
 
 Example:
-    call_mp2rageme \
-        -i DIR_DATA_HOME/sub-01/ses-1 \
-        -o DIR_DATA_DERIV/pymp2rage \
-        -b sub-01_acq-MP2RAGEME
+  call_mp2rageme \
+    -i DIR_DATA_HOME/sub-01/ses-1 \
+    -o DIR_DATA_DERIV/pymp2rage \
+    -b sub-01_acq-MP2RAGEME
 
-    call_mp2rageme \
-        -i DIR_DATA_HOME/sub-01/ses-1 \
-        -o DIR_DATA_DERIV/pymp2rage \
-        -b sub-999_acq-MP2RAGEME \
-        --mask
+  call_mp2rageme \
+    -i DIR_DATA_HOME/sub-01/ses-1 \
+    -o DIR_DATA_DERIV/pymp2rage \
+    -b sub-999_acq-MP2RAGEME \
+    --mask
 
 Notes:
-    Assumes you ran spinoza_scanner2bids before. If not, change the required filenames in the
-    script; by default, we'll look for files with 'acq-MP2RAGEME' and 'inv' in the filename. In to-
-    tal, there must be 10 files: 2x INV1, 8x INV2 (mag/phase for different echo times 1,2,3,4):
+  Assumes you ran spinoza_scanner2bids before. If not, change the required filenames in the
+  script; by default, we'll look for files with 'acq-MP2RAGEME' and 'inv' in the filename. In to-
+  tal, there must be 10 files: 2x INV1, 8x INV2 (mag/phase for different echo times 1,2,3,4):
     - INV1          ('inv-1_part-mag')
     - INV1ph        ('inv-1_part-phase')
     - INV2 e1-4,    ('inv-2_echo-[1-4]_part-mag')

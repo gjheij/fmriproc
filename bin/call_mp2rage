@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-from pymp2rage import MP2RAGE
 import os
-import pathlib
 import sys
 import getopt
 import shutil
+import pathlib
 from lazyfmri import utils
 from fmriproc import image
+from pymp2rage import MP2RAGE
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["inv1", "inv1ph", "inv2", "inv2ph"], allow_input_dir=True)
@@ -25,78 +25,79 @@ Usage:
   call_mp2rage [mandatory] [arguments] [options]
 
 Mandatory (required input):
-    --inv1          first inversion magnitude image (usually something with INV1)
-    --inv1ph        first inversion phase (usually something with INV1ph)
-    --inv2          second inversion magnitude image (usually something with INV2)
-    --inv2ph        second inversion phase image (usually something with INV2ph)
+  --inv1          first inversion magnitude image (usually something with INV1)
+  --inv1ph        first inversion phase (usually something with INV1ph)
+  --inv2          second inversion magnitude image (usually something with INV2)
+  --inv2ph        second inversion phase image (usually something with INV2ph)
 
-    OR:
-    -i|--inputdir   project root directory with the subject-directories on which we need to run
-                    the script. Should be BIDS-compliant, up until 'anat' folder
+  OR:
+  -i|--inputdir   project root directory with the subject-directories on which we need to run
+                  the script. Should be BIDS-compliant, up until 'anat' folder
 
 Optional (flags with defaults):
-    -o|--outputdir  output directory (default is opj(os.getcwd(), 'pymp2rage'))
-    -n|--name       basename for output (default is "subject_acq-MP2RAGE"). '*_{T1w|T1map}.nii.gz'
-                    will be added
-    -l|--lower      lower bound for truncing image intensities using 'call_winsorize'. Default
-                    is 0.01
-    -u|--upper      upper bound for truncing image intensities using 'call_winsorize'. Default
-                    is 0.99                            
-    -p|--pars       json-file with custom parameter settings. Should have the following format:
+  -o|--outputdir  output directory (default is opj(os.getcwd(), 'pymp2rage'))
+  -n|--name       basename for output (default is "subject_acq-MP2RAGE"). '*_{T1w|T1map}.nii.gz'
+                  will be added
+  -l|--lower      lower bound for truncing image intensities using 'call_winsorize'. Default
+                  is 0.01
+  -u|--upper      upper bound for truncing image intensities using 'call_winsorize'. Default
+                  is 0.99                            
+  -p|--pars       json-file with custom parameter settings. Should have the following format:
 
 Options:
-    -c|--mask               make INV2 mask with SPM+FSL to remove background noise induced by the 
-                            combination of INV-images. Note that not doing this will results in pat-
-                            terns of noise around the brain which will confuse automated segmentation 
-                            softwares 
-                            pulses
-    --pars <file>           json-file with custom parameter settings. Should have the following format:
-                            {
-                                "TR": 5.5,
-                                "inv_times": [0.8,2.7],
-                                "fa": [6,6],
-                                "nZ": 200,
-                                "FLASH_tr": [0.0062,0.0062]
-                            }
-                            see: $REPO_DIR/misc/mp2rage_pars.json
+  -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the 
+                  combination of INV-images. Note that not doing this will results in pat-
+                  terns of noise around the brain which will confuse automated segmentation 
+                  softwares 
+                  pulses
+  --pars <file>   json-file with custom parameter settings. Should have the following format:
+                  
+                  {
+                      "TR": 5.5,
+                      "inv_times": [0.8,2.7],
+                      "fa": [6,6],
+                      "nZ": 200,
+                      "FLASH_tr": [0.0062,0.0062]
+                  }
+                  see: $REPO_DIR/misc/mp2rage_pars.json
 
 Options (extra):
-    -h|--help       print this help text
-    -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the combina-
-                    tion of INV-images. Note that not doing this will results in patterns of noise
-                    around the brain which will confuse automated segmentation softwares 
-    --skip-bg       Skip background stuff (default = remove noise around brain)
-    --ups           use UP-parameters; there's different MP2RAGE-parameters for universal 
+  -h|--help       print this help text
+  -c|--mask       make INV2 mask with SPM+FSL to remove background noise induced by the combina-
+                  tion of INV-images. Note that not doing this will results in patterns of noise
+                  around the brain which will confuse automated segmentation softwares 
+  --skip-bg       Skip background stuff (default = remove noise around brain)
+  --ups           use UP-parameters; there's different MP2RAGE-parameters for universal 
 
 
 Outputs:
-    T1map   (Nifti1Image): Quantitative T1 map
-    T1w     (Nifti1Image): Unified T1-weighted image
+  T1map   (Nifti1Image): Quantitative T1 map
+  T1w     (Nifti1Image): Unified T1-weighted image
 
 Example:
-    call_mp2rage \
-        -i $DIR_DATA_HOME/sub-005/ses-1 \
-        -o $DIR_DATA_DERIV/pymp2rage/sub-005/ses-1 \
-        -b sub-01_ses-1_acq-MP2RAGE \
-        --mask
+  call_mp2rage \
+    -i $DIR_DATA_HOME/sub-005/ses-1 \
+    -o $DIR_DATA_DERIV/pymp2rage/sub-005/ses-1 \
+    -b sub-01_ses-1_acq-MP2RAGE \
+    --mask
 
-    call_mp2rage \
-        --inv1 inv1.nii.gz \
-        --inv1ph inv1ph.nii.gz \
-        --inv2 inv2.nii.gz \
-        --inv2ph inv2ph.nii.gz \
-        --outputdir derivatives/pymp2rage/sub-01/ses-1 \
-        --name sub-01_ses-1_acq-MP2RAGE
+  call_mp2rage \
+    --inv1 inv1.nii.gz \
+    --inv1ph inv1ph.nii.gz \
+    --inv2 inv2.nii.gz \
+    --inv2ph inv2ph.nii.gz \
+    --outputdir derivatives/pymp2rage/sub-01/ses-1 \
+    --name sub-01_ses-1_acq-MP2RAGE
 
 Notes:
-    Assumes you ran spinoza_scanner2bids before. If not, change the required filenames in the
-    script; by default, we'll look for files with 'acq-MP2RAGE' and 'inv' in the filename. In to-
-    tal, there must be 4 files:
+  Assumes you ran spinoza_scanner2bids before. If not, change the required filenames in the
+  script; by default, we'll look for files with 'acq-MP2RAGE' and 'inv' in the filename. In total, 
+  there must be 4 files:
 
-    - INV1      ('inv-1_part-mag')
-    - INV1ph    ('inv-1_part-phase')
-    - INV2      ('inv-2_part-mag')
-    - INV2ph    ('inv-2_part-phase')
+  - INV1      ('inv-1_part-mag')
+  - INV1ph    ('inv-1_part-phase')
+  - INV2      ('inv-2_part-mag')
+  - INV2ph    ('inv-2_part-phase')
 
 ---------------------------------------------------------------------------------------------------
     """
