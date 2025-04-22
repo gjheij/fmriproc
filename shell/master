@@ -764,7 +764,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_lineplanning"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -820,7 +820,6 @@ if [[ $? -eq 0 ]]; then
     "${PROT_FLAG}"
     "${pe_dir_flag}"
     "${reorient_flag}"
-    "${SDE_FLAG}"
     "${DEBUG}"
     "${SGE}"
     "${SGE_QUEUE}"
@@ -838,7 +837,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_scanner2bids"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -879,7 +878,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_mriqc"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -936,7 +935,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_linerecon"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -984,7 +983,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_lsprep"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1039,7 +1038,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_qmrimaps"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1086,19 +1085,15 @@ if [[ $? -eq 0 ]]; then
     "${SUBJECT}"
     "${OW}"
     "${SESSION}"
-    "${SGE}"
     "${verb_flag}"
-    "${SGE_QUEUE}"
     "${FSL_FLAG}"
-    "${jobs_flag}"
-    "${cmd_flag}"
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants"
   )
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_registration"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1148,7 +1143,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_registration"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1191,7 +1186,7 @@ if [[ $? -eq 0 ]]; then
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "spinoza_averageanatomies"
+      print_error_msg "$(basename ${0})" "${cmd[0]}"
       exit 1
     fi
 
@@ -1238,7 +1233,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_sinusfrommni"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1291,7 +1286,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_biassanlm"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1323,7 +1318,7 @@ if [[ $? -eq 0 ]]; then
       spinoza_brainextraction
       "${SUBJECT}"
       "${SESSION}"
-      "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/manual_masks" "FSL"
+      "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/manual_masks" "fsl"
     )
 
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -1359,7 +1354,7 @@ if [[ $? -eq 0 ]]; then
   fi
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_brainextraction"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1400,7 +1395,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
     
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_nordic"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1443,7 +1438,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_dura"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1487,7 +1482,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_sagittalsinus"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1533,7 +1528,7 @@ if [[ $? -eq 0 ]]; then
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_masking"
+    print_error_msg "$(basename ${0})""${cmd[0]}"
     exit 1
   fi
 
@@ -1596,7 +1591,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_freesurfer"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1683,10 +1678,10 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}" "${DIR_DATA_HOME}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_fmriprep"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1758,7 +1753,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_denoising"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1857,7 +1852,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_fitprfs"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1925,7 +1920,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_bestvertex"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1967,7 +1962,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_segmentfast"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2019,7 +2014,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_mgdm"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2070,7 +2065,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_extractregions"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2109,7 +2104,7 @@ if [[ $? -eq 0 ]]; then
   if [[ ${LAYER_FLAG} == "nighres" ]]; then
     PROBSEG="${DIR_DATA_DERIV}/nighres"
   else
-    PROBSEG=${DIR_DATA_DERIV}/manual_masks
+    PROBSEG="${DIR_DATA_DERIV}/manual_masks"
   fi
 
   cmd=(
@@ -2124,7 +2119,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_cortexrecon"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2154,7 +2149,7 @@ if [[ $? -eq 0 ]]; then
     SOFTWARE="nighres"
   elif [[ ${LAYER_FLAG} == "surface" ]]; then
     SOFTWARE="surface"
-    INPUT_DIR=${FS}
+    INPUT_DIR="${FS}"
   else
     echo
     print_line -
@@ -2180,7 +2175,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_layering"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2228,7 +2223,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_subcortex"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2281,7 +2276,7 @@ if [[ $? -eq 0 ]]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" spinoza_line2surface
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -2312,19 +2307,26 @@ if [[ $? -eq 0 ]]; then
     KWARGS=${X_KWARGS}
   fi    
 
+  # check if there's a direct input
+  SAMPLE_IMG=""
+  if [[ ! -z "${images}" ]]; then
+    SAMPLE_IMG="-i ${images}"
+  fi
+
   # spinoza_profiling "${SUBJECT}" "${SESSION}" "${OW}" "${DIR_DATA_DERIV}/nighres" ${DIR_DATA_HOME} T1map
   cmd=(
     spinoza_profiling
     "${SUBJECT}"
     "${SESSION}"
     "${OW}"
+    "${SAMPLE_IMG}"
     "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_HOME}" "${X_KWARGS}"
   )
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "spinoza_profiling"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 

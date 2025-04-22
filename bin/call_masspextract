@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from fmriproc.image import massp_mask_img
+from fmriproc.image import massp_mask_imgfrom fmriproc.image import massp_mask_img
 opj = os.path.join
 
 def main(argv):
@@ -74,7 +74,7 @@ Example:
         print(main.__doc__)
         sys.exit()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Convert label to volume table
 
     if os.path.exists(input) and os.path.exists(mask):

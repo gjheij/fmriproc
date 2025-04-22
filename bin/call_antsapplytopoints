@@ -69,23 +69,23 @@ Example:
   call_antsapplytopoints -i point_in_space1.csv point_in_space2.csv from-space1_to-space2.mat
 
   # print output coordinate
-  call_antsapplytopoints \
-    --coord \
-    -i point_in_space1.csv \
-    point_in_space2.csv \
+  call_antsapplytopoints \\
+    --coord \\
+    -i point_in_space1.csv \\
+    point_in_space2.csv \\
     from-space1_to-space2.mat
   
   # input RAS coordinate (it assumes RAS-coordinate, unless --lps is specified)
-  call_antsapplytopoints \
-    -i \"-8.38654,-93.1835,-39.7082\" \
-    point_in_space2.csv \
+  call_antsapplytopoints \\
+    -i \"-8.38654,-93.1835,-39.7082\" \\
+    point_in_space2.csv \\
     from-space1_to-space2.mat  
 
   # input LPS coordinate
-  call_antsapplytopoints \
-    --lps \
-    -i \"8.38654,93.1835,-39.7082\" \
-    point_in_space2.csv \
+  call_antsapplytopoints \\
+    --lps \\
+    -i \"8.38654,93.1835,-39.7082\" \\
+    point_in_space2.csv \\
     from-space1_to-space2.mat  
 
 ---------------------------------------------------------------------------------------------------

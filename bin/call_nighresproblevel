@@ -20,9 +20,9 @@ def main(context):
 ---------------------------------------------------------------------------------------------------
 call_nighresproblevel
 
-Creates a levelset surface representations from a probabilistic map or a mask. The levelset indicates 
-each voxel's distance to the closest boundary. It takes negative values inside and positive values 
-outside of the object.
+Creates a levelset surface representations from a probabilistic map or a mask. The levelset 
+indicates each voxel's distance to the closest boundary. It takes negative values inside and 
+positive values outside of the object.
 
 Mandatory (required input):
   -p|--probability    File representing the probability image
@@ -50,7 +50,7 @@ Example:
     output_dir = context.get("output_dir", opj(os.getcwd(), 'region'))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Run function
     probability_to_levelset(
         probability,
@@ -59,7 +59,7 @@ Example:
         file_name=output_base
     )
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename to BIDS-friendly filename
     fn_old = opj(output_dir, output_base + "_p2l-surf.nii.gz")
     fn_new = opj(output_dir, output_base + "-p2l_surf.nii.gz")

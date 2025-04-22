@@ -12,25 +12,25 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_parrec2nii
 
-Wrapper for the parrec2nii to make life a little easier. In theory, it'll only require and input di-
-rectory containing the files to be converted. If no output directory is specified, the script will
-create a directory called INPUT/nifti and store the output there. Because parrec2nii does not out-
-put a json side-car file by default, we'll attempt to create one based on the information found in
-the par-file; some information (e.g., RepetitionTime) could be missing.
+Wrapper for the parrec2nii to make life a little easier. In theory, it'll only require and input 
+directory containing the files to be converted. If no output directory is specified, the script 
+will create a directory called INPUT/nifti and store the output there. Because parrec2nii does not 
+output a json side-car file by default, we'll attempt to create one based on the information found 
+in the par-file; some information (e.g., RepetitionTime) could be missing.
 
 Arguments:
   -i <input>      PAR-file or folder containing PAR-files to be processed. You can also specify the
                   log-file from 'dcm2niix' to look for catastrophic errors. One of these options is
                   always needed!
   -o <output>     output folder. If empty, it will use <input folder>/nifti
-  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The format
-                  should be as follows: different parameters comma-separated, and parameter-value pair
-                  separated by '='):
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The 
+                  format should be as follows: different parameters comma-separated, and parame-
+                  ter-value pair separated by '='):
                   
-                  "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
-                  E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                  E.g., (see 'parrec2nii --help'):
+                      "-x --store-header,--scaling='off'"
 
                   The kwargs specified in this flag take precedent over the default args:
 

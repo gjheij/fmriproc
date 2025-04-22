@@ -11,9 +11,9 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_setmasktozero
 
-This script is a wrapper that sets the values in a given mask to zero in a given image, kind of like
-the opposite of regular 'making', where values in the mask are retained in the input image. Now they
-are set to zero!
+This script is a wrapper that sets the values in a given mask to zero in a given image, kind of 
+like the opposite of regular 'making', where values in the mask are retained in the input image. 
+Now they are set to zero!
 
 Mandatory (required input):
   -i|--input      input image

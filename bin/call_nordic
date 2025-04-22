@@ -22,10 +22,12 @@ for other operations. If the output file has .nii extension, the final output wi
 Usage:
   call_nordic [options] <mag file> <phase file> <nordic output>
 
-Options:
-  -h|--help       print this help text
+Optional:
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize
+
+Options:
+  -h|--help       print this help text
   --mag           use magnitude only
   --tsnr          make tSNR images before and after NORDIC
 

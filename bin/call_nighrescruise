@@ -69,10 +69,11 @@ Optional (flags with defaults):
                     "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                   E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                    "-x regularization_weight=0.05,max_iterations=1000"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()'. The kwargs specified in this flag take precedent over 
+                  the default kwargs:
                   
                   defaults = {
                     "data_weight": 0.9,
@@ -114,7 +115,7 @@ Notes:
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
     kwargs = context.get("kwargs", {})
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Read inputs to dictionary
     input_kws = {}
     if input_dir is not None:
@@ -150,7 +151,7 @@ Notes:
 
     [print(f" {key}: {gb}{val}{end}") for key, val in input_kws.items()]
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # update kwargs with defaults
     defaults = {
         "data_weight": 0.9,
@@ -166,14 +167,14 @@ Notes:
     # combine input & kwargs
     combined_kwargs = {**input_kws, **kwargs}
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # run CRUISE
     cruise_cortex_extraction(**combined_kwargs)
 
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Renaming output files to match BIDS-like style
     print("Rename to more BIDS'ey style")
     suffix_map = {

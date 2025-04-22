@@ -13,10 +13,10 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_averagesanatomies
 
-This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average. This re-
-sults in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the QSM-properties
-of the MEMP2RAGE sequence. This will only happen if you have two elements in the ACQ variable of the setup 
-script and if the DATA-variable is set to "AVERAGE"
+This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average. 
+This results in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the 
+QSM-properties of the MEMP2RAGE sequence. This will only happen if you have two elements in the 
+\$ACQ variable of the \$CONFIG_FILE and if the DATA-variable is set to "AVERAGE".
 
 Usage:
   spinoza_averagesanatomies [arguments] [options] <anat folder> <output folder>
@@ -30,13 +30,17 @@ Options:
   -o|--ow         Overwrite existing output
 
 Positional:
-  <input>         directory containing the files to be registered; generally the output from pymp2rage
-                  (see 'spinoza_qmrimaps')
+  <input>         directory containing the files to be registered; generally the output from 
+                  pymp2rage (see 'spinoza_qmrimaps')
   <output>        path to directory where registration file/outputs should be stored
 
 Example:
-  spinoza_averagesanatomies DIR_DATA_DERIV DIR_DATA_DERIV
-  spinoza_averagesanatomies -s 001 -n 1 DIR_DATA_DERIV DIR_DATA_DERIV
+  spinoza_averagesanatomies \$DIR_DATA_DERIV \$DIR_DATA_DERIV
+  spinoza_averagesanatomies -s 001 -n 1 \$DIR_DATA_DERIV \$DIR_DATA_DERIV
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
 
 ---------------------------------------------------------------------------------------------------
 

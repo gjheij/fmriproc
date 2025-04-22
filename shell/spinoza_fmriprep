@@ -264,20 +264,35 @@ Options:
 Positional:
   <anat dir>      directory containing the anatomical data. Can also be the regular project root
                   folder if you want fMRIprep do the surface reconstruction
-  <derivatives>   output folder for fMRIprep; generally this will be <project>/derivatives
+  <derivatives>   output folder for fMRIprep; generally this will be \$DIR_DATA_DERIV
   <mode>          run anatomical workflow only with 'anat', or everything with 'func'
   <T2 dir>        if you have a T2w-file, but that is not in <anat dir> (because you preprocessed
                   the T1w-file, but not the T2w-file), you can specify the directory where it lives
                   here. Generally this will be the same as <func dir>
 
 Example:
-  spinoza_fmriprep <project>/derivatives/masked_mp2rage <project>/derivatives anat
-  spinoza_fmriprep -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
-                   vatives anat
+  spinoza_fmriprep \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV \$DIR_DATA_HOME
+  spinoza_fmriprep \\
+    -s 001 \\
+    -n 1 \\
+    -f \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV \$DIR_DATA_HOME
+
+Call with master:
+  # vanilla (runs --anat-only)
+  master -m $(get_module_nr $(basename ${0})) -s 01
   
-  master -m 15 -s 01 -n 1 --func              # run locally via master
-  master -m 15 -s 01 -n 1 --func -j 15 --sge  # run via master with singularity and 15 cores
-  master -m 15 -s 01 -n 1 --func --docker     # run via master with docker
+  # include FUNC & run via master with singularity and 15 cores
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge
+
+  # run via master with docker
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func --docker
+
+  # remove single subject workflow folder
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --remove-wf
+
+  # remove surface workflow folder
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --remove-surf-wf
 
 ---------------------------------------------------------------------------------------------------
 

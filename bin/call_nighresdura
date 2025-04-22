@@ -8,7 +8,7 @@ except Exception:
 import os
 import sys
 import getopt
-from lazyfmri import utils
+from lazyfmri import utilsfrom lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
@@ -59,7 +59,7 @@ Notes:
     output_dir = context.get("output_dir", opj(os.getcwd(), 'dura'))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Run dura estimation
     mp2rage_dura_estimation(
         inv2_skull,
@@ -72,7 +72,7 @@ Notes:
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename file to BIDS style
     print("Rename to more BIDS'ey style")
     fn_old = opj(output_dir, output_base + "_dura-proba.nii.gz")

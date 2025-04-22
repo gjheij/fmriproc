@@ -8,7 +8,7 @@ function Usage {
     cat <<EOF
 
 ---------------------------------------------------------------------------------------------------
-spinoza_insall
+spinoza_install
 
 This script configures the fMRIproc repository environment by:
 
@@ -127,7 +127,7 @@ fi
 
 # ---------------------------------------------------------------------------------------------------
 # Handle help
-if [[ "$COMMAND" == "help" ]]; then
+if [[ "$COMMAND" == *"help"* ]]; then
     Usage && exit 0
 fi
 

@@ -23,7 +23,7 @@ Arguments:
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>    session ID (e.g., 1, 2, or none)
   -j <cpus>       number of cores to use (default is 1)
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG in spinoza_setup
   -x <kwargs>     Additional commands to be passed to 'antsRegistration'. Format should be comma-
                   separated flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
@@ -57,9 +57,22 @@ Positional:
   <output>        output folder (<subject>/[<ses->] will be appended!)
 
 Example:
-  spinoza_subcortex DIR_DATA_HOME DIR_DATA_DERIV/nighres
-  spinoza_subcortex -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/nighres
+  spinoza_subcortex \$DIR_DATA_HOME \$DIR_DATA_DERIV/nighres
+  spinoza_subcortex -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/nighres
 
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # kwargs for antsRegistration
+  master -m $(get_module_nr $(basename ${0})) -s 01 -x rigid_iterations=250,affine_iterations=200
+
+  # kwargs for MASSP
+  master -m $(get_module_nr $(basename ${0})) -s 01 -p max_iterations=250,intensity_prior=0.45
+
+Notes:
+  - embedded_antsreg_multi: https://nighres.readthedocs.io/en/latest/registration/embedded_antsreg_multi.html
+  - MASSP: https://nighres.readthedocs.io/en/latest/auto_examples/example_07_massp_subcortex_parcellation.html
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -67,7 +80,6 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  echo NOT ENOUGH ARGUMENTS SPECIFIED
   Usage && exit 0
 fi
 
@@ -154,9 +166,9 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  input_dir=${INPUT}/${base_path}
-  skull_dir=${SKULL}/${base_path}
-  output_dir=${OUTPUT}/${base_path}/massp
+  input_dir="${INPUT}/${base_path}"
+  skull_dir="${SKULL}/${base_path}"
+  output_dir="${OUTPUT}/${base_path}/massp"
 
   for dir in "${input_dir}" "${skull_dir}"; do
     if [ ! -d ${dir} ]; then
@@ -259,7 +271,6 @@ for subID in ${search}; do
 
     # run command
     eval "${cmd[@]}"
-
     if [[ $? -ne 0 ]]; then
       echo
       print_line -

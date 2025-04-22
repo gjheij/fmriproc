@@ -42,11 +42,36 @@ Options:
 
 Positional       
   <project>       output folder for nighres
-  <region>        region you wish to reconstruct. Should be same as spinoza_extractregions
+  <region>        region you wish to reconstruct. Should be same as spinoza_extractregions:
+                    > left_cerebrum
+                    > right_cerebrum
+                    > cerebrum
+                    > cerebellum
+                    > cerebellum_brainstem
+                    > subcortex
+                    > tissues(anat)
+                    > tissues(func)
+                    > brain_mask
 
 Example:
-  spinoza_cortexrecon PROBSEGS CRUISE cerebrum
-  spinoza_cortexrecon -s 001 -n 1 -o PROBSEGS CRUISE cerebellum
+  spinoza_cortexrecon \${DIR_DATA_DERIV}/manual_masks \${DIR_DATA_DERIV}/nighres cerebrum
+  spinoza_cortexrecon \\
+    -s 001 \\
+    -n 1 \\
+    \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/nighres cerebellum
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # run with nighres' segmentations rather than combined segmentations
+  master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex -l nighres
+
+  # specify ROI
+  master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex
+
+  # pass kwargs
+  master -m $(get_module_nr $(basename ${0})) -s 01 -x max_iterations=100,wm_dropoff_dist=0.5
 
 ---------------------------------------------------------------------------------------------------
 

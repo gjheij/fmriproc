@@ -108,8 +108,9 @@ Optional:
                   E.g.,:
                     "-x rigid_iterations=10000,ignore_affine=False"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()'. The kwargs specified in this flag take precedent over 
+                  the default kwargs:
 
                   defaults = {
                     "run_rigid": True,
@@ -136,8 +137,9 @@ Optional:
                   E.g.,:
                     "-x rigid_iterations=10000,ignore_affine=False"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()'. The kwargs specified in this flag take precedent over 
+                  the default kwargs:
 
                   defaults = {
                     "max_iterations": 120,
@@ -155,8 +157,7 @@ Options (extra):
 
 
 Outputs
-    Dictionary collecting outputs under the following keys (suffix of output files in brackets)
-
+  Dictionary collecting outputs under the following keys (suffix of output files in brackets)
     - max_proba (niimg): Maximum probability map (-massp_proba)
     - max_label (niimg): Maximum probability labels (-massp_label)
 
@@ -182,12 +183,12 @@ Example:
     kwargs = context["kwargs"]
     massp_kws = context["massp_kws"]
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # tmp directory with registration files
     reg_dir = opj(output_dir, "reg")
     pathlib.Path(reg_dir).mkdir(parents=True, exist_ok=True)
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # look for all files in specified input directory
     pattern_map = {
         "qr1": "R1.nii.gz",
@@ -211,7 +212,7 @@ Example:
         ):
             input_files[key] = val
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Check that input files exist
     missing_files = [desc for desc, path in input_files.items() if not path or not os.path.isfile(path)]
     if missing_files:
@@ -222,12 +223,12 @@ Example:
 
     [print(f" {key}: {gb}{val}{end}") for key, val in input_files.items()]    
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Download template file
     print("Download AHEAD template..")
     template = data.download_AHEAD_template()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Register template to files
     ants_file = utils.get_file_from_substring(
         "_ants_map.nii.gz",
@@ -268,7 +269,7 @@ Example:
     else:
         print("\nFound ANTs mapping file. Skipping registration")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Do the actual parcellation
 
     defaults = {
@@ -292,7 +293,7 @@ Example:
     # combine input & kwargs
     combined_kwargs = {**massp_kws, **kwargs}
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # run MASSP    
     print("Running subcortex parcellation")
     massp_results = parcellation.massp(**combined_kwargs)
@@ -300,7 +301,7 @@ Example:
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename file to BIDS style
     print("Rename to more BIDS'ey style")
     for i in ["proba", "label"]:
@@ -311,7 +312,7 @@ Example:
             print(f" {os.path.basename(fn_old)} → {gb}{os.path.basename(fn_new)}{end}")
             os.rename(fn_old, fn_new)
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Convert label to volume table
     json_file = opj(output_dir, f'{output_base}_desc-volume_table.json')
     print(f"Parsing output to {gb}{json_file}{end} (unit='mm')")

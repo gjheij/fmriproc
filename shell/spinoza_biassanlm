@@ -17,9 +17,9 @@ Sometimes CAT12 can be a bit of an overkill with smoothing and bias corrections.
 be run prior to "spinoza_brainextraction", and runs a SANLM-filter over the image as well as an 
 bias field correction with SPM. The subsequent "spinoza_brainextraction" should be run with the 
 "-m brain" flag as to turn off bias correction and denoising with CAT12. The input image is 
-expected to reside in the input directory and to contain "acq-${DATA}" and end with *T1w.nii.gz. 
-By default, the previously created mask with SPM is used to boost performance on ANTs functions (e.
-g., SANLM/Bias correction).
+expected to reside in the input directory and to contain "acq-\${DATA}" and end with *T1w.nii.gz. 
+By default, the previously created mask with SPM is used to boost performance on ANTs functions
+(e.g., SANLM/Bias correction).
 
 Usage:
   spinoza_biassanlm [arguments] [options] <anat folder> <output folder>
@@ -53,16 +53,27 @@ Options:
 
 Positional:
   <anat dir>      parent directory containing the sub-xxx folders for anatomies. Can be e.g., 
-                  DIR_DATA_HOME or DIR_DATA_HOME/derivatives/pymp2rage
-  <output>        Output directory for the denoised images (something like DIR_DATA_DERIV/denoised)
+                  \$DIR_DATA_HOME or \$DIR_DATA_DERIV/pymp2rage
+  <output>        Output directory for the denoised images (something like \$DIR_DATA_DERIV/
+                  denoised)
 
 Example:
-  spinoza_biassanlm DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/denoised
-  spinoza_biassanlm -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV/denoised
-  spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised
+  spinoza_biassanlm DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised
+  spinoza_biassanlm -s 001 -n 1 -b \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised
 
   # run SANLM and Bias correction with ANTs
-  spinoza_biassanlm -s 001 -n 1 -b DIR_DATA_HOME DIR_DATA_DERIV/denoised --n4 --denoise
+  spinoza_biassanlm -s 001 -n 1 -b \$DIR_DATA_HOME \$DIR_DATA_DERIV/denoised --n4 --denoise
+
+Call with master:
+  # vanilla | use SPM for bias corr and SANLM
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # use ANTs
+  master -m $(get_module_nr $(basename ${0})) -s 01 --n4 --denoise
+
+  # pass kwargs to call_antsbias
+  master -m $(get_module_nr $(basename ${0})) -s 01 --n4 -x -t=[0.25,0.005,250];-x=some_mask.nii.gz
 
 ---------------------------------------------------------------------------------------------------
 

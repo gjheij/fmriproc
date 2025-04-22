@@ -58,7 +58,7 @@ Notes:
     output_dir = context.get("output_dir", opj(os.getcwd(), 'profiling'))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Run profile sampling
     profile_sampling(
         layers_lvls,
@@ -69,7 +69,7 @@ Notes:
         file_name=output_base
     )
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename output to a BIDS-friendly name
     fn_old = opj(output_dir, output_base + "_lps-data.nii.gz")
     fn_new = opj(output_dir, output_base + ".nii.gz")

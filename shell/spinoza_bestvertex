@@ -26,7 +26,7 @@ Usage:
 Arguments:
   -s <subject>    subject ID as used throughout the pipeline without prefix (e.g., 001 > 001)
   -n <session>    session ID used to extract the correct pRF-parameters. Will combined with 
-                  <derivatives>/prf/ses-<session>
+                  \$DIR_DATA_DERIV/prf/ses-<session>
   -l <line ses>   session ID for new line-scanning session; default = 2
   -t <task>       select pRF estimates from a particular task; by default the first element of 
                   TASK_IDS in \$CONFIG_FILE
@@ -35,7 +35,7 @@ Arguments:
                   rh>". Always try to specify two vertices; doesn't matter too much if one is not 
                   relevant
   -e <epi_file>   Specify custom EPI-intensity file rather than looking in \$DIR_DATA_DERIV/  
-                  fmriprep. Automatically sets --use_epi.
+                  fmriprep. Automatically sets --use-epi.
 
 Options:
   -h|--help       print this help text
@@ -124,9 +124,19 @@ Usage:
   spinoza_bestvertex [options] <sourcedata> <derivatives> <ROI>
 
 Example:
-  spinoza_bestvertex DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
-  spinoza_bestvertex -s 001 DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
-  spinoza_bestvertex -s 001 -v "1957,8753" DIR_DATA_HOME DIR_DATA_DERIV V1_exvivo.thresh
+  spinoza_bestvertex \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+  spinoza_bestvertex -s 001 \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+  spinoza_bestvertex -s 001 -v "1957,8753" \$DIR_DATA_HOME \$DIR_DATA_DERIV V1_exvivo.thresh
+
+Call with master:
+  # search motor cortex
+  master -m $(get_module_nr $(basename ${0})) --aparc -r precentral
+
+  # use pRFs and select vertex manually
+  master -m 18 -s 01 --norm --manual
+
+  # use SRF and EPI files
+  master -m $(get_module_nr $(basename ${0})) -s 01 --norm --manual -e mean_func.nii.gz --srf-file
 
 ---------------------------------------------------------------------------------------------------
 

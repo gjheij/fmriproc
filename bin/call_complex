@@ -29,7 +29,7 @@ Functionality:
   - Uses fslcomplex to combine real and imaginary data into a complex-valued image
   - Automatically splits the complex image into magnitude and phase using polar representation
   - Reorients all outputs to LPI and copies geometry for consistency
-  - Checks that both inputs contain at least two 3D volumes (dim4 >= 2), corresponding to INV1 and 
+  - Checks that both inputs contain at least two 3D volumes (dim4 >= 2), corresponding to INV1 and
     INV2
   - Outputs:
       <basename>_inv-1_part-mag.nii.gz

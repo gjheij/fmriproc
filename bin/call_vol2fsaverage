@@ -46,7 +46,7 @@ Options:
                   
                   For instance, to use 'Linear' interpolation, use '--lin', for 'GenericLabel',
                   use '--gen'                                                  
-  <--tr>          set repetition time in .gii-files
+  --tr            set repetition time in .gii-files
 
 Positional:
   <subject>       subject ID as used in the FreeSurfer directory

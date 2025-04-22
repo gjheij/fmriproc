@@ -35,6 +35,7 @@ Notes:
   - Matrix must be in FSL (.mat) format
   - For FreeSurfer .lta or ITK/HDF5 formats, convert before use
   - Inversion is handled with FLIRT's \`-applyxfm -init <mat> -inverse\` logic
+  
 ---------------------------------------------------------------------------------------------------
 
 USAGE

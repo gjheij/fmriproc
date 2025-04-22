@@ -13,13 +13,13 @@ cified in /project_folder/<subject>/ses-X/anat. It uses predefined paths only so
 something in previous steps you can use it with just the subject ID.
 
 It will look for the following files:
-  - ses-1 anat: derivatives/<anat_stage>/<subject>/ses-1  (uses 'find_hierarchical_anatomy' func-
-                tion if certain stages are not present. Will look in 'denoised' first, then 'pymp-
-                2rage', then 'anat' in DIR_DATA_HOME)
-  - ses-2 anat: DIR_DATA_HOME/<subject>/ses-<ses_nr>/anat/*acq-MP2RAGE*_T1w.nii.gz
+  - ses-1 anat: \$DIR_DATA_DERIV/<anat_stage>/<subject>/ses-1  (uses 'find_hierarchical_anatomy' 
+                function if certain stages are not present. Will look in 'denoised' first, then 
+                'pymp2rage', then 'anat' in \$DIR_DATA_HOME)
+  - ses-2 anat: \$DIR_DATA_HOME/<subject>/ses-<ses_nr>/anat/*acq-MP2RAGE*_T1w.nii.gz
 
 And output a transformation matrix as:
-  CTX/transforms/<subject>_from-ses1_to-ses2_desc-genaff.mat
+  \$CTX/transforms/<subject>_from-ses1_to-ses2_desc-genaff.mat
 
 Usage:
   call_ses1_to_ses [options] -s <subject> -n <ses_nr> -q <queue> -d <depth> -j <n_cpus>
@@ -29,7 +29,10 @@ Mandatory:
   -n <ses nr>     session number, e.g., 2
 
 Optional:
-  -d <depth>      passed along to 'find_hierarchical_anatomy'. Defaults to DIR_DATA_DERIV/pymp2rage
+  -d <depth>      passed along to 'find_hierarchical_anatomy'. Defaults to \$DIR_DATA_DERIV/
+                  pymp2rage; depth to look for anatomical files. The higher the number, the high-
+                  er up the workflow we look, from \$DIR_DATA_HOME to fMRIPrep/FreeSurfer and
+                  all preprocessing steps in between.
   -q <queue>      queue name for when --sge is passed. Default = short.q
   -j <n_cpus>     number of cores to use (default = 1)
 

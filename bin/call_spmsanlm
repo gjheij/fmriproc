@@ -12,9 +12,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_spmsanlm
 
-Denoising using Cat12 as part of SPM. Let's see if this makes CAT12 more reliable.. It tends to make
-the image as nice as a full on 'call_cat12'-run, but sometimes that's a bit overkill. Using SANLM-
-filter and bias correction separately we obtain the best of both worlds, presumably.
+Denoising using Cat12 as part of SPM. Let's see if this makes CAT12 more reliable.. It tends to 
+make the image as nice as a full on 'call_cat12'-run, but sometimes that's a bit overkill. Using 
+SANLM-filter and bias correction separately we obtain the best of both worlds, presumably.
 
 Usage:
   call_spmsanlm [options] <input image> <output directory + basename>

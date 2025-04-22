@@ -19,11 +19,12 @@ def main(context):
 ---------------------------------------------------------------------------------------------------
 call_sizeresponse
 
-Create size-response curves given a set of pRF estimates from the DN-model. Aside from size-response
-functions, we can also create hole-response functions - which simulate the response of a pRF to sti-
-muli of growing holes starting from a full field stimulus. This is a proxy for suppression response
-of a given pRF. You can choose to center the pRFs in the middle of the screen (= faster), or create
-a stimulus set specific for each pRF (= slower, but more accurate representation).
+Create size-response curves given a set of pRF estimates from the DN-model. Aside from 
+size-response functions, we can also create hole-response functions - which simulate the response 
+of a pRF to stimuli of growing holes starting from a full field stimulus. This is a proxy for 
+suppression response of a given pRF. You can choose to center the pRFs in the middle of the screen 
+(= faster), or create a stimulus set specific for each pRF (= slower, but more accurate 
+representation).
 
 Usage:
   call_sizeresponse [mandatory] [arguments] [options]
@@ -69,7 +70,7 @@ Examples:
     --unique
   
   # submit
-  in_file=derivatives/prf/sub-005/ses-1/sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
+  in_file=sub-005_ses-1_task-2R_model-norm_stage-iter_desc-prf_params.pkl
   qsub -N $(basename ${in_file} prf_params.pkl)srfs_centered \
     -q long.q \
     -pe smp 20 \

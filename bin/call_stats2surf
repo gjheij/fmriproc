@@ -42,7 +42,8 @@ Optional:
   -f <fsdir>      path to freesurfer directory; if left empty > reads SUBJECTS_DIR
   -o <output dir> by default in 'freesurfer/fsaverage/volumes'
   -r <reference>  reference file on which the <warp file> is based. If not specified, it will look
-                  for the preprocessed anatomical file from fMRIPrep in the folder from <warp file>. If that's empty, I'll assume the input is a FEAT-directory, in which case 
+                  for the preprocessed anatomical file from fMRIPrep in the folder from <warp 
+                  file>. If that's empty, I'll assume the input is a FEAT-directory, in which case 
                   it will look for the highres.nii.gz file in <FEAT>/reg.
   -a <str>        here you can specify substring to look for the statistical image. If you do not 
                   want to use the standard rendered_thresh_zstat1.nii.gz, add some more search cri-

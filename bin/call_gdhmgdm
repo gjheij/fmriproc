@@ -7,7 +7,7 @@ import numpy as np
 import nibabel as nb
 from nilearn import image
 from scipy import ndimage
-from lazyfmri import utils
+from lazyfmri import utilsmport utils
 
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -122,7 +122,7 @@ Example:
                 return_msg=None
             )
     
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # dilate brain mask
     gdh_mask = opj(os.path.dirname(duramask), f'{output_base}-mask_gdh.nii.gz')
     if brainmask.endswith(".mgz"):
@@ -173,7 +173,7 @@ Example:
         )
         brain_mask.to_filename(gdh_mask)
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # apply masks
     print("Masking anatomical images")
     t1w_masked = image.math_img(
@@ -188,7 +188,7 @@ Example:
         t1map=files["T1map"]
     )
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # save files
     print("Saving new skullstripped images")
     new_files = {}
@@ -197,7 +197,7 @@ Example:
         n.to_filename(fname)
         new_files[t] = fname
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # run regular cmd
     print("Running MGDM with 'call_nighresmgdm'")
     cmd = f"""call_nighresmgdm \

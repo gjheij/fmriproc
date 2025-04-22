@@ -45,10 +45,10 @@ Options:
 Positional arguments:
   <anat folder>   folder containing the T1w-file. In 'master', we'll look through various fol-
                   ders. In order of priority:
-                    -'<derivatives>/masked_\${DATA,,}'
-                    -'<derivatives>/denoised'
-                    -'<derivatives>/pymp2rage'
-                    -'DIR_DATA_HOME'
+                    -'\$DIR_DATA_DERIV/masked_\${DATA,,}'
+                    -'\$DIR_DATA_DERIV/denoised'
+                    -'\$DIR_DATA_DERIV/pymp2rage'
+                    -'\$DIR_DATA_HOME'
                   this ensures a level of agnosticity about anatomical preprocessing. I.e., you
                   don't have to run the full pipeline if you don't want to.
   <stage>         stage to run for FreeSurfer. By default 'all'
@@ -60,17 +60,19 @@ General approach for segmentation:
   - Fix skullstrip:   call_freesurfer -s <subj ID> -o gcut                    ~10 minutes
   - Run autorecon2:   call_freesurfer -s <subj ID> -r 2                       ~few hours
   - Fix errors with:
-      - norm; then run:
-          call_freesurfer -s sub-001 -r 23 -e cp    ~few hours
-      - pia;  then run:
-          call_freesurfer -s sub-001 -r 23 -e pial  ~few hours
+    - norm; then run:
+      # control points
+      call_freesurfer -s sub-001 -r 23 -e cp
+    - pia;  then run:
+      # pial edits
+      call_freesurfer -s sub-001 -r 23 -e pial
 
 You can specify in which directory to look for anatomical scans in the first argument. Usually,
 this is one of the following options: DIR_DATA_HOME if we should use the T1w in the project/
-sub-xxx/anat directory, or DIR_DATA_DERIV/pymp2rage to use T1w-images derived from 
-pymp2rage, or DIR_DATA_DERIV/masked_mp2rage to use T1w-images where the dura and sagittal sinus 
+sub-xxx/anat directory, or \$DIR_DATA_DERIV/pymp2rage to use T1w-images derived from 
+pymp2rage, or \$DIR_DATA_DERIV/masked_mp2rage to use T1w-images where the dura and sagittal sinus 
 are masked out (should be default!). In any case, it assumes that the file is in YOURINPUT/
-sub-xxx/ses-1/. If the input is equal to the DIR_DATA_HOME variable, this will 
+sub-xxx/ses-1/. If the input is equal to the \$DIR_DATA_HOME variable, this will 
 be recognize and 'anat' will be appended to YOURINPUT/sub-xxx/ses-1/anat.
 
 You can also specify a directory where the T2-weighted image is located. Do this the same way as 
@@ -79,8 +81,21 @@ not equal to \$DIR_DATA_HOME. Again, if it is, sub-xxx/ses-x/anat will be append
 as well.
 
 Example:
-  spinoza_freesurfer DIR_DATA_DERIV/masked_mp2rage all DIR_DATA_HOME
-  spinoza_freesurfer -s 001 -n 1 DIR_DATA_ANAT all DIR_DATA_HOME
+  spinoza_freesurfer \$DIR_DATA_DERIV/masked_mp2rage "all" \$DIR_DATA_HOME
+  spinoza_freesurfer -s 001 -n 1 \$DIR_DATA_HOME "all" \$DIR_DATA_HOME
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # submit
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 15 --sge
+
+  # exclude T2 if present but you don't want to use it (e.g., it is a slab)
+  master -m $(get_module_nr $(basename ${0})) -s 01 --no-t2
+
+  # turn off highres-mode
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --no-highres
 
 Notes:
   When an expert options is passed, it will be copied to scripts/expert-options. Future calls to 

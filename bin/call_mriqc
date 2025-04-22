@@ -12,17 +12,19 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_mriqc
 
-MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w and T2w) and functional 
-MRI (magnetic resonance imaging) data. There's also a bunch of other things you can customize, but 
-to keep it as simple as possible without making it similar to the fmriprep call itself, see arguments 
-for customizable options.
+MRIQC extracts no-reference IQMs (image quality metrics) from structural (T1w and T2w) and 
+functional MRI (magnetic resonance imaging) data. There's also a bunch of other things you can 
+customize, but to keep it as simple as possible without making it similar to the fmriprep call 
+itself, see arguments for customizable options.
 
 Usage:
-  call_mriqc [arguments] [options]
+  call_mriqc [mandatory] [arguments] [options]
 
-Arguments:
-  -s <subject>    number of subject's directory from which you can omit "sub-" (e.g., for "sub-001",
-                  enter "001"); use 'group' if you want group statistics
+Mandatory:
+  -s <subject>    number of subject's directory from which you can omit "sub-" (e.g., for 
+                  "sub-001", enter "001"); use 'group' if you want group statistics
+
+Optional:
   -n <session>    session ID (without 'ses-'); if not specified, all sessions will be checked for
                   usable data
   -j <cpus>       number of cores to use (default is 1)

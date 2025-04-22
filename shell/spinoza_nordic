@@ -57,12 +57,24 @@ Options:
 
 Positional:
   <bids folder> parent directory containing the sub-xxx folders for functional data. Generally, 
-                this should be DIR_DATA_HOME
+                this should be \$DIR_DATA_HOME
 
 Example:
-  spinoza_nordic DIR_DATA_HOME                          # run for all subjects
-  spinoza_nordic -s 001 -n 1 DIR_DATA_HOME              # run for specific subject/session
-  spinoza_nordic --sge DIR_DATA_HOME                    # submit to cluster
+  # run for all subjects
+  spinoza_nordic \$DIR_DATA_HOME
+  
+  # run for specific subject/session
+  spinoza_nordic -s 001 -n 1 \$DIR_DATA_HOME
+  
+  # submit to cluster
+  spinoza_nordic --sge DIR_DATA_HOME
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0}))
+
+  # submit
+  master -m $(get_module_nr $(basename ${0})) -s 01,02 --sge
 
 Notes:
 - By default, tSNR maps from before/after NORDIC clipped to 100 will be produced and stored in the

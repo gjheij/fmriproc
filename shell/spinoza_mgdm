@@ -26,7 +26,36 @@ Arguments:
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>    session ID (e.g., 1, 2, or none)
   -j <n_cpus>     number of CPUs to use (default = 1)
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in \$CONFIG_FILE.
+  -p|--priors     The algorithm accepts 4 input files, each representing a different prior. In any
+                  case, we need a T1w and T1map-file, which can come from different sources (e.g.,
+                  field strength, atlases, or sequence). These sources include:
+                  ['DWIFA3T', 'DWIMD3T', 'T1map9T', 'Mp2rage9T', 'T1map7T', 'Mp2rage7T', 'PV',
+                  'Filters', 'T1pv', 'Mprage3T', 'T1map3T', 'Mp2rage3T', 'HCPT1w', 'HCPT2w',
+                  'NormMPRAGE'].
+
+                  For each input file, one of these sources must be specified. By default, the
+                  priors are set to:
+                  
+                  prior_list = [
+                    "Mp2rage7T",
+                    "T1map7T",
+                    "Filters",
+                    "Filters"
+                  ]
+
+                  where:
+                    - T1w-file (-t|--t1w) comes from a 7T MP2RAGE sequence
+                    - T1map-file (-m|--t1map) comes from a 7T MP2RAGE sequence
+                    - Mask representing the skull (-s|--skull) is a "Filters"
+                    - Mask representing the dura (-d|--dura) is a "Filters"
+                  
+                  Format should be comma-separated list for the number of inputs used. For the
+                  regular version, this means 4 (T1w, T1map, skull, and dura). For GdH-version,
+                  this means 2 (T1w, T1map):
+
+                    E.g., "-p Mprage3T,T1map3T,Filters,Filters"
+
   -x <kwargs>     Additional commands to be passed to 'mdgm_segmentation'. Format should be comma-
                   separated flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
@@ -50,9 +79,22 @@ Positional:
   <masks>         path to masks
 
 Example:
-  spinoza_mgdm SKULLSTRIP NIGHRES/mgdm MASKS
-  spinoza_mgdm -s 001 -n 1 SKULLSTRIP NIGHRES/mgdm MASKS
-  spinoza_mgdm -s 001 -n 1 --gdh SKULLSTRIP NIGHRES/mgdm MASKS
+  spinoza_mgdm \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+  spinoza_mgdm -s 001 -n 1 \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+  spinoza_mgdm -s 001 -n 1 --gdh \$SKULLSTRIP \$NIGHRES/mgdm \$MASKS
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # run Gilles' version
+  master -m $(get_module_nr $(basename ${0})) -s 01 --gdh
+
+  # customize priors (default = Mp2rage7T,T1map7T,Filters,Filters)
+  master -m $(get_module_nr $(basename ${0})) -s 01 -p Mprage3T,T1map3T,Filters,Filters
+
+  # submit and specify kwargs
+  master -m $(get_module_nr $(basename ${0})) -s 01 --sge -x diffuse_probabilities=True
 
 ---------------------------------------------------------------------------------------------------
 
@@ -71,7 +113,7 @@ run_local=1
 n_cpus=1
 SGE_QUEUE=${SGE_QUEUE_LONG}
 kwargs_flag=""
-while getopts :-:hos:n:t:q:j:x: argument
+while getopts :-:hos:n:t:q:j:x:p: argument
 do
   case ${argument} in
     -)
@@ -110,7 +152,9 @@ do
     q)  SGE_QUEUE=${OPTARG}
           ;;   
     x)  kwargs_flag="--kwargs ${OPTARG}"
-          ;;               
+          ;;    
+    p)  priors_flag="--priors ${OPTARG}"
+          ;;                       
   esac
 done
 
@@ -148,9 +192,9 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  input_dir=${INPUT}/${base_path}
-  output_dir=${OUTPUT}/${base_path}
-  mask_dir=${MASKS}/${base_path}
+  input_dir="${INPUT}/${base_path}"
+  output_dir="${OUTPUT}/${base_path}"
+  mask_dir="${MASKS}/${base_path}"
 
   if [ ! -d ${input_dir} ]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
@@ -207,11 +251,11 @@ for subID in ${search}; do
   # if we want the GdH-mgdm script, run it directly.
   execute_cmd=0
   if [[ ${type} == "gdh" ]]; then
-    if [[ ! -f ${mgdm_seg} ]]; then
+    if [[ ! -f "${mgdm_seg}" ]]; then
       run_mode="Running ${BOLD_RED}GhD-version${RESET} of MGDM with ${BOLD_BLUE}call_gdhmgdm${RESET}"
       execute_cmd=1
 
-      if [[ ! -f ${mask_outside} ]]; then
+      if [[ ! -f "${mask_outside}" ]]; then
         reason="Could not find \"outside\" mask.. [GdH]"
         execute_cmd=0
       fi
@@ -256,6 +300,7 @@ for subID in ${search}; do
         --duramask "${mask_outside}"
         --outputdir "${masked_seg}"
         --name "${output_root}"
+        "${priors_flag}"
         "${kwargs_flag}"
       )
 
@@ -304,6 +349,7 @@ for subID in ${search}; do
         --t1map "${bet_t1m}"
         --outputdir "${masked_seg}"
         --name "${output_root}"
+        "${priors_flag}"
         "${kwargs_flag}"
       )
 

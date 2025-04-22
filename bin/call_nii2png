@@ -26,8 +26,9 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 nii2png
 
-Convert a 3D or 4D NIfTI (.nii/.nii.gz) image into a series of PNG slices. This script supports both
-standard and multi-volume datasets and offers the option to rotate the image slices before saving.
+Convert a 3D or 4D NIfTI (.nii/.nii.gz) image into a series of PNG slices. This script supports 
+both standard and multi-volume datasets and offers the option to rotate the image slices before 
+saving.
 
 Usage:
   nii2png.py -i <input_file> -o <output_folder>

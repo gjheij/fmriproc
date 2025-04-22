@@ -21,16 +21,12 @@ Steps include:
   - Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
 
 Usage:
-  call_mprage [options] <input image> <output image>
+  call_mprage [arguments] [options] <input image> <output image>
 
-Options:
-  -h|--help       print this help text
+Arguments:
   -s <SPM_PATH>   path to SPM; should contain CAT12 in toolbox directory
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize
-  --spm           use SPM for bias correction (default is ANTs)
-  --no-sanlm      do not apply SANLM filtering
-  --no-winsor     do not apply winsoring of image intensities; would recommend this though..
   -x <kwargs>     Additional commands to be passed to 'call_antsbias'. Format should be colon-
                   separated flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
@@ -42,6 +38,11 @@ Options:
                   e.g.,
                     "-x -t=[0.25,0.005,250];-x=some_mask.nii.gz"
 
+Options:
+  -h|--help       print this help text
+  --spm           use SPM for bias correction (default is ANTs)
+  --no-sanlm      do not apply SANLM filtering
+  --no-winsor     do not apply winsoring of image intensities; would recommend this though..
   --no-reg        With MP2RAGE, we get a T1map in the same space. This file can be used for
                   packages such as Nighres. This allows you to generate layerification in 
                   voxel space. For MPRAGE, we don't have this. Instead, we can have a sepa-

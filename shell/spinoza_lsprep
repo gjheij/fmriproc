@@ -46,18 +46,25 @@ Positional:
   <derivatives>   base directory to store the 'lsprep'-folder in 
 
 Eample:
-  spinoza_lsprep -s 001 -n 3 --sge DIR_DATA_SOURCE DIR_DATA_DERIV
-  spinoza_lsprep -s 001 -n 3 -x --filter-pca=0.18,--verbose DIR_DATA_SOURCE DIR_DATA_DERIV
+  spinoza_lsprep -s 01 -n 3 --sge \$DIR_DATA_SOURCE \$DIR_DATA_DERIV
+  spinoza_lsprep -s 01 -n 3 -x --filter-pca=0.18,--verbose \$DIR_DATA_SOURCE \$DIR_DATA_DERIV
 
-run with master:  
+Call with master:
   # use all defaults from call_lsprep
-  "master -m 03b -s 008 -n 3"
+  master -m $(get_module_nr $(basename ${0})) -s 01 -n 3
 
-  # customize
-  "master -m 03b -s 008 -n 3 -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica" 
+  # use kwargs
+  master -m $(get_module_nr $(basename ${0})) \\
+    -s 01 \\
+    -n 3 \\
+    -x --filter-pca=0.18,--verbose,--no-button,--ow,--ica
 
-  # submit to cluster
-  "master -m 03b -s 008 -n 3 --sge -x --filter-pca=0.18,--verbose,--ica" 
+  # submit to cluster+kwargs
+  master -m $(get_module_nr $(basename ${0})) \\
+    -s 01 \\
+    -n 3 \\
+    --sge \\
+    -x --filter-pca=0.18,--verbose,--ica
 
 ---------------------------------------------------------------------------------------------------
 
@@ -179,23 +186,9 @@ for subID in ${search}; do
     base=${sub_name}_ses-${s_id}
 
     # define log file
-    log_file=${OUTPUT}/lsprep/${sub_name}/${sub_name}_ses-${s_id}_desc-preproc_bold.log
-    if [[ ! -d $(dirname ${log_file}) ]]; then
-      mkdir -p $(dirname ${log_file})
-    fi
-
-    # decide job execution
-    if [[ ${run_local} -eq 0 ]]; then
-      if [[ ! -z ${SGE_QUEUE} ]]; then
-        QUEUE=${SGE_QUEUE}
-      else
-        QUEUE=${SGE_QUEUE_SHORT}
-      fi
-      submit=$(generate_submission_command ${QUEUE} ${n_cpus} ${base}_desc-lsprep ${log_file})
-      call_=$(which call_lsprep)
-      job="${submit} ${call_}"
-    else
-      job="call_lsprep"
+    log_file="${OUTPUT}/lsprep/${sub_name}/${sub_name}_ses-${s_id}_desc-preproc_bold.log"
+    if [[ ! -d $(dirname "${log_file}") ]]; then
+      mkdir -p $(dirname "${log_file}")
     fi
 
     # decide the job type
@@ -231,7 +224,6 @@ for subID in ${search}; do
     
     # execute cmd
     eval "${cmd[@]}"
-
     if [[ $? -ne 0 ]]; then
       echo
       print_line -

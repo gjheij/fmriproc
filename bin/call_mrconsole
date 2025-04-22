@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from fmriproc import scanner
-from lazyfmri import utils
 import os
 import sys
 import getopt
+from lazyfmri import utils
+from fmriproc import scanner
 opj = os.path.join
 
 try:
@@ -19,44 +19,43 @@ def main(context):
 ---------------------------------------------------------------------------------------------------
 call_mrconsole
 
-This script is the new version of call_getscannercoordinates. It utilizes the classes defined in the
-repository to combine the structural and functional information. By default, we will register to the
-anatomy from FreeSurfer (orig.mgz).
+This script is the new version of call_getscannercoordinates. It utilizes the classes defined in 
+the repository to combine the structural and functional information. By default, we will register 
+to the anatomy from FreeSurfer (orig.mgz).
 
 Mandatory (required input):
-    -s|--sub        subject ID as used in FreeSurfer directory from which you can omit "sub-"
-                    (e.g.,for "sub-001", enter "001").
-    -t|--tfm        matrix mapping FreeSurfer's orig to session 2 (ANTs file)
-    --ses2          New session anatomy
-    --line          File containing coordinates/normal vectors for target area, generally the output
-                    of 'spinoza_bestvertex'
+  -s|--sub        subject ID as used in FreeSurfer directory from which you can omit "sub-"
+                  (e.g.,for "sub-001", enter "001").
+  -t|--tfm        matrix mapping FreeSurfer's orig to session 2 (ANTs file)
+  --ses2          New session anatomy
+  --line          File containing coordinates/normal vectors for target area, generally the output
+                  of 'spinoza_bestvertex'
 
 Optional (flags with defaults):
-    -n|--line-ses   Session number for the line-scanning experiments (generally >1), default = 2
-    -d|--deriv      derivatives directory containing FreeSurfer/Pycortex/pRF directories. Defaults
-                    to DIR_DATA_DERIV-variable
-    --hemi          hemisphere of interest (e.g., "left", or "right"). Default = "left"
-    --lh            consider left hemisphere (same as '--hemi left')
-    --rh            consider right hemisphere (same as '--hemi right')
+  -n|--line-ses   Session number for the line-scanning experiments (generally >1), default = 2
+  -d|--deriv      derivatives directory containing FreeSurfer/Pycortex/pRF directories. Defaults
+                  to DIR_DATA_DERIV-variable
+  --hemi          hemisphere of interest (e.g., "left", or "right"). Default = "left"
+  --lh            consider left hemisphere (same as '--hemi left')
+  --rh            consider right hemisphere (same as '--hemi right')
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Usage:
-    call_mrconsole \
-        --subject sub-001 \
-        --ses2 <ses2> \
-        --deriv <DIR_DATA_DERIV> \
-        --tfm <aff> \
-        --lh
+  call_mrconsole \
+    --subject sub-001 \
+    --ses2 <ses2> \
+    --deriv <DIR_DATA_DERIV> \
+    --tfm <aff> \
+    --lh
 
-    call_mrconsole \
-        -s sub-001 \
-        -d /path/to/derivatives \
-        --lh \
-        -t /path/to/genaff.mat \
-        --ses1 anat_ses1.nii.gz \
-        --ses2 anat_ses2.nii.gz
+  call_mrconsole \
+    -s sub-001 \
+    -d /path/to/derivatives \
+    --lh \
+    -t /path/to/genaff.mat \
+    --ses2 anat_ses2.nii.gz
 
 ---------------------------------------------------------------------------------------------------
     """

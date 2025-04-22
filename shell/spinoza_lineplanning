@@ -24,10 +24,10 @@ expects the PAR/RECs of these acquisitions to be placed in:
 
   \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
 
-That should look like this:
-sourcedata/sub-022/ses-2/planning
-├── sub-01_ses-2_WIP_-_MP2RAGE_2_4.PAR
-└── sub-01_ses-2_WIP_-_MP2RAGE_2_4.REC
+  That should look like this:
+  sourcedata/sub-022/ses-2/planning
+  ├── sub-01_ses-2_WIP_-_MP2RAGE_2_4.PAR
+  └── sub-01_ses-2_WIP_-_MP2RAGE_2_4.REC
 
 In this case, the acquisition was an MP2RAGE, so we can look for a trigger delay in the file:
 
@@ -90,7 +90,8 @@ Mandatory:
   -s <subject>    subject ID (e.g., sub-01)
   -n <session>    line-scanning session ID (>1)
   -i <anat>       path to PAR/RECs of anatomical file in line-scanning session. Typically, this is
-                  \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning
+                  \$DIR_DATA_SOURCE/<sub>/ses-<ses>/planning. Can also be a path directly pointing
+                  to a nifti file for more custom inputs.
   -p <coords>     csv-file containing the coordinates/normal vectors indexed by hemisphere. This
                   is typically the output of 'spinoza_bestvertex'
                   E.g., "\${DIR_DATA_DERIV}/pycortex/<sub>/ses-<session/
@@ -105,27 +106,42 @@ Options:
                   verify if the workflow runs as planned.
 
 Example:
-  spinoza_lineplanning \
-    -s sub-001 \
-    -n 3 \
-    -i /path/to/raw/ses-2 \
-    -p /path/to/pycortex_file.csv \
+  # standard
+  spinoza_lineplanning \\
+    -s sub-001 \\
+    -n 3 \\
+    -i /path/to/raw/ses-2 \\
+    -p /path/to/pycortex_file.csv \\
     --lh
+
+  # specify custom input
+    spinoza_lineplanning \\
+    -s sub-01
+    -n 2
+    -i "/path/to/a/nifti_file.nii.gz"
+    -p "\$DIR_DATA_DERIV/pycortex/sub-01/ses-2/sub-01_ses-2_desc-coords.csv"
+
+  # test workflow
+  spinoza_lineplanning \\
+    -s sub-001 \\
+    -n 1 \\
+    -p /path/to/pycortex_file.csv \\
+    --identity
 
 Notes:
   - You NEED ANTs for this to run
   - It also depends on python3; if something doesn't seem to work, try to update the package
     with python -m pip install <package> --upgrade
 
-Command with master:
-  # vanilla master command
+Call with master:
+  # vanilla
   master -m 00 -s <subject> -n <session> {--lh|--rh}
   
   # use session 3
   master -m 00 -s 001 -n 3 --lh # though --lh is default
 
   # use session 1 (uses identity matrix) for debugging purposes
-  master -m 00 -s 001 -n 2 --rh --identity
+  master -m 00 -s 001 --rh --identity
 
 ---------------------------------------------------------------------------------------------------
 
@@ -235,10 +251,10 @@ fi
 # Convert PARREC to nifti for registration
 if [[ ${debug} -ne 1 ]]; then
 
-  if [[ -f ${nifti} ]]; then
-    anat_session2=$(fetch_filepath ${nifti})
+  if [[ -f "${nifti}" ]]; then
+    anat_session2=$(fetch_filepath "${nifti}")
   else
-    if [[ ! -d ${nifti}/nifti ]]; then
+    if [[ ! -d "${nifti}/nifti" ]]; then
       echo "Converting data with dcm2niix"
     
       # define command
@@ -261,12 +277,20 @@ if [[ ${debug} -ne 1 ]]; then
       find "${nifti}" \
       -maxdepth 1 \
       -type f \
-      -name "*.PAR" \
+      -iname "*.par" \
       2>/dev/null
     )
 
+    # check if par-file exists
+    if [[ ! -z "${PAR_FILE}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename $0)" "Could not find .par-file in ${BOLD_GREEN}${nifti}${RESET}"
+      exit 1
+    fi      
+
     # extra trigger delay
-    ttime=$(cat ${PAR_FILE} | awk '/^\s*$/ {next;} {print $33}' | grep -oE '[0-9]+' | head -n 1)
+    ttime=$(cat "${PAR_FILE}" | awk '/^\s*$/ {next;} {print $33}' | grep -oE '[0-9]+' | head -n 1)
           # echo content      #extract 33rd column              # filter numbers    # get first value (= trigger delay)
 
     if [[ -z "${ttime}" ]]; then
@@ -299,7 +323,7 @@ if [[ ${debug} -ne 1 ]]; then
       if [[ ! -f "${input}" ]]; then
         echo
         print_line -
-        print_error_msg "$(basename $0)" "find" "Could not find anatomical file in ${BOLD_GREEN}${nifti}/nifti${RESET} does not exist. Check docs for naming patterns:"
+        print_error_msg "$(basename $0)" "find" "Could not find anatomical file in ${BOLD_GREEN}${nifti}/nifti${RESET} does not exist. Check docs for naming patterns or specify nifti file with '-i <path>' flag:"
         Usage
         exit 1
       fi
@@ -322,7 +346,7 @@ else
   anat_session2="${anat_session1}"
 fi
 
-if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
+if [[ ! -f "${genaff}" ]] && [[ "${genaff}" != "identity" ]]; then
   # enter bash ${DIR_SCRIPTS}/bin/call_antsregistration.sh for help
   echo "Register FS (orig.mgz) to session ${session}"
   cmd=(
@@ -330,12 +354,11 @@ if [[ ! -f ${genaff} ]] && [[ ${genaff} != "identity" ]]; then
     -j "10"
     "${anat_session2}"
     "${anat_session1}"
-    "$(dirname ${genaff})/$(basename ${genaff} genaff.mat)" 
+    "${genaff/genaff.mat}"
   )
 
   # run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
@@ -350,13 +373,13 @@ fi
 # Fetch the file created with the jupyter notebook containing the orientation
 # of the line in session 1 anatomy calculated based on the minimal curvature
 # and pRF-mapping
-if [[ ! -f ${coord_file} ]]; then
+if [[ ! -f "${coord_file}" ]]; then
   print_file_not_exist "${subject}" "${coord_file}"
   exit 1
 fi
 
 echo -e "File containing coordinates        = ['${BOLD_RED}$(basename ${coord_file})${RESET}']"
-if [[ -f ${genaff} ]] || [[ ${genaff} == "identity" ]]; then
+if [[ -f "${genaff}" ]] || [[ "${genaff}" == "identity" ]]; then
 
   cmd=(
     call_mrconsole

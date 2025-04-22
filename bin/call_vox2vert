@@ -18,10 +18,11 @@ call_vox2vert
 
 Convert a voxel coordinate (in FreeSurfer's `orig.mgz` space) to the corresponding surface vertex 
 using `fsaverage`-style surface mappings and tools inside `fmriproc.transform.fs2vert`. The output 
-vertex can be printed or stored in a `.npy` file for later use, e.g., with Pycortex for visualization.
+vertex can be printed or stored in a `.npy` file for later use, e.g., with Pycortex for 
+visualization.
 
-This utility is helpful when a location in volumetric space (like an ROI center or peak activation) 
-needs to be projected to the cortical surface for visualization or analysis.
+This utility is helpful when a location in volumetric space (like an ROI center or peak 
+activation) needs to be projected to the cortical surface for visualization or analysis.
 
 Mandatory arguments:
   -s | --subj     Subject name (e.g., "sub-001") as present in FreeSurfer's SUBJECTS_DIR

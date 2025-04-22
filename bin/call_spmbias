@@ -12,9 +12,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_spmbias
 
-Bias field correction using SPM12. Let's see if this makes CAT12 more reliable.. Seems to be pretty 
-good and up there with ANTs' N4-biasfield correction. Apparently, John Polimeni and Laurentius Hu-
-ber use this prior to FreeSurfer and find it really helps..
+Bias field correction using SPM12. Let's see if this makes CAT12 more reliable.. Seems to be 
+pretty good and up there with ANTs' N4-biasfield correction. Apparently, John Polimeni and 
+Renzo Huber use this prior to FreeSurfer and find it really helps..
 
 Usage:
   call_spmsanlm [options] <input image> <output directory + basename>

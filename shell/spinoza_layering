@@ -15,9 +15,9 @@ spinoza_layering
 
 Equivolumetric layering with either nighres or Wagstyl's surface_tools, as specified by the third
 argument. Surface_tools is based on FreeSurfer, so make sure that has run before it. This script is
-by default in overwrite mode, meaning that the files created earlier will be overwritten when re-ran.
-This doesn't take too long, so it doesn't really matter and prevents the need for an overwrite switch.
-To disable, you can specify a condition before running this particular script.
+by default in overwrite mode, meaning that the files created earlier will be overwritten when 
+re-ran. This doesn't take too long, so it doesn't really matter and prevents the need for an 
+overwrite switch. To disable, you can specify a condition before running this particular script.
 
 Usage:
   spinoza_layering [arguments] [options] <input dir> <software>
@@ -42,15 +42,28 @@ Options:
 
 Positional:
   <input folder>  if software == 'nighres', then we need the nighres output folder (generally 
-                  DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the \$SUB-
+                  \$DIR_DATA_DERIV/nighres). If software == 'freesurfer', then we need the \$SUB-
                   JECTS_DIR
   <software>      Possible inputs for software are:
-                    - 'nighres': voxel-based layering
+                    - 'nighres': voxel-based layering [default]
                     - 'surface': surface-based layering with Wagstyl's method
 
 Example:
-  spinoza_layering SUBJECTS_DIR surface
-  spinoza_layering DIR_DATA_DERIV/nighres nighres
+  spinoza_layering \$SUBJECTS_DIR surface
+  spinoza_layering \$DIR_DATA_DERIV/nighres nighres
+
+Call with master:
+  # vanilla (runs nighres)
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # use 20 depths
+  master -m $(get_module_nr $(basename ${0})) -s 01 -l 20
+
+  # layering kwargs
+  master -m $(get_module_nr $(basename ${0})) -s 01 -x n_layers=20,layer_dir='inward'
+
+  # run surface-based layering
+  master -m $(get_module_nr $(basename ${0})) -s 01 --surface
 
 Notes:
   - The script will recognize any of the software inputs specified above, with these variations in

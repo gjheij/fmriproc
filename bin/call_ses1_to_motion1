@@ -16,16 +16,16 @@ in the following folders in priority order:
 
   1. derivatives/denoised/<subject>/ses-1
   2. derivatives/pymp2rage/<subject>/ses-1
-  3. <DIR_DATA_HOME>/<subject>/ses-1/anat
+  3. \$DIR_DATA_HOME/<subject>/ses-1/anat
 
 It will also locate the first motion image in:
 
-  - <DIR_DATA_HOME>/<subject>/ses-<X>/anat/*motion1*.nii.gz
+  - \$DIR_DATA_HOME/<subject>/ses-<X>/anat/*motion1*.nii.gz
 
 If both images are found, a rigid-body registration is performed using ANTs, and the resulting
 transformation matrix is saved to:
 
-  <CTX>/<subject>/transforms/<subject>_from-ses1_to-ses<X>_rec-motion1_desc-genaff.mat
+  \$CTX/<subject>/transforms/<subject>_from-ses1_to-ses<X>_rec-motion1_desc-genaff.mat
 
 Usage:
   call_ses1_to_motion1 <subject> <ses_nr>

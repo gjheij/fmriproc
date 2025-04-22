@@ -14,7 +14,7 @@ function Usage {
 spinoza_mriqc
 
 Quality control using MRIqc. It uses the singularity container defined in the setup file (variable
-MRIQC_SIMG).
+\$MRIQC_SIMG).
 
 Usage:
   spinoza_mriqc [arguments] [options] <project dir> <derivatives>
@@ -39,12 +39,22 @@ Options:
 Positional:
   <project dir>   directory containing the anatomical data. Can also be the regular project root
                   folder if you want MRIqc do the surface reconstruction
-  <derivatives>   output folder for MRIqc; generally this will be <project>/derivatives
+  <derivatives>   output folder for MRIqc; generally this will be \$DIR_DATA_DERIV
 
 Example:
-  spinoza_mriqc <project>/derivatives/masked_mp2rage <project>/derivatives anat
-  spinoza_mriqc -s 001 -n 1 -f <project> <project>/derivatives/masked_mp2rage <project>/deri-
-                   vatives anat
+  spinoza_mriqc \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV anat
+  spinoza_mriqc \\
+    -s 001 \\
+    -n 1 \\
+    -f <project> \\
+    \$DIR_DATA_DERIV/masked_mp2rage \$DIR_DATA_DERIV anat
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # retrieve Framewise Displacement files after MRIqc
+  master -m $(get_module_nr $(basename ${0})) -s 01 --fd
 
 ---------------------------------------------------------------------------------------------------
 

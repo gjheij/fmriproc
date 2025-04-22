@@ -24,7 +24,8 @@ Creates a probability map from the distance to a levelset surface representation
 
 Mandatory (required input):
   -l|--levelset   levelset image. E.g., 
-                    - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.gz'
+                    - the gray-white matter surface is stored in file ending on '-cruise_gwb.nii.
+                      gz'
                     - the pial surface is stored in a file ending on '-cruise_cgb.nii.gz'
                     - the mid-cortical surface in a file ending on '-cruise-avg.nii.gz'
 
@@ -38,10 +39,11 @@ Optional (flags with defaults):
                     "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                   E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                    "-x regularization_weight=0.05,max_iterations=1000"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()'. The kwargs specified in this flag take precedent over 
+                  the default kwargs:
 
                   defaults = {
                     "overwrite": True,
@@ -52,10 +54,10 @@ Optional (flags with defaults):
                   }
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs:
-    result (niimg): Probability map (output file suffix -l2p_proba)
+  result (niimg): Probability map (output file suffix -l2p_proba)
 
 Example:
   call_nighreslevelprob \
@@ -78,7 +80,7 @@ Notes:
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
     kwargs = context.get("kwargs", {})
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Default kwargs
     defaults = {
         "save_data": True,
@@ -94,7 +96,7 @@ Notes:
     # Just plop everything in levelset_to_probability
     levelset_to_probability(levelset, **kwargs)
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Nicer formatting of output filenames
     fn_old = opj(output_dir, output_base + "_l2p-proba.nii.gz")
     fn_new = opj(output_dir, output_base + "-l2p_proba.nii.gz")

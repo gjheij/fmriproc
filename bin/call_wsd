@@ -32,8 +32,11 @@ Positional arguments
   <input>         input image
 
 Usage:
-  call_wsd sub-01_acq-MPRAGE_T1w.nii.gz                                     # standard
-  call_wsd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE   # aggressive
+  # standard
+  call_wsd sub-01_acq-MPRAGE_T1w.nii.gz
+
+  # aggressive
+  call_wsd -l 0.05 -u 0.95 sub-01_acq-MPRAGE_T1w.nii.gz sub-01_acq-MPRAGE
 
 ---------------------------------------------------------------------------------------------------
 

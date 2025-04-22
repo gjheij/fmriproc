@@ -61,14 +61,14 @@ Example:
 
   # specify all inputs
   call_combine \
-      --sub sub-01
-      --cat cat12/sub-01/ses-1
-      --fast fmriprep/sub-01/ses-1/anat
-      --fs freesurfer/sub-01
-      --nighres nighres/sub-01/ses-1/cruise
-      --manual manual_masks/sub-01/ses-1
-      --outputdir manual_masks/sub-01/ses-1
-      --name sub-01_ses-1_acq-MP2RAGE
+    --sub sub-01 \
+    --cat cat12/sub-01/ses-1 \
+    --fast fmriprep/sub-01/ses-1/anat \
+    --fs freesurfer/sub-01 \
+    --nighres nighres/sub-01/ses-1/cruise \
+    --manual manual_masks/sub-01/ses-1 \ 
+    --outputdir manual_masks/sub-01/ses-1 \
+    --name sub-01_ses-1_acq-MP2RAGE
 
 ---------------------------------------------------------------------------------------------------
     """

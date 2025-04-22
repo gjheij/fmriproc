@@ -13,8 +13,8 @@ def main(argv):
 call_setmasktoval
 
 This script is a wrapper that sets the values in a given mask to one in a given image, kind of like
-the opposite of regular 'making', where values in the mask are retained in the input image. See also
-call_setmasktoone and call_setmasktozero
+the opposite of regular 'making', where values in the mask are retained in the input image. See 
+also 'call_setmasktoone' and 'call_setmasktozero'
 
 Mandatory (required input):
   -i|--input      input image
@@ -31,7 +31,7 @@ Outputs
   same as input image but with values from mask image set to a specified value
 
 Example:
-  call_setmasktozero \
+  call_setmasktoval \
     -i t1w_image.nii.gz \
     -m mask.nii.gz \
     -v 10 \

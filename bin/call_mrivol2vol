@@ -18,7 +18,7 @@ segmentation ('seg') and volume ('vol') image. There's a separation here because
 sligthly different for segmentation and volume images.
 
 Usage:
-  call_mrivol2vol <-t transform name> <moving> <target> <output> <seg/vol>
+  call_mrivol2vol [optional] <moving> <target> <output> <seg/vol>
 
 Arguments:
   <moving>        image to be moved
@@ -26,9 +26,11 @@ Arguments:
   <output>        output name
   <vol/seg>       type input image (default = 'vol')
 
+Optional:
+  -t <transform>  output name for transform (optional)
+
 Options:
   -h|--help       print this help text
-  -t <transform>  output name for transform (optional)
 
 Example:
   call_mrivol2vol seg.mgz raw.mgz seg

@@ -107,10 +107,10 @@ Options:
   --sge           submit job to cluster (SGE/SLURM)
 
 Positional:
-  <input dir>     base input directory with pybest data (e.g., 'DIR_DATA_DERIV/pybest'). You can 
+  <input dir>     base input directory with pybest data (e.g., '\$DIR_DATA_DERIV/pybest'). You can 
                   also point to the fmriprep-folder, in which case the gifti's of 'fsnative' will 
                   be used.
-  <output dir>    base output directory for prf data (e.g., 'DIR_DATA_DERIV/prf')
+  <output dir>    base output directory for prf data (e.g., '\$DIR_DATA_DERIV/prf')
   <png dir>       base path of where sourcedata of subjects live. In any case, the subject ID will 
                   be appended to this path (if applicable, so will session ID). Inside THAT 
                   directory, we'll search for directories with 'Screenshots'. So, if you specify 
@@ -130,11 +130,23 @@ Models for pRF fitting:
   --abc           DN-model with fixed D-parameter [Aqil, et al. 2021]
 
 Eample:
-  spinoza_fitprfs DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-  spinoza_fitprfs -s 001 -n 1 DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-  spinoza_fitprfs --multi-design DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-  spinoza_fitprfs -g -l DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
-  spinoza_fitprfs -o DIR_DATA_DERIV/prf DIR_DATA_DERIV/pybest DIR_DATA_SOURCE
+  spinoza_fitprfs \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+  spinoza_fitprfs -s 001 -n 1 \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+  spinoza_fitprfs --multi-design \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+  spinoza_fitprfs -o \$DIR_DATA_DERIV/prf \$DIR_DATA_DERIV/pybest \$DIR_DATA_SOURCE
+
+Call with master:
+  # vanilla (runs gaussian model)
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # norm+submit
+  master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge
+
+  # use l-bgfs for all stages
+  master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge --bgfs
+
+  # refit existing parameters
+  master -m $(get_module_nr $(basename ${0})) -s 01 --norm -j 25 --sge --refit
 
 ---------------------------------------------------------------------------------------------------
 

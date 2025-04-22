@@ -21,11 +21,11 @@ stored. Normally, for region extraction, you use the output from MGDM. You can, 
 custom levelset (see call_gdhcombine).
 
 For this, you will need four directories: the REGION directory (with tissue classification from
-MGDM), the FreeSurfer directory (read from you SUBJECTS_DIR), the fMRIprep-directory with tissue
+MGDM), the FreeSurfer directory (read from you \$SUBJECTS_DIR), the fMRIprep-directory with tissue
 classification from FAST, and the MASK-directory containing manual edits. The REGION directory is
 the directory that will be created first, the FreeSurfer directory will be read from the 
 \$SUBJECTS_DIR-variable, the fMRIprep-directory you'll need to specify with the -f flag BEFORE 
-(!!) the positional arguments, and the MASK-directory you will already specify.
+(!!) the positional arguments, and the \$MASKS-directory you will already specify.
 
 Usage:
   spinoza_extractregions [arguments] [options] <nighres out> <probability folder> <ROI>
@@ -45,8 +45,21 @@ Positional:
   <region>        region to extract with Nighres
 
 Example:
-  spinoza_extractregions DIR_DATA_DERIV/nighres DIR_DATA_DERIV/manual_masks cerebrum
-  spinoza_extractregions -s -001 -n 1 -o DIR_DATA_DERIV/nighres DIR_DATA_DERIV/manual_masks cerebrum
+  spinoza_extractregions \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/manual_masks cerebrum
+  spinoza_extractregions \\
+    -s -001 \\
+    -n 1 \\
+    \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/manual_masks cerebrum
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # specify ROI
+  master -m $(get_module_nr $(basename ${0})) -s 01 -r subcortex
+
+  # only run Nighres
+  master -m $(get_module_nr $(basename ${0})) -s 01 --skip-combine
 
 Notes:
   - If you want a custom levelset, specify the '-f' flag pointing to the fMRIprep-directory
@@ -54,7 +67,7 @@ Notes:
   - Region to be extracted can be one of:
     > left_cerebrum
     > right_cerebrum
-    > cerebrum,
+    > cerebrum
     > cerebellum
     > cerebellum_brainstem
     > subcortex

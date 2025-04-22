@@ -13,8 +13,8 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_splitribbon
 
-Split FreeSurfer's `ribbon.mgz` into binary gray matter (GM), white matter (WM), and combined cortex
-masks in NIfTI format.
+Split FreeSurfer's `ribbon.mgz` into binary gray matter (GM), white matter (WM), and combined 
+cortex masks in NIfTI format.
 
 This script extracts key tissue regions from the `ribbon.mgz` file created by FreeSurfer. It uses 
 the default FreeSurfer labeling:
@@ -50,8 +50,8 @@ This will generate:
 ---------------------------------------------------------------------------------------------------
     """
 
-    subject   = None
-    output    = None
+    subject = None
+    output_base = None
 
     if len(argv) < 2:
         print("\nNEED AT LEAST A SUBJECT ID")
@@ -67,9 +67,17 @@ This will generate:
     os.makedirs(output_dir, exist_ok=True)
 
     # fetch ribbon file
-    ribbon_mgz = opj(os.environ.get('SUBJECTS_DIR'), subject, 'mri', 'ribbon.mgz')
+    ribbon_mgz = opj(
+        os.environ.get('SUBJECTS_DIR'),
+        subject,
+        'mri',
+        'ribbon.mgz'
+    )
+
+    # convert
     ribbon_nii = mgz2nii(ribbon_mgz)
 
+    # load data
     ribbon_img = nb.load(ribbon_nii)
     ribbon_data = ribbon_img.get_fdata().astype(int)
 

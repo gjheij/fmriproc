@@ -65,7 +65,7 @@ Notes:
     output_dir = context.get("output_dir", opj(os.getcwd(), "skullstripping"))
     output_base = context.get("output_base", "subject_acq-MP2RAGE_desc")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Run skull stripping
     mp2rage_skullstripping(
         inv2,
@@ -79,7 +79,7 @@ Notes:
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename file to BIDS style
     print("Rename to more BIDS'ey style")
     suffixes = {

@@ -76,9 +76,16 @@ Positional:
   <reg dir>       path to directory where registration file is (output from spinoza_registration)
   <mask dir>      path to output mask directory (to put final 'sinus'-mask)
 
-Eample:
-  spinoza_sinusfrommni DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
-  spinoza_sinusfrommni -s 001 -n 1 DIR_DATA_DERIV/pymp2rage DIR_DATA_DERIV/ants DIR_DATA_DERIV/manual_masks
+Example:
+  spinoza_sinusfrommni --freeview \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+  spinoza_sinusfrommni --itk -s 01 \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/manual_masks
+
+Call with master:
+  # vanilla (runs with ITK-Snap)
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # run with FSLeyes
+  master -m $(get_module_nr $(basename ${0})) -s 01 --fsl
 
 ---------------------------------------------------------------------------------------------------
 
@@ -193,15 +200,15 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  pn_anat=${ANAT}/${base_dir}
-  pn_matrix=${MATRIX}/${base_dir}
-  pn_masks=${OUTPUT}/${base_dir}
+  pn_anat="${ANAT}/${base_dir}"
+  pn_matrix="${MATRIX}/${base_dir}"
+  pn_masks="${OUTPUT}/${base_dir}"
 
-  if [[ ! -d ${pn_masks} ]]; then
-    mkdir -p ${pn_masks}
+  if [[ ! -d "${pn_masks}" ]]; then
+    mkdir -p "${pn_masks}"
   fi
 
-  if [[ -d ${pn_anat} ]]; then
+  if [[ -d "${pn_anat}" ]]; then
 
     #-----------------------------------------------------------------------------
     # Define output
@@ -249,11 +256,11 @@ for subID in ${search}; do
         2>/dev/null
       )
 
-      if [[ ! -f ${fn_ratio} && ! -f ${fn_nuisance} ]]; then
+      if [[ ! -f "${fn_ratio}" && ! -f "${fn_nuisance}" ]]; then
 
         #-----------------------------------------------------------------------------
         # generate mask
-        if [[ ! -z ${t2} ]]; then
+        if [[ ! -z "${t2}" ]]; then
 
           #-----------------------------------------------------------------------------
           # if we have a mask-image, we can create a sinus mask directly from the T2-image
@@ -263,9 +270,9 @@ for subID in ${search}; do
             # mask t2 with brain mask
             cmd=(
               fslmaths
-              ${t2}
+              "${t2}"
               -mas "${mask}"
-              $(dirname ${t2})/tmp_$(basename ${t2})
+              $(dirname "${t2}")/tmp_$(basename "${t2}")
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -279,7 +286,7 @@ for subID in ${search}; do
             # threshold
             cmd=(
               fslmaths
-              $(dirname ${t2})/tmp_$(basename ${t2})
+              $(dirname "${t2}")/tmp_$(basename "${t2}")
               -uthr 10000
               -bin
               "${fn_nuisance}"
@@ -295,12 +302,12 @@ for subID in ${search}; do
             fi
 
             # delete tmp files          
-            rm $(dirname ${t2})/tmp_$(basename ${t2}) 2>/dev/null
+            rm $(dirname "${t2}")/tmp_$(basename "${t2}") 2>/dev/null
           else
 
           #-----------------------------------------------------------------------------
           # calculate ratio
-            if [[ -f ${t1} && -f ${t2} ]]; then
+            if [[ -f "${t1}" && -f "${t2}" ]]; then
               print_create_img "T1w/T2w ratio"
               cmd=(
                 call_t12ratio
@@ -335,7 +342,7 @@ for subID in ${search}; do
         if [[ -f "${fn_nuisance}" ]]; then
 
           # fetch template and warp files created with spinoza_registration in step before
-          mni_mask=${REPO_DIR}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz
+          mni_mask="${REPO_DIR}/misc/MNI152_T1_1mm_Dil3_sagsinus_mask.nii.gz"
           
           # affine matrix
           mat_file=$(
@@ -424,7 +431,7 @@ for subID in ${search}; do
 
           rm ${fn_mni} 2>/dev/null
           echo; echo -e "Created ${BOLD_GREEN}${fn_out}${RESET}"
-          if [[ ! -z ${t1} ]]; then
+          if [[ ! -z "${t1}" ]]; then
             cmd=(
               launch_viewer
               "${t1}"

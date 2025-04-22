@@ -36,7 +36,7 @@ Options:
   -o|--ow         Overwrite existing output
   --debug         don't submit job, just print inputs/outputs
   --no-nordic     turn off NORDIC denoising during reconstruction
-  --sge           submit job to cluster (SGE)
+  --sge           submit job to cluster (SoGE/SLURM)
 
 Positional:
   <project root>  base directory containing the derivatives and the subject's folders.
@@ -44,15 +44,23 @@ Positional:
 
 Example:
   # call the module
-  spinoza_linerecon DIR_DATA_HOME DIR_DATA_SOURCE
+  spinoza_linerecon \$DIR_DATA_HOME \$DIR_DATA_SOURCE
 
-  # run with master:  
-    "master -m 03a -s 003 -n 4 -e 5" # (sub-003, ses-4, multi-echo (5) acquisition)
-    "master -m 03a -s 003 -n 4"      # (sub-003, ses-4, single-echo acquisition)
-    "master -m 03a --sge"            # (submit to cluster)
-    "master -m 03a -o"               # (overwrite existing files)
-    "master -m 03a -o --sge"         # (overwrite and submit)
-    "master -m 03a -s 003 --debug"   # (debug mode)
+Call with master:
+  # sub-01, ses-4, multi-echo (5) acquisition
+  master -m $(get_module_nr $(basename ${0})) -s 01 -n 4 -e 5
+
+  # sub-01, ses-4, single-echo acquisition
+  master -m $(get_module_nr $(basename ${0})) -s 01 -n 4
+
+  # submit to cluster
+  master -m $(get_module_nr $(basename ${0})) -s --sge
+
+  # turn off nordic (in case of surface coils)
+  master -m $(get_module_nr $(basename ${0})) -s --sge --no-nordic
+
+  # debug mode
+  master -m $(get_module_nr $(basename ${0})) -s 01 --debug
 
 Notes:
   Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
@@ -174,12 +182,12 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  lab_func=${INPUT}/${base_path}
-  if [[ -d ${lab_func} ]]; then
+  lab_func="${INPUT}/${base_path}"
+  if [[ -d "${lab_func}" ]]; then
 
-    bidsfunc=${OUTPUT}/${base_path}/func
-    if [[ ! -d ${bidsfunc} ]]; then
-      mkdir -p ${bidsfunc}
+    bidsfunc="${OUTPUT}/${base_path}/func"
+    if [[ ! -d "${bidsfunc}" ]]; then
+      mkdir -p "${bidsfunc}"
     fi
 
     # fetch and sort the lab-files
@@ -231,13 +239,13 @@ for subID in ${search}; do
       ((count++))
 
       # fetch run
-      run=$(run_id ${bold})
+      run=$(run_id "${bold}")
       if [[ ${run} -eq 0 ]]; then
         run=${count}
       fi
 
       # fetch task
-      task=$(task_id ${bold})
+      task=$(task_id "${bold}")
 
       # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
       par_file=(
@@ -272,7 +280,7 @@ for subID in ${search}; do
         )
 
         # read task_id
-        task=$(task_id ${fileparts})
+        task=$(task_id "${fileparts}")
 
         # read echoes from PAR file, verify against specified nr of echoes
         n_par_echo=$(

@@ -75,8 +75,15 @@ Positional:
   <output>        output folder (<subject>/[<ses->] will be appended!)
 
 Example:
-  spinoza_segmentfast DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
-  spinoza_segmentfast -s 001 -n 1 DIR_DATA_DERIV/skullstripped DIR_DATA_DERIV/fsl
+  spinoza_segmentfast \$DIR_DATA_DERIV/skullstripped \$DIR_DATA_DERIV/fast
+  spinoza_segmentfast -s 001 -n 1 \$DIR_DATA_DERIV/skullstripped \$DIR_DATA_DERIV/fast
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # kwargs
+  master -m $(get_module_nr $(basename ${0})) -s 01 -x -R=0.5,-S=3,--nopve
 
 ---------------------------------------------------------------------------------------------------
 

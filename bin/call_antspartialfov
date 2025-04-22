@@ -30,7 +30,6 @@ Arguments:
   -c <contrast>   Specify contrast type (e.g., t1, t2); passed to registration call
 
 Options:
-  -h | --help     Show this help text and exit
   -h|--help       print this help text
   -u|--int        convert <output> to INT16
   -f|--single     convert <output> to FLOAT32 [default]

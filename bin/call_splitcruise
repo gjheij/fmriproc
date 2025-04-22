@@ -12,7 +12,8 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_splitcruise
 
-Split a CRUISE cortical segmentation image into binary gray matter (GM) and white matter (WM) masks.
+Split a CRUISE cortical segmentation image into binary gray matter (GM) and white matter (WM) 
+masks.
 
 The CRUISE segmentation format uses the following voxel values:
   - 1: Gray Matter
@@ -45,8 +46,8 @@ This will produce:
 ---------------------------------------------------------------------------------------------------
     """
 
-    gmseg   = None
-    output  = None
+    cruise = None
+    output = None
 
     if len(argv) < 2:
         print(main.__doc__)

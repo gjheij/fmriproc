@@ -59,6 +59,12 @@ Input arguments:
                     - ${BOLD_BLUE}spinoza_denoising${RESET}: input directory for pybest
                     - ${BOLD_BLUE}spinoza_lineplanning${RESET}: file to use for registration with 
                       ses-1
+                    - ${BOLD_BLUE}spinoza_profiling${RESET}: directly specify an image to sample 
+                      the profile from. This assumes that the image is in the same space as the 
+                      specified input subjects. Generally, this is not the case, as each subject 
+                      has a slightly different space. However, in some scenarios, I can see how 
+                      this could be useful. E.g., with images in MNI space (although I discourage 
+                      layerifaction in MNI-space) or you only have 1 subject.
 
 -j <n-jobs>       number of jobs to use when submitting to SoGE. Used in multiple modules
 
@@ -90,6 +96,36 @@ Input arguments:
                       switch to specify model type
                     - ${BOLD_BLUE}spinoza_qmrimaps${RESET}: specify custom json-file with MP2RAGE
                       (ME) parameters
+                    - ${BOLD_BLUE}spinoza_mgdm${RESET}: specify the priors of the inputs (defaults
+                      to 7T input, but can be changed to 3T):
+                      The algorithm accepts 4 input files, each representing a different prior. In 
+                      any case, we need a T1w and T1map-file, which can come from different 
+                      sources (e.g., field strength, atlases, or sequence). These sources include:
+                      ['DWIFA3T', 'DWIMD3T', 'T1map9T', 'Mp2rage9T', 'T1map7T', 'Mp2rage7T', 'PV',
+                      'Filters', 'T1pv', 'Mprage3T', 'T1map3T', 'Mp2rage3T', 'HCPT1w', 'HCPT2w',
+                      'NormMPRAGE'].
+
+                      For each input file, one of these sources must be specified. By default, the
+                      priors are set to:
+                  
+                        prior_list = [
+                          "Mp2rage7T",
+                          "T1map7T",
+                          "Filters",
+                          "Filters"
+                        ]
+
+                      where:
+                        - T1w-file (-t|--t1w) comes from a 7T MP2RAGE sequence
+                        - T1map-file (-m|--t1map) comes from a 7T MP2RAGE sequence
+                        - Mask representing the skull (-s|--skull) is a "Filters"
+                        - Mask representing the dura (-d|--dura) is a "Filters"
+                      
+                      Format should be comma-separated list for the number of inputs used. For the
+                      regular version, this means 4 (T1w, T1map, skull, and dura). For GdH-version,
+                      this means 2 (T1w, T1map):
+
+                        E.g., "-p Mprage3T,T1map3T,Filters,Filters"
 
 -q <sge queue>    send jobs to specific queue.
 

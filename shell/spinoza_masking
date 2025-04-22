@@ -46,8 +46,29 @@ Positional:
   <skullstr.>     output folder for brain-extracted output (generally the input for Nighres)
 
 Example:
-  spinoza_masking <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
-  spinoza_masking -s 01 -n 1 <dir>/pymp2rage <dir>/masked_mp2rage <dir>/manual_masks <dir>/skullstripped
+  spinoza_masking \\
+    \$DIR_DATA_DERIV/pymp2rage \\
+    \$DIR_DATA_DERIV/masked_mp2rage \\
+    \$DIR_DATA_DERIV/manual_masks \\
+    \$DIR_DATA_DERIV/skullstripped
+
+  spinoza_masking \\
+    -s 01 \\
+    -n 1 \\
+    \$DIR_DATA_DERIV/pymp2rage \\
+    \$DIR_DATA_DERIV/masked_mp2rage \\
+    \$DIR_DATA_DERIV/manual_masks \\
+    \$DIR_DATA_DERIV/skullstripped
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # skip ITK-snap
+  master -m $(get_module_nr $(basename ${0})) -s 01 --no-manual
+
+  # specify lower/upper bound for call_winsorize
+  master -m $(get_module_nr $(basename ${0})) -s 01 --no-manual -l 0.05 -u 0.95
 
 ---------------------------------------------------------------------------------------------------
 
@@ -138,10 +159,10 @@ for subID in ${search}; do
     ses_flag=""
   fi
 
-  input_dir=${INPUT}/${base_path}
-  output_dir=${OUTPUT}/${base_path}/anat
-  mask_dir=${MASKS}/${base_path}
-  skull_dir=${SKULL}/${base_path}
+  input_dir="${INPUT}/${base_path}"
+  output_dir="${OUTPUT}/${base_path}/anat"
+  mask_dir="${MASKS}/${base_path}"
+  skull_dir="${SKULL}/${base_path}"
 
   if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"

@@ -24,9 +24,11 @@ integrating Nighres CRUISE cortical surface reconstructions with FreeSurfer tool
 visualization or further processing in FreeView).
 
 The general pipeline assumes you've already:
-  1) Resampled the levelset output from Nighres to FreeSurfer space (e.g., using 'call_antsapplytransform')
-  2) Created a mesh from the resampled levelset using 'call_nighreslevelmesh'
-  3) Use this script to convert the mesh to FreeSurfer RAS coordinates and save it in FS-compatible format
+  1)  Resampled the levelset output from Nighres to FreeSurfer space (e.g., using 
+      'call_antsapplytransform')
+  2)  Created a mesh from the resampled levelset using 'call_nighreslevelmesh'
+  3)  Use this script to convert the mesh to FreeSurfer RAS coordinates and save it in 
+      FS-compatible format
 
 Usage:
   call_nighres2freesurfer <subject> <mesh_file> <output_file>

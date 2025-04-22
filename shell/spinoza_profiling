@@ -26,6 +26,11 @@ Usage:
 Arguments:
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>    session ID (e.g., 1, 2, or none)
+  -i <image>      directly specify an image to sample the profile from. This assumes that the
+                  image is in the same space as the specified input subjects. Generally, this is
+                  not the case, as each subject has a slightly different space. However, in some
+                  scenarios, I can see how this could be useful. E.g., with images in MNI space
+                  (although I discourage layerifaction in MNI-space) or you only have 1 subject.
 
 Options:
   -h|--help       print this help text
@@ -33,13 +38,36 @@ Options:
 
 Positional:
   <nighres>       parent directory containing the output files of Nighres
-                    -<nighres>/<subject>/<session>/layering/*boundaries*
-                    -<nighres>/<subject>/<session>/profiling/*lps_data.nii.gz
+                    - \$DIR_DATA_DERIV/nighres/<subject>/<session>/layering/*boundaries*
+
+                      # logic to find boundaries file (nighres_dir is compiled from input folder,
+                      # subject ID and session ID)
+                      boundaries=\$(
+                        find "\${nighres_dir}/layering" \\
+                        -type f \\
+                        -name "*acq-\${DATA^^}*" \\
+                        -and -name "*boundaries.nii.gz"
+                      )
+  <sample loc.>   directory where the to-be-sampled lives:
+                    - If you want to sample T1-values that are reconstructed by the scanner, this 
+                      is \$DIR_DATA_HOME (output from 'spinoza_scanner2bids' [module $(get_module_nr spinoza_scanner2bids)]).
+                    - If this is data from pymp2rage (output from 'spinoza_scanner2bids' [module 
+                      $(get_module_nr spinoza_qmrimaps)]), this is \$DIR_DATA_DERIV/pymp2rage
   <suffix>        suffix to use to look for to-be-sampled dataset (e.g., T1map)
 
 Example:
-  spinoza_profiling NIGHRES DIR_DATA_HOME T1map
-  spinoza_profiling -s 01 -n 2 NIGHRES DIR_DATA_HOME T1map
+  spinoza_profiling \$DIR_DATA_DERIV/nighres \$DIR_DATA_HOME T1map
+  spinoza_profiling -s 01 -n 2 \$DIR_DATA_DERIV/nighres \$DIR_DATA_DERIV/pymp2rage T1map
+
+Call with master:
+  # vanilla (defaults to 'T2starmap')
+  master -m $(get_module_nr $(basename ${0}))
+
+  # use -x flag to change suffix
+  master -m $(get_module_nr $(basename ${0})) -x T1map
+
+  # directly specify image
+  master -m $(get_module_nr $(basename ${0})) -i some_image_space-MNI152NLin6Asym_T1map.nii.gz
 
 ---------------------------------------------------------------------------------------------------
 
@@ -48,13 +76,13 @@ USAGE
 }
 
 if [[ $# -lt 2 ]] ; then
-  echo NOT ENOUGH ARGUMENTS SPECIFIED
   Usage && exit 0
 fi
 
 # Check for subject & session flags
 OW=0
-while getopts :-:hos:n: argument
+tobesampled=""
+while getopts :-:hos:n:i: argument
 do
   case ${argument} in
     -)
@@ -79,11 +107,13 @@ do
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
-          ;;          
+          ;; 
+    i)  tobesampled="${OPTARG}"
+          ;;                    
   esac
 done
 
-if [[ $# -lt 3 ]] ; then
+if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
@@ -150,18 +180,28 @@ for subID in ${search}; do
       continue
     fi
 
+    #-----------------------------------------------------------------------------
     # file to sample from
-    tobesampled=$(
-      find "${sampled_dir}" \
-      -maxdepth 2 \
-      -type f \
-      -name "*${TAG}*" \
-      2>/dev/null
-    )
+    if [[ ! -z "${tobesampled}" ]]; then
+      if [[ ! -f "${tobesampled}" ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "input" "Specified to-be-sampled file ${BOLD_GREEN}${tobesampled}${RESET} does not exist.."
+        exit 1
+      fi
+    else
+      tobesampled=$(
+        find "${sampled_dir}" \
+        -maxdepth 2 \
+        -type f \
+        -name "*${TAG}*" \
+        2>/dev/null
+      )
 
-    if [[ -z ${tobesampled} ]]; then
-      print_file_not_in_dir "${sub_name}" "sampling [\"*${TAG}\"]" "${sampled_dir}"
-      continue
+      if [[ -z ${tobesampled} ]]; then
+        print_file_not_in_dir "${sub_name}" "sampling [\"*${TAG}\"]" "${sampled_dir}"
+        continue
+      fi
     fi
 
     #-----------------------------------------------------------------------------

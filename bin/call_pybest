@@ -58,11 +58,11 @@ Optional:
                     --subject     # subject ID            (-s flag)
                     --session     # session ID            (-n flag)
                     --n-cpus      # number of slots       (-c flag)
-                    --task        # TASK_IDS-variable     (see '${CONFIG_FILE}')
-                    --space       # PYBEST_SPACE-variable (-r flag or see '${CONFIG_FILE}')
+                    --task        # TASK_IDS-variable     (see '\${CONFIG_FILE}')
+                    --space       # PYBEST_SPACE-variable (-r flag or see '\${CONFIG_FILE}')
                     --hemi        # both; (if surface)
                     --out-dir     # output dir            (-o flag)
-                    --n-comps     # PYBEST_COMPS-variable (-p flag or see '${CONFIG_FILE}')
+                    --n-comps     # PYBEST_COMPS-variable (-p flag or see '\${CONFIG_FILE}')
                     --verbose ERROR
                     --save-all
                     input_dir     # input directory       (-f flag)     

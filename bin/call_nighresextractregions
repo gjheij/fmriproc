@@ -54,10 +54,11 @@ Optional (flags with defaults):
                     "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                   E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                    "-x regularization_weight=0.05,max_iterations=1000"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()', The kwargs specified in this flag take precedent over 
+                  the default kwargs:
 
                   defaults = {
                     "overwrite": True,
@@ -108,7 +109,7 @@ Notes:
         "maximum_label": "lbls.nii.gz"
     }
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Read inputs to dictionary
     if input_dir:
         print(f"Loading files from {gb}{input_dir}{end}..")
@@ -125,7 +126,7 @@ Notes:
 
     [print(f" {key}: {gb}{val}{end}") for key, val in input_kws.items()]
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Default kwargs
     defaults = {
         "save_data": True,
@@ -141,14 +142,14 @@ Notes:
     # combine input & kwargs
     combined_kwargs = {**input_kws, **kwargs}
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # run extract_brain_region 
     cortex = extract_brain_region(**combined_kwargs)
 
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Nicer formatting of output filenames
     suff = {
         'cerebrum': 'cr',

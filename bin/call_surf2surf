@@ -9,10 +9,10 @@ def main(argv):
 ---------------------------------------------------------------------------------------------------
 call_surf2surf
 
-Wrapper for 'mri_surf2surf' as implemented in nipype. Wrapped executable: mri_surf2surf.Transform a 
-surface file from one subject to another via a spherical registration. Both the source and target 
-subject must reside in your Subjects Directory, and they must have been processed with recon-all, 
-unless you are transforming to one of the icosahedron meshes.
+Wrapper for 'mri_surf2surf' as implemented in nipype. Wrapped executable: mri_surf2surf.Transform 
+a surface file from one subject to another via a spherical registration. Both the source and 
+target subject must reside in your Subjects Directory, and they must have been processed with 
+recon-all, unless you are transforming to one of the icosahedron meshes.
 
 Mandatory:
   <src subj>      source subject; space to transform surface FROM
@@ -22,7 +22,7 @@ Mandatory:
   <hemisphere>    hemisphere ('lh' or 'rh')
 
 Outputs
-    output file     <src file> projected onto the surface of <trg subject>
+  output file     <src file> projected onto the surface of <trg subject>
 
 Example:
   # fsaverage > fsnative

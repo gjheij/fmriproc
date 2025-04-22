@@ -4,7 +4,7 @@ import mkl
 mkl.set_num_threads=1
 
 import getopt
-from fmriproc import prf import prf
+from fmriproc import prf
 from lazyfmri import (
     utils,
     dataset,
@@ -14,7 +14,7 @@ import sys
 import json
 import yaml
 import numpy as np
-from scipy import ioo
+from scipy import io
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"

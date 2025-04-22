@@ -47,7 +47,18 @@ Options:
   -h|--help       print this help text
   
 Example:
-  spinoza_line2surface -s \${SUBJECT_PREFIX}001 -y anat_session2 -d /output/directory/whatev
+  spinoza_line2surface \\
+    -s sub-01 \\
+    -y \$DIR_DATA_HOME/sub-01/ses-2/anat/sub-01_ses-2_acq-MP2RAGE_T1w.nii.gz \\
+    -o \$DIR_DATA_DERIV/pycortex \\
+    -i \${NIGHRES/sub-01/ses-2
+
+Call with master:
+  # vanilla (defaults to ses-2 for line-scanning)
+  master -m $(get_module_nr $(basename ${0})) -s 01 
+
+  # set session to 3
+  master -m $(get_module_nr $(basename ${0})) -s 01 -l 3
 
 ---------------------------------------------------------------------------------------------------
 

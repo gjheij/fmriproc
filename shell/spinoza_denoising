@@ -26,9 +26,9 @@ Arguments:
   -t <task ID>    limit pybest processing to a specific task. Default is all tasks in TASK_IDS
                   in the spinoza_setup-file Can also be comma-separated list: task1,task2
   -j <n_cpus>     number of CPUs to use (default = 1)
-  -c <n_comps>    overwrite the PYBEST_N_COMPS-variable deciding the number of components for 
-                  the PCA (default = 10)
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -c <n_comps>    overwrite the \$PYBEST_N_COMPS-variable deciding the number of components for 
+                  the PCA (default = 20 as per Marco's investigations)
+  -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG in \$CONFIG_FILE
   -x <kwargs>     Additional commands to be passed to 'pybest'. Format should be comma-separated 
                   flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
@@ -66,13 +66,26 @@ Positional:
   <derivatives>   path to the derivatives folder
 
 Eample:
-  spinoza_denoising DIR_DATA_HOME DIR_DATA_DERIV
-  spinoza_denoising -s 001 -n 1 DIR_DATA_HOME DIR_DATA_DERIV
-  spinoza_denoising -o DIR_DATA_HOME DIR_DATA_DERIV
+  spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV
+  spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV
+  spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # submit with 10 cores
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 10 --sge
+
+  # use volumetric space
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func
+
+  # limit to specific tasks rather than \$TASK_IDS in \$CONFIG_FILE
+  master -m $(get_module_nr $(basename ${0})) -s 01 --func -t rest,task1
 
 Notes:
-  There are multiple flags to change the PYBEST_SPACE-variable. If your desired space is not speci-
-  fied, update the variable in the setup file.
+  There are multiple flags to change the \$PYBEST_SPACE-variable. If your desired space is not 
+  specified, update the variable in the setup file.
 
 ---------------------------------------------------------------------------------------------------
 
@@ -188,7 +201,7 @@ fi
 
 # set default nr of components
 if [[ -z ${PYBEST_N_COMPS} ]]; then
-  PYBEST_N_COMPS=10
+  PYBEST_N_COMPS=20
 fi
 
 if [[ ${run_local} -eq 0 ]]; then

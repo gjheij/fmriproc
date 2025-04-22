@@ -80,7 +80,7 @@ Arguments:
                   sibilities over the consequences in later scripts.. This option is only avai-
                   lable for 'dcm2niix' (DCM-files), not 'parrec2nii' (PAR/REC-files).
   -a <suffixes>   use suffixes to store other anatomical files in the BIDS folder. This over-
-                  writes the SEARCH_ANATOMICALS-variable in the setup-file. For instance, if 
+                  writes the \$SEARCH_ANATOMICALS-variable in the setup-file. For instance, if 
                   you have qMRI-data that did not come from MP2RAGEME, you can specify:
                   "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
                   will be added to the search. 'acq' and 'run' tags are derived from the file-
@@ -112,14 +112,43 @@ Options:
                   functional files have dummy-saving turned on.
 
 Positional:
-  <project root>      directory to output BIDSified data to
-  <sourcedata>        directory containing to be converted data
+  <project root>  directory to output BIDSified data to
+  <sourcedata>    directory containing to be converted data
 
 Example:
-  spinoza_scanner2bids /path/to/project_root /path/to/your/project/sourcedata     # regular
-  spinoza_scanner2bids -n 1/path/to/project_root /path/to/your/project/sourcedata # regular|ses-1
-  spinoza_scanner2bids (shows this help text)                                     # help
-  spinoza_scanner2bids --lines -n 2 DIR_DATA_HOME DIR_DATA_SOURCE                 # lines|ses-2
+  # regular
+  spinoza_scanner2bids \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+
+  # regular whole-brain session
+  spinoza_scanner2bids -s 01 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+
+  # line-scanning session
+  spinoza_scanner2bids --lines -n 2 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+
+  # mixed with MP2RAGE (assumes BOLD files have 'acq-3DEPI' tag to unmix BOLD files)
+  spinoza_scanner2bids --lines --inv -n 2 \$DIR_DATA_HOME \$DIR_DATA_HOME/sourcedata
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+  
+  # fix TR
+  master -m $(get_module_nr $(basename ${0})) -s 01 -t 1.32
+
+  # fix PhaseEncodingDirection
+  master -m $(get_module_nr $(basename ${0})) -s 01 --ap
+
+  # cut volumes from BOLD, but not FMAP
+  master -m $(get_module_nr $(basename ${0})) -s 01 -v 4 --skip-fmap
+
+  # skip reorientation to LPI
+  master -m $(get_module_nr $(basename ${0})) -s 01 --no-lpi
+
+  # mixed line-scanning session
+  master -m $(get_module_nr $(basename ${0})) -s 01 --lines --inv
+
+  # run specific runs
+  master -m $(get_module_nr $(basename ${0})) -s 01 -r 1,2,4
 
 Notes:
   Assumes the following data structure:
@@ -139,13 +168,13 @@ Notes:
           ├── fmap
           └── phase
 
-Notes:
   see https://fmriproc.readthedocs.io/en/latest/pipeline_steps.html for more tips and tricks regar-
   ding filenaming
+
 ---------------------------------------------------------------------------------------------------
 
 EOF
-    exit 1
+
 }
 
 #-----------------------------------------------------------------------------

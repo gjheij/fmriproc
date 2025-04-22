@@ -19,8 +19,8 @@ call_t12ratio
 Taking the T1w over T2w ratio presents a nice change to delineate the sagittal sinus and other nui-
 sance areas quite nicely. This is a first step in making a sinus mask. The other one involved re-
 gistering the T1w to the MNI152 template, followed by using that transformation to get the MNI152
-dilated sagittal sinus in subject-specific space. Multiplying these images should result in a decent
-initial estimate of the sinus.
+dilated sagittal sinus in subject-specific space. Multiplying these images should result in a 
+decent initial estimate of the sinus.
 
 Usage:
   call_t12ratio [mandatory] [arguments] [options]

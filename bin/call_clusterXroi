@@ -48,17 +48,21 @@ Assumptions:
   - Design.fsf is available and used to parse contrast names
 
 Example:
-  call_clusterXroi -s sub-001 -f /path/to/level1/sub-001.feat \
-                   -g /path/to/level2/task-shapes.gfeat \
-                   -m /path/to/rois -z 1 -c 1,2,3
+  call_clusterXroi \\
+    -s sub-001 \\
+    -f /path/to/level1/sub-001.feat \\
+    -g /path/to/level2/task-shapes.gfeat \\
+    -m /path/to/rois \\
+    -z 1 \\
+    -c 1,2,3
 
 Batch example:
-  for i in 002 003 004; do
-    qsub -N extract_${i} call_clusterXroi \
-    -s sub-${i} \
-    -f /data/fmriprep/level1/sub-${i}.feat \
-    -g /data/fmriprep/level2/task-shapes.gfeat \
-    -m /data/rois -z 1;
+  for i in 002 003 004; do \\
+    qsub -N extract_${i} \$BIN_DIR/call_clusterXroi \\
+    -s sub-${i} \\
+    -f /data/fmriprep/level1/sub-${i}.feat \\
+    -g /data/fmriprep/level2/task-shapes.gfeat \\
+    -m /data/rois -z 1; \\
   done
 
 Outputs:

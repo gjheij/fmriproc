@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from fmriproc.image import massp_to_table
+from fmriproc.image import massp_to_tablefrom fmriproc.image import massp_to_table
 opj = os.path.join
 
 def main(argv):
@@ -24,11 +24,11 @@ Usage:
   call_massp2table -l <label_image> [-o <output_file>] [-u mm|voxels]
 
 Mandatory:
-  -l, --label     Path to the MASSP label image (NIfTI format)
+  -l|--label      Path to the MASSP label image (NIfTI format)
 
 Optional:
-  -o, --out       Output file name [default: label.json]
-  -u, --unit      Unit of measure: "mm" for mm³ (default), or "voxels" for raw counts
+  -o|--out        Output file name [default: label.json]
+  -u|--unit       Unit of measure: "mm" for mm³ (default), or "voxels" for raw counts
 
 Options:
   -h|--help       print this help text
@@ -72,7 +72,7 @@ Example:
         print(main.__doc__)
         sys.exit()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Convert label to volume table
 
     if os.path.exists(input):

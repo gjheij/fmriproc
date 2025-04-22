@@ -25,18 +25,27 @@ Scenarios:
   - MP2RAGE+MP2RAGEME [ACQ=("MP2RAGE" "MP2RAGEME")], 1st element is reference ('MP2RAGE'):
 
       # fixed
+      The fixed image is the first element of \${ACQ[@]}. In this case, 'MP2RAGE'. We search for
+      this file in \${input_dir}, which is given by the input directory to this function (see
+      <anat folder>), combined with the subject ID (and session ID if given). Thus, this file
+      must contain 'MP2RAGE' and 'T1w.nii.gz' and must be in native space (if the file is
+      transformed, it will have a 'space-' tag, this must be absent!).
+
       fixed_file=\$(
-        find -L "\${input_dir}" \
-        -type f \
-        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+        find -L "\${input_dir}" \\
+        -type f \\
+        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \\
         -not -name "*space-*"
       )
 
       # moving
+      The moving file is the second element of \${ACQ[@]}. In this case, 'MP2RAGEME'. The same
+      logic holds for this file.
+
       moving_files=\$(
-        find -L "\${input_dir}" \
+        find -L "\${input_dir}" \\
         -type f \
-        -iname "*\${ACQ[1]^^}_*T1w.nii.gz" \
+        -iname "*\${ACQ[1]^^}_*T1w.nii.gz" \\
         -not -name "*space-*"
       )
 
@@ -44,31 +53,41 @@ Scenarios:
     'run-[2-i]':
 
       # fixed
+      If multple MPRAGEs are acquired, they must have a 'run-' identifier and \${ACQ[@]} should
+      only contain 'MPRAGE'. In this scenario, 'run-1' will be taken as reference. Therefore, it 
+      should have 'MPRAGE', 'run-1', and 'T1w.nii.gz' in its filename.
+
       fixed_file=\$(
-        find -L "\${input_dir}" \
-        -type f \
-        -iname "*\${ACQ[0]^^}_run-1*T1w.nii.gz" \
+        find -L "\${input_dir}" \\
+        -type f \\
+        -iname "*\${ACQ[0]^^}_run-1*T1w.nii.gz" \\
         -not -name "*space-*"
       )
 
       # moving
+      The moving files are found based on the same logic, other than a run-identifier greater
+      than 1.
+
       moving_files=\$(
-        find -L "\${input_dir}" \
-        -type f \
-        -iname "*\${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \
+        find -L "\${input_dir}" \\
+        -type f \\
+        -iname "*\${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \\
         -not -name "*space-*"
       )
 
     - To MNI [acq=("MP2RAGE") | acq=("MP2RAGEME") | acq=("MPRAGE")]:
 
-      # fixeds
+      # fixed
+      The fixed file is the 1mm MNI template from FSL (MNI152NLin6Asym).
       fixed_file=\${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
 
       # moving
+      Moving files are all files containing the first element of \${ACQ[@]}.
+
       moving_files=\$(
-        find -L "\${input_dir}" \
-        -type f \
-        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \
+        find -L "\${input_dir}" \\
+        -type f \\
+        -iname "*\${ACQ[0]^^}_*T1w.nii.gz" \\
         -not -name "._*"
       )      
 
@@ -84,8 +103,9 @@ Usage:
 Arguments:
   -s <subject>    subject ID (e.g., 01). Can also be comma-separated list: 01,02,05
   -n <session>    session ID (e.g., 1, 2, or none)
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-  -j <n_cpus>     number of CPUs to use (default = 1)
+  -j <cpus>       number of cores to use (default is 1), internally sets the ITK-variable:
+                  'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS', which will be reset to 1 after the
+                  process
 
 Options:
   -h|--help       print this help text
@@ -95,35 +115,40 @@ Options:
                   != 'mni' and no registration method is specified
   --syn           use SyN-diffeomorphic registration. Default if <registration type> == 'mni'
                   and no registration method is specified
-  --fsl           also output the matrix in FSL-compatible format (not available for SyN)
-  -c|--sge        submit job to cluster (SGE); given that we have to rename files after regi-
-                  stration, we'll wait for the job to finish if submitted. This can still help
-                  with memory issues (e.g., if your local machine does not have enough RAM).
-  --cmd           only echo command; can be useful to submit multiple subjects without waiting 
-                  for the process to finish. This requires the master command to be re-run again
-                  to apply and files
+  --fsl           also output the matrix in FSL-compatible format (not available for SyN, though
+                  see: https://github.com/gjheij/fmriproc/blob/main/fmriproc/misc/ants2fsl.md)
 
 Positional:
-  <anat folder>   folder containing images for registration. If DATA == "AVERAGE", we'll look
+  <anat folder>   folder containing images for registration. If \$DATA == "AVERAGE", we'll look
                   for T1w-images containing 'acq-MP2RAGE_' and 'acq-MP2RAGEME_', create a warp
                   file, and apply this file to MP2RAGEME-files with ('T1w' 'T1map' 'R2starmap
                   Files ending with something other than 'T1w' or 'T1map' will also be copied 
                   to have 'acq-AVERAGE' in the filename, rather than 'space-MP2RAGE'. This en-
-                  sures compatibility with 'spinoza_sagittalsinus' when DATA == AVERAGE. Regis-
+                  sures compatibility with 'spinoza_sagittalsinus' when \$DATA == AVERAGE. Regis-
                   tered files will end up in the <anat folder>, the warp file itself in <output
                   folder>
   <output folder> folder where warp files are stored. Registered files are stored in <anat folder>
   <reg type>      which registration should be carried out. If empty, we'll default to a regis-
-                  tration between MP2RAGEME and MP2RAGE (assumes that DATA == AVERAGE). This 
+                  tration between MP2RAGEME and MP2RAGE (assumes that \$DATA == AVERAGE). This 
                   version is called as 'master -m 05a'. If 'mni', we'll register the T1w-file
-                  in <anat folder> with FSL's 1mm template (MNI152NLin6Asym). This version is 
+                  in <anat folder> with FSL's 1mm template ('MNI152NLin6Asym'). This version is 
                   called as 'master -m 05b'. If type == 'mni', we'll default to the first ele-
                   ment in \${ACQ[@]} to register to MNI. Generally, this will/should be 
                   MP2RAGE     
 
 Example:
-  spinoza_registration <project>/derivatives/pymp2rage <project>/derivatives/ants mp2rage
-  spinoza_registration -s 001 -n 1 <project>/derivatives/pymp2rage <project>/derivatives/ants
+  spinoza_registration \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/ants mp2rage
+  spinoza_registration -s 001 -n 1 \$DIR_DATA_DERIV/pymp2rage \$DIR_DATA_DERIV/ants
+
+Call with master:
+  # anat to anat
+  master -m 05a -s 01
+
+  # also save transformations following FSL-convention
+  master -m 05a -s 01 --fsl
+
+  # anat to MNI with 10 jobs
+  master -m 05b -s 01 -j 10
 
 ---------------------------------------------------------------------------------------------------
 
@@ -135,7 +160,6 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-run_local=1
 OW=
 reg_type=""
 verb_flag=""
@@ -143,10 +167,9 @@ FSL_FMT=0
 verb=0
 fsl_flag=""
 n_cpus=1
-echo_cmd=0
 
 # Check for subject flag
-while getopts :-:hocs:n:q:j: argument
+while getopts :-:hocs:n:j: argument
 do
   case ${argument} in
     -)
@@ -159,13 +182,7 @@ do
           ;;
         affine)
           reg_type="--affine"
-          ;;  
-        sge)
-          run_local=0
-          ;;    
-        cmd)
-          echo_cmd=1
-          ;;            
+          ;;     
         verbose)
           verb_flag="--verbose"
           verb=1
@@ -193,14 +210,10 @@ do
           ;;
     n)  ses=${OPTARG}
           ;;
-    c)  SGE=1
-          ;;
     o)  OW=1
           ;;
     j)  n_cpus=${OPTARG}
           ;;           
-    q)  SGE_QUEUE=${OPTARG}
-          ;;             
   esac
 done
 
@@ -225,10 +238,6 @@ fi
 if [[ -z ${TYPE} ]]; then
   TYPE="${ACQ[0],,}"
 fi
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
 
 #-----------------------------------------------------------------------------
 # intro

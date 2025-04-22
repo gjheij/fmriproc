@@ -35,8 +35,15 @@ Positional:
   <mask output>   output folder for masks
 
 Example:
-  spinoza_dura T1wdir INV2dir nighresdir maskdir
-  spinoza_dura -s 001 -n 1 T1wdir INV2dir nighresdir maskdir
+  spinoza_dura \${DIR_DATA_HOME} \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/manual_masks
+  spinoza_dura \\
+    -s 001 \\
+    -n 1 \\
+    \${DIR_DATA_HOME} \${DIR_DATA_DERIV}/nighres \${DIR_DATA_DERIV}/manual_masks
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
 
 ---------------------------------------------------------------------------------------------------
 

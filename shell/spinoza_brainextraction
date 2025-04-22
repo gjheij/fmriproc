@@ -47,9 +47,29 @@ Positional:
   <software>      which software to use: ants|FSL|CAT12
 
 Example:
-  spinoza_brainextraction dir/to/t1w dir/to/skullstrip /dir/to/masks ants
-  spinoza_brainextraction -o dir/to/pymp2rage dir/to/cat12 /dir/to/masks cat12
-  spinoza_brainextraction -s 01,02 -n 2 dir/to/inv2 dir/to/skullstrip /dir/to/masks inv2
+  spinoza_brainextraction \\
+    \$DIR_DATA_DERIV/pymp2rage \\
+    \$DIR_DATA_DERIV/cat12 \\
+    \$DIR_DATA_DERIV/manual_masks \\
+    cat12
+
+  spinoza_brainextraction \\
+    -s 01,02 \\
+    -n 2 \\
+    \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/skullstripped \\
+    \$DIR_DATA_DERIV/manual_masks \\
+    fsl
+
+Call with master:
+  # vanilla
+  master -m $(get_module_nr $(basename ${0})) -s 01
+
+  # use fMRIprep input
+  master -m $(get_module_nr $(basename ${0})) -s 01 --fprep
+
+  # specify bounds for call_winsorize
+  master -m $(get_module_nr $(basename ${0})) -s 01 -l 0.05 -u 0.95
 
 ---------------------------------------------------------------------------------------------------
 

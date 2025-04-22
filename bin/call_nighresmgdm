@@ -24,15 +24,14 @@ def main(context):
 call_nighresmgdm
 
 Estimates brain structures from an atlas for MRI data using a Multiple Object Geometric Deformable
-Model (MGDM).
-
-This script needs at least a T1-weighted image and a T1-map. Other options described as below can be
-included, but if they are omitted then the script will default to the output directory it finds in
-os.environ['NIGHRES'] as defined in the spinoza_setup script with name 'sub-xxx-space-mp2rage_desc'.
-Because Nighres like everything in RAS-coordinates, the script will temporarily flip your axes to
-conform this need (it really will go bad if it is not RAS), but also swaps the orientation to the
-original upon completion. Mind you, that if an error occurs AFTER this re-orientating, the files
-will have RAS!!
+Model (MGDM). This script needs at least a T1-weighted image and a T1-map. Other options described 
+as below can be included, but if they are omitted then the script will default to the output 
+directory it finds in os.environ.get('NIGHRES') as defined in the \$CONFIG_FILE with name 
+'sub-xxx-space-mp2rage_desc'. Because Nighres like everything in RAS-coordinates, the script will 
+temporarily flip your axes to conform this need (it really will go bad if it is not RAS), but also 
+swaps the orientation to the original upon completion. Mind you, that if an error occurs AFTER 
+this re-orientating, the files will have RAS!! The conversion to nifti implemented in 'spinoza_
+scanner2bids' automatically ensures the files are in the correct coordinate system.
 
 Mandatory (required input):
   -t|--t1w        File representing the T1-weighted image
@@ -88,6 +87,12 @@ Optional (flags with defaults):
                     - Mask representing the skull (-s|--skull) is a "Filters"
                     - Mask representing the dura (-d|--dura) is a "Filters"
 
+                  Format should be comma-separated list for the number of inputs used. For the
+                  regular version, this means 4 (T1w, T1map, skull, and dura). For GdH-version,
+                  this means 2 (T1w, T1map):
+
+                    E.g., "-p Mprage3T,T1map3T,Filters,Filters"
+
   -x|--kwargs     Extra arguments that will be directly passed to 'mgdm_segmentation' (see
                   docs-link below for details). The format should be as follows: different para-
                   meters comma-separated, and parameter-value pair separated by '='):
@@ -95,10 +100,11 @@ Optional (flags with defaults):
                     "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
 
                   E.g.,:
-                    "-x regularization_weight=0.05,max_iterations=1000,normalize_probabilities=True"
+                    "-x regularization_weight=0.05,max_iterations=1000"
 
-                  This input will be parsed to a dictionary via 'lazyfmri.utils.parse_kwargs_to_dict()'
-                  The kwargs specified in this flag take precedent over the default kwargs:
+                  This input will be parsed to a dictionary via 'lazyfmri.utils.
+                  parse_kwargs_to_dict()'. The kwargs specified in this flag take precedent over 
+                  the default kwargs:
 
                   defaults = {
                     "overwrite": True,
@@ -108,20 +114,24 @@ Optional (flags with defaults):
                   }
 
 Options (extra):
-    -h|--help       print this help text
+  -h|--help       print this help text
 
 Outputs
-    segmentation (niimg):   Hard brain segmentation with topological constraints (if chosen)
-                            (-mgdm_seg)
-    labels (niimg):         Maximum tissue probability labels (-mgdm_lbls)
-    memberships (niimg):    Maximum tissue probability values, 4D image where the first dimension
-                            shows each voxel's highest probability to belong to a specific tissue, 
-                            the second dimension shows the second highest probability to belong to 
-                            another tissue etc. (-mgdm_mems)
-    distance (niimg):       Minimum distance to a segmentation boundary (-mgdm_dist)
+  segmentation (niimg):   Hard brain segmentation with topological constraints (if chosen)
+                          (-mgdm_seg)
+  labels (niimg):         Maximum tissue probability labels (-mgdm_lbls)
+  memberships (niimg):    Maximum tissue probability values, 4D image where the first dimension
+                          shows each voxel's highest probability to belong to a specific tissue, 
+                          the second dimension shows the second highest probability to belong to 
+                          another tissue etc. (-mgdm_mems)
+  distance (niimg):       Minimum distance to a segmentation boundary (-mgdm_dist)
 
 
 Example:
+  # simple call
+  call_nighresmgdm -t t1w.nii.gz.nii.gz -m t1map.nii.gz
+
+  # include filters
   call_nighresmgdm \
     -t t1w.nii.gz.nii.gz \
     -m t1map.nii.gz \
@@ -130,7 +140,7 @@ Example:
     -o derivatives/nighres/mgdm \
     -n subject_ses-1_acq-MP2RAGE_desc
 
-  call_nighresmgdm -t t1w.nii.gz.nii.gz -m t1map.nii.gz
+  # use input directory
   call_nighresmgdm -i /dir/containing/anatomical/files
 
 Notes:
@@ -149,7 +159,7 @@ Notes:
     prior_list = context.get("prior_list", ["Mp2rage7T", "T1map7T", "Filters", "Filters"])
     kwargs = context.get("kwargs", {})
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Collect files depending on whether we got an input directory or not
     files = {}
     pattern_map = {
@@ -174,7 +184,7 @@ Notes:
         ):
             files[key] = val
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Check that input files exist
     required_keys = ["T1w", "T1map"]
     for key in required_keys:
@@ -189,7 +199,7 @@ Notes:
 
     [print(f" {key}: {gb}{val}{end}") for key, val in files.items()]
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # temporarily reorient to RAS
     print("Checking orientation...")
     orig = {}
@@ -213,7 +223,7 @@ Notes:
 
     print("Initialization (i.e., orienting) done. Starting procedure...")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Default kwargs
     defaults = {
         "save_data": True,
@@ -243,14 +253,14 @@ Notes:
 
     combined_kwargs = {**mgdm_args, **kwargs}
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Run MGDM
     results = mgdm_segmentation(**combined_kwargs)
 
     utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
     print()
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Reorient results back to original orientation (if reorientation was done)
     if orient:
         print("Reorienting results to original orientation")
@@ -262,7 +272,7 @@ Notes:
             except Exception as e:
                 print(f"Warning: Failed to reorient result '{result_name}': {e}")
 
-    #---------------------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Rename file to BIDS style
     print("Rename to more BIDS'ey style")
     suffixes = ["seg", "dist", "lbls", "mems"]
