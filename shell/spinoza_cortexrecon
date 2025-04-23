@@ -162,14 +162,19 @@ for subID in ${search}; do
     # we're dealing with a nighres input, which means we need to add an additional 'region'
     p="${input_dir}/region"
     declare -a EXRTACT=(
-      xmask_cr-wm
-      xproba_cr-wm
-      xproba_cr-gm
-      xproba_cr-csf
+      "xmask_cr-wm"
+      "xproba_cr-wm"
+      "xproba_cr-gm"
+      "xproba_cr-csf"
     )
   else
     p="${input_dir}"
-    declare -a EXRTACT=(inside wm gm csf)
+    declare -a EXRTACT=(
+      "inside"
+      "wm"
+      "gm"
+      "csf"
+    )
   fi
 
   # check if input folder exists
