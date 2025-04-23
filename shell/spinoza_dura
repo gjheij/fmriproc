@@ -200,7 +200,7 @@ for subID in ${search}; do
   #-----------------------------------------------------------------------------
   # Set outputs
   output_root="${base}_acq-${DATA^^}_desc"
-	output_dura="${outdir_dura}/${output_root}-dura_proba.nii.gz"
+  output_dura="${outdir_dura}/${output_root}-dura_proba.nii.gz"
   output_mask="${MASKS}/${base_path}/${output_root}-dura_orig.nii.gz"
 
   # check if we should overwrite
