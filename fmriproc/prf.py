@@ -1889,7 +1889,7 @@ class ExtendedModel():
 
     def gridfit(self):
         
-        #-----------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
 
         # get list of bounds
         self.grid_list, self.grid_bounds = self.define_grid_bounds(self.model)
@@ -2218,7 +2218,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                     self.verbose
                 )
 
-        #-----------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # Fetch the settings
         self.define_settings()
 
@@ -2254,7 +2254,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
         
         utils.verbose(f"Using constraint(s): {self.constraints} (gauss | extended)", self.verbose)
             
-        #-----------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # whichever model you run, run the Gaussian first
 
         ## Define models
@@ -2357,7 +2357,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
             GaussianModel.__init__(self)
             GaussianModel.gridfit(self)
 
-            #-----------------------------------------------------------------------------------------
+            #-----------------------------------------------------------------------------
             # Check if we should do Gaussian iterfit        
             if 'iter' in self.stage:
                 GaussianModel.iterfit(self)
@@ -2384,7 +2384,7 @@ class pRFmodelFitting(GaussianModel, ExtendedModel):
                 GaussianModel.iterfit(self)
                 self.previous_gaussian_fitter = self.gaussian_fitter
 
-        #-----------------------------------------------------------------------------------------
+        #-----------------------------------------------------------------------------
         # Check if we should do DN-model
         if self.model.lower() != "gauss":
 
