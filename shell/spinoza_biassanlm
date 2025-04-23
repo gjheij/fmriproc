@@ -47,7 +47,16 @@ Options:
   --spm           run bias correction with SPM (default = False)
   --no-sanlm      do not run SANLM denoising (in case you don't have CAT12..)
   --no-mask       do not use SPM mask for SANLM/Bias correction with ANTs
-  --n4            run bias correction with N4BiasCorrection (ANTs)
+  --n4            run bias correction with N4BiasCorrection (ANTs); if a mask is found with the
+                  following search, this will be included (improves correction):
+                    
+                    # output from spinoza_qmrimaps
+                    spm_mask=\$(
+                      find "\${INPUTDIR}" \\
+                      -name "*acq-\${DATA}*" \\
+                      -and -name "*spm_mask.nii.gz"
+                    )
+
   --denoise       use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
                   CAT12.
 
@@ -311,7 +320,7 @@ for subID in ${search}; do
 
         input_for_bias="${output_from_sanlm}"
       else
-        echo "SANLM-filtering turned off"
+        echo -e "SANLM-filtering turned ${BOLD_RED}off${RESET}"
         input_for_bias="${input}"
       fi
 
@@ -320,7 +329,7 @@ for subID in ${search}; do
       if [[ ${RUN_BIASCORR} -eq 1 ]]; then
 
         if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
-          echo "Running bias field correction with SPM"
+          echo -e "Running bias field correction with ${BOLD_RED}SPM${RESET}"
           cmd=(
             call_spmbias
             "${input_for_bias}"
@@ -329,7 +338,7 @@ for subID in ${search}; do
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
-          echo "Running bias field correction with ANTs (N4BiasCorrection)"
+          echo "Running bias field correction with ${BOLD_RED}ANTs${RESET} (N4BiasCorrection)"
           cmd=(
             call_antsbias
             "${input_for_bias}"
@@ -349,11 +358,19 @@ for subID in ${search}; do
         fi
 
       else
-        mv "${output_from_sanlm}" "${output}"
+        if [[ -f "${output_from_sanlm}" ]]; then
+          mv "${output_from_sanlm}" "${output}"
+        else
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "input" "Both SANLM [--no-sanlm] and Bias Correction were turned off.. That's a bit pointless. Use '--n4' [ANTs] or ['--spm'] to run bias correction"
+          exit 1
+        fi
       fi
 
       #-----------------------------------------------------------------------------
       # post-processing
+      echo && print_line -
       echo "Running post-processing to fix intensities and datatype"
       cmd=(
         call_wsd

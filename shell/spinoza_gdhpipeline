@@ -140,7 +140,7 @@ if [[ -z ${session} ]]; then
   ses_nr=1
   base="${subject}/ses-${ses_nr}"
 else
-  if [[ ${session,,} == "n" ]]; then
+  if [[ $(make_lower ${session}) == "n" ]]; then
     base=${subject}
     ses_nr=""
   else
@@ -253,7 +253,7 @@ fi
 if [[ -z ${stage} ]]; then
   STAGE="wm"
 else
-  if [[ "${stage,,}" == "cp" ]] || [[ "${stage,,}" == "wm" ]] || [[ "${stage,,}" == "pial" ]]; then
+  if [[ "$(make_lower ${stage})" == "cp" ]] || [[ "$(make_lower ${stage})" == "wm" ]] || [[ "$(make_lower ${stage})" == "pial" ]]; then
     STAGE=${stage}
   else
     call_freesurfer
@@ -268,7 +268,7 @@ fi
 if [[ -z ${fprep_wf} ]]; then
   RUN_WF="func"
 else
-  if [[ "${fprep_wf,,}" == "anat" ]] || [[ "${fprep_wf,,}" == "func" ]]; then
+  if [[ "$(make_lower ${fprep_wf})" == "anat" ]] || [[ "$(make_lower ${fprep_wf})" == "func" ]]; then
     RUN_WF=${fprep_wf}
   else
     echo
@@ -282,7 +282,7 @@ fi
 if [[ -z ${run_postmgdm} ]]; then
   RUN_POSTMGDM="y"
 else
-  if [[ ${run_postmgdm,,} == "n" ]]; then
+  if [[ $(make_lower ${run_postmgdm}) == "n" ]]; then
     RUN_POSTMGDM="no"
   else
     RUN_POSTMGDM="y"
@@ -294,7 +294,7 @@ fi
 if [[ -z ${run_mgdm} ]]; then
   RUN_MGDM="y"
 else
-  if [[ ${run_mgdm,,} == "n" ]]; then
+  if [[ $(make_lower ${run_mgdm}) == "n" ]]; then
     RUN_MGDM="n"
   else
     RUN_MGDM="y"

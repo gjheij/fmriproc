@@ -83,8 +83,8 @@ if __name__ == "__main__":
             ["help", "tsv=", "out=", "duration=", "verbose=", "no-bids"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
-        print("AN ERROR OCCURRED WHILE READING THE ARGUMENTS")
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

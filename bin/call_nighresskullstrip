@@ -8,7 +8,7 @@ except Exception:
 import os
 import sys
 import getopt
-from lazyfmri import utils
+from lazyfmri import utilsrt utilst utilsrt utilst utilsrt utilst utilsrt utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
@@ -112,7 +112,8 @@ if __name__ == "__main__":
             ["help", "inv2=", "t1w=", "t1map=", "outputdir=", "name="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

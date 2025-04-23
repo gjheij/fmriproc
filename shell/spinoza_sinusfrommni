@@ -218,10 +218,10 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # Define output
-    fn_ratio="${pn_anat}/${base}_acq-${DATA^^}_desc-ratio.nii.gz"
-    fn_nuisance="${pn_anat}/${base}_acq-${DATA^^}_desc-nuisance.nii.gz"
-    fn_mni="${pn_masks}/${base}_acq-${DATA^^}_space-MNI152NLin6Asym_desc-sinus.nii.gz"
-    fn_out="${pn_masks}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz"
+    fn_ratio="${pn_anat}/${base}_acq-${DATA_UPR}_desc-ratio.nii.gz"
+    fn_nuisance="${pn_anat}/${base}_acq-${DATA_UPR}_desc-nuisance.nii.gz"
+    fn_mni="${pn_masks}/${base}_acq-${DATA_UPR}_space-MNI152NLin6Asym_desc-sinus.nii.gz"
+    fn_out="${pn_masks}/${base}_acq-${DATA_UPR}_desc-mni_sinus.nii.gz"
 
     if [[ ${OW} -eq 1 ]]; then
       rm "${fn_ratio}" "${fn_nuisance}" "${fn_out}" "${fn_mni}" 2>/dev/null
@@ -322,7 +322,7 @@ for subID in ${search}; do
                 call_t12ratio
                 --t1 "${t1}"
                 --t2 "${t2}"
-                --out "${pn_anat}/${base}_acq-${DATA^^}"
+                --out "${pn_anat}/${base}_acq-${DATA_UPR}"
               )
 
               print_cmd "${cmd[@]}" && eval "${cmd[@]}"

@@ -15,7 +15,7 @@ call_mprage
 Workflow for the preprocessing of MPRAGE data so that it is compatible with the fMRIproc-pipeline.
 Steps include:
 
-  - Brain masking using 'call_spmmask', which will create *desc-spm_mask
+  - Brain masking using 'call_spmmask', which will create *desc-spm_mask.nii.gz
   - Bias correction (either SPM [--spm] or ANTs [default]) > default is to use the newly created
     brain mask too; seems to work well.
   - Denoising using 'call_spmsanlm' (turn off with '--no-sanlm')
@@ -155,7 +155,6 @@ fi
 #-----------------------------------------------------------------------------
 # if file specified is in current directory, add entire path
 final_file="${out_file}_T1w.nii.gz"
-
 if [[ ! -d "$(dirname ${final_file})" ]]; then
     mkdir -p "$(dirname ${final_file})"
 fi

@@ -100,7 +100,7 @@ if [[ ! -d "$CTX/${SUBJECT}" ]]; then
   call_ctximport -s "${SUBJECT}"
 fi
 
-if [[ ${SOFTWARE,,} == "ants" ]]; then
+if [[ $(make_lower ${SOFTWARE}) == "ants" ]]; then
   orig=${FS}/${SUBJECT}/mri/orig.nii.gz
   ses1=$(
     find "${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1" \
@@ -168,7 +168,7 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
     echo "Found outdated file; remove and run again to overwrite"
   fi
 
-elif [[ ${SOFTWARE,,} == "fs" ]]; then
+elif [[ $(make_lower ${SOFTWARE}) == "fs" ]]; then
 
   aff="${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-rawavg_desc-genaff.dat"
   if [[ ! -d "$(dirname ${aff})" ]]; then

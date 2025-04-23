@@ -201,13 +201,10 @@ else
   #-----------------------------------------------------------------------------
   # FreeSurfer
   elif [[ ${ext} == "lta" ]]; then
-
     echo "ERROR: to-be implemented.. Choose .dat and use lta_convert"
-
   else
-    echo "INVALID EXTENSION \"${ext^^}\" FOR OUTPUT FILE"
+    echo "Invalid extention \"${ext}\" for output file"
     Usage
     exit 1
   fi
-
 fi

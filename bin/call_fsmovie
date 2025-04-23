@@ -4,7 +4,7 @@ import os
 import sys
 import getopt
 import subprocess as sb
-from lazyfmri import utils
+from lazyfmri import utils utilsmri import utils utils
 
 @utils.validate_cli_inputs(required_keys=["subject"])
 def main(context):
@@ -152,7 +152,8 @@ if __name__ == "__main__":
             ["help", "subject=", "range=", "fsdir=", "view=", "ow"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

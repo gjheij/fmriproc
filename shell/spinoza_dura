@@ -142,12 +142,12 @@ for subID in ${search}; do
       -name "${sub_name}*" \
       -and -name "*echo-1*" \
       -and -name "*inv-2*" \
-      -and -name "*acq-${DATA^^}_*" \
+      -and -name "*acq-${DATA_UPR}_*" \
       -and -name "*part-mag*" \
       -and -name "*.nii.gz" \
       2>/dev/null
     )
-    search_for=${DATA^^}
+    search_for=${DATA_UPR}
   else
     # take the MP2RAGE INV-2 if DATA == AVERAGE
     if [[ ${DATA} == "AVERAGE" ]]; then
@@ -169,7 +169,7 @@ for subID in ${search}; do
         -name "${sub_name}*" \
         -and -not -name "*echo-*" \
         -and -name "*inv-2*" \
-        -and -name "*acq-${DATA^^}_*" \
+        -and -name "*acq-${DATA_UPR}_*" \
         -and -name "*part-mag*" \
         -and -name "*.nii.gz" \
         2>/dev/null
@@ -184,7 +184,7 @@ for subID in ${search}; do
     find "${input_dir}" \
     -type f \
     -name "${sub_name}*" \
-    -and -name "*acq-${DATA^^}*" \
+    -and -name "*acq-${DATA_UPR}*" \
     -and -name "*T1w.nii.gz" \
     2>/dev/null
   )
@@ -192,14 +192,14 @@ for subID in ${search}; do
   t1map=$(
     find "${input_dir}" \
     -type f \
-    -name "*acq-${DATA^^}*" \
+    -name "*acq-${DATA_UPR}*" \
     -and -name "*T1map.nii.gz" \
     2>/dev/null
   )
 
   #-----------------------------------------------------------------------------
   # Set outputs
-  output_root="${base}_acq-${DATA^^}_desc"
+  output_root="${base}_acq-${DATA_UPR}_desc"
   output_dura="${outdir_dura}/${output_root}-dura_proba.nii.gz"
   output_mask="${MASKS}/${base_path}/${output_root}-dura_orig.nii.gz"
 
@@ -216,7 +216,7 @@ for subID in ${search}; do
     inv2_mask=$(
       find "${mask_dir}" \
       -type f \
-      -name "*${DATA^^}*" \
+      -name "*${DATA_UPR}*" \
       -and -name "*spm_mask.nii.gz" \
       2>/dev/null
     )

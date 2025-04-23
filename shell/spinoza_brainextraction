@@ -169,14 +169,16 @@ else
   unset IFS
 fi
 
-if [[ ${SOFTWARE,,} != "ants" ]] && [[ ${SOFTWARE,,} != "fsl" ]] && [[ ${SOFTWARE,,} != "cat12" ]]; then
-  echo "  Software = \"${SOFTWARE}\". Please use ants, fsl, cat12. Exiting script"
+# check software input
+soft_lower=$(make_lower "${SOFTWARE}")
+if [ "$soft_lower" != "ants" ] && [ "$soft_lower" != "fsl" ] && [ "$soft_lower" != "cat12" ]; then
+  echo "  Software = \"${soft_lower}\". Please use 'ants', 'fsl', or 'cat12'. Exiting script"
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # Intro
-start_timer "New brain extraction using \"${SOFTWARE^^}\""
+start_timer "New brain extraction using \"$(make_lower ${software})\""
 
 #-----------------------------------------------------------------------------
 # loop through subjects
@@ -220,12 +222,12 @@ for subID in ${search}; do
 
   # copy as spm-mask
   if [[ ! -z "${inv2_mask}" ]]; then
-    cp "${inv2_mask}" ${MASKS}/${base}_acq-${DATA^^}_desc-spm_mask.nii.gz 2>/dev/null
+    cp "${inv2_mask}" ${MASKS}/${base}_acq-${DATA_UPR}_desc-spm_mask.nii.gz 2>/dev/null
   fi
 
   #-----------------------------------------------------------------------------
   # ANTs
-  if [[ ${SOFTWARE,,} == "ants" ]]; then
+  if [[ $(make_lower ${SOFTWARE}) == "ants" ]]; then
 
     input=$(
       find -L "${INPUTDIR}" \
@@ -237,8 +239,8 @@ for subID in ${search}; do
     if [[ -f ${input} ]]; then
 
       declare -a OUT=(brain mask)
-      final_brain="${BET}/${base}_acq-${DATA^^}_desc-ants_brain_T1w.nii.gz"
-      final_mask="${MASKS}/${base}_acq-${DATA^^}_desc-ants_mask.nii.gz"
+      final_brain="${BET}/${base}_acq-${DATA_UPR}_desc-ants_brain_T1w.nii.gz"
+      final_mask="${MASKS}/${base}_acq-${DATA_UPR}_desc-ants_mask.nii.gz"
 
       # extract base
       base="${final_brain%_brain_T1w.nii.gz}"
@@ -325,7 +327,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # FSL
-  elif [[ ${SOFTWARE,,} == "fsl" ]]; then
+  elif [[ $(make_lower ${SOFTWARE}) == "fsl" ]]; then
 
     #-----------------------------------------------------------------------------
     # fetch input
@@ -333,13 +335,13 @@ for subID in ${search}; do
       find -L "${INPUTDIR}" \
       -type f \
       -name "*inv-2*" \
-      -and -name "*${DATA^^}*" \
+      -and -name "*${DATA_UPR}*" \
       2>/dev/null
     )
 
     #-----------------------------------------------------------------------------
     # define outputs
-    output_root=${BET}/${base}_acq-${DATA^^}_inv-2_desc-bet
+    output_root=${BET}/${base}_acq-${DATA_UPR}_inv-2_desc-bet
     output_brain=${output_root}_brain.nii.gz
     output_mask=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_mask.nii.gz
     output_skull=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_skull.nii.gz
@@ -433,7 +435,7 @@ for subID in ${search}; do
         echo "Done"
       else
         if [[ -z ${input} ]]; then
-          print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *inv-2*" "${INPUTDIR}"
+          print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *inv-2*" "${INPUTDIR}"
         fi
       fi
     else
@@ -444,14 +446,14 @@ for subID in ${search}; do
     
   #-----------------------------------------------------------------------------
   # CAT12 [default]
-  elif [[ ${SOFTWARE,,} == "cat12" ]]; then
+  elif [[ $(make_lower ${SOFTWARE}) == "cat12" ]]; then
 
     #-----------------------------------------------------------------------------
     # define outputs
-    brainmask="${MASKS}/${base}_acq-${DATA^^}_desc-cat_mask.nii.gz"
-    spm="${MASKS}/${base}_acq-${DATA^^}_desc-spm_mask.nii.gz"
-    corrected_t1w="${BET}/${base}_acq-${DATA^^}_T1w.nii.gz"
-    duramask="${MASKS}/${base}_acq-${DATA^^}_desc-cat_dura.nii.gz"
+    brainmask="${MASKS}/${base}_acq-${DATA_UPR}_desc-cat_mask.nii.gz"
+    spm="${MASKS}/${base}_acq-${DATA_UPR}_desc-spm_mask.nii.gz"
+    corrected_t1w="${BET}/${base}_acq-${DATA_UPR}_T1w.nii.gz"
+    duramask="${MASKS}/${base}_acq-${DATA_UPR}_desc-cat_dura.nii.gz"
   
     #-----------------------------------------------------------------------------
     # overwrite mode
@@ -539,7 +541,7 @@ for subID in ${search}; do
           find -L "${INPUTDIR}" \
           -type f \
           -name "*T1w*" \
-          -and -name "*${DATA^^}*" \
+          -and -name "*${DATA_UPR}*" \
           -and -name "*.nii.gz" \
           2>/dev/null
         )
@@ -622,7 +624,7 @@ for subID in ${search}; do
           find -L "${INPUTDIR}" \
           -type f \
           -name "*T1map*" \
-          -and -name "*${DATA^^}*" \
+          -and -name "*${DATA_UPR}*" \
           -and -name "*.nii.gz" \
           2>/dev/null
         )
@@ -713,8 +715,8 @@ for subID in ${search}; do
             
             #-----------------------------------------------------------------------------
             # copy mask
-            if [[ ! -d "$(dirname ${spm})" ]]; then
-              mkdir -p "$(dirname ${spm})"
+            if [[ ! -d "$(dirname "${spm}")" ]]; then
+              mkdir -p "$(dirname "${spm}")"
             fi
             cp "${spm_mask}" "${spm}" 2>/dev/null
           fi
@@ -739,7 +741,7 @@ for subID in ${search}; do
         fi
       else
         if [[ -z "${input}" ]]; then
-          print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *T1w.nii.gz" "${INPUTDIR}"
+          print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *T1w.nii.gz" "${INPUTDIR}"
           exit 1
         fi
       fi
@@ -798,7 +800,7 @@ for subID in ${search}; do
     # mask. 
     # If we do have a mni_sinus mask (from T2; spinoza_sinusfrommni), we can copy that one as 
     # cat_dura so spinoza_masking won't crash
-    sinus_out="${MASKS}/${base}_acq-${DATA^^}_desc-mni_sinus.nii.gz"
+    sinus_out="${MASKS}/${base}_acq-${DATA_UPR}_desc-mni_sinus.nii.gz"
     if [[ ! -f "${duramask}" ]]; then
       if [[ -f "${sinus_out}" ]]; then
         cp "${sinus_out}" "${duramask}" 2>/dev/null

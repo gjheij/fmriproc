@@ -180,7 +180,7 @@ for subID in ${search}; do
       find "${input_dir}" \
       -type f \
       -name "${sub_name}*" \
-      -and -name "*acq-${DATA^^}*" \
+      -and -name "*acq-${DATA_UPR}*" \
       -and -name "*T1w.nii.gz" \
       2>/dev/null
     )
@@ -189,7 +189,7 @@ for subID in ${search}; do
     t1m_fn=$(
       find "${input_dir}" \
       -type f \
-      -name "*acq-${DATA^^}*" \
+      -name "*acq-${DATA_UPR}*" \
       -and -name "*T1map.nii.gz" \
       2>/dev/null
     )
@@ -199,7 +199,7 @@ for subID in ${search}; do
       find "${output_dir}" \
       -maxdepth 1 \
       -type f \
-      -name "*${DATA^^}*" \
+      -name "*${DATA_UPR}*" \
       -and -name "*masked_T1w.nii.gz" \
       2>/dev/null
     )
@@ -208,14 +208,14 @@ for subID in ${search}; do
     brain_mask=$(
       find "${mask_dir}" \
       -type f \
-      -name "*${DATA^^}*" \
+      -name "*${DATA_UPR}*" \
       -and -name "*${search_for_mask}*" \
       2>/dev/null
     )
 
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      rm -r "${output_dir}/"*acq-${DATA^^}* 2>/dev/null
+      rm -r "${output_dir}/"*acq-${DATA_UPR}* 2>/dev/null
       rm -r "${masked_anat}" 2>/dev/null
     fi
 
@@ -226,7 +226,7 @@ for subID in ${search}; do
     else
       if [[ ! -f "${masked_anat}" ]]; then
         if [[ ! -f ${t1w_fn} ]]; then
-          print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
+          print_file_not_in_dir "${sub_name}" "${sub_name}*, *acq-${DATA_UPR}*, *T1w.nii.gz" "${input_dir}"
           continue
         fi
         
@@ -261,7 +261,7 @@ for subID in ${search}; do
             find "${output_dir}" \
             -maxdepth 1 \
             -type f \
-            -name "*${DATA^^}*" \
+            -name "*${DATA_UPR}*" \
             -and -name "*masked_T1w.nii.gz" \
             2>/dev/null
           )
@@ -300,8 +300,8 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # skullstripping procedure
-    bet_t1w="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1w.nii.gz"
-    bet_t1m="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1map.nii.gz"
+    bet_t1w="${skull_dir}/${base}_acq-${DATA_UPR}_desc-skullstrip_T1w.nii.gz"
+    bet_t1m="${skull_dir}/${base}_acq-${DATA_UPR}_desc-skullstrip_T1map.nii.gz"
 
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
@@ -321,7 +321,7 @@ for subID in ${search}; do
       masked_anat=$(
         find "${output_dir}" \
         -type f \
-        -name "*${DATA^^}*" \
+        -name "*${DATA_UPR}*" \
         -and -name "*masked_T1w.nii.gz" \
         2>/dev/null
       )
@@ -330,7 +330,7 @@ for subID in ${search}; do
       mask_img=$(
         find "${mask_dir}" \
         -type f \
-        -name "*acq-${DATA^^}_*" \
+        -name "*acq-${DATA_UPR}_*" \
         -and -name "*spm_mask.nii.gz" \
         2>/dev/null
       )
@@ -339,7 +339,7 @@ for subID in ${search}; do
       t1map=$(
         find "${input_dir}" \
         -type f \
-        -and -name "*acq-${DATA^^}_*" \
+        -and -name "*acq-${DATA_UPR}_*" \
         -name "*T1map.nii.gz" \
         2>/dev/null
       )
@@ -358,7 +358,7 @@ for subID in ${search}; do
               fslmaths
               "${f}"
               -mas "${mask_img}"
-              "${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_${inputs[${ct}]}.nii.gz"
+              "${skull_dir}/${base}_acq-${DATA_UPR}_desc-skullstrip_${inputs[${ct}]}.nii.gz"
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -371,7 +371,7 @@ for subID in ${search}; do
           fi
         done
       else
-        print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *spm_mask.nii.gz" "${mask_dir}"
+        print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *spm_mask.nii.gz" "${mask_dir}"
       fi
       echo "Done"
     fi

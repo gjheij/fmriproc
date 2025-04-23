@@ -238,6 +238,7 @@ n_par_files=(
 # if PAR-files, use parrec2nii
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
+  echo && print_line -
   echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
   
   cmd=(
@@ -250,6 +251,7 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
     -o "${pathOutput}"
   )
 
+  echo -e "Monitor progress: ${BOLD_GREEN}${log}${RESET}"
   {
     echo "### New invocation of call_parrec2nii @$(date)"
     echo "$(echo ${cmd[@]} | xargs)"
@@ -269,6 +271,7 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 else
   #-----------------------------------------------------------------------------
   # otherwise, use dcm2niix
+  echo && print_line -
   echo "Assuming DICOM format, using 'dcm2niix'"
   
   # Turn kwargs into space-separated array
@@ -298,6 +301,7 @@ else
   # Final positional input (the directory)
   cmd_args+=("${pathInput}")
 
+  echo -e "Monitor progress: ${BOLD_GREEN}${log}${RESET}"
   {
     echo "### New invocation of call_dcm2niix @$(date)"
     echo "$(echo ${cmd_args[@]} | xargs)"

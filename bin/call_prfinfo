@@ -5,7 +5,7 @@ import sys
 import getopt
 import nibabel as nb
 from fmriproc import prf
-from lazyfmri import utils
+from lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilss
 opj = os.path.join
 
 def main(context):
@@ -174,7 +174,8 @@ if __name__ == "__main__":
             ["help", "subject=", "prfdir=", "vertex=", "prf=", "lh", "rh", "gauss", "grid", "css", "dog", "norm", "plot", "verbose", "v1"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

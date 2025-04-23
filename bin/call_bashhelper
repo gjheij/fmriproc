@@ -172,6 +172,24 @@ activate_conda() {
   echo "Python: $current_python"
 }
 
+# make upper
+make_upper() {
+  if [[ -z ${1} ]]; then
+    echo "ERROR: Please specify string to convert to upper case"
+  else
+    echo $(printf '%s' "${1}" | tr '[:lower:]' '[:upper:]')
+  fi
+}
+
+# make lower
+make_lower() {
+  if [[ -z ${1} ]]; then
+    echo "ERROR: Please specify string to convert to lower case"
+  else
+    echo $(printf '%s' "${1}" | tr '[:upper:]' '[:lower:]')
+  fi
+}
+
 # ---------------------------------------------------------------------------------------------------
 # subject header
 print_subject_header() {
@@ -256,7 +274,7 @@ print_error_msg() {
   echo -e "${BOLD_RED}ERROR${RESET} in ${script} (line ${BOLD_GREEN}${BASH_LINENO[0]}${RESET}): ${BOLD_BLUE}${func}${RESET} exited with non-zero status. ${extra}"
 }
 
-# ---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {
     echo
@@ -268,7 +286,7 @@ function start_timer() {
     print_line =
 }
 
-# ---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # End timing a process
 function end_timer() {
     echo
@@ -335,16 +353,16 @@ find_hierarchical_anatomy
 
 Find the correct folder with anatomies depending on the processing steps that you've conduc-
 ted. The following codes represent certain stages of anatomical preprocessing:
-  1 = DIR_DATA_HOME; no preprocessing has done, take the T1w from the scanner
-  2 = DIR_DATA_DERIV/pymp2rage; combination with pym2rage; if not present, default to DIR_DATA_HOME
-  3 = DIR_DATA_DERIV/denoising; denoising with CAT12 (sanlm); if not present, look for pymp2rage, 
-      then DIR_DATA_HOME
-  4 = DIR_DATA_DERIV/cat12; segmentation with CAT12 (sanlm); if not present, look for denoised, py-
-      mp2rage, then DIR_DATA_HOME      
-  5 = DIR_DATA_DERIV/masked_${DATA,,}; anatomicals void of garbage such as sinus. If not present, 
-      look for "denoised" > "pymp2rage" > "DIR_DATA_HOME"
+  1 = \$DIR_DATA_HOME; no preprocessing has done, take the T1w from the scanner
+  2 = \$DIR_DATA_DERIV/pymp2rage; combination with pym2rage; if not present, default to \$DIR_DATA_HOME
+  3 = \$DIR_DATA_DERIV/denoising; denoising with CAT12 (sanlm); if not present, look for pymp2rage, 
+      then \$DIR_DATA_HOME
+  4 = \$DIR_DATA_DERIV/cat12; segmentation with CAT12 (sanlm); if not present, look for denoised, py-
+      mp2rage, then \$DIR_DATA_HOME      
+  5 = \$DIR_DATA_DERIV/masked_\${DATA_LWR}; anatomicals void of garbage such as sinus. If not present, 
+      look for "denoised" > "pymp2rage" > "\$DIR_DATA_HOME"
   6 = Same as 5, but instead of looking for intermediate folders (denoised/pymp2rage), directly go 
-      to DIR_DATA_HOME
+      to \$DIR_DATA_HOME
 
 Args:
  <code> 1-6
@@ -360,58 +378,58 @@ USAGE
   if [[ $# -eq 0 ]]; then
     Usage
   else
-    stage=${1}
+    stage="${1}"
 
     INPUT_DIR=""
     if [[ ${stage} -eq 1 ]]; then
-      INPUT_DIR=${DIR_DATA_HOME}
+      INPUT_DIR="${DIR_DATA_HOME}"
     elif [[ ${stage} -eq 2 ]]; then
-      if [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+      if [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
       else
-        INPUT_DIR=${DIR_DATA_HOME}
+        INPUT_DIR="${DIR_DATA_HOME}"
       fi
     elif [[ ${stage} -eq 3 ]]; then
-      if [[ -d ${DIR_DATA_DERIV}/denoised ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/denoised
-      elif [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+      if [[ -d "${DIR_DATA_DERIV}/denoised" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/denoised"
+      elif [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
       else
-        INPUT_DIR=${DIR_DATA_HOME}
+        INPUT_DIR="${DIR_DATA_HOME}"
       fi
     elif [[ ${stage} -eq 4 ]]; then
-      if [[ -d ${DIR_DATA_DERIV}/cat12 ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/cat12    
-      elif [[ -d ${DIR_DATA_DERIV}/denoised ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/denoised
-      elif [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+      if [[ -d "${DIR_DATA_DERIV}/cat12" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/cat12"    
+      elif [[ -d "${DIR_DATA_DERIV}/denoised" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/denoised"
+      elif [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
       else
-        INPUT_DIR=${DIR_DATA_HOME}
+        INPUT_DIR="${DIR_DATA_HOME}"
       fi    
     elif [[ ${stage} -eq 5 ]]; then
-      if [[ -d ${DIR_DATA_DERIV}/masked_${DATA,,} ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/masked_${DATA,,}
-      elif [[ -d ${DIR_DATA_DERIV}/cat12 ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/cat12    
-      elif [[ -d ${DIR_DATA_DERIV}/denoised ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/denoised
-      elif [[ -d ${DIR_DATA_DERIV}/pymp2rage ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/pymp2rage
+      if [[ -d "${DIR_DATA_DERIV}/masked_${DATA_LWR}" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/masked_${DATA_LWR}"
+      elif [[ -d "${DIR_DATA_DERIV}/cat12" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/cat12"    
+      elif [[ -d "${DIR_DATA_DERIV}/denoised" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/denoised"
+      elif [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
       else
-        INPUT_DIR=${DIR_DATA_HOME}
+        INPUT_DIR="${DIR_DATA_HOME}"
       fi        
     elif [[ ${stage} -eq 6 ]]; then
-      if [[ -d ${DIR_DATA_DERIV}/masked_${DATA,,} ]]; then
-        INPUT_DIR=${DIR_DATA_DERIV}/masked_${DATA,,}
+      if [[ -d "${DIR_DATA_DERIV}/masked_${DATA_LWR}" ]]; then
+        INPUT_DIR="${DIR_DATA_DERIV}/masked_${DATA_LWR}"
       else
-        INPUT_DIR=${DIR_DATA_HOME}
+        INPUT_DIR="${DIR_DATA_HOME}"
       fi           
     else
       echo -e "${BOLD_RED}ERROR${RESET} in find_hierarchical_anatomy: invalid stage code \"${stage}\""
     fi
 
-    echo $INPUT_DIR
+    echo "${INPUT_DIR}"
   fi
 }
 
@@ -1892,7 +1910,7 @@ function make_physio_script {
     local job_name="${8}"
 
     ext=$(fetch_extension "${input_file}")
-    if [[ ${ext,,} == "log" ]]; then
+    if [[ $(make_lower ${ext}) == "log" ]]; then
       vendor="philips"
     else
       vendor="BIDS"

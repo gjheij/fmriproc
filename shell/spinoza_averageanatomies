@@ -133,8 +133,8 @@ for subID in ${search}; do
     mkdir -p "${output_dir}"
   fi
 
-  if [[ ${DATA^^} != "AVERAGE" ]]; then
-    echo "${DATA^^} != \"AVERAGE\".. Check spinoza_setup first.."
+  if [[ ${DATA_UPR} != "AVERAGE" ]]; then
+    echo "${DATA_UPR} != \"AVERAGE\".. Check spinoza_setup first.."
     exit 1
   fi
 
@@ -170,7 +170,7 @@ for subID in ${search}; do
           in_1=$(
             find "${input_dir}" \
             -type f \
-            -name "*acq-${ACQ[0]^^}_*" \
+            -name "*acq-$(make_upper ${ACQ[0]})_*" \
             -and -name "*${i}.nii.gz" \
             2>/dev/null
           )
@@ -179,7 +179,7 @@ for subID in ${search}; do
           if [[ ! -f "${in_1}" ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-${ACQ[0]^^}_*\" and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-$(make_upper ${ACQ[0]})_*\" and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
             exit 1
           fi 
 
@@ -188,8 +188,8 @@ for subID in ${search}; do
           in_2=$(
             find "${input_dir}" \
             -type f \
-            -name "*space-${ACQ[0]^^}*" \
-            -and -name "*acq-${ACQ[1]^^}_*" \
+            -name "*space-$(make_upper ${ACQ[0]})*" \
+            -name "*acq-$(make_upper ${ACQ[1]})_*" \
             -and -name "*${i}.nii.gz" \
             2>/dev/null
           )
@@ -198,7 +198,7 @@ for subID in ${search}; do
           if [[ ! -f "${in_2}" ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" find "Could not find warped file with \"*space-${ACQ[0]^^}*\", \"*acq-${ACQ[0]^^}_*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            print_error_msg "$(basename ${0})" find "Could not find warped file with \"*space-$(make_upper ${ACQ[0]})*\", \"*acq-$(make_upper ${ACQ[1]})_*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
             exit 1
           fi 
           
@@ -216,7 +216,7 @@ for subID in ${search}; do
           ref=$(
             find "${input_dir}" \
             -type f \
-            -name "*acq-${ACQ[0]^^}_*" \
+            -name "*acq-$(make_upper ${ACQ[0]})_*" \
             -and -name "*run-1*" \
             -and -name "*${i}.nii.gz" | \
             sort \
@@ -226,7 +226,7 @@ for subID in ${search}; do
           if [[ -z "${ref}" ]]; then
             echo
             print_line -
-            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-${ACQ[0]^^}_*\", \"*run-1*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
+            print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-$(make_upper ${ACQ[0]})_*\", \"*run-1*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
             exit 1
           fi
 
@@ -249,7 +249,7 @@ for subID in ${search}; do
         fi
 
       else
-        print_file_not_in_dir "${sub_name}" "*acq-${ACQ[0]^^}_*, *space-*, and *${i}.nii.gz" "${input_dir}"
+        print_file_not_in_dir "${sub_name}" "*acq-$(make_upper ${ACQ[0]})_*, *space-*, and *${i}.nii.gz" "${input_dir}"
         exit 1
       fi
       
@@ -301,7 +301,7 @@ for subID in ${search}; do
   spm_mask=$(
     find "${input_dir}" \
     -type f \
-    -name "*acq-${ACQ[0]^^}_*" \
+    -name "*acq-$(make_upper ${ACQ[0]})_*" \
     -and -name "*desc-spm_mask.nii.gz" \
     2>/dev/null
   )

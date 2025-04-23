@@ -218,7 +218,7 @@ for subID in ${search}; do
     r2star=$(
       find "${input_dir}" \
       -type f \
-      -name "*acq-${DATA^^}_*" \
+      -name "*acq-${DATA_UPR}_*" \
       -and -name "*R2starmap.nii.gz" \
       2>/dev/null
     )
@@ -227,7 +227,7 @@ for subID in ${search}; do
     # make sinus from R2star
     if [[ ! -z "${r2star}" ]]; then
 
-      sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
+      sinus_mask="${mask_dir}/${base}_acq-${DATA_UPR}_desc-sagittalsinus.nii.gz"
       if [[ ! -f "${sinus_mask}" || ${OW} -eq 1 ]]; then
 
         # print header
@@ -260,7 +260,7 @@ for subID in ${search}; do
           find "${input_dir}" \
           -type f \
           -name "*T1w*" \
-          -and -name "*${DATA^^}*" \
+          -and -name "*${DATA_UPR}*" \
           -and -name "*.nii.gz" \
           2>/dev/null
         )
@@ -283,27 +283,27 @@ for subID in ${search}; do
             exit 1
           fi            
         else
-          print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
+          print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *T1w.nii.gz" "${input_dir}"
           continue
         fi
       else
         print_output_exists "${sub_name}" "${sinus_mask}"
       fi
     else
-      print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}_*, *R2starmap.nii.gz" "${input_dir}"
+      print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}_*, *R2starmap.nii.gz" "${input_dir}"
     fi
   else
 
     #-----------------------------------------------------------------------------
     # manual sinus
-    sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
+    sinus_mask="${mask_dir}/${base}_acq-${DATA_UPR}_desc-sagittalsinus.nii.gz"
     if [[ ! -f "${sinus_mask}" || ${OW} -eq 1 ]]; then
 
       t1w=$(
         find "${input_dir}" \
         -type f \
         -name "${sub_name}*" \
-        -and -name "*${DATA^^}_*" \
+        -and -name "*${DATA_UPR}_*" \
         -and -not -iname "*space-*" \
         -and -name "*T1w.nii.gz" \
         2>/dev/null
@@ -349,7 +349,7 @@ for subID in ${search}; do
           exit 1
         fi
       else
-        print_file_not_in_dir "${sub_name}" "*acq-${DATA^^}*, *T1w.nii.gz" "${input_dir}"
+        print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *T1w.nii.gz" "${input_dir}"
         continue
       fi
     else

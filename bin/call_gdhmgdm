@@ -7,7 +7,7 @@ import numpy as np
 import nibabel as nb
 from nilearn import image
 from scipy import ndimage
-from lazyfmri import utilsmport utils
+from lazyfmri import utilsmport utilsmport utilsfrom lazyfmri import utilsmport utilsmport utils utilsmport utilsfrom lazyfmri import utilsmport utilsmport utils utilsmport utilsfrom lazyfmri import utilsmport utilsmport utils utilsmport utilsfrom lazyfmri import utilsmport utilsmport utils
 
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -227,7 +227,8 @@ if __name__ == "__main__":
             ["help", "inputdir=", "brainmask=", "duramask=", "outputdir=", "name=", "iter=", "kwargs="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

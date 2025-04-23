@@ -115,7 +115,7 @@ if [[ ! -z ${sub} ]]; then
     REF=$(readlink -f "${REF}")
   fi
 
-  MAN="${mask_dir}/${base}_acq-${DATA^^}_desc-outside.nii.gz"
+  MAN="${mask_dir}/${base}_acq-${DATA_UPR}_desc-outside.nii.gz"
 else
   # reference is positional input
   REF=${@:$OPTIND:1}

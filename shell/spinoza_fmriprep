@@ -49,7 +49,7 @@ check_and_copy_anat() {
         cmd=(
           call_mriconvert
           "${fs_rawavg}"
-          "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
+          "${func_dir}/${base_path}/anat/${base}_acq-${DATA_UPR}_T1w.nii.gz"
         )
 
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"

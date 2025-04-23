@@ -61,6 +61,7 @@ Examples:
     lower = context.get("lower", 0.01)
     upper = context.get("upper", 0.99)
 
+    #-----------------------------------------------------------------------------
     # check if T1-file was specified
     if apply_mask:
         if not isinstance(t1_file, str) or not os.path.exists(t1_file):
@@ -68,6 +69,7 @@ Examples:
                 f" {rb}WARNING{end}: apply_mask was set to True, but no valid T1-file was specified..")
             apply_mask = False
 
+    #-----------------------------------------------------------------------------
     # generate FSL mask
     fsl_mask = opj(opd(input_file), 'tmp_mask.nii.gz')
     if not os.path.exists(fsl_mask):
@@ -78,6 +80,7 @@ Examples:
             verb=verbose
         )
 
+    #-----------------------------------------------------------------------------
     # generate SPM mask
     if not os.path.exists(output_file):
         cmd = f'call_spmmask --clean {input_file} {output_file}'
@@ -103,6 +106,7 @@ Examples:
 
             new_mask.to_filename(output_file)
 
+    #-----------------------------------------------------------------------------
     # remove files starting with 'tmp'
     utils.remove_files(
         opd(input_file),
@@ -110,18 +114,28 @@ Examples:
         ext=False
     )
 
+    #-----------------------------------------------------------------------------
     # remove pepper noise pattern around brain
     if apply_mask:
-        cmd = f"call_rmbackground --t1w {t1_file} --mask {output_file} --inv2 {input_file} --output {t1_file}"
+        cmd = f"""call_rmbackground \
+            --t1w {t1_file} \
+            --mask {output_file} \
+            --inv2 {input_file} \
+            --output {t1_file}"""
+        
+        # run
         utils.run_shell_wrapper(
             cmd,
             "Removing noise pattern around the brain",
             verb=verbose
         )
-        print(
-            f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run")
 
+        utils.verbose(f"{rb}TIP{end}: check the brain mask; if needed, edit it, remove T1w.nii.gz-file and re-run", True)
+
+        #-----------------------------------------------------------------------------
         # do some final intensity things
+        print()
+        utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
         cmd = f"call_wsd -l {lower} -u {upper} {t1_file}"
         utils.run_shell_wrapper(
             cmd,

@@ -45,7 +45,7 @@ Options:
 Positional arguments:
   <anat folder>   folder containing the T1w-file. In 'master', we'll look through various fol-
                   ders. In order of priority:
-                    -'\$DIR_DATA_DERIV/masked_\${DATA,,}'
+                    -'\$DIR_DATA_DERIV/masked_\${DATA_LWR}'
                     -'\$DIR_DATA_DERIV/denoised'
                     -'\$DIR_DATA_DERIV/pymp2rage'
                     -'\$DIR_DATA_HOME'
@@ -234,7 +234,7 @@ for subID in ${search}; do
     find "${T1_DIR}" \
     -type f \
     -name "${sub_name}*" \
-    -and -name "*${DATA^^}*" \
+    -and -name "*${DATA_UPR}*" \
     -and -name "*T1w.nii.gz" \
     2>/dev/null
   )

@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 import nibabel as nb
 from nilearn import image
-from lazyfmri import utils
+from lazyfmri import utilsfrom lazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
@@ -260,7 +260,8 @@ if __name__ == "__main__":
             ["help", "sub=", "ses", "fsdir=", "masks=", "outside", "final"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

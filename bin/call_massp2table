@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from fmriproc.image import massp_to_tablefrom fmriproc.image import massp_to_table
+from fmriproc.image import massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_tableport massp_to_tablefrom fmriproc.image import massp_to_tablee import massp_to_tablefrom fmriproc.image import massp_to_table
 opj = os.path.join
 
 def main(argv):
@@ -54,7 +54,8 @@ Example:
             ["help", "label=", "out=", "unit="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

@@ -188,19 +188,19 @@ for subID in ${search}; do
   input_t1w=$(
     find "${input_dir}" \
     -type f \
-    -name "*${DATA^^}*" \
+    -name "*${DATA_UPR}*" \
     -and -name "*T1w.nii.gz" \
     2>/dev/null
   )
 
   # set output root
-  outputroot="${output_dir}/${base}_acq-${DATA^^}"
+  outputroot="${output_dir}/${base}_acq-${DATA_UPR}"
 
   # overwrite
   if [[ ${OW} -eq 1 ]]; then
     if [[ -d "${output_dir}" ]]; then
-      echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}\""
-      rm -r "${output_dir}/${base}_acq-${DATA^^}"* 2>/dev/null
+      echo "Overwrite mode: deleting files with \"${base}_acq-${DATA_UPR}\""
+      rm -r "${output_dir}/${base}_acq-${DATA_UPR}"* 2>/dev/null
     fi
   fi
 

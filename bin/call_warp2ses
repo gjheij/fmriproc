@@ -124,7 +124,7 @@ if [[ -z "${ref_img}" ]]; then
   ref_img=$(
     find "${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat" \
     -type f \
-    -name "*acq-${space^^}*" \
+    -name "*acq-${DATA_UPR}*" \
     -and -not -name "*space-*" \
     -and -name "*.nii.gz" \
     2>/dev/null
@@ -212,15 +212,15 @@ for f in ${fn[@]}; do
   # outf=$(basename ${f})
   # newf=${out_dir}/${outf%%"desc-"*}space-ses${to_ses}_${outf#*"${outf%%"desc-"*}"}
 
-  if [[ ${to_ses,,} == "ctx" ]] || [[ ${to_ses,,} == "fs" ]]; then
+  if [[ $(make_lower ${to_ses}) == "ctx" ]] || [[ $(make_lower ${to_ses}) == "fs" ]]; then
 
     # warp to fs or ctx
     # insert "space-" tag in the middle of filename
-    newf="${out_dir}/$(basename "${f}" | cut -d'_' -f-3)_space-${to_ses,,}_$(basename "${f}" | cut -d"_" -f4-)"
+    newf="${out_dir}/$(basename "${f}" | cut -d'_' -f-3)_space-$(make_lower ${to_ses})_$(basename "${f}" | cut -d"_" -f4-)"
 
     if [[ ! -f "${newf}" ]]; then
 
-      if [[ ${to_ses,,} == "fs" ]]; then
+      if [[ $(make_lower ${to_ses}) == "fs" ]]; then
         # got fs, use call_resample
 
         cmd=(
@@ -239,7 +239,7 @@ for f in ${fn[@]}; do
           exit 1
         fi
 
-      elif [[ ${to_ses,,} == "ctx" ]]; then
+      elif [[ $(make_lower ${to_ses2}) == "ctx" ]]; then
         # got ctx, use call_ctxsurfmove
 
         cmd=(

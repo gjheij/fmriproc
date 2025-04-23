@@ -225,13 +225,17 @@ for subID in ${search}; do
   # loop through available datatype (see spinoza_setup)
   for a in ${ACQ[@]}; do
 
+    # make lower case
+    a_low=$(make_lower "${a}")
+    a_up=$(make_upper "${a}")
+
     #-----------------------------------------------------------------------------
     # T1w file
     t1w=$(
       find -L "${output_dir}" \
       -maxdepth 1 \
       -type f \
-      -name "*acq-${a^^}_*" \
+      -name "*acq-${a_up}_*" \
       -and -name "*T1w.nii.gz" \
       -and -not -name "*space-*" \
       2>/dev/null
@@ -242,7 +246,7 @@ for subID in ${search}; do
       find -L "${output_dir}" \
       -maxdepth 1 \
       -type f \
-      -name "*acq-${a^^}_*" \
+      -name "*acq-${a_up}_*" \
       -and -name "*T1map.nii.gz" \
       -and -not -name "*space-*" \
       2>/dev/null
@@ -250,7 +254,7 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # check input type
-    if [[ ${DATA^^} == "MPRAGE" ]]; then
+    if [[ ${DATA_UPR} == "MPRAGE" ]]; then
       in_files=(
         $(
           find -L "${input_dir}" \
@@ -286,7 +290,7 @@ for subID in ${search}; do
     if [[ ! -f "${t1w}" || ! -f "${t1map}" || ${FORCE_EXEC} -eq 1 ]]; then
 
       if [[ ${#in_files[@]} -eq 0 ]]; then
-        echo -e "${BOLD_CYAN}${sub_name}${RESET}: ${#in_files[@]} files available for ${a^^}"
+        echo -e "${BOLD_CYAN}${sub_name}${RESET}: ${#in_files[@]} files available for ${a_up}"
         break
       else
         if [[ ! -d "${output_dir}" ]]; then
@@ -295,14 +299,15 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # mp2rage(me) job
-        if [[ "$(basename $(which call_${a,,}))" == *"mp2rage"* ]]; then
+        if [[ "$(basename $(which call_${a_low}))" == *"mp2rage"* ]]; then
 
           # decide job execution
-          output_base=${base}_acq-${a^^}
+          acq_tag="acq-${a_up}"
+          output_base="${base}_${acq_tag}"
           job="$(
             decide_job_type \
-            "call_${a,,}" \
-            "${output_base}_desc-${a,,}" \
+            "call_${a_low}" \
+            "${output_base}_desc-${a_low}" \
             "${run_local}" \
             "${n_cpus}" \
             "${SGE_QUEUE}"
@@ -328,7 +333,7 @@ for subID in ${search}; do
 
           eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_${a,,}"
+            print_error_msg "$(basename ${0})" "call_${a_low}"
             exit 1
           fi
 
@@ -344,11 +349,12 @@ for subID in ${search}; do
             fi
 
             # decide job execution
-            output_base="${base}_acq-${a^^}${add_run}"
+            acq_tag="acq-${a_up}"
+            output_base="${base}_${acq_tag}${add_run}"
             job="$(
               decide_job_type \
-              "call_${a,,}" \
-              "${output_base}_desc-${a,,}" \
+              "call_${a_low}" \
+              "${output_base}_desc-${a_low}" \
               "${run_local}" \
               "${n_cpus}" \
               "${SGE_QUEUE}"
@@ -374,7 +380,7 @@ for subID in ${search}; do
             
             eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
-              print_error_msg "$(basename ${0})" "call_${a,,}"
+              print_error_msg "$(basename ${0})" "call_${a_low}"
               exit 1
             fi
           done

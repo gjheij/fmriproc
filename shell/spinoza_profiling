@@ -45,7 +45,7 @@ Positional:
                       boundaries=\$(
                         find "\${nighres_dir}/layering" \\
                         -type f \\
-                        -name "*acq-\${DATA^^}*" \\
+                        -name "*acq-\${DATA_UPR}*" \\
                         -and -name "*boundaries.nii.gz"
                       )
   <sample loc.>   directory where the to-be-sampled lives:
@@ -158,7 +158,7 @@ for subID in ${search}; do
   #-----------------------------------------------------------------------------
   # Running MASSP with Nighres
 
-  sampled_data="${nighres_dir}/profiling/${base}_acq-${DATA^^}_desc-profile_${TAG}.nii.gz"
+  sampled_data="${nighres_dir}/profiling/${base}_acq-${DATA_UPR}_desc-profile_${TAG}.nii.gz"
   if [[ ! -f "${sampled_data}" ]]; then
 
     # print header
@@ -170,7 +170,7 @@ for subID in ${search}; do
     boundaries=$(
       find "${nighres_dir}/layering" \
       -type f \
-      -name "*acq-${DATA^^}*" \
+      -name "*acq-${DATA_UPR}*" \
       -and -name "*boundaries.nii.gz" \
       2>/dev/null
     )

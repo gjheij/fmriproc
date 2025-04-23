@@ -341,6 +341,10 @@ for subID in ${search}; do
   fi  
 
   #-----------------------------------------------------------------------------
+  # print header
+  print_subject_header ${sub_name}
+  
+  #-----------------------------------------------------------------------------
   # input/output
   input_dir="${SOURCEDATA}/${base_path}"
   output_dir="${input_dir}/nifti"
@@ -431,7 +435,6 @@ for subID in ${search}; do
     fi
 
     eval "${cmd[@]}"
-
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "call_bids"
       exit 1

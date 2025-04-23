@@ -163,8 +163,18 @@ Notes:
 
     # combine FSL+SPM mask to remove pepper noise around MP2RAGE
     if do_stuff:
+        print()
+        utils.run_shell_wrapper('bash -c "source call_bashhelper && print_line -"')
         spm_mask = opj(output_dir, f'{output_base}_desc-spm_mask.nii.gz')
-        cmd = f"""call_createmask --input {select_fn[2]} --output {spm_mask} --t1 {output_dict["t1w_uni"]} --verbose -l {lower} -u {upper}"""
+        cmd = f"""call_createmask \
+            --input {select_fn[2]} \
+            --output {spm_mask} \
+            --t1 {output_dict["t1w_uni"]} \
+            --verbose \
+            -l {lower} \
+            -u {upper}"""
+    
+        # run
         utils.run_shell_wrapper(cmd, verb=True)
 
     print("Done")

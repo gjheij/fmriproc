@@ -209,7 +209,7 @@ for subID in ${search}; do
   bet_uni=$(
     find "${input_dir}" \
     -type f \
-    -name "*acq-${DATA^^}*" \
+    -name "*acq-${DATA_UPR}*" \
     -and -not -name "*gdh*" \
     -and -name "*T1w.nii.gz" \
     2>/dev/null
@@ -219,7 +219,7 @@ for subID in ${search}; do
   bet_t1m=$(
     find "${input_dir}" \
     -type f \
-    -name "*acq-${DATA^^}*" \
+    -name "*acq-${DATA_UPR}*" \
     -and -not -name "*gdh*" \
     -and -name "*T1map.nii.gz" \
     2>/dev/null
@@ -229,14 +229,14 @@ for subID in ${search}; do
   mask_outside=$(
     find "${mask_dir}" \
     -type f \
-    -name "*acq-${DATA^^}*" \
+    -name "*acq-${DATA_UPR}*" \
     -and -name "*-outside.nii.gz" \
     2>/dev/null
   )
 
   #-----------------------------------------------------------------------------
   # Define nighres output names
-  output_root="${base}_acq-${DATA^^}_desc"
+  output_root="${base}_acq-${DATA_UPR}_desc"
   masked_seg="${output_dir}/mgdm"
   mgdm_seg="${masked_seg}/${output_root}-mgdm_seg.nii.gz"
 
@@ -267,7 +267,7 @@ for subID in ${search}; do
         find -L "${input_dir}" \
         -type f \
         -name "mask*" \
-        -and -name "*acq-${DATA^^}*" \
+        -and -name "*acq-${DATA_UPR}*" \
         2>/dev/null
       )
 

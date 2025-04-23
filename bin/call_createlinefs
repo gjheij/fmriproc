@@ -199,7 +199,8 @@ if __name__ == "__main__":
                 "output=", "no-freeview", "lh", "rh", "ses="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

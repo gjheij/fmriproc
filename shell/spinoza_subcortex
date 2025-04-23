@@ -182,7 +182,7 @@ for subID in ${search}; do
   #-----------------------------------------------------------------------------
   # Running MASSP with Nighres
 
-  massp="${output_dir}/${base}_acq-${DATA^^}_desc-massp_label.nii.gz"
+  massp="${output_dir}/${base}_acq-${DATA_UPR}_desc-massp_label.nii.gz"
   if [[ ! -f "${massp}" ]]; then
 
     # print header
@@ -193,7 +193,7 @@ for subID in ${search}; do
     mask=$(
       find "${DIR_DATA_DERIV}/manual_masks/${base_path}" \
       -type f \
-      -name "*acq-${DATA^^}*" \
+      -name "*acq-${DATA_UPR}*" \
       -and -name "*brainmask.nii.gz" \
       2>/dev/null
     )
@@ -251,7 +251,7 @@ for subID in ${search}; do
     job="$(
       decide_job_type \
       "call_nighresmassp" \
-      "${base}_acq-${DATA^^}_desc-massp" \
+      "${base}_acq-${DATA_UPR}_desc-massp" \
       "${run_local}" \
       "${DIR_LOGS}" \
       "${n_cpus}" \
@@ -263,7 +263,7 @@ for subID in ${search}; do
       "${job}"
       --inputdir "${use_dir}"
       --outputdir "${output_dir}"
-      --name "${base}_acq-${DATA^^}_desc"
+      --name "${base}_acq-${DATA_UPR}_desc"
       "${kws_ants}"
       "${kws_massp}"
     )

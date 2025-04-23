@@ -190,7 +190,7 @@ for subID in ${search}; do
     file=$(
       find -L "${p}" \
       -type f \
-      -name "*acq-${DATA^^}*" \
+      -name "*acq-${DATA_UPR}*" \
       -and -iname "*-${r}*" \
       -and -not -name "*manual*" \
       -and -name "*.nii.gz" \
@@ -212,7 +212,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # set outputs
-  output_root="${output_dir}/cruise/${base}_acq-${DATA^^}_desc"
+  output_root="${output_dir}/cruise/${base}_acq-${DATA_UPR}_desc"
   output="${output_root}-cruise_cortex.nii.gz"
 
   if [[ ! -d "${output_dir}/cruise" ]]; then
@@ -222,8 +222,8 @@ for subID in ${search}; do
   # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
   if [[ ${OW} -eq 1 ]]; then
     if [[ -d "${output_dir}/cruise" ]]; then
-      INTRO="Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\""
-      rm -r ${output_dir}/cruise/${base}_acq-${DATA^^}_desc* 2>/dev/null
+      INTRO="Overwrite mode: deleting files with \"${base}_acq-${DATA_UPR}_desc\""
+      rm -r ${output_dir}/cruise/${base}_acq-${DATA_UPR}_desc* 2>/dev/null
     fi
   else
     INTRO="Overwrite mode disabled"
@@ -266,7 +266,7 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # create binary mask from CRUISE segmentation
-        cruise_mask="${p}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz"
+        cruise_mask="${p}/${base}_acq-${DATA_UPR}_desc-cruise_mask.nii.gz"
         echo
         print_line -
         print_create_img "${cruise_mask}"
@@ -328,7 +328,7 @@ for subID in ${search}; do
         file=$(
           find -L "${p}" \
           -type f \
-          -name "*acq-${DATA^^}*" \
+          -name "*acq-${DATA_UPR}*" \
           -and -name "*cruise_cortex.nii.gz" \
           2>/dev/null
         )

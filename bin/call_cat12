@@ -132,7 +132,7 @@ fi
 if [[ -z ${MODE} ]]; then
   MODE='brain'
 else
-  if [[ ${MODE,,} != 'full' && ${MODE,,} != 'brain' ]]; then
+  if [[ $(make_lower ${MODE}) != 'full' && $(make_lower ${MODE}) != 'brain' ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "mode" "Must be \"full\" or \"brain\", not \"${MODE}\""

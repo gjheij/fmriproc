@@ -67,11 +67,12 @@ Examples:
         opts = getopt.getopt(
             argv,
             "ht:m:i:o:",
-            ["help", "t1w=", "mask=", "inv=", "output="]
+            ["help", "t1w=", "mask=", "inv2=", "output="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
-        sys.exit()
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
+        sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-h", "--help"):
@@ -87,7 +88,6 @@ Examples:
             output = arg
 
     if len(argv) < 4:
-        print("\nNOT ENOUGH ARGUMENTS SPECIFIED")
         print(main.__doc__)
         sys.exit()
 

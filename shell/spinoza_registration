@@ -236,7 +236,9 @@ else
 fi
 
 if [[ -z ${TYPE} ]]; then
-  TYPE="${ACQ[0],,}"
+  TYPE=$(make_lower "${ACQ[0]}")
+else
+  TYPE=$(make_lower "${TYPE}")
 fi
 
 #-----------------------------------------------------------------------------
@@ -266,7 +268,7 @@ for subID in ${search}; do
   output_dir="${OUTPUT}/${base_path}"
 
   write_output=0
-  if [[ ${TYPE,,} == ${ACQ[0],,} ]]; then
+  if [[ "${TYPE}" == $(make_lower "${ACQ[0]}") ]]; then
 
     write_output=1
     if [[ -z ${reg_type} ]]; then
@@ -283,7 +285,7 @@ for subID in ${search}; do
       fixed_file=$(
         find -L "${input_dir}" \
         -type f \
-        -iname "*${ACQ[0]^^}_*T1w.nii.gz" \
+        -iname "*$(make_upper ${ACQ[0]})_*T1w.nii.gz" \
         -not -name "*space-*"
       )
       
@@ -291,7 +293,7 @@ for subID in ${search}; do
       moving_files=$(
         find -L "${input_dir}" \
         -type f \
-        -iname "*${ACQ[1]^^}_*T1w.nii.gz" \
+        -iname "*$(make_upper ${ACQ[1]})_*T1w.nii.gz" \
         -not -name "*space-*"
       )
 
@@ -304,7 +306,7 @@ for subID in ${search}; do
       fixed_file=$(
         find -L "${input_dir}" \
         -type f \
-        -iname "*${ACQ[0]^^}_run-1*T1w.nii.gz" \
+        -iname "*$(make_upper ${ACQ[0]})*run-1*T1w.nii.gz" \
         -not -name "*space-*"
       )
 
@@ -312,7 +314,7 @@ for subID in ${search}; do
       moving_files=$(
         find -L "${input_dir}" \
         -type f \
-        -iname "*${ACQ[0]^^}*run-[2-9]*T1w.nii.gz" \
+        -iname "*$(make_upper ${ACQ[0]})*run-[2-9]*T1w.nii.gz" \
         -not -name "*space-*"
       )
 
@@ -320,8 +322,8 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # anat to MNI
-  elif [[ ${TYPE,,} == "mni" ]]; then
-    if [[ -z ${reg_type} ]]; then
+  elif [[ "${TYPE}" == "mni" ]]; then
+    if [[ -z "${reg_type}" ]]; then
       reg_type="--syn"
     fi
     code=3
@@ -329,7 +331,7 @@ for subID in ${search}; do
     moving_files=$(
       find -L "${input_dir}" \
       -type f \
-      -iname "*${ACQ[0]^^}_*T1w.nii.gz" \
+      -iname "*$(make_upper ${ACQ[0]})_*T1w.nii.gz" \
       -not -name "._*"
     )
 
@@ -360,7 +362,7 @@ for subID in ${search}; do
     if [[ ${code} -eq 1 ]]; then
       txt="Registering ${ACQ[1]} to ${ACQ[0]}"
       space=${ACQ[0]}
-      ext="from-${ACQ[1]^^}_to-${ACQ[0]^^}"
+      ext="from-$(make_upper ${ACQ[1]})_to-$(make_upper ${ACQ[0]})"
     elif [[ ${code} -eq 2 ]]; then
       # Multiple MP(2)RAGES
       txt="Registering ${moving} to ${fixed_file}"
@@ -370,7 +372,7 @@ for subID in ${search}; do
       ext="from-run${run_mv}_to-run${run_fx}"
     elif [[ ${code} -eq 3 ]]; then
       # MNI
-      txt="Registering ${ACQ[0]^^} to MNI152 template"
+      txt="Registering $(make_upper ${ACQ[0]}) to MNI152 template"
       space="MNI152NLin6Asym"
       ext="from-T1w_to-${space}"
     fi

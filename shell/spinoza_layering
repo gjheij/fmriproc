@@ -150,7 +150,7 @@ else
 fi
 
 # Normalize input (lowercase)
-software_input="${SOFTWARE,,}"
+software_input=$(make_lower ${SOFTWARE})
 
 #-----------------------------------------------------------------------------
 # settings based on software
@@ -184,7 +184,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # intro
-start_timer "Equivolumetric layering using ${software^^}"
+start_timer "Equivolumetric layering using \"$(make_lower ${software})\""
 
 # nighres required this module
 check_python_package "nighres"
@@ -220,7 +220,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # Running equivolumetric layering with nighres
-  if [[ ${software,,} == "nighres" ]]; then
+  if [[ $(make_lower ${software}) == "nighres" ]]; then
 
     if [[ ! -d "${input_dir}/cruise" ]]; then
       print_directory_not_exist "${sub_name}" "${input_dir}/cruise"
@@ -235,7 +235,7 @@ for subID in ${search}; do
       file=$(
         find "${input_dir}/cruise" \
         -type f \
-        -name "*acq-${DATA^^}*" \
+        -name "*acq-${DATA_UPR}*" \
         -and -name "*${r}*" \
         -and -name "*.nii.gz" \
         2>/dev/null
@@ -256,7 +256,7 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # specify outputs
-    output_root="${input_dir}/layering/${base}_acq-${DATA^^}_desc"
+    output_root="${input_dir}/layering/${base}_acq-${DATA_UPR}_desc"
     output="${output_root}-layering_depth.nii.gz"
 
     if [[ ! -d "$(dirname ${output_root})" ]]; then
@@ -302,7 +302,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # Surface-based
-  elif [[ ${software,,} == "surface" ]]; then
+  elif [[ $(make_lower ${software}) == "surface" ]]; then
 
     print_subject_header ${sub_name}  
 

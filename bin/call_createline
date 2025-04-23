@@ -4,7 +4,7 @@ import os
 import sys
 import getopt
 from lazyfmri import utils
-from fmriproc.image import create_line_from_slice
+from fmriproc.image import create_line_from_sliceimport create_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice_line_from_sliceroc.image import create_line_from_sliceimport create_line_from_slice
 
 
 @utils.validate_cli_inputs(required_keys=["in_file", "out_file"])
@@ -84,7 +84,8 @@ if __name__ == "__main__":
             ["help", "in=", "out=", "width=", "fh", "lr", "ap"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

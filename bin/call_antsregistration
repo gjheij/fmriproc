@@ -600,11 +600,12 @@ function syn_ {
 }
 
 # add individual stages
-if [[ ${TYPE,,} == "rigid" ]]; then
+type_lower=$(printf '%s' "${TYPE}" | tr '[:upper:]' '[:lower:]')
+if [[ "${type_lower}" == "rigid" ]]; then
   cmd+=" $(rigid_)"
-elif [[ ${TYPE,,} == "affine" ]]; then
+elif [[ "${type_lower}" == "affine" ]]; then
   cmd+=" $(affine_)"
-elif [[ ${TYPE,,} == "syn" ]]; then
+elif [[ "${type_lower}" == "syn" ]]; then
   if [[ ${ras} -eq 1 ]]; then
     cmd+=" $(rigid_)"
     cmd+=" $(affine_)"

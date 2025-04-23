@@ -239,7 +239,7 @@ for subID in ${search}; do
     file=$(
       find "${mgdm_dir}" \
       -type f \
-      -name "*acq-${DATA^^}*" \
+      -name "*acq-${DATA_UPR}*" \
       -and -name "*${r}*" \
       -and -name "*.nii.gz" \
       2>/dev/null
@@ -271,9 +271,9 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # define outputs
-  output_root="${region_dir}/${base}_acq-${DATA^^}_desc"
+  output_root="${region_dir}/${base}_acq-${DATA_UPR}_desc"
   output="${output_root}-xproba_${suff}-gm.nii.gz"
-  gm_prob="${mask_dir}/${base}_acq-${DATA^^}_label-GM_probseg.nii.gz"
+  gm_prob="${mask_dir}/${base}_acq-${DATA_UPR}_label-GM_probseg.nii.gz"
   
   # output directory
   if [[ ! -d "${region_dir}" ]]; then
@@ -380,7 +380,7 @@ for subID in ${search}; do
         --nighres "${region_dir}"
         --manual "${mask_dir}"
         --outputdir "${mask_dir}"
-        --name "${base}_acq-${DATA^^}"
+        --name "${base}_acq-${DATA_UPR}"
       )
 
       # print and run

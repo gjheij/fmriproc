@@ -200,7 +200,26 @@ fi
 arg_str="${user_args[*]}"
 
 # Initialize base command
-cmd_args=(parrec2nii)
+base_cmd=(parrec2nii)
+
+# Check for presence before adding default long flags
+[[ ! "$arg_str" =~ "--scaling" ]] && base_cmd+=("--scaling" "fp")
+
+if [[ ! "$arg_str" =~ (--verbose|-v) ]]; then
+  base_cmd+=("--verbose")
+fi
+
+if [[ ! "$arg_str" =~ (--output-dir|-o) ]]; then
+  base_cmd+=("--output-dir" "${pathOutput}")
+fi
+
+# add compression flag
+if [[ ! -z ${compress} ]]; then
+  [[ ! "$arg_str" =~ "--compressed" ]] && base_cmd+=("${compress}")
+fi
+
+# Add user-specified options
+base_cmd+=("${user_args[@]}")
 
 #-----------------------------------------------------------------------------
 # Run it
@@ -209,30 +228,13 @@ for par in ${par_files[@]}; do
   orig_out="${pathOutput}/$(basename "${par}" .${ext}).nii.gz"
   if [[ ! -f "${orig_out}" || ${force} -eq 1 ]]; then
 
-    # Check for presence before adding default long flags
-    [[ ! "$arg_str" =~ "--scaling" ]] && cmd_args+=("--scaling" "fp")
-
-    if [[ ! "$arg_str" =~ (--verbose|-v) ]]; then
-      cmd_args+=("--verbose")
-    fi
-
-    if [[ ! "$arg_str" =~ (--output-dir|-o) ]]; then
-      cmd_args+=("--output-dir" "${pathOutput}")
-    fi
-
-    # add compression flag
-    if [[ ! -z ${compress} ]]; then
-      [[ ! "$arg_str" =~ "--compressed" ]] && cmd_args+=("${compress}")
-    fi
-
-    # Add user-specified options
-    cmd_args+=("${user_args[@]}")
-
     # Final positional input (the directory/file)
-    cmd_args+=("${par}")    
+    this_cmd=(
+      "${base_cmd[@]}"
+      "${par}"
+    )
 
-    print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
-    exit 1
+    print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
@@ -387,12 +389,46 @@ END
     fi
 
     echo -e "Setting TR to ${BOLD_RED}${tr}${RESET} in func; adding to json too"
-    call_settr "${bids_out}.nii.gz" "${tr}"
-    call_json "${json_f}" RepetitionTime "${tr}"
+    
+    # Set TR
+    cmd=(
+      call_settr
+      "${bids_out}.nii.gz"
+      "${tr}"
+    )
+
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+      exit 1
+    fi 
+
+    # write TR to json file
+    cmd=(
+      call_json
+      "${json_f}"
+      RepetitionTime
+      "${tr}"
+    )
+
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+      exit 1
+    fi    
 
     #-----------------------------------------------------------------------------
     # set dtype to uint16
-    dtype=$(fslval "${bids_out}.nii.gz" data_type)
+    dtype=$(
+      fslval \
+      "${bids_out}.nii.gz" \
+      data_type
+    )
+  
     if [ ${dtype} == "FLOAT64" ]; then
       echo -e "Changing data_type of ${orig_out} from float64 to ${BOLD_RED}uint16${RESET}"
       call_setdtype "${bids_out}.nii.gz"
@@ -430,21 +466,43 @@ END
       fi
 
       #-----------------------------------------------------------------------------
-      # add the regular parameters to EPI json
+      # add the regular parameters to FMAP json
       echo "Adding basic information to $(basename ${epi_json})"
       pars_for_json --merge $"{par}" "${epi_json}"
 
-      #-----------------------------------------------------------------------------
       # add IntendedFor field
-      call_json \
-        "${epi_json}" \
-        IntendedFor,ConversionSoftware \
+      cmd=(
+        call_json
+        "${epi_json}"
+        IntendedFor,ConversionSoftware
         "${base_path}/func/$(basename ${bids_out}).nii.gz","parrec2nii"
-      
-      call_json \
-        "${json_f}" \
-        ConversionSoftware \
+      )
+
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+        exit 1
+      fi    
+
+      #-----------------------------------------------------------------------------
+      # add software to BOLD json
+      cmd=(
+        call_json
+        "${json_f}"
+        ConversionSoftware
         parrec2nii
+      )
+      
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+        exit 1
+      fi    
     fi
   fi
+  echo
 done

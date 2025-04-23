@@ -4,7 +4,7 @@ import os
 import sys
 import getopt
 import nibabel as nb
-from nilearn import image
+from nilearn import imageimagern import imageimage
 
 def main(argv):
 
@@ -52,7 +52,8 @@ Example:
             ["help", "input=", "mask=", "output=", "val="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

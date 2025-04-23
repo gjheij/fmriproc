@@ -8,7 +8,7 @@ from lazyfmri import (
     dataset,
 )
 import shutil
-import pandas as pd 
+import pandas as pd d  d  d  d  d  d  d  d 
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
@@ -201,7 +201,8 @@ if __name__ == "__main__":
             ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

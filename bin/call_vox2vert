@@ -6,7 +6,7 @@ import ast
 import getopt
 import numpy as np
 from lazyfmri import utils
-from fmriproc.transform import fs2vert
+from fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert
 
 opj = os.path.join
 
@@ -102,7 +102,8 @@ if __name__ == "__main__":
            ["help=", "subj=", "coord=", "hemi=", "output="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

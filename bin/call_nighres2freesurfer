@@ -10,7 +10,7 @@ import sys
 import getopt
 import numpy as np
 from lazyfmri import utils
-from fmriproc.transform import fs2tkr
+from fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkr
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"])
@@ -77,7 +77,8 @@ if __name__ == "__main__":
             print(main.__doc__)
             sys.exit()
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     subject = opts[0]

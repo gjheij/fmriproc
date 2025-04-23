@@ -6,7 +6,7 @@ import getopt
 import numpy as np
 import nibabel as nb
 from nilearn import image
-from lazyfmri import utils
+from lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["t1w", "t2w", "out"])
@@ -104,7 +104,8 @@ if __name__ == "__main__":
             ["help", "t1=", "t2=", "out=", "thresh="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

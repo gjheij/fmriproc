@@ -10,7 +10,7 @@ import sys
 import getopt
 import nibabel as nb
 from fmriproc import image
-from lazyfmri import utils
+from lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utilsfrom lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -304,7 +304,8 @@ if __name__ == "__main__":
             ["help", "t1w=", "t1map=", "skull=", "dura=", "outputdir=", "name=", "inputdir=", "kwargs=", "priors="]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

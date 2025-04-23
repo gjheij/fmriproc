@@ -689,11 +689,21 @@ if [[ ! -z ${WHICH_MOD} ]] && [[ "${@}" != *"-m"* ]]; then
 fi
 
 #-------------------------------------------------------------------------------------
-# Define default session/subject options
-SESSION=${SES:+-n ${SES}}
-[[ ${SES,,} == "none" ]] && SESSION=""
+# Define default session/subject stuff
+if [[ -z ${SES} ]]; then
+  # Going to assume ses-1 here
+  SESSION="-n 1"
+elif [[ $(make_lower ${SES}) == "none" ]]; then
+  SESSION=""
+else
+  SESSION="-n ${SES}"
+fi
 
-SUBJECT=${SUB:+-s ${SUB}}
+if [[ -z ${SUB} ]]; then
+  SUBJECT=""
+else
+  SUBJECT="-s ${SUB}"
+fi
 
 #-------------------------------------------------------------------------------------
 # STEP 01: Optimal line planning procedure with registration of anat ses-1 to ms ses-2
@@ -1173,7 +1183,7 @@ if [[ $? -eq 0 ]]; then
   # print module intro
   print_module_start "${module}" "Calculate averages of the T1-weighted image and T1map"
 
-  if [[ ${DATA^^} == "AVERAGE" ]]; then
+  if [[ ${DATA_UPR} == "AVERAGE" ]]; then
 
     if [[ -d "${DIR_DATA_DERIV}/pymp2rage" ]]; then
       INPUT_DIR="${DIR_DATA_DERIV}/pymp2rage"
@@ -1527,7 +1537,7 @@ if [[ $? -eq 0 ]]; then
     "${MAN_FLAG}"
     "${INT_UPPER}"
     "${INT_LOWER}"
-    "${INPUT_DIR}" "${DIR_DATA_DERIV}/masked_${DATA,,}" "${DIR_DATA_DERIV}/manual_masks" "${DIR_DATA_DERIV}/skullstripped"
+    "${INPUT_DIR}" "${DIR_DATA_DERIV}/masked_${DATA_LWR}" "${DIR_DATA_DERIV}/manual_masks" "${DIR_DATA_DERIV}/skullstripped"
   )
 
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
@@ -1629,7 +1639,7 @@ if [[ $? -eq 0 ]]; then
 
   # decide on config file (overwrite earlier defaults)
   if [[ ! -z ${CONF} ]]; then
-    if [[ ${CONF,,} == "none" ]]; then
+    if [[ $(make_lower ${CONF}) == "none" ]]; then
       confFile=""
     else
       if [[ -f ${CONF} ]]; then

@@ -6,7 +6,7 @@ import getopt
 import pathlib
 from nilearn import image
 from scipy import ndimage
-from lazyfmri import utils
+from lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
@@ -358,7 +358,8 @@ if __name__ == "__main__":
             ["help", "sub=", "ses=", "inv=", "t1=", "masks=", "output=", "no-manual"]
         )[0]
     except getopt.GetoptError:
-        print(main.__doc__)
+        print(main.__doc__, flush=True)
+        print("ERROR while handling arguments.. Did you specify an 'illegal' argument..?", flush=True)
         sys.exit(2)
 
     for opt, arg in opts:

@@ -183,7 +183,7 @@ if [[ ! "$arg_str" =~ (--init-reg|--init-header) ]]; then
   if [[ ${extension} == "txt" ]] || [[ ${extension} == "mat" ]] || [[ ${extension} == "lta" ]]; then
     # we have an initialization matrix
     init="--init-reg ${init}"
-  elif [[ ${init,,} == "header" ]] || [[ ${init,,} == "hdr" ]]; then
+  elif [[ $(make_lower ${init}) == "header" ]] || [[ $(make_lower ${init}) == "hdr" ]]; then
     # using header for initialization
     init="--init-header"
   else
