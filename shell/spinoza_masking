@@ -215,7 +215,7 @@ for subID in ${search}; do
 
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      rm -r "${output_dir}"/*acq-${DATA^^}* 2>/dev/null
+      rm -r "${output_dir}/"*acq-${DATA^^}* 2>/dev/null
       rm -r "${masked_anat}" 2>/dev/null
     fi
 

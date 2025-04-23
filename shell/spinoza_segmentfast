@@ -168,10 +168,10 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  input_dir=${SKULL}/${base_path}
-  output_dir=${FSL}/${base_path}
+  input_dir="${SKULL}/${base_path}"
+  output_dir="${FSL}/${base_path}"
 
-  if [ ! -d ${input_dir} ]; then
+  if [ ! -d "${input_dir}" ]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   fi
@@ -179,7 +179,7 @@ for subID in ${search}; do
   #-----------------------------------------------------------------------------
   # Running FAST with call_fslfast
 
-  if [[ ! -d ${input_dir} ]]; then
+  if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   fi
@@ -198,7 +198,7 @@ for subID in ${search}; do
 
   # overwrite
   if [[ ${OW} -eq 1 ]]; then
-    if [[ -d ${output_dir} ]]; then
+    if [[ -d "${output_dir}" ]]; then
       echo "Overwrite mode: deleting files with \"${base}_acq-${DATA^^}\""
       rm -r "${output_dir}/${base}_acq-${DATA^^}"* 2>/dev/null
     fi
@@ -220,7 +220,7 @@ for subID in ${search}; do
 
       #-----------------------------------------------------------------------------
       # run if output root doesn't exist
-      if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
+      if [[ ! -f "${outputroot}_seg.nii.gz" ]]; then
         echo -e "Running FAST on ${BOLD_GREEN}${input_t1w}${RESET}"
         cmd=(
           call_fslfast

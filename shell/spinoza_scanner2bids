@@ -298,7 +298,7 @@ fi
 PROJECT_ROOT=${@:$OPTIND:1}
 SOURCEDATA=${@:$OPTIND+1:1}
 
-[[ -z "$PROJECT_ROOT" || -z "$SOURCEDATA" ]] && Usage
+[[ -z "${PROJECT_ROOT}" || -z "${SOURCEDATA}" ]] && Usage
 
 # If no subjects specified, process all found in sourcedata
 if [[ -z ${sub} ]]; then
@@ -323,14 +323,14 @@ for subID in ${search}; do
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
-  if [[ ! -z ${ses} ]]; then
-    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
-    base_path=${sub_name}/ses-${nr}
-    base=${sub_name}_ses-${nr}
+  if [[ ! -z "${ses}" ]]; then
+    nr=$(echo "${ses}" | sed -e 's/^[[:space:]]*//')
+    base_path="${sub_name}/ses-${nr}"
+    base="${sub_name}_ses-${nr}"
     msg="${BOLD_CYAN}${sub_name}${RESET} ses-${BOLD_RED}${ses}${RESET}: already processed"
   else
-    base_path=${sub_name}
-    base=${sub_name}
+    base_path="${sub_name}"
+    base="${sub_name}"
     msg="${BOLD_CYAN}${sub_name}${RESET}: already processed"
   fi  
 

@@ -150,15 +150,15 @@ for subID in ${search}; do
   # collect subject name
   if [[ ! -z ${sub} ]]; then
     if [[ ${sub} != "group" ]]; then
-      sub_name=${SUBJECT_PREFIX}${subID}
-      sub_id=${subID}
+      sub_name="${SUBJECT_PREFIX}${subID}"
+      sub_id="${subID}"
     else
       sub_name="group"
       sub_id="group"
     fi
   else
-    sub_name=$(basename ${subID})
-    sub_id=`get_id ${sub_name} ${SUBJECT_PREFIX}`
+    sub_name="$(basename ${subID})"
+    sub_id=$(get_id "${sub_name}" "${SUBJECT_PREFIX}")
   fi
 
   #-----------------------------------------------------------------------------
@@ -166,12 +166,12 @@ for subID in ${search}; do
   if [[ ${sub_name} != "group" ]]; then
     if [[ ! -z ${ses} ]]; then
       nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
-      base_path=${sub_name}/ses-${nr}
-      base=${sub_name}_ses-${nr}
+      base_path="${sub_name}/ses-${nr}"
+      base="${sub_name}_ses-${nr}"
       ses_flag="-n ${ses}"
     else
-      base_path=${sub_name}
-      base=${sub_name}
+      base_path="${sub_name}"
+      base="${sub_name}"
       ses_flag=""
     fi
   fi

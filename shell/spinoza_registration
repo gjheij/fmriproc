@@ -325,7 +325,7 @@ for subID in ${search}; do
       reg_type="--syn"
     fi
     code=3
-    fixed_file=${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz
+    fixed_file="${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz"
     moving_files=$(
       find -L "${input_dir}" \
       -type f \
@@ -353,7 +353,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # loop through moving files
-  for moving in ${moving_files[@]}; do
+  for moving in "${moving_files[@]}"; do
 
     #-----------------------------------------------------------------------------
     # MP2RAGE+MP2RAGEME
@@ -443,29 +443,38 @@ for subID in ${search}; do
         
         #-----------------------------------------------------------------------------
         # check if file exists and warp it
-        suff=$(echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1)
-        in_file="$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz"
+        suff=$(
+          echo "${moving}" | \
+          rev | \
+          cut -d"_" -f1 | \
+          rev | \
+          cut -d"." -f1
+        )
+
+        # define in file
+        in_file="${moving/_${suff}.nii.gz/_${out}.nii.gz}"
         if [ -f "${in_file}" ]; then
 
           # define output
           acq=$(get_id "${moving}" acq)
-          output="$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_space-${space}_${out}.nii.gz"
+          output="${moving/_${suff}.nii.gz/_space-${space}_${out}.nii.gz}"
 
           # overwrite if requested
           if [[ ${OW} -eq 1 ]]; then
-            rm ${output} 2>/dev/null
+            rm "${output}" 2>/dev/null
           fi
 
           #-----------------------------------------------------------------------------
           # define command
-          if [[ ! -f ${output} ]]; then
-            if [[ ${reg_type} == "--syn" ]]; then
+          if [[ ! -f "${output}" ]]; then
+            if [[ "${reg_type}" == "--syn" ]]; then
               matrices="${outGenAff} ${outWarp}"
               invert="0 0"
             else
               matrices="${outGenAff}"
               invert="0"
-            fi          
+            fi
+   
             echo " creating \"${output}\""
             cmd=(
               call_antsapplytransforms

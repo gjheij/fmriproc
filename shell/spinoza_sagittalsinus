@@ -5,6 +5,8 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# launcer function
 launch_viewer() {
   local ref="${1}"
   local mask="${2}"
@@ -29,8 +31,8 @@ launch_viewer() {
     echo
     print_line -
     echo -e "Starting '${BOLD_RED}${func}${RESET}'. ${msg} ${BOLD_RED}ALWAYS SAVE YOUR CHANGES!${RESET}"
-    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
 
+    print_cmd "${cmd}" && eval "${cmd}" 2>/dev/null
     if [[ $? -ne 0 ]]; then
       echo
       print_line -
@@ -230,11 +232,7 @@ for subID in ${search}; do
 
         # print header
         print_subject_header ${sub_name}
-
-        if [[ -f "$(dirname ${r2star})/tmp_$(basename ${r2star})" ]]; then
-          rm -r "$(dirname ${r2star})/tmp_$(basename ${r2star})" 2>/dev/null
-        fi
-
+        
         #-----------------------------------------------------------------------------
         # threshold R2star mask and binarize mask
         echo -e "Thresholding [${BOLD_RED}${thresh}${RESET} and binarizing ${BOLD_GREEN}$(basename ${r2star})${RESET}"
@@ -266,6 +264,7 @@ for subID in ${search}; do
           -and -name "*.nii.gz" \
           2>/dev/null
         )
+
         if [[ ! -z "${t1w}"  ]]; then
           # launch the viewer
           echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"

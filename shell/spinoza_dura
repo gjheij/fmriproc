@@ -208,7 +208,7 @@ for subID in ${search}; do
     rm ${output_mask} 2>/dev/null
   fi
 
-  if [[ ! -f ${output_mask} ]]; then
+  if [[ ! -f "${output_mask}" ]]; then
 
     # print header
     print_subject_header ${sub_name}

@@ -202,13 +202,12 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # set paths
-  input_dir=${INPUT}/${base_path}
-  output_dir=${OUTPUT}/${base_path}
+  input_dir="${INPUT}/${base_path}"
+  output_dir="${OUTPUT}/${base_path}"
 
   #-----------------------------------------------------------------------------
   # check aggressive overwrite mode
   if [[ ${FULL_OW} -eq 1 ]]; then
-    echo "Full overwrite mode activated"
     rm -r ${output_dir} 2>/dev/null
   fi
   
@@ -259,7 +258,8 @@ for subID in ${search}; do
           -iname "*acq-${a}*" \
           -and -name "*T1w*" \
           -and -name "*.nii.gz" | \
-          sort 2>/dev/null
+          sort \
+          2>/dev/null
         )
       )
     else
@@ -270,7 +270,8 @@ for subID in ${search}; do
         -iname "*acq-${a}*" \
         -and -name "*inv-*" \
         -and -name "*.nii.gz" | \
-        sort 2>/dev/null
+        sort \
+        2>/dev/null
       )
     fi
 
@@ -338,7 +339,7 @@ for subID in ${search}; do
             # set output name based on acquisition strategy
             add_run=""
             run=$(get_id "${file}" run)
-            if [[ ! -z ${run} ]]; then
+            if [[ ! -z "${run}" ]]; then
               add_run="_run-${run}"
             fi
 
@@ -391,14 +392,14 @@ for subID in ${search}; do
   for f in ${SEARCH_ANATOMICALS[@]}; do
 
     # copy T2w-file to pymp2rage folder for later convenience
-    if [[ ${f} != "T1w" ]]; then
+    if [[ "${f}" != "T1w" ]]; then
       f_files=$(
         find -L "${input_dir}" \
         -type f \
         -name "*${f}.nii.gz" \
         2>/dev/null
       )
-      if [ ! -z ${f_files} ]; then
+      if [ ! -z "${f_files}" ]; then
         ct=0; for ii in ${f_files[@]}; do ((ct++)); done
         ix=0
         if [[ ${ct} -gt 1 ]]; then

@@ -73,6 +73,7 @@ Call with master:
 Notes:
   - embedded_antsreg_multi: https://nighres.readthedocs.io/en/latest/registration/embedded_antsreg_multi.html
   - MASSP: https://nighres.readthedocs.io/en/latest/auto_examples/example_07_massp_subcortex_parcellation.html
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -152,7 +153,7 @@ start_timer "Subcortex Parcellation with MASSP from Nighres"
 # nighres required this module
 check_python_package "nighres"
 
-if [[ ! -d ${INPUT} ]]; then
+if [[ ! -d "${INPUT}" ]]; then
   print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
   continue
 fi
@@ -261,7 +262,7 @@ for subID in ${search}; do
     cmd=(
       "${job}"
       --inputdir "${use_dir}"
-      --outputdir ${output_dir}
+      --outputdir "${output_dir}"
       --name "${base}_acq-${DATA^^}_desc"
       "${kws_ants}"
       "${kws_massp}"

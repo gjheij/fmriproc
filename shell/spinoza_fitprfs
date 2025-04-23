@@ -440,8 +440,8 @@ for subID in ${search}; do
     # print header
     print_subject_header ${sub_name}
 
-    if [[ ! -d ${prf_dir} ]]; then
-      mkdir -p ${prf_dir}
+    if [[ ! -d "${prf_dir}" ]]; then
+      mkdir -p "${prf_dir}"
     fi
     
     #-----------------------------------------------------------------------------
@@ -726,12 +726,12 @@ for subID in ${search}; do
           # decide job
           job="$(
             decide_job_type \
-              "${script_name}" \
-              "${base}_task-${task}_model-${model}" \
-              "${run_local}" \
-              "${prf_dir}" \
-              "${n_cpus}" \
-              "${SGE_QUEUE}"
+            "${script_name}" \
+            "${base}_task-${task}_model-${model}" \
+            "${run_local}" \
+            "${prf_dir}" \
+            "${n_cpus}" \
+            "${SGE_QUEUE}"
           )"
 
           #-----------------------------------------------------------------------------

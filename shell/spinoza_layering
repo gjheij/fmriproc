@@ -202,11 +202,11 @@ for subID in ${search}; do
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
   # derive base
-  if [[ -z ${ses} ]]; then
+  if [[ -z "${ses}" ]]; then
     input_dir="${INPUT}/${sub_name}"
     base="${sub_name}"
   else
-    nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
+    nr=$(echo "${ses}" | sed -e 's/^[[:space:]]*//')
 
     # remove this statement if you have multiple freesurfer sessions
     if [[ $(basename "${INPUT}") == *"freesurfer"* ]]; then
@@ -344,7 +344,7 @@ for subID in ${search}; do
       rm -r "${out_f}" 2>/dev/null
       
       # print and run
-      echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
+      echo ${run_cmd} >> "${out_f}"
       print_cmd "${run_cmd[@]}" && eval "${run_cmd[@]}"
       if [[ $? -ne 0 ]]; then
         echo

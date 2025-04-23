@@ -410,7 +410,6 @@ for subID in ${search}; do
             print_file_not_exist "${sub_name}" "warp"
             continue
           fi
-
         else
           print_file_not_exist "${sub_name}" "${BOLD_GREEN}${fn_nuisance}${RESET}"
           continue
@@ -438,7 +437,7 @@ for subID in ${search}; do
             exit 1
           fi
 
-          rm ${fn_mni} 2>/dev/null
+          rm "${fn_mni}" 2>/dev/null
           echo; echo -e "Created ${BOLD_GREEN}${fn_out}${RESET}"
           if [[ ! -z "${t1}" ]]; then
             cmd=(

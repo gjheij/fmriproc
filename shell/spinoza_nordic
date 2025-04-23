@@ -277,13 +277,13 @@ for subID in ${search}; do
       # check if json has "NORDIC" field; definitely do nordic if there's no json file; also do it 
       # if there's no nifti in func/
       do_nordic=1
-      json_f="${func_folder}/$(basename ${mag_img} .nii.gz).json"
+      json_f="${func_folder}/$(basename "${mag_img}" .nii.gz).json"
       if [[ -f "${json_f}" ]]; then
-        if [[ ! -f "${func_folder}/$(basename ${mag_img})" ]]; then
+        if [[ ! -f "${func_folder}/$(basename "${mag_img}")" ]]; then
           do_nordic=1
         else
-          did_nordic=$(cat ${json_f} | grep "Nordic")
-          if [[ ! -z ${did_nordic} ]]; then
+          did_nordic=$(cat "${json_f}" | grep "Nordic")
+          if [[ ! -z "${did_nordic}" ]]; then
             do_nordic=0
           else
             do_nordic=1
@@ -303,9 +303,9 @@ for subID in ${search}; do
         # check if there's a phase directory
         if [[ ${mag_only} -eq 0 ]]; then
           # get corresponding phase image or insert magnitude image; if no phase, run magnitude only
-          ph_img="${phase_folder}/$(basename ${mag_img} .nii.gz)_ph.nii.gz"
+          ph_img="${phase_folder}/$(basename "${mag_img}" .nii.gz)_ph.nii.gz"
           if [[ ! -f "${ph_img}" ]]; then
-            echo "No phase image for $(basename ${mag_img}); switching to magnitude-only"
+            echo "No phase image for $(basename "${mag_img}"); switching to magnitude-only"
             mag_only=1
           fi
         fi
@@ -334,17 +334,16 @@ for subID in ${search}; do
         job="$(
           decide_job_type \
           "call_nordic" \
-          "$(basename \
-          ${mag_img} _bold.nii.gz)_desc-nordic" \
+          "$(basename "${mag_img/_bold.nii.gz/_desc-nordic}")" \
           "${run_local}" \
           "${DIR_LOGS}" \
           "${n_cpus}" \
           "${SGE_QUEUE}"
         )"
-
+        
         # run if basenames of phase and magnitude match
-        base_ph="$(basename ${ph_img} ${ph_tag}.nii.gz)"
-        base_bl="$(basename ${mag_img} .nii.gz)"
+        base_ph="$(basename "${ph_img}" ${ph_tag}.nii.gz)"
+        base_bl="$(basename "${mag_img}" .nii.gz)"
         if [[ "${base_ph}" == "${base_bl}" ]]; then
           out="${func_folder}/$(basename ${mag_img})"
           

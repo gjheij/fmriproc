@@ -198,7 +198,7 @@ for subID in ${search}; do
         2>/dev/null
       )
 
-      if [[ -z ${tobesampled} ]]; then
+      if [[ -z "${tobesampled}" ]]; then
         print_file_not_in_dir "${sub_name}" "sampling [\"*${TAG}\"]" "${sampled_dir}"
         continue
       fi

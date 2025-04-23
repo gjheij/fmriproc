@@ -17,13 +17,23 @@ check_and_copy_anat() {
   local data="$7"
 
   local anat
-  anat=$(find -L "${func_dir}/${base_path}/anat" -type f -name "*T1w.nii.gz" 2>/dev/null)
+  anat=$(
+    find -L "${func_dir}/${base_path}/anat" \
+    -type f \
+    -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
 
   if [[ -z "${anat}" ]]; then
     local anat_dir
     anat_dir=$(find_hierarchical_anatomy "${anat_dir_level}")
     local diff_anat
-    diff_anat=$(find -L "${anat_dir}/${base_path}" -type f -name "*T1w.nii.gz" 2>/dev/null)
+    diff_anat=$(
+      find -L "${anat_dir}/${base_path}" \
+      -type f \
+      -name "*T1w.nii.gz" \
+      2>/dev/null
+    )
 
     if [[ -n "${diff_anat}" ]]; then
       # Create anat directory if it doesn't exist
@@ -36,7 +46,13 @@ check_and_copy_anat() {
       # Try FreeSurfer rawavg.mgz if available
       local fs_rawavg="${fs_dir}/${sub_name}/mri/rawavg.mgz"
       if [[ -f "${fs_rawavg}" ]]; then
-        call_mriconvert "${fs_rawavg}" "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
+        cmd=(
+          call_mriconvert
+          "${fs_rawavg}"
+          "${func_dir}/${base_path}/anat/${base}_acq-${DATA^^}_T1w.nii.gz"
+        )
+
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_mriconvert"
           exit 1
@@ -86,12 +102,14 @@ manage_fmriprep_workdir() {
   wf_folder=$(find "${workdir}" -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
 
   # Remove surface reconstruction workflow if specified
-  if [[ "${remove-surf-wf}" -eq 1 ]]; then
-    echo "Removing \"${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf\""
-    rm -r "${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf" 2>/dev/null
+  if [[ "${remove_surf_wf}" -eq 1 ]]; then
+    surf_wf="${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf"
+    echo "Removing \"${surf_wf}\""
+    rm -r "${surf_wf}" 2>/dev/null
   elif [[ "${remove_wf}" -eq 1 ]]; then
-    echo "Removing \"single_subject_${sub_id}_wf\" in \"${wf_folder}\""
-    rm -r "${wf_folder}/single_subject_${sub_id}_wf" 2>/dev/null
+    subj_wf="${wf_folder}/single_subject_${sub_id}_wf"
+    echo "Removing \"${subj_wf}\""
+    rm -r "${subj_wf}" 2>/dev/null
   elif [[ "${overwrite}" -eq 1 ]]; then
     # Remove workflow folders for specific runs or all runs
     if [[ ${#runs[@]} -gt 0 ]]; then
@@ -102,7 +120,14 @@ manage_fmriprep_workdir() {
     else
       echo "Removing workflow folders with \"run-*\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
       local ddir
-      ddir=($(find "${wf_folder}/single_subject_${sub_id}_wf" -type d -name "*run-" | sort))
+      ddir=(
+        $(
+          find "${wf_folder}/single_subject_${sub_id}_wf" \
+          -type d \
+          -name "*run-" | \
+          sort
+        )
+      )
       for d in "${ddir[@]}"; do echo " ${d}"; done
       rm -r "${wf_folder}/single_subject_${sub_id}_wf/"*run_* 2>/dev/null
     fi
@@ -133,7 +158,7 @@ generate_config_file() {
       done
 
       confFile="${workdir}/run_conf.json"
-      [[ -f ${confFile} ]] && rm -f "${confFile}"
+      [[ -f "${confFile}" ]] && rm -f "${confFile}"
 
       # Generate JSON config file
       cat <<EOF > "${confFile}"
@@ -529,7 +554,7 @@ for subID in ${search}; do
   # check configuration file
   confFile="$(
     generate_config_file \
-    "$conf" \
+    "${conf}" \
     "${n_runs[@]}"
   )"
 

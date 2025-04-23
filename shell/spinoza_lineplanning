@@ -214,7 +214,7 @@ start_timer "Calculate rotation/translation values for MRI-console"
 #-----------------------------------------------------------------------------
 # Check if all input are correctly specified
 if [[ ${debug} -ne 1 ]]; then
-  if [[ ! -d ${nifti} ]]; then
+  if [[ ! -d "${nifti}" ]]; then
     echo "Please specify the path to the raw session ${session} anatomy"
     exit 1
   fi
@@ -225,7 +225,7 @@ echo "Hemisphere                         = ['${hemi}']"
 
 #-----------------------------------------------------------------------------
 # Convert orig.mgz to orig.nii.gz to take as session 1 input
-fs_dir=${FS}
+fs_dir="${FS}"
 anat_session1="${fs_dir}/${subject}/mri/orig.nii.gz"
 if [[ ! -f ${anat_session1} ]]; then
   echo "Converting orig.mgz to nifti to use as session 1 anatomy"
@@ -290,8 +290,12 @@ if [[ ${debug} -ne 1 ]]; then
     fi      
 
     # extra trigger delay
-    ttime=$(cat "${PAR_FILE}" | awk '/^\s*$/ {next;} {print $33}' | grep -oE '[0-9]+' | head -n 1)
-          # echo content      #extract 33rd column              # filter numbers    # get first value (= trigger delay)
+    ttime=$(
+      cat "${PAR_FILE}" | \
+      awk '/^\s*$/ {next;} {print $33}' | \
+      grep -oE '[0-9]+' | \
+      head -n 1
+    )
 
     if [[ -z "${ttime}" ]]; then
       # set ttime to 1008 if command above did not work

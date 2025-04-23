@@ -153,8 +153,8 @@ if [[ ${run_local} -eq 0 ]]; then
     n_cpus=1
   fi
 
-  if [ ! -d ${DIR_LOGS} ]; then
-    mkdir -p ${DIR_LOGS}
+  if [ ! -d "${DIR_LOGS}" ]; then
+    mkdir -p "${DIR_LOGS}"
   fi
 else
   if [[ -z ${n_cpus} ]]; then
@@ -176,8 +176,8 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # parse kwargs
-  if [[ ! -z ${LSPREP_KWARGS} ]]; then
-    LSPREP_KWARGS=$(echo ${LSPREP_KWARGS} | tr '=' ' ' | tr ',' ' ')
+  if [[ ! -z "${LSPREP_KWARGS}" ]]; then
+    LSPREP_KWARGS=$(echo "${LSPREP_KWARGS}" | tr '=' ' ' | tr ',' ' ')
   fi
 
   if [[ ${run_local} -eq 1 ]]; then
@@ -194,8 +194,8 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # define log file
     log_file="${OUTPUT}/lsprep/${sub_name}/${sub_name}_ses-${s_id}_desc-preproc_bold.log"
-    if [[ ! -d $(dirname "${log_file}") ]]; then
-      mkdir -p $(dirname "${log_file}")
+    if [[ ! -d "$(dirname "${log_file}")" ]]; then
+      mkdir -p "$(dirname "${log_file}")"
     fi
 
     #-----------------------------------------------------------------------------

@@ -329,6 +329,7 @@ for subID in ${search}; do
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
+          echo "Running bias field correction with ANTs (N4BiasCorrection)"
           cmd=(
             call_antsbias
             "${input_for_bias}"
@@ -337,7 +338,7 @@ for subID in ${search}; do
           )
         fi
 
-        echo "${cmd[@]}" && eval "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ ! -f "${output}" ]]; then
           print_error_msg "$(basename ${0})" "${call_}"
           exit 1

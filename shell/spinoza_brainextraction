@@ -456,13 +456,8 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      if [[ -f "${brainmask}" ]]; then
-        rm -r "${brainmask}"
-      fi
-
-      if [[ -d $(dirname "${corrected_t1w}") ]]; then
-        rm -r $(dirname "${corrected_t1w}")
-      fi
+      rm -r "${brainmask}"  2>/dev/null
+      rm -r $(dirname "${corrected_t1w}")  2>/dev/null
     fi
     
     #-----------------------------------------------------------------------------
@@ -684,10 +679,10 @@ for subID in ${search}; do
 
             cmd=(
               call_rmbackground
-              -t "${biascorr}"
-              -m "${spm_mask}"
-              -i "${input}"
-              -o "${corrected_t1w}"
+              --t1w "${biascorr}"
+              --mask "${spm_mask}"
+              --inv "${input}"
+              --output "${corrected_t1w}"
             )
 
             # print and run
@@ -755,7 +750,7 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # still copy SPM-mask even if heavy CAT12-processing was turned off
     spm_mask=$(
-      find -L ${INPUTDIR} \
+      find -L "${INPUTDIR}" \
       -type f \
       -name "*spm_mask*" \
       -and -name "*.nii.gz" \

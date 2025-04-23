@@ -225,7 +225,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # Running region extraction with nighres
-  if [[ ! -d '${mgdm_dir}' ]]; then
+  if [[ ! -d "${mgdm_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${mgdm_dir}"
     continue
   fi
