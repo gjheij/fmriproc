@@ -195,6 +195,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# set bunch of flags
 if [[ ! -z ${ses} ]]; then
   ses_flag="-n ${ses}"
 fi
@@ -218,6 +220,7 @@ else
   fi
 fi
 
+#-----------------------------------------------------------------------------
 # fetch positional arguments
 FPREP=${@:$OPTIND:1}
 DENOISE=${@:$OPTIND+1:1}
@@ -237,53 +240,62 @@ fi
 start_timer "Denoising functional data with fMRIPrep confounds using Pybest"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
   if [[ ${subID} != *"html"* ]]; then
 
+    #-----------------------------------------------------------------------------
     # collect subject name
     sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
     if [[ ! -z ${ses} ]]; then
       nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
       if [[ ${ses} != "all" ]]; then
-        base_path=${sub_name}/ses-${nr}
-        base=${sub_name}_ses-${nr}
+        base_path="${sub_name}/ses-${nr}"
+        base"=${sub_name}_ses-${nr}"
       else
         nr="all"
-        base_path=${sub_name}
+        base_path="${sub_name}"
       fi
     else
-      base_path=${sub_name}
-      base=${sub_name}
+      base_path="${sub_name}"
+      base="${sub_name}"
     fi
 
+    #-----------------------------------------------------------------------------
+    # overwrite
     if [[ ${FULL_OW} -eq 1 ]]; then
-      # overwrite mode enabled
-      if [[ -d ${DENOISE}/${base_path} ]]; then
-        rm -r ${DENOISE}/${base_path}
+      if [[ -d "${DENOISE}/${base_path}" ]]; then
+        rm -r "${DENOISE}/${base_path}"
       fi
     fi
 
-    if [[ ! -d ${DENOISE} ]]; then
-      mkdir -p ${DENOISE}
+    #-----------------------------------------------------------------------------
+    # make output dir
+    if [[ ! -d "${DENOISE}" ]]; then
+      mkdir -p "${DENOISE}"
     fi
-    
-    if [[ ${ses} == "all" || -d ${FPREP}/${base_path}/func ]]; then
 
-      # set execution rules
+    #-----------------------------------------------------------------------------
+    # start
+    if [[ ${ses} == "all" || -d "${FPREP}/${base_path}/func" ]]; then
+
+      #-----------------------------------------------------------------------------
+      # execute when:
       execute_cmd=0
-      if [[ ! -d ${DENOISE}/${base_path}/denoising ]]; then
+
+      # 1) output folder doesn't exist
+      if [[ ! -d "${DENOISE}/${base_path}/denoising" ]]; then
         execute_cmd=1
       else
-        # also execute if a new task was specified
+        # 2) a new task was specified
         if [[ ! -z ${task_flag} ]]; then
           execute_cmd=1
         fi
 
         # also check if there's files in the directories
-        searchdir=${DENOISE}/${base_path}/denoising
+        searchdir="${DENOISE}/${base_path}/denoising"
         if [[ ${PYBEST_SPACE} == "func" ]]; then
           func_files=$(
             find "${searchdir}" \
@@ -302,26 +314,28 @@ for subID in ${search}; do
           )
         fi
 
-        if [[ -z ${func_files} ]]; then
-          execute_cmd=1
+        # don't execute if there's no func files
+        if [[ -z "${func_files}" ]]; then
+          execute_cmd=0
         fi
       fi
 
-      # overwrite mode
+      # 3) overwrite mode is active
       if [[ ${OW} -eq 1 ]]; then
         execute_cmd=1
       fi
 
-      # unzscoring options
+      # 4) pre/post/pyb flags are specified
       if [[ ! -z ${pre_flag} || ! -z ${post_flag} || ! -z ${pyb_flag} ]]; then
         execute_cmd=1
       fi
 
-      # mother of all overwrites
+      # 5) mother-of-all-overwrites is activated
       if [[ ${force_exec} -eq 1 ]]; then
         execute_cmd=1
       fi
 
+      #-----------------------------------------------------------------------------
       # execute
       if [[ ${execute_cmd} -eq 1 ]]; then
 
@@ -358,11 +372,12 @@ for subID in ${search}; do
           "${raw_flag}"
         )
 
+        # print and run
         if [[ ${run_local} -eq 1 ]]; then
           print_cmd "${cmd[@]}"
         fi
-        eval "${cmd[@]}"
 
+        eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_pybest"
           exit 1

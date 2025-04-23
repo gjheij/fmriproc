@@ -261,9 +261,11 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
 # set number of cores to use
 export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
 
+#-----------------------------------------------------------------------------
 # function to derive the convergence, smoothing, shrinking parameters.
 function check_stage_inputs {
   
@@ -314,9 +316,10 @@ function check_stage_inputs {
   echo ${par}
 }
 
+#-----------------------------------------------------------------------------
 function validate_extension {
 
-  in_file=${1}
+  in_file="${1}"
   ext_file=$(fetch_extension "${in_file}")
   if [[ ${ext_file} == "gz" ]] || [[ ${ext_file} == "nii" ]]; then
     :
@@ -330,18 +333,22 @@ function validate_extension {
         exit 1
       fi  
 
-      in_file=$(dirname ${in_file})/$(basename ${in_file} .${ext_file}).nii.gz
+      in_file="${in_file/.${ext_file}/.nii.gz}"
     else
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); Input must be a nii(.gz) or .mgz file, not \"${ext_file}\""
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "input" "Input must be a nii(.gz) or .mgz file, not \"${ext_file}\""
       exit 1
     fi
   fi
 
-  echo ${in_file}
+  echo "${in_file}"
 }
 
-# check if we got custom inputs, whether we should use defaults, and whether specified values match the number of levels specified
-# if check_stage_inputs fails, the returned value will be the error message, so we can conveniently make a traceback
+#-----------------------------------------------------------------------------
+# check if we got custom inputs, whether we should use defaults, and whether specified values 
+# match the number of levels specified if check_stage_inputs fails, the returned value will be the 
+# error message, so we can conveniently make a traceback
 shrink=$(check_stage_inputs shrink)
 if [[ $? -ne 0 ]]; then
   echo
@@ -370,11 +377,15 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 REF=${@:$OPTIND:1}
 MOV=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
-if [[ ! -f ${REF} ]]; then
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${REF}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
@@ -383,7 +394,7 @@ else
   REF=$(readlink "${REF}")
 fi
 
-if [[ ! -f ${MOV} ]]; then
+if [[ ! -f "${MOV}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
@@ -391,6 +402,13 @@ if [[ ! -f ${MOV} ]]; then
 else
   MOV=$(readlink -f "${MOV}")
 fi  
+
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # set flag to extract first volume from 4D image to 0
@@ -402,7 +420,7 @@ extract_moving=0
 # extensions and dimensionality
 
 # check extension
-REF=$(validate_extension ${REF})
+REF=$(validate_extension "${REF}")
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -410,7 +428,7 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-MOV=$(validate_extension ${MOV})
+MOV=$(validate_extension "${MOV}")
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -419,8 +437,8 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # check dimensions
-DIMfixed=$(fslval ${REF} dim0)
-DIMmoving=$(fslval ${MOV} dim0)
+DIMfixed=$(fslval "${REF}" dim0)
+DIMmoving=$(fslval "${MOV}" dim0)
 if [[ $DIMfixed != $DIMmoving ]]; then
 
   # check if we can extract first volume of time-series
@@ -430,13 +448,27 @@ if [[ $DIMfixed != $DIMmoving ]]; then
       echo "Taking first volume of 4D-moving image"
     fi
     
-    MOVING=$(dirname ${MOV})/example_moving.nii.gz
-    fslroi ${MOV} ${MOVING} 0 1
     extract_moving=1
+    MOVING="$(dirname ${MOV})/example_moving.nii.gz"
+    cmd=(
+      fslroi
+      "${MOV}"
+      "${MOVING}"
+      0
+      1
+    )
 
+    # print and run
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}"
+      exit 1
+    fi
   else  
-    DIM=$DIMmoving
-    MOVING=${MOV}
+    DIM="${DIMmoving}"
+    MOVING="${MOV}"
   fi
 
   if [[ $((${DIMfixed})) -eq 4 ]]; then
@@ -445,12 +477,26 @@ if [[ $DIMfixed != $DIMmoving ]]; then
       echo "Taking first volume of 4D-fixed image"
     fi
     
-    FIXED=$(dirname ${REF})/example_fixed.nii.gz
-    fslroi ${REF} ${FIXED} 0 1
     extract_fixed=1
+    FIXED="$(dirname ${REF})/example_fixed.nii.gz"
+    cmd=(
+      fslroi
+      "${REF}"
+      "${FIXED}"
+      0
+      1
+    )
+    # print and run
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}"
+      exit 1
+    fi
   else  
-    DIM=$DIMmoving
-    FIXED=${REF}
+    DIM="${DIMmoving}"
+    FIXED="${REF}"
   fi
 
   # final check
@@ -462,19 +508,19 @@ if [[ $DIMfixed != $DIMmoving ]]; then
   fi
 
 else
-  FIXED=${REF}
-  MOVING=${MOV}
+  FIXED="${REF}"
+  MOVING="${MOV}"
 fi
 
 #-----------------------------------------------------------------------------
 # Deal with initial transform file if the argument is not empty.
-if [[ ! -z ${initial} ]]; then
+if [[ ! -z "${initial}" ]]; then
 
   if [ ${VERB} -eq 1 ]; then
     echo "Using $(basename ${initial}) as initial moving transform file"
   fi
   
-  ext=$(fetch_extension ${initial})
+  ext=$(fetch_extension "${initial}")
   if [[ $ext != "txt" ]]; then
     print_error_msg "$(basename ${0})" "ext" "\"${initial}\" is not a text file. It should be if it's an initial moving transform file"
     exit 1
@@ -482,12 +528,11 @@ if [[ ! -z ${initial} ]]; then
     # If we have an initial moving transform matrix, insert this line in the command
     INITIAL=$(echo "-r ${initial}")
   fi
-
 fi
 
 #-----------------------------------------------------------------------------
 # Deal with mask file if the argument is not empty.
-if [[ ! -z ${mask} ]]; then
+if [[ ! -z "${mask}" ]]; then
   if [ ${VERB} -eq 1 ]; then
     echo "Using $(basename ${mask}) as mask file"
   fi
@@ -581,11 +626,9 @@ if [[ ${VERB} -eq 1 ]]; then
 fi
 
 # echo command to text file
-cmd_f=${OUT}command.txt
-if [ -f ${cmd_f} ]; then
-  rm ${cmd_f} 2>/dev/null
-fi
-echo "${cmd}" >> ${OUT}command.txt
+cmd_f="${OUT}command.txt"
+rm ${cmd_f} 2>/dev/null
+echo "${cmd}" >> "${cmd_f}"
 
 # Execute command
 eval "${cmd}"
@@ -597,13 +640,13 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # rename
-if [[ -f ${OUT}0GenericAffine.mat ]]; then
+if [[ -f "${OUT}0GenericAffine.mat" ]]; then
   input_for_c3d="${OUT}genaff.mat"
   mv "${OUT}0GenericAffine.mat" "${input_for_c3d}" 2>/dev/null
 fi
 
 # this file is created if --collapse-output-transforms is set to 0 and you did rigid-body registration; safest bet is to keep --collapse-output-transforms to 1 so you always get the same output 
-if [[ -f ${OUT}0Rigid.mat ]]; then
+if [[ -f "${OUT}0Rigid.mat" ]]; then
   input_for_c3d="${OUT}rigid.mat"
   mv "${OUT}0Rigid.mat" "${input_for_c3d}" 2>/dev/null
 fi
@@ -636,11 +679,11 @@ fi
 
 # remove temporary file
 if [[ ${extract_moving} -eq 1 ]]; then
-  rm ${MOVING} 2>/dev/null
+  rm "${MOVING}" 2>/dev/null
 fi
 
 if [[ ${extract_fixed} -eq 1 ]]; then
-  rm ${FIXED} 2>/dev/null
+  rm "${FIXED}" 2>/dev/null
 fi
 
 # open ITK-Snap for verification
@@ -651,7 +694,7 @@ if [[ ${open_itk} -eq 1 ]]; then
     -g "${FIXED}"
     -o "${MOVING}"
   )
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 fi
 
 # reset threads

@@ -38,8 +38,12 @@ Optional FNIRT arguments:
     (see \`fnirt --help\` for full list)
 
 Example:
-  call_fslfnirt anat.nii.gz MNI152_T1_2mm.nii.gz warp.nii.gz flirt.mat \
-    --intout modulated.nii.gz --refmask ref_mask.nii.gz
+  call_fslfnirt \\
+    anat.nii.gz \\
+    MNI152_T1_2mm.nii.gz warp.nii.gz \\
+    flirt.mat \\
+    --intout modulated.nii.gz \\
+    --refmask ref_mask.nii.gz
 
 Notes:
   - Requires that FLIRT has been run beforehand to estimate the affine matrix
@@ -62,6 +66,34 @@ in="$2"
 warp="$3"
 affine="$4"
 
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${ref}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${ref}${RESET}\""
+  exit 1
+else
+  ref=$(readlink -f "${ref}")
+fi
+
+if [[ ! -f "${in}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${in}${RESET}\""
+  exit 1
+else
+  in=$(readlink -f "${in}")
+fi
+
+if [[ -z "${warp}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify warp file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # Shift to parse extra args
 shift 4
 extra_args=("$@")
@@ -77,29 +109,19 @@ iout="${warp%.nii.gz}_warped.nii.gz"
 
 #-----------------------------------------------------------------------------
 # Run it
-if [[ -f "$ref" && -f "$in" && -f "$affine" ]]; then
-  cmd=(
-    fnirt
-    --in="${in}"
-    --ref="${ref}"
-    --aff="${affine}"
-    "${extra_args[@]}"
-  )
-  echo "Running FNIRT with command:"
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "fnirt"
-    exit 1
-  fi
-else
+cmd=(
+  fnirt
+  --in="${in}"
+  --ref="${ref}"
+  --aff="${affine}"
+  "${extra_args[@]}"
+)
+echo "Running FNIRT with command:"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find"
-  [[ ! -f "$ref" ]] && echo -e " - ${BOLD_RED}Fixed${RESET} image not found: ${BOLD_GREEN}${ref}${RESET}"
-  [[ ! -f "$in"  ]] && echo -e " - ${BOLD_RED}Moving${RESET} image not found: ${BOLD_GREEN}${in}${RESET}"
-  [[ ! -f "$affine" ]] && echo -e " - ${BOLD_RED}Affine matrix${RESET} not found: ${BOLD_GREEN}${affine}${RESET}"
+  print_error_msg "$(basename ${0})" "fnirt"
   exit 1
 fi
 

@@ -134,6 +134,8 @@ else
   unset IFS
 fi
 
+#-----------------------------------------------------------------------------
+# sort sessions
 if [[ -z ${ses} ]]; then
   # loop through subjects
   ses_ids=("2")
@@ -144,6 +146,8 @@ else
   unset IFS
 fi
 
+#-----------------------------------------------------------------------------
+# check cpu's
 if [[ ${run_local} -eq 0 ]]; then
   if [[ -z ${n_cpus} ]]; then
     n_cpus=1
@@ -163,13 +167,14 @@ fi
 start_timer "Preprocessing of line-scanning data with LSprep"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
 
+  #-----------------------------------------------------------------------------
   # parse kwargs
   if [[ ! -z ${LSPREP_KWARGS} ]]; then
     LSPREP_KWARGS=$(echo ${LSPREP_KWARGS} | tr '=' ' ' | tr ',' ' ')
@@ -180,17 +185,20 @@ for subID in ${search}; do
     print_subject_header ${sub_name}
   fi
 
+  #-----------------------------------------------------------------------------
   # loop through sessions
   for s_id in ${ses_ids}; do
     
     base=${sub_name}_ses-${s_id}
 
+    #-----------------------------------------------------------------------------
     # define log file
     log_file="${OUTPUT}/lsprep/${sub_name}/${sub_name}_ses-${s_id}_desc-preproc_bold.log"
     if [[ ! -d $(dirname "${log_file}") ]]; then
       mkdir -p $(dirname "${log_file}")
     fi
 
+    #-----------------------------------------------------------------------------
     # decide the job type
     job="$(
       decide_job_type \

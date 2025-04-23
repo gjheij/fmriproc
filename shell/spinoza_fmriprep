@@ -6,8 +6,6 @@ source "${SETUP_FILE}"
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
-# bunch of other helper functions
-
 # Function to check and copy anatomical T1w data
 check_and_copy_anat() {
   local func_dir="$1"
@@ -51,6 +49,7 @@ check_and_copy_anat() {
   fi
 }
 
+#-----------------------------------------------------------------------------
 # Function to find functional data
 find_func_data() {
   local func_dir="$1"
@@ -66,6 +65,7 @@ find_func_data() {
   fi
 }
 
+#-----------------------------------------------------------------------------
 # Function to manage fMRIPrep working directory and cleanup options
 manage_fmriprep_workdir() {
   local workdir="$1"
@@ -109,6 +109,8 @@ manage_fmriprep_workdir() {
   fi
 }
 
+#-----------------------------------------------------------------------------
+# config file function
 generate_config_file() {
   local conf="$1"
   local runs=("${@:2}")  # Capture remaining arguments as an array
@@ -450,17 +452,21 @@ fi
 start_timer "Preprocessing with fMRIprep"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
   
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # define input
-  input_dir=${INPUT}/${base_path}
+  input_dir="${INPUT}/${base_path}"
   if [[ "${mode}" == "anat" ]]; then
+    #-----------------------------------------------------------------------------
+    # anat only
     func_txt="Only including anatomical data"
     check_and_copy_anat \
       "${func_dir}" \
@@ -471,8 +477,19 @@ for subID in ${search}; do
       "${base}" \
       "${DATA}"
   else
+    #-----------------------------------------------------------------------------
+    # include func
     func_txt="Including functional data"
-    func=$(find_func_data "${func_dir}" "${base_path}" "${input_dir}")
+
+    # find func
+    func=$(
+      find_func_data \
+      "${func_dir}" \
+      "${base_path}" \
+      "${input_dir}"
+    )
+
+    # anat still required
     check_and_copy_anat \
       "${func_dir}" \
       "${base_path}" \
@@ -489,6 +506,7 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
   # intro
   if [[ ${run_local} -eq 1 ]]; then
     # print header
@@ -496,6 +514,7 @@ for subID in ${search}; do
     echo "${func_txt}"
   fi
 
+  #-----------------------------------------------------------------------------
   # sort out working directory
   manage_fmriprep_workdir \
     "${workdir}" \
@@ -506,6 +525,7 @@ for subID in ${search}; do
     "${overwrite}" \
     "${n_runs[@]}"
 
+  #-----------------------------------------------------------------------------
   # check configuration file
   confFile="$(
     generate_config_file \
@@ -513,6 +533,7 @@ for subID in ${search}; do
     "${n_runs[@]}"
   )"
 
+  #-----------------------------------------------------------------------------
   # decide the job type
   job="$(
     decide_job_type \
@@ -524,6 +545,7 @@ for subID in ${search}; do
     "${SGE_QUEUE}"
   )"
 
+  #-----------------------------------------------------------------------------
   # define the command
   cmd=(
     "${job}"
@@ -551,6 +573,7 @@ for subID in ${search}; do
     "${fd_flag}"
   )
 
+  #-----------------------------------------------------------------------------
   # echo cmd
   if [[ ${run_local} -eq 1 ]]; then
     print_cmd "${cmd[@]}"
@@ -558,7 +581,6 @@ for subID in ${search}; do
 
   # run
   eval "${cmd[@]}"
-  
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_fmriprep"
     exit 1

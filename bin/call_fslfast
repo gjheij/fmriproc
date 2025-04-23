@@ -58,7 +58,7 @@ input="${1}"
 if [[ ! -f ${input} ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
   input=$(readlink -f ${input})
@@ -66,6 +66,12 @@ fi
 
 # set output
 output="${2}"
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # Shift away input & output arguments if present

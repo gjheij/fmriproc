@@ -24,13 +24,13 @@ Usage:
   call_vol2fsaverage [arguments] [options] <subject> <in_file> <out_name>
 
 Arguments:
-  <-r file>       registration file; sometimes useful if you're warping partial FOVs and want to
+  -r <file>       registration file; sometimes useful if you're warping partial FOVs and want to
                   use an identity matrix for instance.
-  <-o out>        output directory
-  <-p prefix>     use custom prefix rather than <subject>
-  <-x frac>       projection fraction to use for mri_vol2surf (default = 0.5; fiducial surface)
-  <-f fs dur>     custom FreeSurfer directory; will overwrite SUBJECTS_DIR
-  <-t trafo>      (list of) transformation file(s) to apply to get the data in FSNative space be-
+  -o <out>        output directory
+  -p <prefix>     use custom prefix rather than <subject>
+  -x <frac>       projection fraction to use for mri_vol2surf (default = 0.5; fiducial surface)
+  -f <fs dur>     custom FreeSurfer directory; will overwrite SUBJECTS_DIR
+  -t <trafo>      (list of) transformation file(s) to apply to get the data in FSNative space be-
                   fore sampling them to the surface. Should a format that is compatible with
                   call_antsapplytransforms (comma-separated in order of application)
   -i <invert>     invert given warp files (0=no|1=yes; leave empty for 'no'). If you have multiple
@@ -68,7 +68,7 @@ USAGE
 
 }
 
-if [[ $# -lt 3 ]] ; then
+if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
@@ -154,43 +154,80 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
+# read args
 SUBJECT=${@:$OPTIND:1}
 INPUT=${@:$OPTIND+1:1}
 SUFFIX=${@:$OPTIND+2:1}
 
-if [[ ! -z ${SUFFIX} ]]; then
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ -z "${SUBJECT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify subject ID"
+  exit 1
+fi
+
+if [[ ! -f "${INPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
+  exit 1
+else
+  INPUT=$(readlink -f "${INPUT}")
+fi
+
+#-----------------------------------------------------------------------------
+# set suffix
+if [[ ! -z "${SUFFIX}" ]]; then
   SUFFIX="_${SUFFIX}"
 fi
 
-if [[ -z ${reg_file} ]]; then
+if [[ -z "${prefix}" ]]; then
+  PREF="${SUBJECT}"
+else
+  PREF="${prefix}"
+fi
+
+#-----------------------------------------------------------------------------
+# reg type
+if [[ -z "${reg_file}" ]]; then
   REG="--regheader ${SUBJECT}"
 else
+  if [[ ! -f "${reg_file}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" input "Specified transformation file does not exist \"${BOLD_GREEN}${reg_file}${RESET}\""
+    exit 1
+  else
+    reg_file=$(readlink -f "${reg_file}")
+  fi
   REG="--reg ${reg_file}"
 fi
 
+#-----------------------------------------------------------------------------
 # overwrite SUBJECTS_DIR
-if [ ! -z ${fs_dir} ]; then
-  old_fs=${SUBJECTS_DIR}
-  export SUBJECTS_DIR=${fs_dir}
+if [ ! -z "${fs_dir}" ]; then
+  old_fs="${SUBJECTS_DIR}"
+  export SUBJECTS_DIR="${fs_dir}"
   echo "New SUBJECTS_DIR: \"${SUBJECTS_DIR}\""
 fi
 
-if [[ -z ${out_dir} ]]; then
-  fsnative_dir=${SUBJECTS_DIR}/${SUBJECT}/mri
-  fsaverage_dir=${SUBJECTS_DIR}/fsaverage/volumes
+#-----------------------------------------------------------------------------
+# set output directory
+if [[ -z "${out_dir}" ]]; then
+  fsnative_dir="${SUBJECTS_DIR}/${SUBJECT}/mri"
+  fsaverage_dir="${SUBJECTS_DIR}/fsaverage/volumes"
 else
-  fsnative_dir=${out_dir}
-  fsaverage_dir=${out_dir}
+  fsnative_dir="${out_dir}"
+  fsaverage_dir="${out_dir}"
 fi
 
-if [[ -z ${prefix} ]]; then
-  PREF=${SUBJECT}
-else
-  PREF=${prefix}
-fi
-
-if [[ ${set_tr} -eq 1 ]]; then
-  TR_float_sec=$(fslval ${INPUT} pixdim4)
+#-----------------------------------------------------------------------------
+# TR stuff
+if [[ "${set_tr}" -eq 1 ]]; then
+  TR_float_sec=$(fslval "${INPUT}" pixdim4)
 
   # convert to integer in milliseconds to be consistent with fMRIprep
   TR_int_ms="$(printf '%d' $(echo "${TR_float_sec} * 1000" | bc) 2>/dev/null)"
@@ -201,10 +238,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # check if we got transformation files to apply to INPUT
-if [[ ! -z ${trafos} ]]; then
-  fixed=${SUBJECTS_DIR}/${SUBJECT}/mri/orig.mgz
-  moving=${INPUT}
-  out=${fsnative_dir}/${PREF}_space-fsnative.nii.gz
+if [[ ! -z "${trafos}" ]]; then
+  fixed="${SUBJECTS_DIR}/${SUBJECT}/mri/orig.mgz"
+  moving="${INPUT}"
+  out="${fsnative_dir}/${PREF}_space-fsnative.nii.gz"
 
   cmd=(
     call_antsapplytransforms
@@ -221,7 +258,7 @@ if [[ ! -z ${trafos} ]]; then
   fi
 
   # run
-  eval "${cmd[@]}"
+  print "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
@@ -230,25 +267,27 @@ if [[ ! -z ${trafos} ]]; then
   fi
   
   # set output from call_antsapplytransforms to new input for surface sampling
-  INPUT=${out}
-
+  INPUT="${out}"
   if [ ${VERB} -eq 1 ]; then
     echo
   fi 
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
+# Run sampling
 for ii in "lh" "rh"; do
 
-  if [[ ${ii} == "lh" ]]; then
+  if [[ "${ii}" == "lh" ]]; then
     hemi="hemi-L"
-  elif [[ ${ii} == "rh" ]]; then
+  elif [[ "${ii}" == "rh" ]]; then
     hemi="hemi-R"
   fi
 
+  #-----------------------------------------------------------------------------
+  # FSNative
+
   # project volume to subject-specific space
-  fsnative=${fsnative_dir}/${PREF}_space-fsnative_${hemi}${SUFFIX}.gii
+  fsnative="${fsnative_dir}/${PREF}_space-fsnative_${hemi}${SUFFIX}.gii"
   cmd=(
     mri_vol2surf
     --src "${INPUT}"
@@ -266,11 +305,13 @@ for ii in "lh" "rh"; do
     exit 1
   fi  
 
+  #-----------------------------------------------------------------------------
+  # FSAverage
+
   if [[ ${do_fsaverage} -eq 1 ]]; then
-    # project the output to fsaverage
-    fsaverage=${fsaverage_dir}/${PREF}_space-fsaverage_${hemi}${SUFFIX}.gii
-    if [[ ! -d ${fsaverage_dir} ]]; then
-      mkdir -p ${fsaverage_dir}
+    fsaverage="${fsaverage_dir}/${PREF}_space-fsaverage_${hemi}${SUFFIX}.gii"
+    if [[ ! -d "${fsaverage_dir}" ]]; then
+      mkdir -p "${fsaverage_dir}"
     fi
 
     cmd=(
@@ -292,19 +333,22 @@ for ii in "lh" "rh"; do
   fi
 done
 
+#-----------------------------------------------------------------------------
+# stack data
+
 echo "Stacking gifti's into numpy-array"
 # stacking giftis into numpy array so we can load them in with Pycortex
 for space in ${exec_spaces[@]}; do
 
   if [ ${space} == "fsaverage" ]; then
-    output_path=${fsaverage_dir}
+    output_path="${fsaverage_dir}"
   else
-    output_path=${fsnative_dir}
+    output_path="${fsnative_dir}"
   fi
 
-  lh=${output_path}/${PREF}_space-${space}_hemi-L${SUFFIX}.gii
-  rh=${output_path}/${PREF}_space-${space}_hemi-R${SUFFIX}.gii
-  both_hemis=${output_path}/${PREF}_space-${space}_hemi-LR${SUFFIX}.npy
+  lh="${output_path}/${PREF}_space-${space}_hemi-L${SUFFIX}.gii"
+  rh="${output_path}/${PREF}_space-${space}_hemi-R${SUFFIX}.gii"
+  both_hemis='${output_path}/${PREF}_space-${space}_hemi-LR${SUFFIX}.npy'
   cmd=(
     call_stackgifti
     "${lh}"
@@ -324,24 +368,32 @@ for space in ${exec_spaces[@]}; do
     echo "Wrote ${both_hemis}"
   fi
 
+  #-----------------------------------------------------------------------------
   # add TR to metadata of gifti
   if [[ ${set_tr} -eq 1 ]]; then
     if [[ ! -z ${TR_int_ms} ]]; then
-      call_giftimeta ${lh} "${TR_int_ms}"
-      call_giftimeta ${rh} "${TR_int_ms}"
 
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "call_giftimeta"
-        exit 1
-      fi
+      for f in "${lh}" "${rh}"; do
+      cmd=(
+          call_giftimeta
+          "${f}"
+          "${TR_int_ms}"
+        )
+
+        eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "call_giftimeta" "Failed with command: ${cmd[@]}"
+          exit 1
+        fi
+      done
     fi
   fi
-
 done
 
+#-----------------------------------------------------------------------------
 # reset SUBJECTS_DIR
-if [ ! -z ${fs_dir} ]; then
-  export SUBJECTS_DIR=${old_fs}
+if [ ! -z "${fs_dir}" ]; then
+  export SUBJECTS_DIR="${old_fs}"
 fi

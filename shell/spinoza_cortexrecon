@@ -143,9 +143,10 @@ start_timer "Cortex reconstruction using CRUISE from Nighres"
 check_python_package "nighres"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
@@ -155,14 +156,14 @@ for subID in ${search}; do
   input_dir=${INPUT}/${base_path}
   output_dir=${OUTPUT}/${base_path}
 
-  #-----------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # Running region extraction with nighres
   if [[ ${input_dir} == *"nighres"* ]]; then
     # we're dealing with a nighres input, which means we need to add an additional 'region'
-    p=${input_dir}/region
+    p="${input_dir}/region"
     declare -a EXRTACT=(xmask_cr-wm xproba_cr-wm xproba_cr-gm xproba_cr-csf)
   else
-    p=${input_dir}
+    p="${input_dir}"
     declare -a EXRTACT=(inside wm gm csf)
   fi
 
@@ -172,6 +173,7 @@ for subID in ${search}; do
     continue
   fi
 
+  #-----------------------------------------------------------------------------
   # fetch the input based on input folder
   declare -a INPUTS=()
   for r in ${EXRTACT[@]}; do
@@ -198,16 +200,18 @@ for subID in ${search}; do
     continue
   fi
 
-  output_root=${output_dir}/cruise/${base}_acq-${DATA^^}_desc
-  output=${output_root}-cruise_cortex.nii.gz
+  #-----------------------------------------------------------------------------
+  # set outputs
+  output_root="${output_dir}/cruise/${base}_acq-${DATA^^}_desc"
+  output="${output_root}-cruise_cortex.nii.gz"
 
-  if [[ ! -d ${output_dir}/cruise ]]; then
-    mkdir -p ${output_dir}/cruise
+  if [[ ! -d "${output_dir}/cruise" ]]; then
+    mkdir -p "${output_dir}/cruise"
   fi
 
   # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
   if [[ ${OW} -eq 1 ]]; then
-    if [[ -d ${output_dir}/cruise ]]; then
+    if [[ -d "${output_dir}/cruise" ]]; then
       INTRO="Overwrite mode: deleting files with \"${base}_acq-${DATA^^}_desc\""
       rm -r ${output_dir}/cruise/${base}_acq-${DATA^^}_desc* 2>/dev/null
     fi
@@ -215,6 +219,8 @@ for subID in ${search}; do
     INTRO="Overwrite mode disabled"
   fi
   
+  #-----------------------------------------------------------------------------
+  # start
   if [[ ! -f "${output}" ]]; then
 
     # print header
@@ -222,6 +228,9 @@ for subID in ${search}; do
     echo "${INTRO}"
 
     if [[ ! -f "${output_root}_cruise_cortex.nii.gz" ]]; then
+
+      #-----------------------------------------------------------------------------
+      # weighted combination
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
         # run regular cruise
         print_create_img "${output}"
@@ -235,7 +244,8 @@ for subID in ${search}; do
           --name "$(basename ${output_root})"
           "${kwargs_flag}"
         )
-        
+
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -244,6 +254,7 @@ for subID in ${search}; do
           exit 1
         fi
 
+        #-----------------------------------------------------------------------------
         # create binary mask from CRUISE segmentation
         cruise_mask=${p}/${base}_acq-${DATA^^}_desc-cruise_mask.nii.gz
         echo
@@ -256,6 +267,7 @@ for subID in ${search}; do
           "${cruise_mask}"
         )
         
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -263,16 +275,19 @@ for subID in ${search}; do
           print_error_msg "$(basename ${0})" "fslmaths"
           exit 1
         fi
-        
+      
+      #-----------------------------------------------------------------------------
+      # hard segmentations
       elif [[ ${COMBINE_SEGMENTATIONS} == "hard" ]]; then
-        # directly create levelsets from 'probabilities'
 
+        #-----------------------------------------------------------------------------
         # define output names
         cgb=${output_root}-cruise_cgb.nii.gz
         gwb=${output_root}-cruise_gwb.nii.gz
 
-        ct=1
+        #-----------------------------------------------------------------------------
         # create WM/GM levelset from probability
+        ct=1
         for f in "${cgb}" "${gwb}"; do
 
           print_create_img "${f}"
@@ -283,20 +298,22 @@ for subID in ${search}; do
             --name "$(basename ${output_root})"
           )
 
+          # print and run
           print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-          if [[ ! -f ${output_root}-p2l_surf.nii.gz || $? -ne 0 ]]; then
+          if [[ ! -f "${output_root}-p2l_surf.nii.gz" || $? -ne 0 ]]; then
             echo
             print_line -
             print_error_msg "$(basename ${0})" "call_nighresproblevel" "${BOLD_GREEN}${f}${RESET} not created"
             exit 1
           else
-            mv ${output_root}-p2l_surf.nii.gz ${f} 2>/dev/null
+            mv "${output_root}-p2l_surf.nii.gz" "${f}" 2>/dev/null
           fi
 
           # update counter
           ((ct++))
         done
 
+        #-----------------------------------------------------------------------------
         # copy cruise image from manual_masks to cruise directory
         file=$(
           find -L "${p}" \

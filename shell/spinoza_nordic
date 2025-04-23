@@ -164,13 +164,15 @@ fi
 start_timer "Thermal noise reduction using NORDIC [phase data]"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set paths
   func_folder="${INPUT}/${base_path}/func"
   tmp_folder="${INPUT}/${base_path}/no_nordic"
@@ -179,16 +181,18 @@ for subID in ${search}; do
   # print header
   print_subject_header ${sub_name}
 
-  if [ ! -d ${func_folder} ]; then
+  if [ ! -d "${func_folder}" ]; then
     print_directory_not_exist "${sub_name}" "${func_folder}"
     exit 1
   else
 
-    if [ ! -d ${tmp_folder} ]; then
+    #-----------------------------------------------------------------------------
+    # make backup
+    if [ ! -d "${tmp_folder}" ]; then
       echo "Make backup of \"func\" in \"no_nordic\""
 
       # only copy nifit's/json's, so that .mat files remain
-      mkdir -p ${tmp_folder}
+      mkdir -p "${tmp_folder}"
 
       # find functional files
       func_files=(
@@ -202,7 +206,7 @@ for subID in ${search}; do
 
       # check dimensions to skip 3D files
       for ff in ${func_files[@]}; do
-        dim=$(fslval ${ff} dim0)
+        dim=$(fslval "${ff}" dim0)
         if [[ ${dim} -gt 3 ]]; then
           cp "${ff}" "${tmp_folder}" 2>/dev/null
           
@@ -218,7 +222,8 @@ for subID in ${search}; do
       echo "Backup \"no_nordic\" already exists"
     fi
   fi
-
+  
+  #-----------------------------------------------------------------------------
   # check BOLD files
   if [[ -z ${runs} ]]; then
     IMGS=$(
@@ -257,7 +262,8 @@ for subID in ${search}; do
     print_file_not_in_dir "${sub_name}" "*bold.nii.gz" "${tmp_folder}"
     exit 1
   fi
-
+  
+  #-----------------------------------------------------------------------------
   # loop through magnitude images
   for mag_img in "${mag_imgs[@]}"; do
 
@@ -265,7 +271,11 @@ for subID in ${search}; do
     dim=$(fslval ${mag_img} dim0)
     if [[ ${dim} -gt 3 ]]; then
       
-      # check if json has "NORDIC" field; definitely do nordic if there's no json file; also do it if there's no nifti in func/
+      #-----------------------------------------------------------------------------
+      # set execution rules
+
+      # check if json has "NORDIC" field; definitely do nordic if there's no json file; also do it 
+      # if there's no nifti in func/
       do_nordic=1
       json_f="${func_folder}/$(basename ${mag_img} .nii.gz).json"
       if [[ -f "${json_f}" ]]; then
@@ -286,6 +296,7 @@ for subID in ${search}; do
         do_nordic=1
       fi
       
+      #-----------------------------------------------------------------------------
       # run nordic
       if [[ ${do_nordic} -eq 1 ]]; then
 
@@ -378,9 +389,8 @@ for subID in ${search}; do
       -name "*.nii" \
       2>/dev/null
     )
-    if [[ ! -z "${nii_files}" ]]; then
-      rm -r "${nii_files}" 2>/dev/null
-    fi
+
+    rm -r "${nii_files}" 2>/dev/null
   fi
 done
 

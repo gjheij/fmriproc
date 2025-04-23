@@ -123,34 +123,41 @@ do
   esac
 done
 
-INPUT="${@:$OPTIND:1}"
-OUTPUT="${@:$OPTIND+1:1}"
+#-----------------------------------------------------------------------------
+# read args
+in_file="${@:$OPTIND:1}"
+out_file="${@:$OPTIND+1:1}"
 
-# parse kwargs
-if [[ ! -z ${kwargs} ]]; then
-  kwargs=$(echo ${kwargs} | tr '=' ' ' | tr ':' ' ')
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${in_file}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in_file}${RESET}\""
+  exit 1
+else
+  in_file=$(readlink -f "${in_file}")
+fi
+
+if [[ -z "${out_file}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output directory+basename [_T1w.nii.gz will be appended]"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
-# Define default SPM-path
-if [[ -z ${SPM} ]]; then
-  if [[ -z ${SPM_PATH} ]]; then
-    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
-    exit 1
-  else
-    SPM_PATH=${SPM_PATH}
-  fi
-else
-  SPM_PATH=${SPM}
+# parse kwargs
+if [[ ! -z "${kwargs}" ]]; then
+  kwargs=$(echo "${kwargs}" | tr '=' ' ' | tr ':' ' ')
 fi
 
+#-----------------------------------------------------------------------------
 # if file specified is in current directory, add entire path
-in_file=$(fetch_filepath ${INPUT})
-out_file=${OUTPUT}
 final_file="${out_file}_T1w.nii.gz"
 
-if [[ ! -d $(dirname ${OUTPUT}) ]]; then
-    mkdir -p $(dirname ${OUTPUT})
+if [[ ! -d "$(dirname ${final_file})" ]]; then
+    mkdir -p "$(dirname ${final_file})"
 fi
 
 #-----------------------------------------------------------------------------
@@ -158,7 +165,7 @@ fi
 mask_file="${out_file}_desc-spm_mask.nii.gz"
 
 # remove old versions
-rm $(dirname ${mask_file})/$(basename ${mask_file} .gz)* 2>/dev/null
+rm "${mask_file%.gz}"* 2>/dev/null
 
 cmd=(
   call_spmmask
@@ -166,9 +173,9 @@ cmd=(
   "${in_file}"
   "${mask_file}"
 )
+
 echo " Generating brain mask with SPM.."
 eval "${cmd[@]}"
-
 if [[ $? -ne 0 || ! -f "${mask_file}" ]]; then
   echo
   print_line -
@@ -180,6 +187,30 @@ fi
 # Run bias correction
 bias_file="$(dirname ${out_file})/tmp_bias.nii.gz"
 if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
+
+  #-----------------------------------------------------------------------------
+  # Define default SPM-path
+  if [[ -z "${SPM}" ]]; then
+    if [[ -z "${SPM_PATH}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+      exit 1
+    else
+      SPM_PATH="${SPM_PATH}"
+    fi
+  else
+    SPM_PATH="${SPM}"
+  fi
+
+  # double check if directory exists
+  if [[ ! -d "${SPM_PATH}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+    exit 1
+  fi
+
   cmd=(
     call_spmbias
     -s "${SPM_PATH}"
@@ -201,7 +232,7 @@ fi
 echo " Bias correction with ${software}.."
 eval "${cmd[@]}"
 
-if [[ $? -ne 0 || ! -f ${bias_file} ]]; then
+if [[ $? -ne 0 || ! -f "${bias_file}" ]]; then
   print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
 fi
@@ -209,6 +240,30 @@ fi
 #-----------------------------------------------------------------------------
 # SANLM
 if [[ ${RUN_SANLM} -eq 1 ]]; then
+
+  #-----------------------------------------------------------------------------
+  # Define default SPM-path
+  if [[ -z "${SPM}" ]]; then
+    if [[ -z "${SPM_PATH}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+      exit 1
+    else
+      SPM_PATH="${SPM_PATH}"
+    fi
+  else
+    SPM_PATH="${SPM}"
+  fi
+
+  # double check if directory exists
+  if [[ ! -d "${SPM_PATH}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+    exit 1
+  fi
+  
   cmd=(
     call_spmsanlm
     -s "${SPM_PATH}"
@@ -218,7 +273,7 @@ if [[ ${RUN_SANLM} -eq 1 ]]; then
   echo " Denoising with SANLM.."
   eval "${cmd[@]}"
 
-  if [[ $? -ne 0 || ! -f ${final_file} ]]; then
+  if [[ $? -ne 0 || ! -f "${final_file}" ]]; then
     print_error_msg "$(basename ${0})" "call_spmsanlm"
     exit 1
   fi
@@ -282,8 +337,14 @@ fi
 
 #-----------------------------------------------------------------------------
 # check for separate T1map, probably needs to be registered; give same output name for consistency sake
-t1map=$(find "$(dirname ${INPUT})" -maxdepth 1 -type f \( -name "*T1map.nii.gz" \) 2>/dev/null)
-if [[ ! -z ${t1map} ]]; then
+t1map=$(
+  find "$(dirname ${in_file})" \
+  -maxdepth 1 \
+  -type f \
+  -name "*T1map.nii.gz" \
+  2>/dev/null
+)
+if [[ ! -z "${t1map}" ]]; then
   
   t1_reg="${out_file}_T1map.nii.gz"
   if [[ ${REG_T1} -eq 1 ]]; then
@@ -314,7 +375,7 @@ if [[ ! -z ${t1map} ]]; then
     )
     eval "${cmd[@]}"
     
-    if [[ $? -ne 0 || ! -f ${t1_reg} ]]; then
+    if [[ $? -ne 0 || ! -f "${t1_reg}" ]]; then
       print_error_msg "$(basename ${0})" "call_antsapplytransforms"
       exit 1
     fi

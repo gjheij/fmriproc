@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 
-# source helper functions
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# simple command wrapper
+run_cmd() {
+  print_cmd "$@" && eval "$@"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "$0")" "${1}"
+    exit 1
+  fi
+}
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -75,6 +88,7 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi      
 
+#-----------------------------------------------------------------------------
 # read input
 if [[ ! -f "${@:$OPTIND:1}" ]]; then
   echo
@@ -89,26 +103,58 @@ fi
 output=${@:$OPTIND+1:1}
 
 # define output
-if [[ -z ${output} ]]; then
-  output=$(dirname ${input})/$(basename ${input} .nii.gz)_tsnr.nii.gz
+if [[ -z "${output}" ]]; then
+  output="${input/.nii.gz/_tsnr.nii.gz}"
 fi
 
+#-----------------------------------------------------------------------------
 # calculate mean and std deviation
-mean_img=$(dirname ${input})/$(basename ${input} .nii.gz)_mean.nii.gz
-std_img=$(dirname ${input})/$(basename ${input} .nii.gz)_std.nii.gz
+mean_img="${input/.nii.gz/_mean.nii.gz}"
+std_img="${input/.nii.gz/_std.nii.gz}"
 
-fslmaths ${input} -Tmean ${mean_img}
-fslmaths ${input} -Tstd ${std_img}
-fslmaths ${mean_img} -div ${std_img} -thr 0 ${output}
+cmd_a=(
+  fslmaths
+  "${input}"
+  -Tmean
+  "${mean_img}"
+)
 
+cmd_b=(
+  fslmaths
+  "${input}"
+  -Tstd
+  "${std_img}"
+)
+
+cmd_c=(
+  fslmaths
+  "${mean_img}"
+  -div
+  "${std_img}"
+  -thr 0
+  "${output}"
+)
+
+# run bunch of commands
+run_cmd "${cmd_a[@]}"
+run_cmd "${cmd_b[@]}"
+run_cmd "${cmd_c[@]}"
+
+#-----------------------------------------------------------------------------
+# winsorizing tSNR
+cmd=(
+  call_winsorize
+  "${output}"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "fslmaths"
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
-fi
+fi  
 
+#-----------------------------------------------------------------------------
 # clean up
-if [ ${clean_up} -eq 1 ]; then
-  rm ${mean_img} ${std_img} 2>/dev/null
+if [ "${clean_up}" -eq 1 ]; then
+  rm "${mean_img}" "${std_img}" 2>/dev/null
 fi

@@ -244,13 +244,15 @@ fi
 start_timer "Registration with antsRegistration"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
-
+  
+  #-----------------------------------------------------------------------------
   # print header
   print_subject_header ${sub_name}
 
@@ -258,8 +260,10 @@ for subID in ${search}; do
     WARP_2_MP2RAGE=("T1w" "T1map" "R2starmap")
   fi
 
-  input_dir=${INPUT}/${base_path} 
-  output_dir=${OUTPUT}/${base_path}
+  #-----------------------------------------------------------------------------
+  # input/output
+  input_dir="${INPUT}/${base_path}"
+  output_dir="${OUTPUT}/${base_path}"
 
   write_output=0
   if [[ ${TYPE,,} == ${ACQ[0],,} ]]; then
@@ -269,9 +273,11 @@ for subID in ${search}; do
       reg_type="--rigid"
     fi
 
+    #-----------------------------------------------------------------------------
+    # MP2RAGE+MP2RAGEME
     if [[ ${#ACQ[@]} -eq 2 ]]; then
       # set code
-      code=1 # MP2RAGE+MP2RAGEME
+      code=1
 
       # fixed
       fixed_file=$(
@@ -289,8 +295,10 @@ for subID in ${search}; do
         -not -name "*space-*"
       )
 
+    #-----------------------------------------------------------------------------
+    # Multiple MP(2)RAGES
     else
-      code=2 # Multiple MP(2)RAGES
+      code=2
 
       # fixed
       fixed_file=$(
@@ -309,6 +317,9 @@ for subID in ${search}; do
       )
 
     fi
+
+  #-----------------------------------------------------------------------------
+  # anat to MNI
   elif [[ ${TYPE,,} == "mni" ]]; then
     if [[ -z ${reg_type} ]]; then
       reg_type="--syn"
@@ -321,11 +332,15 @@ for subID in ${search}; do
       -iname "*${ACQ[0]^^}_*T1w.nii.gz" \
       -not -name "._*"
     )
+
+  #-----------------------------------------------------------------------------
+  # unknown type
   else
     echo "Incorrect usage. Please specify mp2rage or mni"
     Usage
   fi
 
+  #-----------------------------------------------------------------------------
   # Check if required files exist
   if [[ ! -f "${fixed_file}" || -z "${moving_files}" ]]; then
     print_error_msg "$(basename ${0})" "find" "Could not find ${BOLD_GREEN}FIXED${RESET} and ${BOLD_GREEN}MOVING${RESET} images for TYPE=\"${BOLD_RED}${TYPE}${RESET}\" (code=\"${BOLD_RED}${code}${RESET}\"). Is your setup correct?"
@@ -335,10 +350,12 @@ for subID in ${search}; do
   if [[ ! -d "${output_dir}" ]]; then
     mkdir -p "${output_dir}"
   fi
-  
+
+  #-----------------------------------------------------------------------------
   # loop through moving files
   for moving in ${moving_files[@]}; do
 
+    #-----------------------------------------------------------------------------
     # MP2RAGE+MP2RAGEME
     if [[ ${code} -eq 1 ]]; then
       txt="Registering ${ACQ[1]} to ${ACQ[0]}"
@@ -358,19 +375,16 @@ for subID in ${search}; do
       ext="from-T1w_to-${space}"
     fi
 
+    #-----------------------------------------------------------------------------
+    # set outputs
     outWarp="${output_dir}/${base}_${ext}_mode-image_warp.nii.gz"
     outInvWarp="${output_dir}/${base}_${ext}_mode-image_invwarp.nii.gz"
     outGenAff="${output_dir}/${base}_${ext}_mode-image_xfm.mat"
     outFSLAff="${output_dir}/${base}_${ext}_mode-image_fsl.mat"
     cmd_file="${output_dir}/${base}_${ext}_mode-image_cmd.txt"
 
-    # echo "${txt}"
-    # echo "Code: ${code}"
-    # echo "FIXED: ${fixed_file}"
-    # echo "MOVING: ${moving}"
-    # echo "WARP: ${outGenAff}"
-    # exit 1
-
+    #-----------------------------------------------------------------------------
+    # run if warp file doesn't exist
     if [[ ! -f "${outGenAff}" ]]; then
       if [[ ! -f "${output_dir}/${base}_${ext}genaff.mat" ]]; then
         cmd=(
@@ -384,6 +398,7 @@ for subID in ${search}; do
           "${output_dir}/${base}_${ext}"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 || ! -f "${output_dir}/${base}_${ext}genaff.mat" ]]; then
 
@@ -396,16 +411,20 @@ for subID in ${search}; do
           print_error_msg "$(basename ${0})" "call_antsregistration" "${BOLD_GREEN}${output_dir}/${base}_${ext}genaff.mat${RESET} not created" 
           exit 1
         fi
-
+        
+        #-----------------------------------------------------------------------------
+        # rename warp fields
         if [[ ${reg_type} == "--syn" ]]; then
           mv "${output_dir}/${base}_${ext}1Warp.nii.gz" "${outWarp}" 2>/dev/null
           mv "${output_dir}/${base}_${ext}1InverseWarp.nii.gz" "${outInvWarp}" 2>/dev/null
         fi
 
+        #-----------------------------------------------------------------------------
         # we'll have this file regardless of registration type
         mv "${output_dir}/${base}_${ext}genaff.mat" "${outGenAff}" 2>/dev/null
         mv "${output_dir}/${base}_${ext}command.txt" "${cmd_file}" 2>/dev/null
 
+        #-----------------------------------------------------------------------------
         # check if we got fsl output
         if [[ -f "${output_dir}/${base}_${ext}fsl.mat" ]]; then
           mv "${output_dir}/${base}_${ext}fsl.mat" "${outFSLAff}" 2>/dev/null
@@ -415,12 +434,14 @@ for subID in ${search}; do
       echo "Skipping ${moving}, registration files exist."
     fi
 
+    #-----------------------------------------------------------------------------
     # write output files
     if [[ ${write_output} -eq 1 ]]; then
 
       echo "Applying warps.."
       for out in ${WARP_2_MP2RAGE[@]}; do
         
+        #-----------------------------------------------------------------------------
         # check if file exists and warp it
         suff=$(echo $moving | rev | cut -d"_" -f1 | rev | cut -d"." -f1)
         in_file="$(dirname ${moving})/$(basename ${moving} _${suff}.nii.gz)_${out}.nii.gz"
@@ -435,6 +456,7 @@ for subID in ${search}; do
             rm ${output} 2>/dev/null
           fi
 
+          #-----------------------------------------------------------------------------
           # define command
           if [[ ! -f ${output} ]]; then
             if [[ ${reg_type} == "--syn" ]]; then
@@ -454,7 +476,7 @@ for subID in ${search}; do
               \"${matrices}\"
             )
 
-            # run
+            # print and run
             eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"

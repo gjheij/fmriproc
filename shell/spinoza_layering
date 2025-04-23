@@ -195,7 +195,7 @@ if [[ ! -d ${INPUT} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
   # collect subject name
@@ -203,16 +203,16 @@ for subID in ${search}; do
 
   # derive base
   if [[ -z ${ses} ]]; then
-    input_dir=${INPUT}/${sub_name}
+    input_dir="${INPUT}/${sub_name}"
     base="${sub_name}"
   else
     nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
 
     # remove this statement if you have multiple freesurfer sessions
-    if [[ $(basename ${INPUT}) == *"freesurfer"* ]]; then
-      input_dir=${INPUT}/${sub_name}
+    if [[ $(basename "${INPUT}") == *"freesurfer"* ]]; then
+      input_dir="${INPUT}/${sub_name}"
     else
-      input_dir=${INPUT}/${sub_name}/ses-${nr}
+      input_dir="${INPUT}/${sub_name}/ses-${nr}"
     fi
 
     base="${sub_name}_ses-${nr}"
@@ -227,6 +227,8 @@ for subID in ${search}; do
       continue
     fi
 
+    #-----------------------------------------------------------------------------
+    # find files
     declare -a LAYER=(gwb cgb)
     declare -a INPUTS=()
     for r in ${LAYER[@]}; do
@@ -252,18 +254,24 @@ for subID in ${search}; do
       continue
     fi
 
-    output_root=${input_dir}/layering/${base}_acq-${DATA^^}_desc
-    output=${output_root}-layering_depth.nii.gz
+    #-----------------------------------------------------------------------------
+    # specify outputs
+    output_root="${input_dir}/layering/${base}_acq-${DATA^^}_desc"
+    output="${output_root}-layering_depth.nii.gz"
 
-    if [[ ! -d $(dirname ${output_root}) ]]; then
-      mkdir -p $(dirname ${output_root})
+    if [[ ! -d "$(dirname ${output_root})" ]]; then
+      mkdir -p "$(dirname ${output_root})"
     fi
 
+    #-----------------------------------------------------------------------------
+    # overwrite
     if [[ ${OW} -eq 1 ]]; then
-      rm ${output}
+      rm "${output}" 2>dev/null
     fi
 
-    if [[ ! -f ${output} ]]; then
+    #-----------------------------------------------------------------------------
+    # run
+    if [[ ! -f "${output}" ]]; then
       
       # print header
       print_subject_header ${sub_name}
@@ -280,6 +288,7 @@ for subID in ${search}; do
         "${kwargs_flag}"
       )
 
+      # print and run
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
         echo
@@ -291,49 +300,50 @@ for subID in ${search}; do
       print_output_exists "${sub_name}" "${output}"
     fi
 
+  #-----------------------------------------------------------------------------
+  # Surface-based
   elif [[ ${software,,} == "surface" ]]; then
 
     print_subject_header ${sub_name}  
 
-    #-----------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------
     # Running equivolumetric layering with surface tools
 
-    if [[ ! -d ${input_dir} ]]; then
+    if [[ ! -d "${input_dir}" ]]; then
       print_directory_not_exist "${sub_name}" "${input_dir}" "Run FreeSurfer first.."
       continue
     fi
 
-    export SUBJECTS_DIR=${INPUT}
+    #-----------------------------------------------------------------------------
+    # set SUBJECTS_DIR properly
+    export SUBJECTS_DIR="${INPUT}"
 
-    # check if generate_equivolumetric_surfaces.py is on the PATH
-    CMD="generate_equivolumetric_surfaces"
-
+    #-----------------------------------------------------------------------------
     # loop through hemis
     for i in "lh" "rh"; do
 
       # overwrite
       rm ${input_dir}/surf/${i}.equi* 2>/dev/null
 
-      # run cmd
+      #-----------------------------------------------------------------------------
+      # define cmd
       echo -e "Running ${BOLD_BLUE}generate_equivolumetric_surfaces${RESET} on ${i} with ${nr_layers} layers"
       run_cmd=(
-        "${CMD}"
+        generate_equivolumetric_surfaces
         --smoothing  0
-        ${input_dir}/surf/${i}.pial
-        ${input_dir}/surf/${i}.white
-        ${nr_layers}
-        ${i}.equi
+        "${input_dir}/surf/${i}.pial"
+        "${input_dir}/surf/${i}.white"
+        "${nr_layers}"
+        "${i}.equi"
         --software freesurfer
-        --subject_id ${sub_name}
+        --subject_id "${sub_name}"
       )
       
       # store command
-      out_f=${input_dir}/scripts/${i}.equi.txt
-      if [[ -f ${out_f} ]]; then  
-        rm -r ${out_f}
-      fi
+      out_f="${input_dir}/scripts/${i}.equi.txt"
+      rm -r "${out_f}" 2>/dev/null
       
-      # run command
+      # print and run
       echo ${run_cmd} >> ${input_dir}/scripts/${i}.equi.txt
       print_cmd "${run_cmd[@]}" && eval "${run_cmd[@]}"
       if [[ $? -ne 0 ]]; then

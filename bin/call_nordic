@@ -4,6 +4,41 @@
 # Get bash helper functions
 source call_bashhelper
 
+calculate_tsnr() {
+
+  local bold="${1}"
+  local stage="pre"
+
+  # generate tSNR
+  tsnr_out="${bold/_bold${nii_ext}/_desc-tSNR${stage}_bold${nii_ext}}"
+  cmd=(
+    call_tsnr
+    "${bold}"
+    "${tsnr_out}"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}" "stage=${stage}"
+    exit 1
+  fi
+
+  # winsorizing tSNR
+  cmd=(
+    call_winsorize
+    "${tsnr_out}"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi    
+
+}
+
 #-----------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -88,26 +123,55 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-IMG_MAGN="${@:$OPTIND:1}"
+#-----------------------------------------------------------------------------
+# read args
+fn_mag="${@:$OPTIND:1}"
 fn_phase="${@:$OPTIND+1:1}"
 fn_nordic="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${fn_mag}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find MAGNITUDE image \"${BOLD_GREEN}${fn_mag}${RESET}\""
+  exit 1
+else
+  fn_mag=$(readlink "${fn_mag}")
+fi
+
+if [[ ! -f "${fn_phase}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Could not find PHASE image \"${BOLD_GREEN}${fn_phase}${RESET}\""
+  exit 1
+else
+  fn_phase=$(readlink "${fn_phase}")
+fi
+
+if [[ -z "${fn_nordic}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # Add entire path if just filename is specified
-fn_mag=$(fetch_filepath ${IMG_MAGN})
-ext_mag=$(fetch_extension ${fn_mag})
+ext_mag=$(fetch_extension "${fn_mag}")
 if [[ ${ext_mag} == "gz" ]]; then
   nii_mag=".nii.gz"
 else
   nii_mag=".nii"
-  gzip -f ${fn_mag}
+  gzip -f "${fn_mag}"
 fi
 
-ext_ph=$(fetch_extension ${fn_phase})
+ext_ph=$(fetch_extension "${fn_phase}")
 if [[ ${ext_ph} == "nii" ]]; then
-  gzip -f ${fn_phase}
+  gzip -f "${fn_phase}"
 fi
 
+#-----------------------------------------------------------------------------
 # check if datatype != FLOAT64; might crash..
 dtype=$(fslval "${fn_mag}" data_type)
 if [ ${dtype} == "FLOAT64" ]; then
@@ -119,12 +183,12 @@ if [ ${dtype} == "FLOAT64" ]; then
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 fi
 
-json_mag="$(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_mag}).json"
+json_mag="${fn_mag/${nii_mag}/.json}"
 call_json "${json_mag}" "Nordic" "off"
 
 #-----------------------------------------------------------------------------
 # Get extension from input file
-ext_nordic=$(fetch_extension ${fn_nordic})
+ext_nordic=$(fetch_extension "${fn_nordic}")
 
 # nordic output
 if [[ ${ext_nordic} == "gz" ]]; then
@@ -132,7 +196,7 @@ if [[ ${ext_nordic} == "gz" ]]; then
 else
   nii_ext=".nii"
 fi
-fn_nordic="$(dirname ${fn_nordic})/$(basename ${fn_nordic} ${nii_ext})"
+fn_nordic="${fn_nordic%${nii_ext}}"
 
 # try to get run-ID from input file
 run_id=$(get_id "${fn_nordic}" "run")
@@ -155,73 +219,50 @@ fi
 
 #-----------------------------------------------------------------------------
 # Create new script (matlab scripts cannot have hyphens, so switch them out for underscores..)
-new_script=$(dirname ${fn_mag})/$(echo "$(basename ${fn_mag} .nii.gz)" | tr '-' '_').m #nordic${run_id}.m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
-fi
+new_script="$(echo "${fn_mag%.nii.gz}" | tr '-' '_').m"
+rm -r "${new_script}" 2>/dev/null
 
 #-----------------------------------------------------------------------------
 # Run new script
-if [[ -f "${fn_mag}" && -f "${fn_phase}" ]]; then
+make_nordic_script \
+  "${fn_mag}" \
+  "${fn_phase}" \
+  "${fn_nordic}" \
+  "${mag_only}" \
+  "${new_script}"
 
-  make_nordic_script \
+#-----------------------------------------------------------------------------
+# calculate tSNR before nordic
+if [[ ${make_tsnr} -eq 1 ]]; then
+  calculate_tsnr \
     "${fn_mag}" \
-    "${fn_phase}" \
-    "${fn_nordic}" \
-    "${mag_only}" \
-    "${new_script}"
+    "pre"
+fi
 
-  # calculate tSNR before nordic
-  if [[ ${make_tsnr} -eq 1 ]]; then
-    # echo "Calculating tSNR pre-NORDIC"
-    # call_tsnr2 --clean ${fn_mag} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_pre_nordic${nii_ext}
-    tsnr_out="$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpre_bold${nii_ext}"
-    
-    call_tsnr "${fn_mag}" "${tsnr_out}"
-    if [[ $? -ne 0 ]]; then
-      echo
-      print_line -
-      print_error_msg "$(basename ${0})" "call_tsnr"
-      exit 1
-    fi
+#-----------------------------------------------------------------------------
+# call_matlab = in call_bashhelper
+echo "Initializing matlab.."
+call_matlab "${new_script}"
 
-    call_winsorize "${tsnr_out}"
-    if [[ $? -ne 0 ]]; then
-      print_error_msg "$(basename ${0})" "call_winsorize"
-      exit 1
-    fi    
-  fi
-  
-  # call_matlab = in call_bashhelper
-  echo "Initializing matlab.."
-  call_matlab ${new_script}
-
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "make_nordic_script"
-    exit 1
-  fi
-
-else
-  echo "Missing files for NORDIC; need a magnitude & phase image, got \"${IMG_MAGN}\" and \"${IMG_PHASE}\""
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "make_nordic_script"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # Reset extension
-
 if [[ ${ext_nordic} == "gz" ]]; then
   echo "Compressing NORDIC'ed output"
-  gzip -f ${fn_nordic}.nii 2>/dev/null
-  nord_file=${fn_nordic}${nii_ext}
-
-  if [ -f ${fn_nordic}.nii ]; then
-    rm ${fn_nordic}.nii 2>/dev/null
-  fi
+  gzip -f "${fn_nordic}.nii" 2>/dev/null
+  nord_file="${fn_nordic}${nii_ext}"
+  rm "${fn_nordic}.nii" 2>/dev/null
 else
-  nord_file=${fn_nordic}${nii_ext}
+  nord_file="${fn_nordic}${nii_ext}"
 fi
 
+#-----------------------------------------------------------------------------
 # add json message
 if [[ ${mag_only} -eq 1 ]]; then
   msg="Magnitude only"
@@ -231,29 +272,23 @@ fi
 
 call_json ${fn_nordic}.json "Nordic" ${msg}
 
+#-----------------------------------------------------------------------------
 # make post NORDIC tSNR
 if [[ ${make_tsnr} -eq 1 ]]; then
-  # echo "Calculating tSNR post-NORDIC"
-  # call_tsnr2 --clean ${nord_file} $(dirname ${fn_mag})/$(basename ${fn_mag} ${nii_ext})_tsnr_post_nordic${nii_ext}
-  tsnr_out="$(dirname ${fn_mag})/$(basename ${fn_mag} _bold${nii_ext})_desc-tSNRpost_bold${nii_ext}"
-
-  call_tsnr "${nord_file}" "${tsnr_out}"
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "call_tsnr"
-    exit 1
-  fi
-
-  call_winsorize "${tsnr_out}"
-  if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})" "call_winsorize"
-    exit 1
-  fi
+  calculate_tsnr \
+    "${nord_file}" \
+    "post"
 fi
 
+#-----------------------------------------------------------------------------
 # copy geometry from input image
-call_copyheader "${fn_mag}" "${nord_file}"
+cmd=(
+  call_copyheader
+  "${fn_mag}"
+  "${nord_file}"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

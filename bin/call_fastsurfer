@@ -96,10 +96,10 @@ done
 #-----------------------------------------------------------------------------
 # Run it
 
-if [ -z ${dir} ]; then
-  output_dir=${DIR_DATA_DERIV}/fastsurfer
+if [ -z "${dir}" ]; then
+  output_dir="${DIR_DATA_DERIV}/fastsurfer"
 else
-  output_dir=${dir}
+  output_dir="${dir}"
 fi
 
 # add surf_only

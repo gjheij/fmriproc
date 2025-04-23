@@ -90,39 +90,40 @@ if [[ $# -lt 1 ]] ; then
 fi
 
 #-----------------------------------------------------------------------------
+# read args
+input_file=${@:$OPTIND:1}
+
+#-----------------------------------------------------------------------------
 # define inputs
-tmp="${@:$OPTIND:1}"
-if [[ ! -f "${tmp}" ]]; then
+if [[ ! -f "${input_file}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "input" "Specified file ${BOLD_GREEN}${tmp}${RESET} does not exist"
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input_file}${RESET}\""
   exit 1
 else
-  input_file=$(readlink -f "${tmp}")
+  input_file=$(readlink -f "${input_file}")
 fi
 
 # set output directory
-if [[ -z ${out_dir} ]]; then
-  output_dir=${SUBJECTS_DIR}/fsaverage/volumes
+if [[ -z "${out_dir}" ]]; then
+  output_dir="${SUBJECTS_DIR}/fsaverage/volumes"
 else
-  output_dir=${out_dir}
+  output_dir="${out_dir}"
 fi
 
-if [[ ! -d ${output_dir} ]]; then
-  mkdir -p ${output_dir}
+if [[ ! -d "${output_dir}" ]]; then
+  mkdir -p "${output_dir}"
 fi
 
 # set output name for ANTs-RF
-if [[ -z ${suffix} ]]; then
+if [[ -z "${suffix}" ]]; then
   suffix="desc-$(basename ${input_file} .nii.gz)"
 fi
 
 #-----------------------------------------------------------------------------
 # make the script
-new_script="$(dirname ${input_file})/$(basename ${input_file} .nii.gz).m"
-if [[ -f "${new_script}" ]]; then
-  rm -r "${new_script}"
-fi
+new_script="${input_file/.nii.gz/.m}"
+rm -r "${new_script}" 2>/dev/null
 
 cmd=(
   make_antsrf_script \
@@ -168,17 +169,17 @@ if [ ${VERB} -eq 1 ]; then
 fi
 
 # stacking giftis into numpy array so we can load them in with Pycortex
-lh=${output_dir}/lh.${suffix}.nii.gz
-rh=${output_dir}/rh.${suffix}.nii.gz
+lh="${output_dir}/lh.${suffix}.nii.gz"
+rh="${output_dir}/rh.${suffix}.nii.gz"
 
 # prefix for final output numpy file
 if [[ -z ${prefix} ]]; then
-  out_name=space-fsaverage_hemi-LR_${suffix}.npy
+  out_name="space-fsaverage_hemi-LR_${suffix}.npy"
 else
   out_name="${prefix}_space-fsaverage_hemi-LR_${suffix}.npy"
 fi
 
-both_hemis=${output_dir}/${out_name}
+both_hemis="${output_dir}/${out_name}"
 cmd=(
   call_stackgifti
   "${lh}"

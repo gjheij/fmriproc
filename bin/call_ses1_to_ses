@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
   cat <<USAGE
 
@@ -58,7 +62,7 @@ verbose=""
 run_local=1
 n_cpus=1
 search_depth=3
-QUEUE="short.q"
+SGE_QUEUE=${SGE_QUEUE_LONG}
 clear=0
 debug=0
 while getopts :-:vh:s:n:q:j:d: argument
@@ -102,7 +106,7 @@ do
           ;;                          
     i)  invert=1
           ;;   
-    q)  QUEUE=${OPTARG}
+    q)  SGE_QUEUE=${OPTARG}
           ;;
     j)  n_cpus=${OPTARG}
           ;;       
@@ -116,11 +120,26 @@ if [[ $# -lt 2 ]] ; then
 fi
 
 #-----------------------------------------------------------------------------
-# Check some directories/files
-if [[ ! -d $CTX/${sub_id} ]]; then
-  call_ctximport -s ${sub_id}
+# check inputs
+if [[ -z "${sub_id}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify a subject ID"
+  exit 1
 fi
 
+if [[ -z "${ses_id}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify a session ID"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Check some directories/files
+if [[ ! -d "${CTX}/${sub_id}" ]]; then
+  call_ctximport -s "${sub_id}"
+fi
 
 # find anatomy directory hierarchically
 INPUT_DIR=$(find_hierarchical_anatomy ${search_depth})
@@ -137,7 +156,7 @@ ses1=$(
 )
 
 # check if ses-1 exists
-if [[ -z ${ses1} ]]; then
+if [[ -z "${ses1}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "ses-1" "Could not find ses-1 image with \"${sub_id}*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${INPUT_DIR}/${sub_id}/ses-1${RESET}"
@@ -155,7 +174,7 @@ ses2=$(
   2>/dev/null
 )
 
-if [[ -z ${ses2} ]]; then
+if [[ -z "${ses2}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "ses-${ses_id}" "Could not find ses-${ses_id} image with \"${sub_id}*\", \"*acq-MP2RAGE*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${DIR_DATA_HOME}/${sub_id}/ses-${ses_id}/anat${RESET}"
@@ -165,46 +184,38 @@ fi
 #-----------------------------------------------------------------------------
 # set input/output
 if [[ ${invert} -eq 1 ]]; then
-  ref=${ses1}
-  mov=${ses2}
-  tag=ses${ses_id}_to-ses1
+  ref="${ses1}"
+  mov="${ses2}"
+  tag="ses${ses_id}_to-ses1"
 else
-  ref=${ses2}
-  mov=${ses1}
+  ref="${ses2}"
+  mov="${ses1}"
   tag=ses1_to-ses${ses_id}
 fi
 
 # set output name and make directory
-aff=${CTX}/${sub_id}/transforms/${sub_id}_from-${tag}_desc-genaff.mat
-if [[ ! -d $(dirname ${aff}) ]]; then
-  mkdir -p $(dirname ${aff})
+aff="${CTX}/${sub_id}/transforms/${sub_id}_from-${tag}_desc-genaff.mat"
+if [[ ! -d "$(dirname ${aff})" ]]; then
+  mkdir -p "$(dirname ${aff})"
 fi
 
 # define log-file
-log_file=$(dirname ${aff})/$(basename ${aff} .mat).log
+log_file="${aff/.mat/.log}"
 if [[ ${clear} -eq 1 ]]; then
-  if [[ -f ${log_file} ]]; then
-    rm ${log_file} 2>/dev/null
-  fi
+  rm ${log_file} 2>/dev/null
 fi
 
 #-----------------------------------------------------------------------------
-# define job execution
-if [[ ${run_local} -eq 0 ]]; then
-  submit=$(
-    generate_submission_command \
-    "${QUEUE}" \
-    "${n_cpus}" \
+# decide job
+job="$(
+  decide_job_type \
+    call_antsregistration \
     "$(basename ${aff})" \
-    "${DIR_LOGS}"
-  )
-
-  call_=$(which call_antsregistration)
-  job="${submit} ${call_}"
-  verbose="--verbose"
-else
-  job="call_antsregistration"
-fi
+    "${run_local}" \
+    "${DIR_LOGS}" \
+    "${n_cpus}" \
+    "${SGE_QUEUE}"
+)"
 
 #-----------------------------------------------------------------------------
 # define command
@@ -214,7 +225,7 @@ cmd=(
   "${verbose}"
   "${ref}"
   "${mov}"
-  "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+  "${aff%genaff.mat}"
 )
 
 # echo command
@@ -226,9 +237,9 @@ fi
 if [[ ${debug} -eq 0 ]]; then
   (
   echo ""
-  echo "### New invocation of call_antsregistration @ `date`"
+  echo "### New invocation of call_antsregistration @$(date)"
   echo "$(echo ${cmd[@]} | tr '\n' ' ')"
   echo ""
-  ) >> ${log_file}
+  ) >> "${log_file}"
   eval "${cmd[@]}"
 fi

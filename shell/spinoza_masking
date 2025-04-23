@@ -141,7 +141,7 @@ fi
 start_timer "Make out garbage (sagittal sinus/tentorium)"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
   # collect subject name
@@ -159,6 +159,8 @@ for subID in ${search}; do
     ses_flag=""
   fi
 
+  #-----------------------------------------------------------------------------
+  # set paths
   input_dir="${INPUT}/${base_path}"
   output_dir="${OUTPUT}/${base_path}/anat"
   mask_dir="${MASKS}/${base_path}"
@@ -168,6 +170,9 @@ for subID in ${search}; do
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   else
+
+    #-----------------------------------------------------------------------------
+    # find bunch of files
     search_for_mask="cat_dura"
 
     # T1w file
@@ -215,7 +220,7 @@ for subID in ${search}; do
     fi
 
     #-----------------------------------------------------------------------------
-    # MASKING PROCEDURE
+    # masking procedure
     if [[ -f "${masked_anat}" ]]; then
       print_output_exists "${sub_name}" "${masked_anat}"
     else
@@ -228,6 +233,7 @@ for subID in ${search}; do
         # print header
         print_subject_header ${sub_name}
 
+        #-----------------------------------------------------------------------------
         # if we cannot do masking, then just copy the input image as "masked" image
         if [[ ! -z "${brain_mask}" ]]; then
           cmd=(
@@ -247,6 +253,9 @@ for subID in ${search}; do
             exit 1
           fi
 
+          #-----------------------------------------------------------------------------
+          # post-processing if file exists
+
           # masked anat
           masked_anat=$(
             find "${output_dir}" \
@@ -256,7 +265,7 @@ for subID in ${search}; do
             -and -name "*masked_T1w.nii.gz" \
             2>/dev/null
           )
-
+          
           # check if file was created..
           if [[ ! -z "${masked_anat}" ]]; then
             echo
@@ -290,7 +299,7 @@ for subID in ${search}; do
     fi
 
     #-----------------------------------------------------------------------------
-    # SKULLSTRIPPING PROCEDURE
+    # skullstripping procedure
     bet_t1w="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1w.nii.gz"
     bet_t1m="${skull_dir}/${base}_acq-${DATA^^}_desc-skullstrip_T1map.nii.gz"
 
@@ -304,6 +313,9 @@ for subID in ${search}; do
       if [[ ! -d "${skull_dir}" ]]; then
         mkdir -p "${skull_dir}"
       fi
+
+      #-----------------------------------------------------------------------------
+      # find bunch of files
 
       # masked_anat
       masked_anat=$(

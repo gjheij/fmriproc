@@ -62,14 +62,43 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-# read full file paths
-real=$(fetch_filepath ${1})
-imag=$(fetch_filepath ${2})
-out=${3}
+#-----------------------------------------------------------------------------
+# read args
+real="${1}"
+imag="${1}"
+out="${3}"
 
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${real}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find REAL image \"${BOLD_GREEN}${real}${RESET}\""
+  exit 1
+else
+  real=$(readlink -f "${real}")
+fi
+
+if [[ ! -f "${imag}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find IMAGINARY image \"${BOLD_GREEN}${imag}${RESET}\""
+  exit 1
+else
+  imag=$(readlink -f "${imag}")
+fi
+
+if [[ -z "${out}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # check dimensions
-for f in ${real} ${imag}; do
-	dim=$(fslval ${f} dim4)
+for f in "${real}" "${imag}"; do
+	dim=$(fslval "${f}" dim4)
 	if [[ ${dim} -lt 2 ]]; then
     echo
     print_line -
@@ -85,10 +114,10 @@ for inv in $(seq 1 2); do
   echo " Combine real/imag into complex.."
   ix=$((inv-1))
 	# combine real/imag into complex
-	cplx=${out}_inv-${inv}_part-complex.nii.gz
+	cplx="${out}_inv-${inv}_part-complex.nii.gz"
 	cmd=(
     fslcomplex
-    -complex ${real}
+    -complex "${real}"
     "${imag}"
     "${cplx}"
     "${ix}" 
@@ -104,13 +133,13 @@ for inv in $(seq 1 2); do
   fi
   
   # change orientation to LPI
-  if [[ -f ${cplx} ]]; then
+  if [[ -f "${cplx}" ]]; then
 
     echo " Split complex into magnitude/phase.."
 
     # split complex into mag/phase
-    mag=${out}_inv-${inv}_part-mag.nii.gz
-    ph=${out}_inv-${inv}_part-phase.nii.gz
+    mag="${out}_inv-${inv}_part-mag.nii.gz"
+    ph="${out}_inv-${inv}_part-phase.nii.gz"
     cmd=(
       fslcomplex
       -realpolar "${cplx}"
@@ -130,9 +159,8 @@ for inv in $(seq 1 2); do
     echo " Copying geometry from complex and reorient to LPI"
     for f in ${mag} ${ph}; do
       call_copyheader "${cplx}" "${f}"
-      call_reorient -i ${f}
+      call_reorient -i "${f}"
     done
-
   else
     echo
     print_line -

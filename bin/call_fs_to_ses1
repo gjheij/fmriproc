@@ -96,13 +96,14 @@ SUBJECT=${@:$OPTIND:1}
 
 #-----------------------------------------------------------------------------
 # Check some directories/files
-if [[ ! -d $CTX/${SUBJECT} ]]; then
-  call_ctximport -s ${SUBJECT}
+if [[ ! -d "$CTX/${SUBJECT}" ]]; then
+  call_ctximport -s "${SUBJECT}"
 fi
 
 if [[ ${SOFTWARE,,} == "ants" ]]; then
   orig=${FS}/${SUBJECT}/mri/orig.nii.gz
-  ses1=$(find "${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1" \
+  ses1=$(
+    find "${DIR_DATA_DERIV}/pymp2rage/${SUBJECT}/ses-1" \
     -type f \
     -name "${SUBJECT}*" \
     -and -name "*T1w.nii.gz" \
@@ -110,10 +111,10 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
   )
 
   # convert mgz to nifti
-  if [[ ! -f ${orig} ]]; then
+  if [[ ! -f "${orig}" ]]; then
     cmd=(
       call_mriconvert
-      "$(dirname ${orig})/$(basename ${orig} .nii.gz).mgz"
+      "${orig/.nii.gz/.mgz}"
     )
     eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
@@ -123,12 +124,12 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
   fi
 
   if [[ -z ${ses1} ]]; then
-    ses1=${FS}/${SUBJECT}/mri/rawavg.nii.gz
+    ses1="${FS}/${SUBJECT}/mri/rawavg.nii.gz"
     # convert mgz to nifti
     if [[ ! -f ${ses1} ]]; then
       cmd=(
         call_mriconvert
-        "$(dirname ${ses1})/$(basename ${ses1} .nii.gz).mgz"
+        "${ses1/.nii.gz/.mgz}"
       )
       eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
@@ -143,9 +144,9 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
     exit 1
   fi
 
-  aff=${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-ses1_desc-genaff.mat
-  if [[ ! -d $(dirname ${aff}) ]]; then
-    mkdir -p $(dirname ${aff})
+  aff="${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-ses1_desc-genaff.mat"
+  if [[ ! -d "$(dirname ${aff})" ]]; then
+    mkdir -p "$(dirname ${aff})"
   fi
 
   if [[ ! -f ${aff} ]]; then
@@ -153,7 +154,7 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
       call_antsregistration
       "${ses1}"
       "${orig}"
-      "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+      "${aff%genaff.mat}"
       rigid
     )
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -169,9 +170,9 @@ if [[ ${SOFTWARE,,} == "ants" ]]; then
 
 elif [[ ${SOFTWARE,,} == "fs" ]]; then
 
-  aff=${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-rawavg_desc-genaff.dat
-  if [[ ! -d $(dirname ${aff}) ]]; then
-    mkdir -p $(dirname ${aff})
+  aff="${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-rawavg_desc-genaff.dat"
+  if [[ ! -d "$(dirname ${aff})" ]]; then
+    mkdir -p "$(dirname ${aff})"
   fi
 
   cmd=(

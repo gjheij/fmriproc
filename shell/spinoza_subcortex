@@ -158,9 +158,10 @@ if [[ ! -d ${INPUT} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
-
+  
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
@@ -177,11 +178,10 @@ for subID in ${search}; do
     fi
   done
 
-  #-----------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # Running MASSP with Nighres
 
   massp="${output_dir}/${base}_acq-${DATA^^}_desc-massp_label.nii.gz"
-
   if [[ ! -f "${massp}" ]]; then
 
     # print header
@@ -196,8 +196,8 @@ for subID in ${search}; do
       -and -name "*brainmask.nii.gz" \
       2>/dev/null
     )
-    declare -a INPUTS=()
 
+    declare -a INPUTS=()
     echo "Should we mask inputs?"
     for i in "R1" "R2s" "QSM"; do
       fn=$(
@@ -213,8 +213,9 @@ for subID in ${search}; do
         print_file_not_in_dir "${sub_name}" "*${i}.nii.gz" "${input_dir}"
         continue
       else
+        #-----------------------------------------------------------------------------
         # check if we can mask inputs; otherwise continue as usual
-        if [[ ! -z ${mask} ]]; then
+        if [[ ! -z "${mask}" ]]; then
           printf " applying mask to ${i}-image; "
           out="${skull_dir}/$(basename ${fn} "_${i}.nii.gz")_desc-skullstrip_${i}.nii.gz"
           cmd=(
@@ -224,6 +225,7 @@ for subID in ${search}; do
             "${out}"
           )
 
+          # print and run
           print_cmd "${cmd[@]}" && eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             echo
@@ -236,13 +238,14 @@ for subID in ${search}; do
           use_dir="${skull_dir}"
           printf "[$(fslstats ${out} -R)]\n"
         else
-          use_dir=${input_dir}
+          use_dir="${input_dir}"
         fi
       fi
     done
     echo "Done"
     print_create_img "${massp}"
 
+    #-----------------------------------------------------------------------------
     # decide the job type
     job="$(
       decide_job_type \

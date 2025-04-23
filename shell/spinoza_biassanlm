@@ -167,35 +167,41 @@ fi
 start_timer "Bias field correction and sanlm-filtering"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
+  # set input folder
   if [[ "${INPUT}" == "${DIR_DATA_HOME}" ]]; then
-    INPUTDIR=${INPUT}/${base_path}/anat
+    INPUTDIR="${INPUT}/${base_path}/anat"
   else
-    INPUTDIR=${INPUT}/${base_path}
+    INPUTDIR="${INPUT}/${base_path}"
   fi
 
-  if [[ ! -d ${INPUTDIR} ]]; then
+  if [[ ! -d "${INPUTDIR}" ]]; then
     print_directory_not_exist "${sub_name}" "${INPUTDIR}"
     exit 1
   fi  
 
+  #-----------------------------------------------------------------------------
   # set outputdir to inputdir if outputdir not specified
-  if [[ ! -z ${OUTPUT} ]]; then
-    OUTPUTDIR=${OUTPUT}/${base_path}
+  if [[ ! -z "${OUTPUT}" ]]; then
+    OUTPUTDIR="${OUTPUT}/${base_path}"
   else
-    OUTPUTDIR=${INPUTDIR}
+    OUTPUTDIR="${INPUTDIR}"
   fi
 
-  if [[ ! -d ${OUTPUTDIR} ]]; then
-    mkdir -p ${OUTPUTDIR}
+  if [[ ! -d "${OUTPUTDIR}" ]]; then
+    mkdir -p "${OUTPUTDIR}"
   fi
 
+  #-----------------------------------------------------------------------------
+  # find spm mask
   spm_mask=$(
     find "${INPUTDIR}" \
     -type f \
@@ -214,26 +220,29 @@ for subID in ${search}; do
     done
     continue
   else
-    cp ${spm_mask} ${OUTPUTDIR} 2>/dev/null
+    cp "${spm_mask}" "${OUTPUTDIR}" 2>/dev/null
     
     if [[ ${use_mask} -eq 1 ]]; then
       # parse kwargs and append mask
-      if [[ -z ${kwargs} ]]; then
+      if [[ -z "${kwargs}" ]]; then
         kwargs="-x=${spm_mask}"
       else
         # Check if an -x= argument contains a .nii (likely a mask)
-        if ! echo "$kwargs" | grep -Eq '\-x=.*\.nii(\.gz)?'; then
+        if ! echo "${kwargs}" | grep -Eq '\-x=.*\.nii(\.gz)?'; then
           kwargs="${kwargs};-x=${spm_mask}"
         fi
       fi
     fi
   fi
 
+  #-----------------------------------------------------------------------------
   # parse into string
-  if [[ ! -z ${kwargs} ]]; then
-    kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ':' ' ')
+  if [[ ! -z "${kwargs}" ]]; then
+    kwargs=$(echo "${kwargs}" | tr ' =' ' ' | tr ':' ' ')
   fi
-
+  
+  #-----------------------------------------------------------------------------
+  # find input 
   input=$(
     find "${INPUTDIR}" \
     -maxdepth 1 \
@@ -242,14 +251,16 @@ for subID in ${search}; do
     -and -name "*T1w.nii.gz" \
     2>/dev/null
   )
-  if [[ ! -z ${input} ]]; then
+  if [[ ! -z "${input}" ]]; then
 
-    output=${OUTPUTDIR}/$(basename ${input})
+    output="${OUTPUTDIR}/$(basename ${input})"
 
     if [[ ${OW} -eq 1 ]]; then
-      rm ${output} 2>/dev/null
+      rm "${output}" 2>/dev/null
     fi
 
+    #-----------------------------------------------------------------------------
+    # find t1map needed for nighres
     t1map=$(
       find "${INPUTDIR}" \
       -maxdepth 1 \
@@ -258,8 +269,9 @@ for subID in ${search}; do
       -and -name "*T1map.nii.gz" \
       2>/dev/null
     )
-    if [[ ! -z ${t1map} ]]; then
-      # copy t1map to output for later reference
+
+    # copy t1map to output for later reference
+    if [[ ! -z "${t1map}" ]]; then
       cp "${t1map}" "$(dirname ${output})" 2>/dev/null
     fi
     
@@ -268,70 +280,79 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
       
+      #-----------------------------------------------------------------------------
+      # run SANLM
       if [[ ${RUN_SANLM} -eq 1 ]]; then
 
-        output_from_sanlm=${OUTPUTDIR}/denoised.nii.gz
+        output_from_sanlm="${OUTPUTDIR}/denoised.nii.gz"
         if [[ ${SANLM_WITH_ANTS} -eq 1 ]]; then
           
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
           echo "Running SANLM-filter with ANTs' DenoiseImage"
-          sanlm_="call_antssanlm"
+          cmd=(call_antssanlm)
         else
           echo "Running SANLM-filter with CAT12"
-          sanlm_="call_spmsanlm"
+          cmd=(call_spmsanlm)
         fi
         
-        # run
-        ${sanlm_} ${input} ${output_from_sanlm} ${kwargs}
+        # print and run
+        cmd+=(
+          "${input}"
+          "${output_from_sanlm}"
+          "${kwargs}"
+        )
 
-        if [[ ! -f ${output_from_sanlm} ]]; then
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 || ! -f ${output_from_sanlm} ]]; then
           print_error_msg "$(basename ${0})" "${sanlm_}"
           exit 1
         fi
 
-        input_for_bias=${output_from_sanlm}
+        input_for_bias="${output_from_sanlm}"
       else
         echo "SANLM-filtering turned off"
-        input_for_bias=${input}
+        input_for_bias="${input}"
       fi
 
+      #-----------------------------------------------------------------------------
+      # run bias correction
       if [[ ${RUN_BIASCORR} -eq 1 ]]; then
 
         if [[ ${RUN_WITH_ANTS} -eq 0 ]]; then
           echo "Running bias field correction with SPM"
-          call_="call_spmbias"
           cmd=(
-            "${call_}"
+            call_spmbias
             "${input_for_bias}"
             "${output}"
           )
         else
           # set number of cores to use
           export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=${n_cpu}
-          call_="call_antsbias"
           cmd=(
-            "${call_}"
+            call_antsbias
             "${input_for_bias}"
             "${output}"
             "${kwargs}"
           )
         fi
 
-        eval "${cmd[@]}"
-        if [[ ! -f ${output} ]]; then
+        echo "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ ! -f "${output}" ]]; then
           print_error_msg "$(basename ${0})" "${call_}"
           exit 1
         fi
 
         if [[ ${RUN_SANLM} -eq 1 ]]; then
-          rm -r ${output_from_sanlm} 2>/dev/null
+          rm -r "${output_from_sanlm}" 2>/dev/null
         fi
 
       else
-        mv ${output_from_sanlm} ${output}
+        mv "${output_from_sanlm}" "${output}"
       fi
 
+      #-----------------------------------------------------------------------------
+      # post-processing
       echo "Running post-processing to fix intensities and datatype"
       cmd=(
         call_wsd

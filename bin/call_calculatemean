@@ -49,45 +49,69 @@ fi
 output=${@: -1}
 inputs=${@:1:$#-1}
 
+#-----------------------------------------------------------------------------
 # Function for merge command
-COMMAND() {
-  fslmerge -a $(dirname "$1")/tmp_$(basename "$1") "${@:2}"
-}
-
-# Only proceed if output doesn't exist
-if [[ ! -f ${output} ]]; then
-
-  # If temporary file doesn't exist, run merge
-  if [[ ! -f $(dirname "${output}")/tmp_$(basename "${output}") ]]; then
-
-    echo "Merging the following files:"
-    for i in ${inputs[@]}; do echo "  $(basename "$i")"; done
-
-    COMMAND "${output}" "${inputs[@]}"
-
-    if [[ $? -ne 0 ]]; then
-      echo
-      print_line -
-      print_error_msg "$(basename "$0")" "fslmerge"
-      exit 1
-    fi
-  fi
-
-  echo "Calculating mean"
+merge_files() {
+  local output="${1}"
+  local inputs="${@:2}"
   cmd=(
-    fslmaths
-    "$(dirname "${output}")/tmp_$(basename "${output}")"
-    -Tmean
+    fslmerge
+    -a
     "${output}"
+    "${inputs[@]}"
   )
-
+  
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
-    print_error_msg "$(basename "$0")" "fslmaths"
+    print_error_msg "$(basename "$0")" "${cmd[0]}"
     exit 1
   fi
+}
 
-  rm "$(dirname "${output}")/tmp_$(basename "${output}")" 2>/dev/null
+#-----------------------------------------------------------------------------
+# If temporary file doesn't exist, run merge
+tmp_file="${output%/*}/tmp_${output##*/}"
+if [[ ! -f "${tmp_file}" ]]; then
+
+  echo "Merging the following files:"
+  for i in ${inputs[@]}; do echo "  $(basename "${i}")"; done
+
+  cmd=(
+    merge_files
+    "${tmp_file}"
+    "${inputs[@]}"
+  )
+  
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "$0")" "${cmd[0]}"
+    exit 1
+  fi
 fi
+
+#-----------------------------------------------------------------------------
+# calculate mean
+echo "Calculating mean"
+cmd=(
+  fslmaths
+  "${tmp_file}"
+  -Tmean
+  "${output}"
+)
+
+# print and run
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "$0")" "fslmaths"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# clean up
+rm "${tmp_file}" 2>/dev/null

@@ -45,13 +45,13 @@ fi
 #-----------------------------------------------------------------------------
 # check if input exists
 input="${1}"
-if [[ ! -f ${input} ]]; then
+if [[ ! -f "${input}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
-  input=$(readlink -f ${input})
+  input=$(readlink -f "${input}")
 fi
 
 shift
@@ -62,12 +62,18 @@ extra_args=("$@")
 arg_str="${extra_args[*]}"
 
 # Extract first volume as reference if -refvol not specified
-ref="$(dirname "${input}")/$(basename "${input}" .nii.gz)_refvol.nii.gz"
+ref="${input/.nii.gz/_refvol.nii.gz}"
 if [[ ! "${arg_str}" =~ "-refvol" ]]; then
   echo "Taking first volume as reference"
-  cmd=(fslroi "${input}" "${ref}" 0 1)
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  cmd=(
+    fslroi
+    "${input}"
+    "${ref}"
+    0
+    1
+  )
 
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
     print_line -
@@ -94,6 +100,7 @@ cmd=(
   -in "${input}" 
   "${extra_args[@]}"
 )
+
 #-----------------------------------------------------------------------------
 # Print and run
 echo "Running McFlirt with command:"

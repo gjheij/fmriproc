@@ -89,11 +89,11 @@ fi
 
 #-----------------------------------------------------------------------------
 # define inputs
-tmp="${@:$OPTIND:1}"
-if [[ ! -f "${tmp}" ]]; then
+fsf_file="${@:$OPTIND:1}"
+if [[ ! -f "${fsf_file}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${tmp}${RESET} does not exist"
+  print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${fsf_file}${RESET} does not exist"
   exit 1
 else
   fsf_file=$(readlink -f "${tmp}")
@@ -101,7 +101,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # delete previously existing file
-base_name=$(dirname ${fsf_file})/$(basename ${fsf_file} .fsf)
+base_name="${fsf_file%.fsf}"
 fsf_script=${base_name}.sh
 if [[ -f ${fsf_script} ]]; then
   rm -r ${fsf_script}
@@ -112,7 +112,7 @@ fi
 (
 echo "#!/bin/bash"
 echo "feat ${fsf_file}"
-) > ${fsf_script}
+) > "${fsf_script}"
 
 job="$(
   decide_job_type \

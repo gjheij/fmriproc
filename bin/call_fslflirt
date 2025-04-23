@@ -52,18 +52,56 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
-# Required inputs
-ref="$1"
-in="$2"
-out="$3"
-omat="$4"
+#-----------------------------------------------------------------------------
+# read args
+ref="${1}"
+in="${2}"
+out="${3}"
+omat="${4}"
 
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${ref}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${ref}${RESET}\""
+  exit 1
+else
+  ref=$(readlink -f "${ref}")
+fi
+
+if [[ ! -f "${in}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${in}${RESET}\""
+  exit 1
+else
+  in=$(readlink -f "${in}")
+fi
+
+if [[ ! -f "${omat}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find WARP file \"${BOLD_GREEN}${omat}${RESET}\""
+  exit 1
+else
+  omat=$(readlink -f "${omat}")
+fi
+
+if [[ -z "${out}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 shift 4  # Remove the first 4 arguments
 
 # Optional arguments to pass to flirt
 extra_args=("$@")
 
-#--------------------------------------------------
+#-----------------------------------------------------------------------------
 # Inject defaults if not specified
 arg_str="${extra_args[*]}"
 
@@ -74,37 +112,24 @@ arg_str="${extra_args[*]}"
 [[ ! "${arg_str}" =~ "-interp" ]]   && extra_args+=("-interp" "sinc")
 [[ ! "${arg_str}" =~ "-dof" ]]      && extra_args+=("-dof" "6")
 
-#--------------------------------------------------
+#-----------------------------------------------------------------------------
 # Run it
-if [[ -f "$ref" && -f "$in" ]]; then
-  if [[ ! -f "$omat" ]]; then
-    cmd=(
-      flirt
-      -in "${in}"
-      -ref "${ref}"
-      -out "${out}"
-      -omat "${omat}"
-      "${extra_args[@]}"
-    )
-    
-    # print and run
-    echo "Running FLIRT with command:"
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-    if [[ $? -ne 0 ]]; then
-      echo
-      print_line -
-      print_error_msg "$(basename ${0})" "flirt"
-      exit 1
-    fi
-  else
-    echo "Skipping registration: matrix '${omat}' already exists."
-  fi
-else
+cmd=(
+  flirt
+  -in "${in}"
+  -ref "${ref}"
+  -out "${out}"
+  -omat "${omat}"
+  "${extra_args[@]}"
+)
+
+# print and run
+echo "Running FLIRT with command:"
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find"
-  [[ ! -f "$ref" ]] && echo -e " - ${BOLD_RED}Fixed${RESET} image not found: ${BOLD_GREEN}${ref}${RESET}"
-  [[ ! -f "$in"  ]] && echo -e " - ${BOLD_RED}Moving${RESET} image not found: ${BOLD_GREEN}${in}${RESET}"
+  print_error_msg "$(basename ${0})" "flirt"
   exit 1
 fi
 

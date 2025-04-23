@@ -144,7 +144,7 @@ fi
 start_timer "Quality control with MRIqc"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
   # collect subject name

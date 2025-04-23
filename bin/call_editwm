@@ -81,8 +81,8 @@ if [[ ! -z ${sub} ]]; then
   read base_path base <<< "$(collect_session_info "$ses" "$sub")"
   mask_dir="${DIR_DATA_DERIV}/manual_masks/${base_path}"
 
-  FS_DIR=${SUBJECTS_DIR}/${sub}
-  MAN=${mask_dir}/${base}_acq-${DATA^^}_desc-manualsegwm.nii.gz
+  FS_DIR="${SUBJECTS_DIR}/${sub}"
+  MAN="${mask_dir}/${base}_acq-${DATA^^}_desc-manualsegwm.nii.gz"
 else
   FS_DIR=${@:$OPTIND:1}
   MAN=${@:$OPTIND+1:1}
@@ -90,7 +90,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # create files from FreeSurfer directory
-if [[ -d ${FS_DIR} ]]; then
+if [[ -d "${FS_DIR}" ]]; then
   
   # rawavg.mgz
   cmd=(
@@ -126,9 +126,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # create empty
-if [[ ! -f ${MAN} ]]; then
-  if [[ ! -d $(dirname ${MAN}) ]]; then
-    mkdir -p $(dirname ${MAN})
+if [[ ! -f "${MAN}" ]]; then
+  if [[ ! -d "$(dirname ${MAN})" ]]; then
+    mkdir -p "$(dirname ${MAN})"
   fi
 
   print_create_img "${MAN}"
@@ -140,7 +140,7 @@ if [[ ! -f ${MAN} ]]; then
 
   # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+  if [[ $? -ne 0 || ! -f "${MAN}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"

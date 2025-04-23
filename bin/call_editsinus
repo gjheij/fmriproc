@@ -88,7 +88,7 @@ if [[ ! -z ${sub} ]]; then
 
   # anatomical reference
   ANAT_DIR=$(find_hierarchical_anatomy ${anat_depth})
-  if [[ ! -d ${ANAT_DIR} ]]; then
+  if [[ ! -d "${ANAT_DIR}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "find_hierarchical_anatomy" "Directory ${BOLD_GREEN}${ANAT_DIR}${RESET} does not exist. Reduce depth (=${anat_depth})"
@@ -97,7 +97,7 @@ if [[ ! -z ${sub} ]]; then
 
   # search for reference in directory
   REF=$(
-    find ${ANAT_DIR}/${base_path} \
+    find "${ANAT_DIR}/${base_path}" \
     -type f \
     -name "${sub}*" \
     -and -name "*T1w.nii.gz"
@@ -113,11 +113,11 @@ if [[ ! -z ${sub} ]]; then
     REF=$(readlink -f "${REF}")
   fi
 
-  MAN=${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz
+  MAN="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
 else
   REF=${@:$OPTIND:1}
 
-  if [[ ! -f ${REF} ]]; then
+  if [[ ! -f "${REF}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "find" "Anatomical file ${BOLD_GREEN}${REF}${RESET} does not exist"
@@ -132,8 +132,8 @@ fi
 #-----------------------------------------------------------------------------
 # create empty
 if [[ ! -f ${MAN} ]]; then
-  if [[ ! -d $(dirname ${MAN}) ]]; then
-    mkdir -p $(dirname ${MAN})
+  if [[ ! -d "$(dirname ${MAN})" ]]; then
+    mkdir -p "$(dirname ${MAN})"
   fi
   print_create_img "${MAN}"
   cmd=(
@@ -144,7 +144,7 @@ if [[ ! -f ${MAN} ]]; then
 
   # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+  if [[ $? -ne 0 || ! -f "${MAN}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"

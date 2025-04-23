@@ -192,24 +192,27 @@ fi
 start_timer "Derive T1w/T1map from ${DATA} using pymp2rage"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set paths
   input_dir=${INPUT}/${base_path}
   output_dir=${OUTPUT}/${base_path}
 
+  #-----------------------------------------------------------------------------
   # check aggressive overwrite mode
   if [[ ${FULL_OW} -eq 1 ]]; then
     echo "Full overwrite mode activated"
     rm -r ${output_dir} 2>/dev/null
   fi
-
-  if [[ ! -d ${input_dir} ]]; then
+  
+  if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   else
@@ -218,7 +221,8 @@ for subID in ${search}; do
       print_subject_header ${sub_name}
     fi
   fi
-
+  
+  #-----------------------------------------------------------------------------
   # loop through available datatype (see spinoza_setup)
   for a in ${ACQ[@]}; do
 
@@ -270,11 +274,14 @@ for subID in ${search}; do
       )
     fi
 
+    #-----------------------------------------------------------------------------
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
       rm "${t1w}" "${t1map}" 2>/dev/null
     fi
 
+    #-----------------------------------------------------------------------------
+    # execute
     if [[ ! -f "${t1w}" || ! -f "${t1map}" || ${FORCE_EXEC} -eq 1 ]]; then
 
       if [[ ${#in_files[@]} -eq 0 ]]; then
@@ -285,6 +292,7 @@ for subID in ${search}; do
           mkdir -p "${output_dir}"
         fi
 
+        #-----------------------------------------------------------------------------
         # mp2rage(me) job
         if [[ "$(basename $(which call_${a,,}))" == *"mp2rage"* ]]; then
 
@@ -322,8 +330,10 @@ for subID in ${search}; do
             print_error_msg "$(basename ${0})" "call_${a,,}"
             exit 1
           fi
+
+        #-----------------------------------------------------------------------------
+        # mprage job
         else
-          # mprage job
           for file in ${in_files[@]}; do
             # set output name based on acquisition strategy
             add_run=""
@@ -376,6 +386,7 @@ for subID in ${search}; do
 
   done
 
+  #-----------------------------------------------------------------------------
   # copy extra anatomical files
   for f in ${SEARCH_ANATOMICALS[@]}; do
 

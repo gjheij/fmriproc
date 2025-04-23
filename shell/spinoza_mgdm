@@ -184,9 +184,10 @@ start_timer "MGDM segmentation with Nighres"
 check_python_package "nighres"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
@@ -260,6 +261,7 @@ for subID in ${search}; do
         execute_cmd=0
       fi
 
+      # brain masks
       fs_mask="${SUBJECTS_DIR}/${sub_name}/mri/brainmask.mgz"
       brainmask=$(
         find -L "${input_dir}" \
@@ -268,7 +270,9 @@ for subID in ${search}; do
         -and -name "*acq-${DATA^^}*" \
         2>/dev/null
       )
-    
+
+      #-----------------------------------------------------------------------------
+      # check which input to use
       if [[ -f "${fs_mask}" ]]; then
         use_mask="${fs_mask}"
       else
@@ -280,6 +284,7 @@ for subID in ${search}; do
         fi
       fi
 
+      #-----------------------------------------------------------------------------
       # decide the job type
       call_="call_gdhmgdm"
       job="$(
@@ -317,6 +322,8 @@ for subID in ${search}; do
 
     if [[ ! -f "${mgdm_seg}" ]]; then
 
+      #-----------------------------------------------------------------------------
+      # set execution rules
       execute_cmd=1
       run_mode="Running ${BOLD_RED}regular version${RESET} of MGDM with ${BOLD_BLUE}call_nighresmgdm${RESET}"
 

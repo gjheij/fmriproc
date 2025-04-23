@@ -104,6 +104,12 @@ fi
 
 # output
 OUT=${@:$OPTIND+3:1}
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # How to convert fsl transform matrix to itk:

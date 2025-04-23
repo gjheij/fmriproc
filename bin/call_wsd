@@ -85,14 +85,19 @@ do
   esac
 done
 
-tmp="${@:$OPTIND:1}"
-if [[ -f "${tmp}" ]]; then
-  in_file=$(readlink -f "${tmp}")
-else
+#-----------------------------------------------------------------------------
+# read args
+in_file=${@:$OPTIND:1}
+
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${in_file}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "File \"${tmp}\" does not exist"
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in_file}${RESET}\""
   exit 1
+else
+  in_file=$(readlink -f "${in_file}")
 fi
 
 #-----------------------------------------------------------------------------

@@ -62,9 +62,9 @@ fi
 #-----------------------------------------------------------------------------
 # define output
 if [[ -z "${2}" ]]; then
-  out=$(dirname "${input}")/$(basename "${input}" .mgz).nii.gz
+  output="${input/.mgz/.nii.gz}"
 else
-  out="${2}"
+  output="${2}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -74,12 +74,12 @@ cmd=(
   --in_type mgz
   --out_type nii
   "${input}" 
-  "${out}"
+  "${output}"
 )
 
 # run
 eval "${cmd[@]}"
-if [[ $? -ne 0 ]]; then
+if [[ $? -ne 0 || ! -f "${output}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "mri_convert"

@@ -95,28 +95,54 @@ if [[ ! -z ${sub} ]]; then
     exit 1
   fi
 
-  REF=$(find ${ANAT_DIR}/${base_path} -type f -name "${sub}*" -and -name "*T1w.nii.gz" 2>/dev/null)
-  if [[ ! -f ${REF} ]]; then
+  REF=$(
+    find "${ANAT_DIR}/${base_path}" \
+    -type f \
+    -name "${sub}*" \
+    -and -name "*T1w.nii.gz" \
+    2>/dev/null
+  )
+  
+  # ref
+  if [[ ! -f "${REF}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "find" "No file with ${BOLD_RED}${sub}*${RESET} and ${BOLD_RED}*T1w.nii.gz${RESET} in ${BOLD_GREEN}${ANAT_DIR}${RESET}"
     exit 1
   fi
 
-  SEG=$(find "${mask_dir}" -type f -name "${sub}*" -and -name "*cruise_cortex.nii.gz" 2>/dev/null)
+  # cruise
+  SEG=$(
+    find "${mask_dir}" \
+    -type f \
+    -name "${sub}*" \
+    -and -name "*cruise_cortex.nii.gz" \
+    2>/dev/null
+  )
+
+  # manual
   MAN=${mask_dir}/${base}_acq-${DATA}_desc-manualseggm.nii.gz
 
 else
   REF=${@:$OPTIND:1}
   SEG=${@:$OPTIND+1:1}
   MAN=${@:$OPTIND+2:1}
+
+  if [[ ! -f "${REF}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" input "Could not find REF image \"${BOLD_GREEN}${REF}${RESET}\""
+    exit 1
+  else
+    REF=$(readlink -f "${REF}")
+  fi
 fi
 
 #-----------------------------------------------------------------------------
 # create empty
-if [[ ! -f ${MAN} ]]; then
-  if [[ ! -d $(dirname ${MAN}) ]]; then
-    mkdir -p $(dirname ${MAN})
+if [[ ! -f "${MAN}" ]]; then
+  if [[ ! -d "$(dirname ${MAN})" ]]; then
+    mkdir -p "$(dirname ${MAN})"
   fi
   print_create_img "${MAN}"
   cmd=(
@@ -127,7 +153,7 @@ if [[ ! -f ${MAN} ]]; then
 
   # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 || ! -f ${MAN} ]]; then
+  if [[ $? -ne 0 || ! -f "${MAN}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "call_createimg" "Mask ${BOLD_GREEN}${MAN}${RESET} was not created"
@@ -141,7 +167,7 @@ echo -e "T1w: ${BOLD_GREEN}${REF}${RESET}"
 echo -e "Mask: ${BOLD_GREEN}${MAN}${RESET}"
 
 # define command
-if [[ -f ${SEG} ]]; then
+if [[ -f "${SEG}" ]]; then
   echo -e "CRUISE: ${BOLD_GREEN}${SEG}${RESET}"
   cmd=(
     launch_itksnap
@@ -153,7 +179,7 @@ else
   cmd=(
     launch_itksnap
     -g "${REF}"
-    "-s ${MAN}"
+    -s "${MAN}"
   )
 fi
 

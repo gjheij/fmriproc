@@ -91,16 +91,16 @@ WARP_ONLY=0
 bbr_flag=""
 mode="anat"
 anat_only_flag="--anat-only"
-derivatives=${DIR_DATA_DERIV}
-license=${DIR_SCRIPTS}/misc/license.txt
+derivatives="${DIR_DATA_DERIV}"
+license="${REPO_DIR}/misc/license.txt"
 cifti_flag=""
 config_flag=""
 task_flag=""
 syn_flag=""
 init_flag=""
-fprep_container=${FPREP_SIMG}
-project=${DIR_DATA_HOME}
-work=${PATH_HOME}/fmriprep/${PROJECT}
+fprep_container="${FPREP_SIMG}"
+project="${DIR_DATA_HOME}"
+work="${PATH_HOME}/fmriprep/${PROJECT}"
 pref="sub-"
 KWARGS_FILE=""
 BOLDREF=1
@@ -209,12 +209,18 @@ if [[ ! -z ${keep_runs} ]]; then
 fi
 
 # check kwargs file
-if [[ ! -z ${KWARGS_FILE} ]]; then
+if [[ ! -z "${KWARGS_FILE}" ]]; then
 
   echo "Including kwargs from \"${KWARGS_FILE}\":"  
   
   # exclude these flags; these should be specified in spinoza_setup or command line
-  flags_from_setup=("--cifti-output" "--bids-filter-file" "--task-id" "--use-syn-sdc" "--bold2t1w-init")
+  flags_from_setup=(
+    "--cifti-output"
+    "--bids-filter-file"
+    "--task-id"
+    "--use-syn-sdc"
+    "--bold2t1w-init"
+  )
   
   kwargs=()
   while read -r line; do
@@ -234,7 +240,7 @@ if [[ ! -z ${KWARGS_FILE} ]]; then
       echo "${line}"
       kwargs+=(${line})
     fi
-  done < ${KWARGS_FILE}
+  done < "${KWARGS_FILE}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -245,60 +251,60 @@ fi
 
 #-----------------------------------------------------------------------------
 # Set default project root directory if none specified
-if [[ ! -z ${ROOT} ]]; then
-  project=${ROOT}
+if [[ ! -z "${ROOT}" ]]; then
+  project="${ROOT}"
 fi
 
-if [[ ! -d ${project} ]]; then
-  mkdir -p ${project}
+if [[ ! -d "${project}" ]]; then
+  mkdir -p "${project}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default derivatives directory if none specified
-if [[ ! -z ${DERIV} ]]; then
-  derivatives=${DERIV}
+if [[ ! -z "${DERIV}" ]]; then
+  derivatives="${DERIV}"
 fi
 
-if [[ ! -d ${derivatives} ]]; then
-  mkdir -p ${derivatives}
+if [[ ! -d "${derivatives}" ]]; then
+  mkdir -p "${derivatives}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default working directory if none specified
-if [[ ! -z ${WORK} ]]; then
-  work=${WORK}
+if [[ ! -z "${WORK}" ]]; then
+  work="${WORK}"
 fi
 
-if [[ ! -d ${work} ]]; then
-  mkdir -p ${work}
+if [[ ! -d "${work}" ]]; then
+  mkdir -p "${work}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default FS-license if none specified
-if [[ ! -z ${FS_LICENSE} ]]; then
-  license=${FS_LICENSE}
+if [[ ! -z "${FS_LICENSE}" ]]; then
+  license="${FS_LICENSE}"
 fi
 
 # make -l flag overwrite environmental variable
-if [[ ! -z ${LIC} ]]; then
-  license=${LIC}
+if [[ ! -z "${LIC}" ]]; then
+  license="${LIC}"
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we need to output CIFTIs
-if [[ ! -z ${CIFTI} ]]; then
+if [[ ! -z "${CIFTI}" ]]; then
   cifti_flag="--cifti-output ${CIFTI}"
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we received configuration file
-if [[ ! -z ${CONFIG} ]]; then
+if [[ ! -z "${CONFIG}" ]]; then
   config_flag="--bids-filter-file ${CONFIG}"
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we received task ID
-if [[ ! -z ${TASK_ID} ]]; then
+if [[ ! -z "${TASK_ID}" ]]; then
   task_flag="--task-id ${TASK_ID}"
 fi
 
@@ -316,26 +322,26 @@ fi
 
 #-----------------------------------------------------------------------------
 # Set default container if none specified
-if [[ ! -z ${IMG} ]]; then
-  fprep_container=${IMG}
+if [[ ! -z "${IMG}" ]]; then
+  fprep_container="${IMG}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default binding point if none specified
-if [[ -z ${BIND} ]]; then
-  binding=${PATH_HOME}
+if [[ -z "${BIND}" ]]; then
+  binding="${PATH_HOME}"
 else
-  binding=${BIND}
+  binding="${BIND}"
 fi
 
 # Define command line
 if [[ ${USE_DOCKER} -eq 1 ]]; then
   run_cmd="fmriprep-docker"
 else
-  if [[ -f ${fprep_container} ]]; then
+  if [[ -f "${fprep_container}" ]]; then
 
     echo "Singularity image: \"${fprep_container}\""
-    if [[ ! -f ${fprep_container} ]]; then
+    if [[ ! -f "${fprep_container}" ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "find" "Could not find singularity image \"${fprep_container}\" for fmriprep.."
@@ -343,7 +349,7 @@ else
     fi 
 
     # check if FS license is within binding point
-    if [[ ${license} != *"${binding}"* ]]; then
+    if [[ "${license}" != *"${binding}"* ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" singularity "Your license file \"${license}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
@@ -351,7 +357,7 @@ else
     fi
 
     # check if project root is within binding point
-    if [[ ${project} != *"${binding}"* ]]; then
+    if [[ "${project}" != *"${binding}"* ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" singularity "Your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
@@ -414,11 +420,11 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   version_string=$(eval ${run_cmd} --version)
   major_version=$(echo "$version_string" | grep -oP 'fMRIPrep v\K\d+' | cut -d"." -f1)
   if [[ "${major_version}" -lt 21 ]]; then
-    output_dir=${derivatives}
+    output_dir="${derivatives}"
     single_subj_wf="single_subject_${subj_ID}_wf"
     func_wf="func_preproc"
   else
-    output_dir=${derivatives}/fmriprep
+    output_dir="${derivatives}/fmriprep"
     single_subj_wf="sub_${subj_ID}_wf"
     func_wf="bold"
   fi
@@ -463,19 +469,27 @@ if [[ ${execute_cmd} -eq 1 ]]; then
     if [[ ${keep_runs} != "all" ]]; then
       
       # find files
-      fprep_=${derivatives}/fmriprep/${base_dir}/func
-      mni_files=($(find -L ${fprep_} -type f \( -name "*MNI152*" -and -name "*_desc-preproc_bold.nii.gz" \) 2>/dev/null))
+      fprep_="${derivatives}/fmriprep/${base_dir}/func"
+      mni_files=(
+        $(
+          find -L "${fprep_}" \
+          -type f \
+          -name "*MNI152*" \
+          -and -name "*_desc-preproc_bold.nii.gz" \
+          2>/dev/null
+        )
+      )
 
       # loop
-      if [[ ! -z ${mni_files} ]]; then
-        for mni in ${mni_files[@]}; do
+      if [[ ! -z "${mni_files}" ]]; then
+        for mni in "${mni_files[@]}"; do
           # find run_id and compare against keep_runs
-          run_id=`get_id ${mni} run`
+          run_id=$(get_id ${mni} run)
 
           # remove if run_id not in keep_runs
           if [[ ! " ${keep_runs[*]} " =~ " ${run_id} " ]]; then
             echo "removing ${mni} to save storage.."
-            rm -r ${mni} 2>/dev/null
+            rm -r "${mni}" 2>/dev/null
           fi
         done
       fi
@@ -486,14 +500,21 @@ if [[ ${execute_cmd} -eq 1 ]]; then
 
   # check if we should clean working directory
   if [[ ${clean_wd} -eq 1 ]]; then  
-    wf_folder=$(find ${work} -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
+    wf_folder=$(
+      find "${work}" \
+      -maxdepth 1 \
+      -type d \
+      -name "fmriprep*" \
+      -and -name "*wf" \
+      2>/dev/null
+    )
 
-    if [[ ! -z ${wf_folder} ]]; then
-      subj_wf=${wf_folder}/${single_subj_wf}
+    if [[ ! -z "${wf_folder}" ]]; then
+      subj_wf="${wf_folder}/${single_subj_wf}"
 
-      if [[ -d ${subj_wf} ]]; then
+      if [[ -d "${subj_wf}" ]]; then
         echo -e "Removing ${BOLD_GREEN}${subj_wf}${RESET}"
-        rm -r ${subj_wf} 2>/dev/null
+        rm -r "${subj_wf}" 2>/dev/null
       else
         echo "Could not find/remove \"${subj_wf}\""
       fi
@@ -505,15 +526,21 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   #-----------------------------------------------------------------------------
   # fMRIPrep's boldref seems to be messy lately (snow-like noise pattern instead of an image)
   if [[ ${BOLDREF} -eq 1 ]]; then
-    bold_files=$(find ${derivatives}/fmriprep/*${subj_ID}/ -type f -name "*preproc_bold.nii.gz" 2>/dev/null)
+    bold_files=$(
+      find "${derivatives}/fmriprep/"*"${subj_ID}"/ \
+      -type f \
+      -name "*preproc_bold.nii.gz" \
+      2>/dev/null
+    )
+
     IFS=$'\n' bold_files=($(sort <<<"${bold_files[*]}"))
     unset IFS
 
-    if [ ! -z ${bold_files} ]; then
+    if [ ! -z "${bold_files}" ]; then
       echo "Overwriting fMRIPrep's \"boldref\"-files"
-      for bold in ${bold_files[@]}; do
-        boldref=$(dirname ${bold})/$(basename ${bold} _desc-preproc_bold.nii.gz)_boldref.nii.gz
-        fslmaths ${bold} -Tmean ${boldref}
+      for bold in "${bold_files[@]}"; do
+        boldref="${bold/_desc-preproc_bold.nii.gz/_boldref.nii.gz}"
+        fslmaths "${bold}" -Tmean "${boldref}"
       done
     fi
   fi
@@ -523,16 +550,23 @@ else
 fi
 
 # define subject prefix
-if [ ! -z ${SUBJECT_PREFIX} ]; then
-  pref=${SUBJECT_PREFIX}
+if [ ! -z "${SUBJECT_PREFIX}" ]; then
+  pref="${SUBJECT_PREFIX}"
 fi
 
 #-----------------------------------------------------------------------------
 # copy the bold-to-T1w warps from the fmriprep_wf
 if [[ ${WARP_ONLY} -eq 1 ]]; then
   for tt in "fwd" "inv"; do
-    xfms=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_reg_wf/bbreg_wf/concat_xfm -type f -name "out_${tt}.tfm" 2>/dev/null))
-    if [[ ! -z ${xfms} ]]; then
+    xfms=(
+      $(
+        find -L "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_reg_wf/bbreg_wf/concat_xfm" \
+        -type f \
+        -name "out_${tt}.tfm" \
+        2>/dev/null
+      )
+    )
+    if [[ ! -z "${xfms}" ]]; then
 
       if [[ ${tt} == "fwd" ]]; then
         m="bold_to-T1w"
@@ -547,13 +581,13 @@ if [[ ${WARP_ONLY} -eq 1 ]]; then
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
           ses_id=$(echo ${wf_name} | cut -d'_' -f2)
-          base_dir=${pref}${subj_ID}/${ses_id}
+          base_dir="${pref}${subj_ID}/${ses_id}"
         else
-          base_dir=${pref}${subj_ID}
+          base_dir="${pref}${subj_ID}"
         fi
 
-        out_xfm=${derivatives}/fmriprep/${base_dir}/func/${wf_name}_from-${m}_mode-image_xfm.txt
-        cp ${xfm} ${out_xfm}
+        out_xfm="${derivatives}/fmriprep/${base_dir}/func/${wf_name}_from-${m}_mode-image_xfm.txt"
+        cp "${xfm}" "${out_xfm}"
 
       done
     fi
@@ -564,24 +598,44 @@ fi
 # fetch func-space files
 output_space=("func" "fsl" "anat")
 ct=0
-for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
+for space in "${fetch_func}" "${fetch_fsl}" "${fetch_anat}"; do
   if [[ ${space} -eq 1 ]]; then
 
     if [[ ${output_space[ct]} == "func" ]]; then
       tag=""
       msg="space-func"
       err="bold_bold_trans_wf"
-      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_bold_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
+      fetch_files=(
+        $(
+          find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_bold_trans_wf/merge" \
+          -type f \
+          -name "*_merged.nii.gz" \
+          2>/dev/null
+        )
+      )
     elif [[ ${output_space[ct]} == "fsl" ]]; then
       tag="_space-MNI152NLin6Asym_res-1"
       msg="space-MNI152NLin6Asym_res-1"
       err="bold_std_trans_wf/*MNI152NLin6Asym*"
-      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/*MNI152NLin6Asym*/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
+      fetch_files=(
+        $(find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_std_trans_wf/"*"MNI152NLin6Asym"*"/merge" \
+        -type f \
+        -name "*_merged.nii.gz" \
+        2>/dev/null
+      )
+    )
     elif [[ ${output_space[ct]} == "anat" ]]; then
       tag="_space-T1w"
       msg="space-T1w"
       err="bold_t1_trans_wf"
-      fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/merge -type f -name "*_merged.nii.gz" 2>/dev/null))
+      fetch_files=(
+        $(
+          find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_t1_trans_wf/merge" \
+          -type f \
+          -name "*_merged.nii.gz" \
+          2>/dev/null\
+        )
+      )
     fi
 
     # fetch time course files
@@ -593,14 +647,14 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
         # check ses-flag
         if [[ ${wf_name} == *"ses-"* ]]; then
           ses_id=$(echo ${wf_name} | cut -d'_' -f2)
-          base_dir=${pref}${subj_ID}/${ses_id}
+          base_dir="${pref}${subj_ID}/${ses_id}"
         else
-          base_dir=${pref}${subj_ID}
+          base_dir="${pref}${subj_ID}"
         fi
 
-        out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-preproc_bold.nii.gz
+        out_file="${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-preproc_bold.nii.gz"
         echo -e " writing ${BOLD_GREEN}${out_file}${RESET}"
-        cp ${ff} ${out_file}
+        cp "${ff}" "${out_file}"
 
       done   
       echo "Done" 
@@ -613,15 +667,36 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
       if [[ ${output_space[ct]} == "func" ]]; then
         tag=""
         msg="space-func"
-        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
+        fetch_files=(
+          $(
+            find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/final_boldref_wf/enhance_and_skullstrip_bold_wf/combine_masks" \
+            -type f \
+            -name "*_maths.nii.gz" \
+            2>/dev/null
+          )
+        )
       elif [[ ${output_space[ct]} == "fsl" ]]; then
         tag="_space-MNI152NLin6Asym_res-1"
         msg="space-MNI152NLin6Asym_res-1"
-        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/*MNI152NLin6Asym*/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
+        fetch_files=(
+          $(
+            find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_std_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/"*"MNI152NLin6Asym"*"/combine_masks" \
+            -type f \
+            -name "*_maths.nii.gz" \
+            2>/dev/null
+          )
+        )
       elif [[ ${output_space[ct]} == "anat" ]]; then
         tag="_space-T1w"
         msg="space-T1w"
-        fetch_files=($(find -L ${work}/fmriprep*wf/${single_subj_wf}/${func_wf}*/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks -type f -name "*_maths.nii.gz" 2>/dev/null))
+        fetch_files=(
+          $(
+            find "${work}/fmriprep"*"wf/${single_subj_wf}/${func_wf}"*"/bold_t1_trans_wf/bold_reference_wf/enhance_and_skullstrip_bold_wf/combine_masks" \
+            -type f \
+            -name "*_maths.nii.gz" \
+            2>/dev/null
+          )
+        )
       fi      
 
       if [[ ! -z ${fetch_files} ]]; then
@@ -632,14 +707,14 @@ for space in ${fetch_func} ${fetch_fsl} ${fetch_anat}; do
           # check ses-flag
           if [[ ${wf_name} == *"ses-"* ]]; then
             ses_id=$(echo ${wf_name} | cut -d'_' -f2)
-            base_dir=${pref}${subj_ID}/${ses_id}
+            base_dir="${pref}${subj_ID}/${ses_id}"
           else
-            base_dir=${pref}${subj_ID}
+            base_dir="${pref}${subj_ID}"
           fi
 
-          out_file=${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-brain_mask.nii.gz
+          out_file="${derivatives}/fmriprep/${base_dir}/func/${wf_name}${tag}_desc-brain_mask.nii.gz"
           echo -e " writing ${BOLD_GREEN}${out_file}${RESET}"
-          cp ${ff} ${out_file}
+          cp "${ff}" "${out_file}"
 
         done
         echo "Done"
@@ -656,9 +731,17 @@ done
 # Fetch FD files
 if [[ ${FD_ONLY} -eq 1 ]]; then
   echo "Finding FD-timecourse files"
-  work_dir=${work}/fmriprep*wf/${single_subj_wf}
-  fd_files=($(find -L ${work_dir}/${func_wf}*/bold_confounds_wf/fdisp -type f -name "fd_power*" -and -name "*txt" 2>/dev/null))
-  if [ ! -z ${fd_files} ]; then
+  work_dir="${work}/fmriprep"*"wf/${single_subj_wf}"
+  fd_files=(
+    $(
+      find "${work_dir}/${func_wf}"*"/bold_confounds_wf/fdisp" \
+      -type f \
+      -name "fd_power*" \
+      -and -name "*txt" \
+      2>/dev/null
+    )
+  )
+  if [ ! -z "${fd_files}" ]; then
 
     # find # fdvars timecourse for Marco
     for fd in ${fd_files[@]}; do
@@ -668,14 +751,14 @@ if [[ ${FD_ONLY} -eq 1 ]]; then
       # check ses-flag
       if [[ ${wf_name} == *"ses-"* ]]; then
         ses_id=$(echo ${wf_name} | cut -d'_' -f2)
-        base_dir=${pref}${subj_ID}/${ses_id}
+        base_dir="${pref}${subj_ID}/${ses_id}"
       else
-        base_dir=${pref}${subj_ID}
+        base_dir="${pref}${subj_ID}"
       fi
 
       out_fd=${derivatives}/fmriprep/${base_dir}/func/${wf_name}_desc-fd_bold.txt
       echo -e " writing ${BOLD_GREEN}${out_fd}${RESET}"
-      cp ${fd} ${out_fd}
+      cp "${fd}" "${out_fd}"
 
     done
     echo "Done"

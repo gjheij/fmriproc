@@ -108,32 +108,51 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
+# read args
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Define default SPM-path
-if [[ -z ${SPM} ]]; then
-  if [[ -z ${SPM_PATH} ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Set accordingly or use '-s <spm_path>' input.."
-    exit 1
-  else
-    SPM_PATH=${SPM_PATH}
-  fi
+# check inputs
+if [[ ! -f "${INPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
+  exit 1
 else
-  SPM_PATH=${SPM}
+  INPUT=$(readlink -f "${INPUT}")
 fi
 
-# double check if directory exists
-if [[ ! -d ${SPM_PATH} ]]; then
-  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+if [[ -z "${OUTPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
   exit 1
 fi
 
-# fetch full paths
-INPUT=$(fetch_filepath ${INPUT})
+#-----------------------------------------------------------------------------
+# Define default SPM-path
+if [[ -z "${SPM}" ]]; then
+  if [[ -z "${SPM_PATH}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+    exit 1
+  else
+    SPM_PATH="${SPM_PATH}"
+  fi
+else
+  SPM_PATH="${SPM}"
+fi
+
+# double check if directory exists
+if [[ ! -d "${SPM_PATH}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # Fetch number of volumes
@@ -164,10 +183,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # Fetch TR
-if [[ -z ${TR} ]]; then
+if [[ -z "${TR}" ]]; then
   TR=0.105
 else
-  TR=${TR}
+  TR="${TR}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -180,23 +199,17 @@ fi
 
 #-----------------------------------------------------------------------------
 # Create new script
-new_script=$(dirname ${OUTPUT})/spm_physio.m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
-fi
+output_dir="$(dirname "${OUTPUT}")"
+new_script="${output_dir}/spm_physio.m"
+rm -r "${new_script}" 2>/dev/null
 
-new_batch=$(dirname ${OUTPUT})/spm_physio_batch.m
-if [[ -f ${new_batch} ]]; then
-  rm -r ${new_batch}
-fi
+new_batch="${output_dir}/spm_physio_batch.m"
+rm -r "${new_batch}" 2>/dev/null
 
-if [[ ! -d $(dirname ${OUTPUT}) ]]; then
-  mkdir -p $(dirname ${OUTPUT})
+# make output directory
+if [[ ! -d "${output_dir}" ]]; then
+  mkdir -p "${output_dir}"
 fi
-
-#-----------------------------------------------------------------------------
-# fetch full paths in case only a filename was specified
-INPUT=$(fetch_filepath ${INPUT})
 
 #-----------------------------------------------------------------------------
 # Do some preprocessing with 'scanphyslog2bids' from Lukas Snoek:
@@ -213,7 +226,7 @@ if [[ ${RUN_PHYS} -eq 1 ]]; then
     --sf 496
     --triggermethod interpolate
     --outdir "$(dirname ${INPUT})"
-    ${MAKE_PLOTS}
+    "${MAKE_PLOTS}"
     --derivdir "$(dirname ${INPUT})"
   )
   
@@ -227,11 +240,11 @@ if [[ ${RUN_PHYS} -eq 1 ]]; then
   fi
 
   # fetch the output from scanphyslog2bids
-  PHYSIO_INPUT=$(dirname ${INPUT})/$(basename ${INPUT} .log).tsv.gz
+  PHYSIO_INPUT="${INPUT/.log/.tsv.gz}"
   input_type="BIDS"
 else
   input_type="RAW"
-  PHYSIO_INPUT=${INPUT}
+  PHYSIO_INPUT="${INPUT}"
 fi
 
 # echo input type
@@ -241,33 +254,53 @@ echo "Input = ${input_type}: ${PHYSIO_INPUT}"
 # Run TAPAS
 if [[ ${RUN_MATLAB} -eq 1 ]]; then
 
+  #-----------------------------------------------------------------------------
   # create the matlab script
-  make_physio_script ${SPM_PATH} ${PHYSIO_INPUT} ${TR} ${VOLS} ${OUTPUT} ${N_DUMMY} ${N_SLICES} ${new_script}
+  make_physio_script \
+    "${SPM_PATH}" \
+    "${PHYSIO_INPUT}" \
+    "${TR}" \
+    "${VOLS}" \
+    "${OUTPUT}" \
+    "${N_DUMMY}" \
+    "${N_SLICES}" \
+    "${new_script}"
+
   if [[ $? -ne 0 ]]; then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): make_physio_script exited with non-zero status"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "make_physio_script"
     exit 1
   fi
 
   # execute the script with matlab
   echo "Initializing TAPAS"
 
-  log_file=$(dirname ${OUTPUT})/physlog.txt
-  if [ -f ${log_file} ]; then
-    rm -r ${log_file} 2>/dev/null
-  fi
+  log_file="${output_dir}/physlog.txt"
+  rm -r ${log_file} 2>/dev/null
 
+  #-----------------------------------------------------------------------------
   # run matlab
   call_matlab ${new_script} >> ${log_file}
 
   # check if matlab succeeded
-  ff=$(cat ${log_file} | grep "Failed: TAPAS PhysIO Toolbox" | cut -d"." -f2 | xargs | sed 's/\r$//')
-  if [[ ! -z ${ff} ]]; then
-    mv ${log_file} $(dirname ${INPUT})/$(basename ${INPUT} .log)_error.log
-    echo "ERROR: matlab exited with non-zero status"
+  ff=$(
+    cat "${log_file}" | \
+    grep "Failed: TAPAS PhysIO Toolbox" | \
+    cut -d"." -f2 | \
+    xargs | \
+    sed 's/\r$//'
+  )
+
+  if [[ ! -z "${ff}" ]]; then
+    mv "${log_file}" "${INPUT/.log/_error.log}"
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "matlab"
     exit 1
   else
     echo "TAPAS completed!"
-    if [[ -f ${OUTPUT}.tsv ]]; then
+    if [[ -f "${OUTPUT}.tsv" ]]; then
 
       echo "Formatting output in human-readable csv-file"
       # save final dataframe
@@ -281,9 +314,9 @@ END
       python -c "$PYTHON_CODE"
 
       # only keep newly created file
-      if [[ -f ${OUTPUT}.csv ]]; then
-        echo "Wrote ${OUTPUT}.csv"
-        rm -r ${OUTPUT}.tsv ${OUTPUT}.mat 2>/dev/null
+      if [[ -f "${OUTPUT}.csv" ]]; then
+        echo -e "Wrote ${BOLD_GREEN}${OUTPUT}.csv${RESET}"
+        rm -r "${OUTPUT}.tsv" "${OUTPUT}.mat" 2>/dev/null
       fi
     fi
   fi

@@ -133,42 +133,42 @@ fi
 
 #-----------------------------------------------------------------------------
 # Set default project root directory if none specified
-if [[ -z ${ROOT} ]]; then
-  project=${DIR_DATA_HOME}
+if [[ -z "${ROOT}" ]]; then
+  project="${DIR_DATA_HOME}"
 else
-  project=${ROOT}
+  project="${ROOT}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default derivatives directory if none specified
-if [[ -z ${DERIV} ]]; then
-  derivatives=${DIR_DATA_DERIV}/mriqc
+if [[ -z "${DERIV}" ]]; then
+  derivatives="${DIR_DATA_DERIV}/mriqc"
 else
-  derivatives=${DERIV}
+  derivatives="${DERIV}"
 fi
 
-if [[ ! -d ${derivatives} ]]; then
-  mkdir -p ${derivatives}
+if [[ ! -d "${derivatives}" ]]; then
+  mkdir -p "${derivatives}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default working directory if none specified
-if [[ -z ${WORK} ]]; then
-  work=${PATH_HOME}/mriqc/${PROJECT}
+if [[ -z "${WORK}" ]]; then
+  work="${PATH_HOME}/mriqc/${PROJECT}"
 else
-  work=${WORK}
+  work="${WORK}"
 fi
 
-if [[ ! -d ${work} ]]; then
-  mkdir -p ${work}
+if [[ ! -d "${work}" ]]; then
+  mkdir -p "${work}"
 fi
 
 #-----------------------------------------------------------------------------
 # Set default container if none specified
-if [[ -z ${IMG} ]]; then
-	mriqc_container=${MRIQC_SIMG}
+if [[ -z "${IMG}" ]]; then
+	mriqc_container="${MRIQC_SIMG}"
 else
-	mriqc_container=${IMG}
+	mriqc_container="${IMG}"
 fi
 
 #-----------------------------------------------------------------------------
@@ -176,17 +176,17 @@ fi
 if [[ ${fd_only} -eq 0 ]]; then
 
   # Define command line
-  if [[ -f ${mriqc_container} ]]; then
+  if [[ -f "${mriqc_container}" ]]; then
 
     #-----------------------------------------------------------------------------
     # Set default binding point if none specified
-    if [[ -z ${BIND} ]]; then
-      binding=${FPREP_BINDING}
+    if [[ -z "${BIND}" ]]; then
+      binding="${FPREP_BINDING}"
     else
-      binding=${BIND}
+      binding="${BIND}"
     fi
 
-    if [[ ! -f ${mriqc_container} ]]; then
+    if [[ ! -f "${mriqc_container}" ]]; then
       echo
       print_line -
       print_error_msg "$(basename ${0})" "find" "Could not find singularity image \"${mriqc_container}\" for MRIqc.."
@@ -197,7 +197,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     if [[ ${project} != *"${binding}"* ]]; then
       echo
       print_line -
-      echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}); your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
+      print_error_msg "$(basename ${0})" "binding" "Your project root \"${project}\" cannot be accessed due to your binding point (\"${binding}\"). Please make sure the file on somewhere along the binding-path"
       exit 1
     fi
 
@@ -216,9 +216,9 @@ if [[ ${fd_only} -eq 0 ]]; then
     "${proc_level}"
     "${ses_flag}"
     "${mod_flag}"
+    --workdir "${work}"
     --nprocs "${n_cpus}"
     --omp-nthreads 1
-    -w ${work}
     --verbose-reports
     --mem_gb 64
     --no-sub
@@ -234,25 +234,50 @@ if [[ ${fd_only} -eq 0 ]]; then
   fi
 
   # move html files to appropriate directory.
-  html_files=($(find ${derivatives} -maxdepth 1 -type f -name "sub-${subj_ID}*" -and -name "*.html" 2>/dev/null))
-  if [[ ! -z ${html_files} ]]; then
-    mv ${html_files[@]} ${derivatives}/sub-${subj_ID} 2>/dev/null
+  html_files=(
+    $(
+      find "${derivatives}" \
+      -maxdepth 1 \
+      -type f \
+      -name "sub-${subj_ID}*" \
+      -and -name "*.html" \
+      2>/dev/null
+    )
+  )
+  if [[ ! -z "${html_files}" ]]; then
+    mv "${html_files[@]}" "${derivatives}/sub-${subj_ID}" 2>/dev/null
   else
     echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): could not find html-files. This is suspicious.."
     exit 1
   fi
-
 fi
 
 #-----------------------------------------------------------------------------
 # loop through moved html files to fetch fd file
-html_files=($(find ${derivatives}/sub-${subj_ID} -type f -name "sub-${subj_ID}*" -and -name "*.html" -and -not -name "*T1w.html" -and -not -name "*T2w.html" 2>/dev/null))
+html_files=(
+  $(
+    find "${derivatives}/sub-${subj_ID}" \
+    -type f \
+    -name "sub-${subj_ID}*" \
+    -and -name "*.html" \
+    -and -not -name "*T1w.html" \
+    -and -not -name "*T2w.html" \
+    2>/dev/null
+  )
+)
 
-if [[ ! -z ${html_files} ]]; then
+if [[ ! -z "${html_files}" ]]; then
 
   # find directory where these FD files should live
-  func_wf=$(find ${work} -maxdepth 3 -type d -name "fMRI_HMC" 2>/dev/null)
-  if [ ! -z ${func_wf} ]; then
+  func_wf=$(
+    find "${work}" \
+    -maxdepth 3 \
+    -type d \
+    -name "fMRI_HMC" \
+    2>/dev/null
+  )
+
+  if [ ! -z "${func_wf}" ]; then
 
     # find # fdvars timecourse for Marco
     echo "Finding FD-timecourse files as per Marco's request part I :)"
@@ -264,7 +289,7 @@ if [[ ! -z ${html_files} ]]; then
       base_path="sub-${subj_ID}"
       for ii in "sub" "ses" "task" "run" "acq" "rec" "desc"; do
 
-        el=$(get_id $(basename ${ht}) ${ii})
+        el=$(get_id $(basename "${ht}") ${ii})
         if [ ! -z ${el} ]; then
           if [[ ${ct} -eq 0 ]]; then
             search_for+="\"${ii}-${el}\""
@@ -286,18 +311,24 @@ if [[ ! -z ${html_files} ]]; then
         if [[ ! -z ${ht_wf} ]]; then
           
           # check if there's a file
-          fd_file=$(find ${ht_wf} -type f -name "fd_power*" -and -name "*.txt" 2>/dev/null)
-          if [[ -f ${fd_file} ]]; then
+          fd_file=$(
+            find "${ht_wf}" \
+            -type f \
+            -name "fd_power*" \
+            -and -name "*.txt" \
+            2>/dev/null
+          )
+          if [[ -f "${fd_file}" ]]; then
 
             # decide outname and store in 'func' of corresponding session
-            out_name=${derivatives}/${base_path}/func/$(basename ${ht} _bold.html)_desc-fd_bold.txt
+            out_name="${derivatives}/${base_path}/func/$(basename ${ht} _bold.html)_desc-fd_bold.txt"
 
             # this should exist, but still.. sue me
-            if [[ ! -d $(dirname ${out_name}) ]]; then
-              mkdir -p $(dirname ${out_name})
+            if [[ ! -d "$(dirname ${out_name})" ]]; then
+              mkdir -p "$(dirname ${out_name})"
             fi
 
-            cp ${fd_file} ${out_name} 2>/dev/null
+            cp "${fd_file}" "${out_name}" 2>/dev/null
             echo " wrote ${out_name}"
 
           else
@@ -309,7 +340,6 @@ if [[ ! -z ${html_files} ]]; then
       else
         echo "Could not read BIDS components from \"$(basename ${ht})\""
       fi
-
     done
     echo "Done"
   else
@@ -317,8 +347,14 @@ if [[ ! -z ${html_files} ]]; then
   fi
 
   # find directory where FDVARS files should live
-  func_wf=$(find ${work}/mriqc_wf/funcMRIQC -maxdepth 1 -type d -name "ComputeIQMs" 2>/dev/null)
-  if [ ! -z ${func_wf} ]; then
+  func_wf=$(
+    find "${work}/mriqc_wf/funcMRIQC" \
+    -maxdepth 1 \
+    -type d \
+    -name "ComputeIQMs" \
+    2>/dev/null
+  )
+  if [ ! -z "${func_wf}" ]; then
 
     # find # fdvars timecourse for Marco
     echo "Finding FDVARS-timecourse files as per Marco's request part II :)"
@@ -330,7 +366,7 @@ if [[ ! -z ${html_files} ]]; then
       base_path="sub-${subj_ID}"
       for ii in "sub" "ses" "task" "run" "acq" "rec" "desc"; do
 
-        el=$(get_id $(basename ${ht}) ${ii})
+        el=$(get_id $(basename "${ht}") ${ii})
         if [ ! -z ${el} ]; then
           if [[ ${ct} -eq 0 ]]; then
             search_for+="\"${ii}-${el}\""
@@ -352,18 +388,24 @@ if [[ ! -z ${html_files} ]]; then
         if [[ ! -z ${ht_wf} ]]; then
           
           # check if there's a file
-          fd_file=$(find ${ht_wf} -type f -name "*volreg_dvars.tsv" 2>/dev/null)
-          if [[ -f ${fd_file} ]]; then
+          fd_file=$(
+            find "${ht_wf}" \
+            -type f \
+            -name "*volreg_dvars.tsv" \
+            2>/dev/null
+          )
+
+          if [[ -f "${fd_file}" ]]; then
 
             # decide outname and store in 'func' of corresponding session
-            out_name=${derivatives}/${base_path}/func/$(basename ${ht} _bold.html)_desc-dvars_bold.tsv
+            out_name="${derivatives}/${base_path}/func/$(basename ${ht} _bold.html)_desc-dvars_bold.tsv"
 
             # this should exist, but still.. sue me
-            if [[ ! -d $(dirname ${out_name}) ]]; then
-              mkdir -p $(dirname ${out_name})
+            if [[ ! -d "$(dirname ${out_name})" ]]; then
+              mkdir -p "$(dirname ${out_name})"
             fi
 
-            cp ${fd_file} ${out_name} 2>/dev/null
+            cp "${fd_file}" "${out_name}" 2>/dev/null
             echo " wrote ${out_name}"
 
           else
@@ -375,7 +417,6 @@ if [[ ! -z ${html_files} ]]; then
       else
         echo "Could not read BIDS components from \"$(basename ${ht})\""
       fi
-
     done
     echo "Done"
   else

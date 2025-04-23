@@ -65,71 +65,82 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
 # define single-use functon
 function fix_reg_dir {
-  feat_dir=${1}
-  if [[ -d ${feat_dir} ]]; then
+  local feat_dir="${1}"
+  if [[ -d "${feat_dir}" ]]; then
 
     echo "Processing ${feat_dir}"
 
     # remove standard dir
-    if [[ -d ${feat_dir}/reg_standard ]]; then
-      echo " Removing \"reg_standard\" directory"
-      rm -r ${feat_dir}/reg_standard 2>/dev/null
-    fi
+    rm -r "${feat_dir}/reg_standard" 2>/dev/null
 
     # create reg dir
-    if [[ ! -d ${feat_dir}/reg ]]; then
-      mkdir -p ${feat_dir}/reg
+    if [[ ! -d '${feat_dir}/reg' ]]; then
+      mkdir -p '${feat_dir}/reg'
     fi
 
     # echo " Removing matrix files from reg directory"
-    rm -r ${feat_dir}/reg/*.mat 2>/dev/null
-    rm -r ${feat_dir}/reg/standard.nii.gz 2>/dev/null
+    rm -r "${feat_dir}/reg/"*".mat" 2>/dev/null
+    rm -r "${feat_dir}/reg/standard.nii.gz" 2>/dev/null
 
     # echo " Copying identity matrix to reg directory"
-    cp $FSLDIR/etc/flirtsch/ident.mat ${feat_dir}/reg/example_func2standard.mat 2>/dev/null
+    cp "${FSLDIR}/etc/flirtsch/ident.mat" "${feat_dir}/reg/example_func2standard.mat" 2>/dev/null
 
     # echo " Renaming mean_func to standard to prevent interpolation"
-    cp ${feat_dir}/mean_func.nii.gz ${feat_dir}/reg/standard.nii.gz 2>/dev/null
+    cp "${feat_dir}/mean_func.nii.gz" "${feat_dir}/reg/standard.nii.gz" 2>/dev/null
 
     # updatefeatreg
-    updatefeatreg ${feat_dir}
+    updatefeatreg "${feat_dir}"
     
   else
     echo "Feat directory does not exists"
   fi
 }
 
+#-----------------------------------------------------------------------------
 # specify defaults
-if [[ -z ${project_dir} ]]; then
-  project_dir=${DIR_DATA_HOME}
+if [[ -z "${project_dir}" ]]; then
+  project_dir="${DIR_DATA_HOME}"
 fi
 
+#-----------------------------------------------------------------------------
 # set level1 tag
-if [[ -z ${L1_tag} ]]; then
+if [[ -z "${L1_tag}" ]]; then
   L1_tag="level1"
 else
-  L1_tag=${L1_tag}
+  L1_tag="${L1_tag}"
 fi
 
+#-----------------------------------------------------------------------------
 # set full directory
-if [[ -z ${ft_dir} ]]; then
-  ft_dir=${project_dir}/derivatives/feat/${L1_tag}
+if [[ -z "${ft_dir}" ]]; then
+  ft_dir="${project_dir}/derivatives/feat/${L1_tag}"
 fi
 
-if [[ ! -d ${ft_dir} ]]; then
+if [[ ! -d "${ft_dir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Directory \"${ft_dir}\" does not exist.."
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # find all .feat directories and run command
-all_feats=($(find ${ft_dir} -type d -name "*.feat"))
+all_feats=(
+  $(
+    find "${ft_dir}" \
+    -type d \
+    -name "*.feat"
+  )
+)
+
+#-----------------------------------------------------------------------------
+# run
 for ft in ${all_feats[@]}; do
-  fix_reg_dir ${ft}
-  if [[ ! -d ${ft_dir} ]]; then
+  fix_reg_dir "${ft}"
+  if [[ $? -ne 0 ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "fix_reg_dir"

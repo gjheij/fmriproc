@@ -156,13 +156,16 @@ else
   unset IFS
 fi
 
-if [[ ! -d ${ANAT} ]]; then
+#-----------------------------------------------------------------------------
+# check if folder with anatomicals exists
+if [[ ! -d "${ANAT}" ]]; then
   echo 
   print_line -
   print_error_msg "$(basename ${0})" "find" "Folder with T1w-file ${BOLD_GREEN}${ANAT}${RESET} does not exist"
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # decide message depending on software
 if [[ "${use_software}" == "itk" ]]; then
   viewer="ITK-Snap"
@@ -185,9 +188,10 @@ fi
 start_timer "Generate sagittal sinus mask R2*-mask or manual"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
@@ -195,16 +199,18 @@ for subID in ${search}; do
   input_dir="${ANAT}/${base_path}"
   mask_dir="${MASKS}/${base_path}"
 
+  #-----------------------------------------------------------------------------
   # continue if input directory doesn't exist
-  if [[ ! -d ${input_dir} ]]; then
+  if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     continue
   fi
 
-  if [[ ! -d ${mask_dir} ]]; then
-    mkdir -p ${mask_dir}
+  if [[ ! -d "${mask_dir}" ]]; then
+    mkdir -p "${mask_dir}"
   fi
 
+  #-----------------------------------------------------------------------------
   # R2starmap is only present with MP2RAGEME
   if [[ " ${ACQ[*]} " =~ " MP2RAGEME " ]]; then
     r2star=$(
@@ -215,6 +221,8 @@ for subID in ${search}; do
       2>/dev/null
     )
 
+    #-----------------------------------------------------------------------------
+    # make sinus from R2star
     if [[ ! -z "${r2star}" ]]; then
 
       sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
@@ -227,6 +235,7 @@ for subID in ${search}; do
           rm -r "$(dirname ${r2star})/tmp_$(basename ${r2star})" 2>/dev/null
         fi
 
+        #-----------------------------------------------------------------------------
         # threshold R2star mask and binarize mask
         echo -e "Thresholding [${BOLD_RED}${thresh}${RESET} and binarizing ${BOLD_GREEN}$(basename ${r2star})${RESET}"
         cmd=(
@@ -238,6 +247,7 @@ for subID in ${search}; do
           "${sinus_mask}"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -246,6 +256,7 @@ for subID in ${search}; do
           exit 1
         fi
 
+        #-----------------------------------------------------------------------------
         # now manually edit the file
         t1w=$(
           find "${input_dir}" \
@@ -266,6 +277,7 @@ for subID in ${search}; do
             \"${msg}\"
           )
 
+          # print and run
           print_cmd "${cmd[@]}" && eval "${cmd[@]}"
           if [[ $? -ne 0 ]]; then
             print_error_msg "$(basename ${0})" "launch_viewer"
@@ -283,11 +295,22 @@ for subID in ${search}; do
     fi
   else
 
+    #-----------------------------------------------------------------------------
+    # manual sinus
     sinus_mask="${mask_dir}/${base}_acq-${DATA^^}_desc-sagittalsinus.nii.gz"
     if [[ ! -f "${sinus_mask}" || ${OW} -eq 1 ]]; then
 
-      t1w=$(find "${input_dir}" -type f \( -name "${sub_name}*" -and -name "*${DATA^^}_*" -and -not -iname "*space-*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
-      if [[ ! -z ${t1w} ]]; then
+      t1w=$(
+        find "${input_dir}" \
+        -type f \
+        -name "${sub_name}*" \
+        -and -name "*${DATA^^}_*" \
+        -and -not -iname "*space-*" \
+        -and -name "*T1w.nii.gz" \
+        2>/dev/null
+      )
+
+      if [[ ! -z "${t1w}" ]]; then
 
         # print header
         print_subject_header ${sub_name}
@@ -300,6 +323,7 @@ for subID in ${search}; do
           "${sinus_mask}"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -308,6 +332,7 @@ for subID in ${search}; do
           exit 1
         fi
 
+        #-----------------------------------------------------------------------------
         # launch the viewer
         echo -e "Launching selected viewer [${BOLD_RED}${viewer}${RESET}]"
         cmd=(
@@ -318,6 +343,7 @@ for subID in ${search}; do
           \"${msg}\"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "launch_viewer"

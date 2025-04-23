@@ -144,7 +144,7 @@ if [[ ! -d ${INPUT} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
   # collect subject name
@@ -175,7 +175,7 @@ for subID in ${search}; do
       2>/dev/null
     )
 
-    if [[ -z ${boundaries} ]]; then
+    if [[ -z "${boundaries}" ]]; then
       print_file_not_in_dir "${sub_name}" "boundaries" "${nighres_dir}/layering" "Create it with spinoza_layering ($(master -l layering))"
       continue
     fi
@@ -208,10 +208,10 @@ for subID in ${search}; do
     # compile command
     cmd=(
       call_nighresprofsamp
-      --layerimg ${boundaries}
-      --samplefrom ${tobesampled}
-      --outputdir ${nighres_dir}/profiling
-      --name ${base}_acq-${DATA^^}_desc-profile_${TAG}
+      --layerimg "${boundaries}"
+      --samplefrom "${tobesampled}"
+      --outputdir "${nighres_dir}/profiling"
+      --name "${base}_acq-${DATA}_desc-profile_${TAG}"
     )
 
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"

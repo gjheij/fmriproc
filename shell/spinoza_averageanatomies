@@ -16,7 +16,7 @@ spinoza_averagesanatomies
 This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average. 
 This results in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the 
 QSM-properties of the MEMP2RAGE sequence. This will only happen if you have two elements in the 
-\$ACQ variable of the \$CONFIG_FILE and if the DATA-variable is set to "AVERAGE".
+\$ACQ variable of the \$CONFIG_FILE and if the \$DATA-variable is set to "AVERAGE".
 
 Usage:
   spinoza_averagesanatomies [arguments] [options] <anat folder> <output folder>
@@ -102,14 +102,15 @@ fi
 start_timer "Averaging $(for ii in ${ACQ[@]}; do echo $ii; done) images"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # check if input directory was pymp2rage or not
   if [[ "$(basename ${INPUT})" != "pymp2rage" ]]; then
     input_dir="${INPUT}/${base_path}/anat"
@@ -124,12 +125,12 @@ for subID in ${search}; do
     continue
   fi
 
-  #-------------------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # calculate the averages of UNI T1, INV1, and INV2
   print_subject_header ${sub_name}
 
-  if [[ ! -d ${output_dir} ]]; then
-    mkdir -p ${output_dir}
+  if [[ ! -d "${output_dir}" ]]; then
+    mkdir -p "${output_dir}"
   fi
 
   if [[ ${DATA^^} != "AVERAGE" ]]; then
@@ -137,14 +138,17 @@ for subID in ${search}; do
     exit 1
   fi
 
+  #-----------------------------------------------------------------------------
+  # loop through T1w/T1map
   declare -a OUTPUTS=(T1w T1map)
   declare -a MAX=("4095" "5050")
 
   for i in ${OUTPUTS[@]}; do
 
-    out=${output_dir}/${base}_acq-${DATA}_${i}.nii.gz
-    if [[ ! -f ${out} ]]; then
+    out="${output_dir}/${base}_acq-${DATA}_${i}.nii.gz"
+    if [[ ! -f "${out}" ]]; then
 
+      #-----------------------------------------------------------------------------
       # look for warped files
       in_files=(
         $(
@@ -157,25 +161,16 @@ for subID in ${search}; do
         )
       )
 
-      if [[ ! -z ${in_files} ]]; then
+      if [[ ! -z "${in_files}" ]]; then
         # MP2RAGE+MP2RAGEME if number of "space-" files is 1
         if [[ ${#in_files[@]} -eq 1 ]]; then
 
+          #-----------------------------------------------------------------------------
           # reference image (MP2RAGE)
           in_1=$(
             find "${input_dir}" \
             -type f \
             -name "*acq-${ACQ[0]^^}_*" \
-            -and -name "*${i}.nii.gz" \
-            2>/dev/null
-          )
-
-          # warped file (MP2RAGEME)
-          in_2=$(
-            find "${input_dir}" \
-            -type f \
-            -name "*space-${ACQ[0]^^}*" \
-            -and -name "*acq-${ACQ[1]^^}_*" \
             -and -name "*${i}.nii.gz" \
             2>/dev/null
           )
@@ -188,6 +183,17 @@ for subID in ${search}; do
             exit 1
           fi 
 
+          #-----------------------------------------------------------------------------
+          # warped file (MP2RAGEME)
+          in_2=$(
+            find "${input_dir}" \
+            -type f \
+            -name "*space-${ACQ[0]^^}*" \
+            -and -name "*acq-${ACQ[1]^^}_*" \
+            -and -name "*${i}.nii.gz" \
+            2>/dev/null
+          )
+
           # check if warped exists
           if [[ ! -f "${in_2}" ]]; then
             echo
@@ -196,6 +202,8 @@ for subID in ${search}; do
             exit 1
           fi 
           
+          #-----------------------------------------------------------------------------
+          # define cmd
           cmd=(
             call_calculatemean
             "${in_1}"
@@ -203,6 +211,7 @@ for subID in ${search}; do
             "${out}"
           )
         else
+          #-----------------------------------------------------------------------------
           # Multiple MP(2)RAGE(S) if number of "space-" files >1
           ref=$(
             find "${input_dir}" \
@@ -214,13 +223,15 @@ for subID in ${search}; do
             2>/dev/null
           )
 
-          if [[ -z ${ref} ]]; then
+          if [[ -z "${ref}" ]]; then
             echo
             print_line -
             print_error_msg "$(basename ${0})" find "Could not find reference file with \"*acq-${ACQ[0]^^}_*\", \"*run-1*\", and \"*${i}.nii.gz\" in ${BOLD_GREEN}${input_dir}${RESET}"
             exit 1
           fi
-       
+
+          #-----------------------------------------------------------------------------
+          # define cmd
           cmd=(
             call_calculatemean
             "${ref}"
@@ -229,9 +240,10 @@ for subID in ${search}; do
           )
         fi
         
+        #-----------------------------------------------------------------------------
         # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-        if [[ $? -ne 0 || ! -f ${out} ]]; then
+        if [[ $? -ne 0 || ! -f "${out}" ]]; then
           print_error_msg "$(basename ${0})" "call_calculatemean"
           exit 1
         fi
@@ -241,15 +253,16 @@ for subID in ${search}; do
         exit 1
       fi
       
+      #-----------------------------------------------------------------------------
       # check if registration induced NANs
-      NAN=$(fslstats ${out} -R | awk '{print $1}')
+      NAN=$(fslstats "${out}" -R | awk '{print $1}')
       if [[ ${NAN} == "-nan" ]]; then
         echo "Found NaNs, replacing these values with zeroes"
-        fslmaths ${out} -nan ${out}
+        fslmaths "${out}" -nan "${out}"
       fi
 
       # check if registration induced NANs
-      ZERO=$(fslstats ${out} -R | awk '{print $1}')
+      ZERO=$(fslstats "${out}" -R | awk '{print $1}')
       if [[ ${ZERO} != "0" ]]; then
 
         if [[ ${i} == "T1w" ]]; then
@@ -258,14 +271,17 @@ for subID in ${search}; do
           max=${MAX[1]}
         fi
 
+        #-----------------------------------------------------------------------------
+        # define cmd
         echo "Rescaling ${i}-image to [0, ${max}] with ImageMath"
         cmd=(
           call_rescale
-          ${out}
+          "${out}"
           0
           ${max}
         )
 
+        #-----------------------------------------------------------------------------
         # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
@@ -280,6 +296,7 @@ for subID in ${search}; do
     fi
   done
 
+  #-----------------------------------------------------------------------------
   # check if we can copy SPM mask from MP2RAGE
   spm_mask=$(
     find "${input_dir}" \
@@ -302,6 +319,7 @@ for subID in ${search}; do
     cp "${spm}" "${final_spm}" 2>/dev/null
   fi
 
+  #-----------------------------------------------------------------------------
   # look for T2w/FLAIR
   for i in "T2w" "FLAIR"; do
     new_space=$(

@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
+#-----------------------------------------------------------------------------
+# Get bash helper functions
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# Create help text
 function Usage {
   cat <<USAGE
 
@@ -53,12 +57,30 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 subj_id="${1}"
 ses_id="${2}"
 
 #-----------------------------------------------------------------------------
+# check inputs
+if [[ -z "${subj_id}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify a subject ID"
+  exit 1
+fi
+
+if [[ -z "${ses_id}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify a session ID"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # Check some directories/files
-if [[ ! -d $CTX/${subj_id} ]]; then
+if [[ ! -d "$CTX/${subj_id}" ]]; then
   call_ctximport -s ${subj_id}
 fi
 
@@ -75,7 +97,7 @@ ses1=$(
   2>/dev/null
 )
 
-if [[ -z ${ses1} ]]; then
+if [[ -z "${ses1}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "ses-1" "Could not find ses-1 image with \"${subj_id}*\" and \"*T1w.nii.gz\" in ${BOLD_GREEN}${INPUT_DIR}/${subj_id}/ses-1${RESET}"
@@ -85,7 +107,7 @@ fi
 #-----------------------------------------------------------------------------
 # target session
 ses2=$(
-  find ${DIR_DATA_HOME}/${subj_id}/ses-${ses_id}/anat \
+  find "${DIR_DATA_HOME}/${subj_id}/ses-${ses_id}/anat" \
   -type f \
   -name "${subj_id}*" \
   -and -name "*motion1*" \
@@ -93,7 +115,7 @@ ses2=$(
   2>/dev/null
 )
 
-if [[ -z ${ses2} ]]; then
+if [[ -z "${ses2}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "ses-${ses_id}" "Could not find ses-${ses_id} image with \"${subj_id}*\", \"*motion1*\" and \"*.nii.gz\" in ${BOLD_GREEN}${DIR_DATA_HOME}/${subj_id}/ses-${ses_id}/anat${RESET}"
@@ -102,9 +124,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # define output
-aff=${CTX}/${subj_id}/transforms/${subj_id}_from-ses1_to-ses${ses_id}_rec-motion1_desc-genaff.mat
-if [[ ! -d $(dirname ${aff}) ]]; then
-  mkdir -p $(dirname ${aff})
+aff="${CTX}/${subj_id}/transforms/${subj_id}_from-ses1_to-ses${ses_id}_rec-motion1_desc-genaff.mat"
+if [[ ! -d "$(dirname ${aff})" ]]; then
+  mkdir -p "$(dirname ${aff})"
 fi
 
 echo "run \"itksnap -g ${ses2} -o ${ses1}\" to verify registration"
@@ -113,7 +135,14 @@ cmd=(
   call_antsregistration
   "${ses2}"
   "${ses1}"
-  "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+  "${aff%genaff.mat}"
   rigid
 )
+
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
+  exit 1
+fi

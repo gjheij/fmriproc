@@ -61,12 +61,19 @@ USAGE
 if [[ ${#@} -eq 0 ]]; then
   fprep_dir=${DIR_DATA_DERIV}/fmriprep
 else
-  fprep_dir=${1}
+  fprep_dir="${1}"
   if [[ ${fprep_dir} == "help" || ${fprep_dir} == "--help" ]]; then
     Usage && exit 0
-  else
-    fprep_dir=$(readlink -f "${fprep_dir}")
   fi
+fi
+
+if [[ -d "${fprep_dir}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input directory ${BOLD_GREEN}${fprep_dir}${RESET}"
+  exit 1
+else
+  fprep_dir=$(readlink -f "${fprep_dir}")
 fi
 
 #-----------------------------------------------------------------------------
@@ -91,7 +98,7 @@ fi
 echo "Input directory = \"${fprep_dir}\" (${#funcs[@]} files)"
 ct=1
 for f in ${funcs[@]}; do
-  base_name="$(dirname ${f})/$(basename ${f} preproc_bold.nii.gz)"
+  base_name="${f%preproc_bold.nii.gz}"
   mask_file="${base_name}brain_mask.nii.gz"
   if [[ -f "${mask_file}" ]]; then
     echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
@@ -102,7 +109,7 @@ for f in ${funcs[@]}; do
     # define command
     cmd=(
       "fslmaths"
-      ${f}
+      "${f}"
       -mas "${mask_file}"
       "${out}"
     )

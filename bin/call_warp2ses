@@ -95,19 +95,24 @@ fi
 
 #-----------------------------------------------------------------------------
 # Check some directories/files
-if [[ -z ${in_dir} ]]; then
+if [[ -z "${in_dir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "input" "Please specify input folder with '-d <path>'.."
   exit 1
 fi
 
-if [[ -z ${warp_file} ]]; then
+if [[ -z "${warp_file}" ]]; then
   # check in planning folder
-  warp_file=$(find ${DIR_DATA_SOURCE}/${sub}/ses-2/planning/nifti -type f -name "*genaff.mat" 2>/dev/null)
+  warp_file=$(
+    find "${DIR_DATA_SOURCE}/${sub}/ses-2/planning/nifti" \
+    -type f \
+    -name "*genaff.mat" \
+    2>/dev/null
+  )
 fi
 
-if [[ ! -f ${warp_file} ]]; then
+if [[ ! -f "${warp_file}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "input" "Could not find warp-file.."
@@ -115,7 +120,7 @@ if [[ ! -f ${warp_file} ]]; then
 fi
 
 # check in DIR_DATA_HOME/<sub>/ses-<to_ses>/anat
-if [[ -z ${ref_img} ]]; then
+if [[ -z "${ref_img}" ]]; then
   ref_img=$(
     find "${DIR_DATA_HOME}/${sub}/ses-${to_ses}/anat" \
     -type f \
@@ -126,7 +131,7 @@ if [[ -z ${ref_img} ]]; then
   )
 fi
 
-if [[ ! -f ${ref_img} ]]; then
+if [[ ! -f "${ref_img}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "input" "Could not find reference-file.."
@@ -135,11 +140,11 @@ fi
 
 #-----------------------------------------------------------------------------
 # Set invert to 0 (do not invert input warp file)
-if [[ -z ${invert_warp} ]]; then
+if [[ -z "${invert_warp}" ]]; then
   invert=0
   txt="not inverting warp file"
 else
-  invert=${invert_warp}
+  invert="${invert_warp}"
   if [[ ${invert} -eq 0 ]]; then
     txt="not inverting warp file"
   else
@@ -147,34 +152,38 @@ else
   fi
 fi
 
+#-----------------------------------------------------------------------------
 # set input directory
 if [[ ! -z ${add} ]]; then
-  input=${in_dir}/${sub}/ses-${from_ses}/${add}
+  input="${in_dir}/${sub}/ses-${from_ses}/${add}"
 else
-  input=${in_dir}/${sub}/ses-${from_ses}
+  input="${in_dir}/${sub}/ses-${from_ses}"
 fi
 
-if [[ ! -d ${input} ]]; then
+if [[ ! -d "${input}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "input" "Could not find input directory: \"${input}\""
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # set output directory
-if [ -z ${out_dir} ]; then
-  base=$(basename $(dirname ${f}))
+if [ -z "${out_dir}" ]; then
+  base="$(basename $(dirname "${f}"))"
   if [[ ${base} == *"ses"* ]]; then
-    out_dir=${in_dir}/${sub}/ses-${to_ses}
+    out_dir="${in_dir}/${sub}/ses-${to_ses}"
   else
-    out_dir=${in_dir}/${sub}/ses-${to_ses}/${base}
+    out_dir="${in_dir}/${sub}/ses-${to_ses}/${base}"
   fi
 fi
 
-if [[ ! -d ${out_dir} ]]; then
-  mkdir -p ${out_dir}
+if [[ ! -d "${out_dir}" ]]; then
+  mkdir -p "${out_dir}"
 fi
 
+#-----------------------------------------------------------------------------
+# start call
 echo "call_warp2ses"
 echo
 echo "Input session   = ${from_ses}"
@@ -207,9 +216,9 @@ for f in ${fn[@]}; do
 
     # warp to fs or ctx
     # insert "space-" tag in the middle of filename
-    newf=${out_dir}/$(basename ${f} | cut -d'_' -f-3)_space-${to_ses,,}_$(basename ${f} | cut -d"_" -f4-)
+    newf="${out_dir}/$(basename "${f}" | cut -d'_' -f-3)_space-${to_ses,,}_$(basename "${f}" | cut -d"_" -f4-)"
 
-    if [[ ! -f ${newf} ]]; then
+    if [[ ! -f "${newf}" ]]; then
 
       if [[ ${to_ses,,} == "fs" ]]; then
         # got fs, use call_resample
@@ -257,11 +266,11 @@ for f in ${fn[@]}; do
     fi
   else
 
-    newf=${out_dir}/${sub}_ses-${to_ses}_$(basename ${f} | cut -d "_" -f3-)
-    if [[ ! -f ${newf} ]]; then
+    newf="${out_dir}/${sub}_ses-${to_ses}_$(basename "${f}" | cut -d "_" -f3-)"
+    if [[ ! -f "${newf}" ]]; then
       cmd=(
         call_antsapplytransforms
-        -i ${invert}
+        -i "${invert}"
         "${ref_img}"
         "${f}"
         "${newf}"

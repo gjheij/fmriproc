@@ -226,10 +226,10 @@ echo "Hemisphere                         = ['${hemi}']"
 #-----------------------------------------------------------------------------
 # Convert orig.mgz to orig.nii.gz to take as session 1 input
 fs_dir=${FS}
-anat_session1=${fs_dir}/${subject}/mri/orig.nii.gz
+anat_session1="${fs_dir}/${subject}/mri/orig.nii.gz"
 if [[ ! -f ${anat_session1} ]]; then
   echo "Converting orig.mgz to nifti to use as session 1 anatomy"
-  call_mriconvert $(dirname ${anat_session1})/$(basename ${anat_session1} .nii.gz).mgz
+  call_mriconvert "${anat_session1/.nii.gz/.mgz}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_mriconvert"

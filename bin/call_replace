@@ -1,6 +1,32 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# function to replace using perl
+function search_string {
+  local file="${1}"
+  local search="${2}"
+  local replace="${3}"
+
+  case $(grep -rn "${search}" ${file} >/dev/null; echo $?) in
+    0)
+    # code if found
+    if [[ ${verbose} -eq 1 ]]; then
+      echo "replacing \"${search}\" with \"${replace}\" in \"${file}\""
+    fi
+
+    perl -pi -e 's|'"${search}"'|'"${replace}"'|g' "${file}"
+    ;;
+    1)
+    # code if not found
+    ;;
+    *)
+    # code if an error occurred
+    echo "FAILURE: \"${file}\""
+    ;;
+  esac
+}
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -18,7 +44,11 @@ Usage:
 Arguments:
   <search for>    string to be replaced
   <replace with>  replacement string
-  <dir/file>      directory or file to perform the operation on
+  <dir/file>      directory or file to perform the operation on if '--recursive' is not specified.
+                  If '--recursive' is passed, files in all subdirectories will also be considered.
+
+Optional:
+  -d <depth>      maximum search depth passed on to 'find'. Default is 1.
 
 Options:
   -h|--help       show this help text
@@ -40,6 +70,7 @@ USAGE
 # Deal with arguments
 recursive=0
 verbose=0
+max_depth=1
 while getopts :-:hr arg; do
   case ${arg} in
     -)
@@ -62,6 +93,8 @@ while getopts :-:hr arg; do
       esac;;    
     r)  recursive=1
         ;;
+    d)  max_depth=${OPTARG}
+        ;;        
     h)  Usage && exit 0
         ;;        
   esac
@@ -71,50 +104,54 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 search_for=${@:$OPTIND:1}
 replace_with=${@:$OPTIND+1:1}
 search_dir=${@:$OPTIND+2:1}
 
-function search_string {
-  local file=${1}
-  local search=${2}
-  local replace=${3}
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ -z "${search_for}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify string to be replaced"
+  exit 1
+fi
 
-  case `grep -rn "${search}" ${file} >/dev/null; echo $?` in
-    0)
-    # code if found
-    if [[ ${verbose} -eq 1 ]]; then
-      echo "replacing \"${search}\" with \"${replace}\" in \"${file}\""
-    fi
+if [[ -z "${replace_with}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify replacing string"
+  exit 1
+fi
 
-    perl -pi -e 's|'"${search}"'|'"${replace}"'|g' "${file}"
-    ;;
-    1)
-    # code if not found
-    ;;
-    *)
-    # code if an error occurred
-    echo "FAILURE: \"${file}\""
-    ;;
-  esac
-}
+if [[ -z "${search_dir}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify input file/directory to perform operation on"
+  exit 1
+fi
 
-if [[ -d ${search_dir} ]]; then
+#-----------------------------------------------------------------------------
+# check if input is directory
+if [[ -d "${search_dir}" ]]; then
   if [[ ${recursive} -eq 1 ]]; then
     if [[ ${verbose} -eq 1 ]]; then
       echo "Locating files"
     fi
     
-    search_files=($(find ${search_dir} -type f))
+    search_files=($(find "${search_dir}" -type f))
   else
-    search_files=($(find ${search_dir} -maxdepth 1 -type f))
+    search_files=($(find "${search_dir}" -maxdepth ${max_depth} -type f))
   fi
 
   for file in ${search_files[@]}; do
-    if [[ -f ${file} ]]; then
-      search_string ${file} ${search_for} ${replace_with}
+    if [[ -f "${file}" ]]; then
+      search_string "${file}" "${search_for}" "${replace_with}"
     fi
   done
 elif [[ -f ${search_dir} ]]; then
-  search_string ${search_dir} ${search_for} ${replace_with}
+  # input is file
+  search_string "${search_dir}" "${search_for}" "${replace_with}"
 fi

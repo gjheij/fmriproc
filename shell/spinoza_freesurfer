@@ -197,9 +197,10 @@ else
   unset IFS
 fi
 
+#-----------------------------------------------------------------------------
 # check if we got expert file
-if [[ ! -z ${EXPERT_FILE} ]]; then
-  if [[ ! -f ${EXPERT_FILE} ]]; then
+if [[ ! -z "${EXPERT_FILE}" ]]; then
+  if [[ ! -f "${EXPERT_FILE}" ]]; then
       echo
       print_line -
       print_error_msg "$(basename $0)" "find" "Expert file ${BOLD_GREEN}${EXPERT_FILE}${RESET} does not exist"
@@ -217,14 +218,16 @@ fi
 start_timer "Surface reconstruction with FreeSurfer"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # check number of T1w-files
   T1_DIR=${T1}/${base_path}
   input_t1w=$(
@@ -246,51 +249,73 @@ for subID in ${search}; do
     echo 
     exit 1
   fi
-
-  # check if we should delete subject folder (rather dangerous, really..)
+  #-----------------------------------------------------------------------------
+  # overwrite
   if [[ ${OW} -eq 1 ]]; then
     rm -r ${SUBJECTS_DIR}/${sub_name} 2>/dev/null
   fi
 
+  #-----------------------------------------------------------------------------
   # run if input exists
-  if [[ ! -z ${input_t1w} ]]; then
+  if [[ ! -z "${input_t1w}" ]]; then
 
-    # execute either when there's no directory, or when there's no files in /surf
+    #-----------------------------------------------------------------------------
+    # set execution rules
     execute=0
 
+    # 1) if stage != all
     if [[ ${STAGE} != "all" ]]; then
       execute=1
     else
-      if [[ -d ${SUBJECTS_DIR}/${sub_name} ]]; then
-        if [[ ! -d ${SUBJECTS_DIR}/${sub_name}/surf ]]; then
+      # 2) if subject-dir exists
+      if [[ -d "${SUBJECTS_DIR}/${sub_name}" ]]; then
+        # 2a) check if 'surf'-folder exists
+        if [[ ! -d "${SUBJECTS_DIR}/${sub_name}/surf" ]]; then
           execute=1
         else
-        nr_files=$(ls -l ${SUBJECTS_DIR}/${sub_name}/surf | grep "total" | cut -d' ' -f2)
+          # 2b) check if 'surf'-folder has files
+          nr_files=$(ls -l ${SUBJECTS_DIR}/${sub_name}/surf | grep "total" | cut -d' ' -f2)
           if [ ${nr_files} -eq 0 ]; then
             execute=1
           fi
         fi
 
+        # 3) force-flag is specified
         if [ ! -z ${force_flag} ]; then
           execute=1
         fi        
       else
+        # 4) subject does not exist in SUBJECTS_DIR
         execute=1
       fi
     fi
 
+    #-----------------------------------------------------------------------------
+    # execute
     if [[ ${execute} -eq 1 ]]; then
 
       # print header
       print_subject_header ${sub_name}
       echo -e "Running FreeSurfer on ${BOLD_GREEN}${input_t1w}${RESET} with autorecon \"${STAGE}\""
 
-      # LOOK FOR T2-/FLAIR WEIGHTED IMAGE
-      if [ ! -z ${T2} ]; then
-        if [[ -d ${T2}/${base_path} ]]; then
+      #-----------------------------------------------------------------------------
+      # look for T2
+      if [ ! -z "${T2}" ]; then
+        if [[ -d "${T2}/${base_path}" ]]; then
 
-          input_t2w=$(find "${T2}/${base_path}" -type f \( -name "*FLAIR*" -and -name "*.nii.gz" -or -name "*T2w*" -and -name "*.nii.gz" \) 2>/dev/null)
-          if [[ ! -z ${input_t2w} ]]; then
+          input_t2w=$(
+            find "${T2}/${base_path}" \
+            -type f \
+            -name "*FLAIR*" \
+            -and -name "*.nii.gz" \
+            -or -name "*T2w*" \
+            -and -name "*.nii.gz" \
+            2>/dev/null
+          )
+
+          #-----------------------------------------------------------------------------
+          # check if exists
+          if [[ ! -z "${input_t2w}" ]]; then
 
             # throw error if multiple files are found
             ct=0; for ii in ${input_t2w[@]}; do ((ct++)); done
@@ -318,7 +343,8 @@ for subID in ${search}; do
         T2_flag=""
       fi
 
-      # cmd
+      #-----------------------------------------------------------------------------
+      # check stage input
       if [[ ${STAGE} != "all" ]]; then
         if [[ -z ${start_flag} ]]; then
           echo 
@@ -330,6 +356,8 @@ for subID in ${search}; do
         fi
       fi
 
+      #-----------------------------------------------------------------------------
+      # define cmd
       cmd=(
         call_freesurfer
         -s "${sub_name}"
@@ -347,6 +375,7 @@ for subID in ${search}; do
         "${force_flag}"
       )
 
+      # print and run
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
         print_error_msg "$(basename ${0})" "call_freesurfer"

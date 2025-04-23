@@ -207,19 +207,19 @@ fi
 
 #-----------------------------------------------------------------------------
 # Default paths
-if [[ ! -z ${outputdir} ]]; then
-  output_dir=${outputdir}
+if [[ ! -z "${outputdir}" ]]; then
+  output_dir="${outputdir}"
 fi
 
 # Set input directory if specified, otherwise default to /derivatives/fmriprep
-if [[ ! -z ${fprepdir} ]]; then
-  input_dir=${fprepdir}
+if [[ ! -z "${fprepdir}" ]]; then
+  input_dir="${fprepdir}"
 fi
 
 #-----------------------------------------------------------------------------
 # make directory
-if [[ ! -d ${output_dir}/sub-${sub} ]]; then
-  mkdir -p ${output_dir}/sub-${sub}
+if [[ ! -d "${output_dir}/sub-${sub}" ]]; then
+  mkdir -p "${output_dir}/sub-${sub}"
 fi 
 
 #-----------------------------------------------------------------------------
@@ -257,6 +257,9 @@ if [[ ! -z ${n_slots} ]]; then
   [[ ! "$arg_str" =~ "--n-cpus" ]] && cmd_args+=("--n-cpus ${n_slots}")
 fi
 
+#-----------------------------------------------------------------------------
+# Pre-pybest: save std and mean in pkl files for unz-scoring
+
 # cmd to call_unzscore
 base_cmd=(
   call_unzscore
@@ -267,7 +270,11 @@ base_cmd=(
   --space "${in_space}"
 )
 
-# loop through tasks; I know pybest can do ALL tasks at once, but it's nice to have a limiter in here
+#-----------------------------------------------------------------------------
+# SURFACE-BASED 
+
+# loop through tasks; I know pybest can do ALL tasks at once, but it's nice to have a limiter in 
+# here
 for task_id in ${task_ids[@]}; do
   echo "Running pybest on task: \"${task_id}\""
   if [[ ${in_space} == "fsnative" || ${in_space} == "fsaverage" ]]; then
@@ -295,6 +302,8 @@ for task_id in ${task_ids[@]}; do
       fi
     fi
 
+    #-----------------------------------------------------------------------------
+    # Run pybest
     if [[ ${execute_pyb} -eq 1 ]]; then
 
       for hemi in "L" "R"; do
@@ -324,6 +333,8 @@ for task_id in ${task_ids[@]}; do
       done
     fi
     
+    #-----------------------------------------------------------------------------
+    # Post-pybest: un-do zscoring
     if [[ ${execute_post} -eq 1 ]]; then
       # undo z-scoring
       if [ ${raw} -eq 1 ]; then
@@ -350,6 +361,10 @@ for task_id in ${task_ids[@]}; do
     
   else
 
+    #-----------------------------------------------------------------------------
+    # VOLUMETRIC
+
+    
     # save standard deviation and mean in tmp/ folder (pkl files)
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
@@ -373,7 +388,8 @@ for task_id in ${task_ids[@]}; do
       fi
     fi
 
-    # we got volumetric data, so stuff gets a bit more exotic
+    #-----------------------------------------------------------------------------
+    # run pybest
     if [[ ${execute_pyb} -eq 1 ]]; then
 
       # Clone command args to avoid mutating the original
@@ -393,6 +409,7 @@ for task_id in ${task_ids[@]}; do
       fi
     fi
 
+    #-----------------------------------------------------------------------------
     # undo z-scoring
     if [[ ${execute_post} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
@@ -417,8 +434,11 @@ for task_id in ${task_ids[@]}; do
       echo "Done"    
     fi       
 
-    # apply mask; safe in 'masked'
-    out_dir=${output_dir}/${base_dir}
+    #-----------------------------------------------------------------------------
+    # MASKING
+
+    # find masks
+    out_dir="${output_dir}/${base_dir}"
 
     if [[ ${in_space} == "func" ]]; then
       mask=(
@@ -444,6 +464,8 @@ for task_id in ${task_ids[@]}; do
       )
     fi
 
+    #-----------------------------------------------------------------------------
+    # loop through masks
     n_masks=${#mask[@]}
     if [[ ${n_masks} -gt 0 ]]; then
       if [[ ${n_masks} -gt 1 ]]; then
@@ -463,7 +485,7 @@ for task_id in ${task_ids[@]}; do
         if [[ ${in_space} == "func" ]]; then
           bold_files=(
             $(
-              find -L ${out_dir}/${ddir} \
+              find -L "${out_dir}/${ddir}" \
               -type f \
               -name "*task-${task_id}*" \
               -and -name "*desc-denoised_bold.nii.gz" \
@@ -474,7 +496,7 @@ for task_id in ${task_ids[@]}; do
         else
           bold_files=(
             $(
-              find -L ${out_dir}/${ddir} \
+              find -L "${out_dir}/${ddir}" \
               -type f \
               -name "*task-${task_id}*" \
               -and -name "*space-${in_space}*" \
@@ -484,13 +506,14 @@ for task_id in ${task_ids[@]}; do
           )
         fi
 
+        # apply masks
         echo "Applying \"${mask}\" to ${#bold_files[@]} nifti-files"
         if [[ ${#bold_files[@]} -gt 0 ]]; then
 
           for bold in ${bold_files[@]}; do
-            masked_bold=$(dirname $(dirname ${bold}))/masked/$(basename ${bold})
-            if [[ ! -d $(dirname ${masked_bold}) ]]; then
-              mkdir -p $(dirname ${masked_bold})
+            masked_bold="${bold%/*/*}/masked/${bold##*/}"
+            if [[ ! -d "$(dirname ${masked_bold})" ]]; then
+              mkdir -p "$(dirname ${masked_bold})"
             fi
 
             # define and run cmd

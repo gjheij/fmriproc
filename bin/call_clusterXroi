@@ -120,31 +120,31 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-if [[ ! -z ${ses} ]]; then
-  fbase=${subj_ID}_ses-${ses}
+if [[ ! -z "${ses}" ]]; then
+  fbase="${subj_ID}_ses-${ses}"
 else
-  fbase=${subj_ID}
+  fbase="${subj_ID}"
 fi
 
-if [[ ! -d ${maskdir} ]]; then
+if [[ ! -d "${maskdir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Please specify a directory with binary masks.."
   exit 1
 fi
 
-if [[ ! -d ${featdir} ]]; then
+if [[ ! -d "${featdir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Please specify a path pointing to a FEAT directory"
   exit 1
 fi
 
-if [[ -z ${copes} ]]; then
+if [[ -z "${copes}" ]]; then
   copes=1
 fi
 
-if [[ -z ${nr_zstat} ]]; then
+if [[ -z "${nr_zstat}" ]]; then
   nr_zstat=1
 fi
 
@@ -159,7 +159,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # Get contrasts
-design=${featdir}/design.fsf
+design="${featdir}/design.fsf"
 
 # procedure to elucidate the amount of contrasts from design.fsf file
   # where is the line that specifies the nr of contrasts?
@@ -175,11 +175,8 @@ echo "Found ${nrContrasts} contrasts"
 # Now get all the contrasts in a text file. We make a while loop that stores the
 # output in a text file as long as the nth element of the array is less than the
 # max number of contrasts
-if [[ -f ${outdir}/contrasts.txt ]]; then
-  rm ${outdir}/contrasts.txt
-fi
-
-touch ${outdir}/contrasts.txt
+rm "${outdir}/contrasts.txt" 2>/dev/null
+touch "${outdir}/contrasts.txt"
 
 start=1
 i=${start}
@@ -195,7 +192,7 @@ while [[ ${i} -le ${nrContrasts} ]]; do
 
 done
 
-listContrasts=$(sed -e '' ${outdir}/contrasts.txt)
+listContrasts=$(sed -e '' "${outdir}/contrasts.txt")
 
 #-----------------------------------------------------------------------------
 # Here we will specify which contrasts we want to have the values from the time
@@ -214,11 +211,11 @@ for i in ${listContrasts}; do
   # check if we got a 3rd level input folder
   if [[ ${gfeatdir} == *".gfeat"* ]]; then
     for cope in ${copes[@]}; do
-      clusterMask=${gfeatdir}/cope${cope}.feat/cluster_mask_zstat${nr}.nii.gz
-      out=${outdir}/bin_group_zstat${nr}.con${i}.nii.gz
+      clusterMask="${gfeatdir}/cope${cope}.feat/cluster_mask_zstat${nr}.nii.gz"
+      out="${outdir}/bin_group_zstat${nr}.con${i}.nii.gz"
       
-      if [[ ! -f ${out} ]]; then
-        fslmaths ${clusterMask} -bin ${out}
+      if [[ ! -f "${out}" ]]; then
+        fslmaths "${clusterMask}" -bin "${out}"
         printf " Created $(basename ${out})\n"
       else
         printf " $(basename ${out}) already present\n"
@@ -231,11 +228,11 @@ for i in ${listContrasts}; do
     if [[ "${copes[@]}" =~ "${nr}" ]]; then
 
       # Get the cluster mask from the input cope feat directory and binarize it
-      clusterMask=${gfeatdir}/cope${nr}.feat/cluster_mask_zstat${nr_zstat}.nii.gz
-      out=${outdir}/bin_group_zstat${nr_zstat}.con${i}.nii.gz
+      clusterMask="${gfeatdir}/cope${nr}.feat/cluster_mask_zstat${nr_zstat}.nii.gz"
+      out="${outdir}/bin_group_zstat${nr_zstat}.con${i}.nii.gz"
       
-      if [[ ! -f ${out} ]]; then
-        fslmaths ${clusterMask} -bin ${out}
+      if [[ ! -f "${out}" ]]; then
+        fslmaths "${clusterMask}" -bin "${out}"
         printf " Created $(basename ${out})\n"
       else
         printf " $(basename ${out}) already present\n"
@@ -256,18 +253,24 @@ for mask in ${maskdir}/bin.thr*.nii.gz; do
 
   for nr in ${nr_zstat[@]}; do
 
-    i=$(find ${outdir} -type f \( -name "*bin_group_zstat${nr}*" \) 2>/dev/null)
-	  roi=$(basename ${mask} | cut -d "." -f3)
+    i=$(
+      find "${outdir}" \
+      -type f \
+      -name "*bin_group_zstat${nr}*" \
+      2>/dev/null
+    )
+
+	  roi="$(basename ${mask} | cut -d "." -f3)"
 
     if [[ ! -z ${run_ID} ]]; then
-      out=${outdir}/${fbase}_space-MNI152NLin6Asym_run-${run_ID}_roi-${roi}_desc-zstat${nr}_mask.nii.gz
+      out="${outdir}/${fbase}_space-MNI152NLin6Asym_run-${run_ID}_roi-${roi}_desc-zstat${nr}_mask.nii.gz"
     else
-      out=${outdir}/${fbase}_space-MNI152NLin6Asym_roi-${roi}_desc-zstat${nr}_mask.nii.gz
+      out="${outdir}/${fbase}_space-MNI152NLin6Asym_roi-${roi}_desc-zstat${nr}_mask.nii.gz"
     fi
 
-    if [[ ! -f ${out} ]]; then
+    if [[ ! -f "${out}" ]]; then
       echo " Creating $(basename ${out})"
-      fslmaths ${i} -mul ${mask} ${out}
+      fslmaths "${i}" -mul "${mask}" "${out}"
     else
       printf " $(basename ${mask}): multiplied mask already present\n"
     fi
@@ -276,25 +279,25 @@ done
 
 #-----------------------------------------------------------------------------
 # Extract mean time series from func data with created masks
-if [[ -f ${featdir}/filtered_func_data_clean.nii.gz ]]; then
-  in=${featdir}/filtered_func_data_clean.nii.gz
+if [[ -f "${featdir}/filtered_func_data_clean.nii.gz" ]]; then
+  in="${featdir}/filtered_func_data_clean.nii.gz"
 else
-  in=${featdir}/filtered_func_data.nii.gz
+  in="${featdir}/filtered_func_data.nii.gz"
 fi
 
 printf "\nExtracting timeseries from $(basename ${in})\n"
 
 for file in ${outdir}/${subj_ID}*.nii.gz; do
 
-  pathTextFiles=${outdir}/timecourses
+  pathTextFiles="${outdir}/timecourses"
 
-  if [[ ! -d ${pathTextFiles} ]]; then
-	  mkdir -p ${pathTextFiles}
+  if [[ ! -d "${pathTextFiles}" ]]; then
+	  mkdir -p "${pathTextFiles}"
   fi
 
-  out=${pathTextFiles}/$(basename ${file} _mask.nii.gz)_tc.txt
+  out="${pathTextFiles}/$(basename ${file} _mask.nii.gz)_tc.txt"
 
-  if [[ ! -f ${out} ]]; then
+  if [[ ! -f "${out}" ]]; then
     printf " Writing $(basename ${out})\n"
     cmd=(
       fslmeants
@@ -312,32 +315,35 @@ done
 
 # plop everthing in subject specific ROI files
 if [[ ! -z ${run_ID} ]]; then
-  all_rois=${pathTextFiles}/${fbase}_run-${run_ID}_roi-all.txt
+  all_rois="${pathTextFiles}/${fbase}_run-${run_ID}_roi-all.txt"
 else
-  all_rois=${pathTextFiles}/${fbase}_roi-all.txt
+  all_rois="${pathTextFiles}/${fbase}_roi-all.txt"
 fi
 
 if [[ ! -f ${all_rois} ]]; then
 
   declare -a ROI=()
-  f=$(find ${pathTextFiles} -type f \( -name "*_tc.txt" \) 2>/dev/null)
+  # find ROI files
+  f=$(
+    find "${pathTextFiles}" \
+    -type f \
+    -name "*_tc.txt" \
+    2>/dev/null
+  )
+
   for k in ${f[@]}; do
 
-	q=desc
-	w=_tc
-
-	start=`awk -F${q} '{print length($1)+1}' <<< "$(basename ${k})"`
-	end=`awk -F${w} '{print length($1)+1}' <<< "$(basename ${k})"`
-
-	region=$(basename ${k} | cut -c ${start}-$(( ${end} - 1)) | cut -d'-' -f2)
-
-	ROI+=("${region}")
+    q=desc
+    w=_tc
+    start=$(awk -F${q} '{print length($1)+1}' <<< "$(basename ${k})")
+    end=$(awk -F${w} '{print length($1)+1}' <<< "$(basename ${k})")
+    region=$(basename ${k} | cut -c ${start}-$(( ${end} - 1)) | cut -d'-' -f2)
+    ROI+=("${region}")
 
   done
 
-  # echo "${ROI[@]}"
-
-  paste ${f} >> ${all_rois}
-  echo -e "${ROI[@]}" > $(dirname ${all_rois})/$(basename ${all_rois} .txt)_hd.txt
+  # add headers
+  paste "${f}" >> "${all_rois}"
+  echo -e "${ROI[@]}" > "${all_rois/.txt/_hd.txt}"
 
 fi

@@ -109,28 +109,31 @@ start_timer "Skull and dura estimation with Nighres"
 check_python_package "nighres"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set paths
-  mask_dir=${MASKS}/${base_path}
-  input_dir=${T1W}/${base_path}
-  inv2_dir=${INV2}/${base_path}
-  outdir_dura=${OUTPUT}/${base_path}/dura
-  outdir_skull=${OUTPUT}/${base_path}/skullstrip
+  mask_dir="${MASKS}/${base_path}"
+  input_dir="${T1W}/${base_path}"
+  inv2_dir="${INV2}/${base_path}"
+  outdir_dura="${OUTPUT}/${base_path}/dura"
+  outdir_skull="${OUTPUT}/${base_path}/skullstrip"
 
   for dir in "${input_dir}" "${inv2_dir}"; do
-    if [ ! -d ${dir} ]; then
+    if [ ! -d "${dir}" ]; then
       print_directory_not_exist "${sub_name}" "${dir}"
       continue
     fi
   done
   
+  #-----------------------------------------------------------------------------
   # get INV2-image
   if [[ ${DATA} == "MP2RAGEME" ]]; then
     inv2=$(
@@ -218,8 +221,9 @@ for subID in ${search}; do
       2>/dev/null
     )
     
-    # look for a bunch of files
-    if [[ -z ${inv2} ]]; then
+    #-----------------------------------------------------------------------------
+    # check if INV2 exists
+    if [[ -z "${inv2}" ]]; then
       echo -e "${BOLD_CYAN}${sub_name}${RESET}: Missing INV2-image. Check ${inv2_dir} for:"
       echo " \"${sub_name}\""
       echo " \"echo-1\" (if DATA==MP2RAGEME)"
@@ -229,34 +233,41 @@ for subID in ${search}; do
       continue
     fi
 
-    if [[ -z ${t1w} ]]; then
+    # and T1w..
+    if [[ -z "${t1w}" ]]; then
       print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${input_dir}"
       continue
     fi
 
-    if [[ -z ${t1map} ]]; then
+    # and T1map..
+    if [[ -z "${t1map}" ]]; then
       print_file_not_in_dir "${sub_name}" "*T1map.nii.gz" "${input_dir}"
       continue
     fi
 
-    if [[ -z ${inv2_mask} ]]; then
+    # and brain mask..
+    if [[ -z "${inv2_mask}" ]]; then
       print_file_not_in_dir "${sub_name}" "*spm_mask.nii.gz" "${mask_dir}"
       continue
     fi
 
+    #-----------------------------------------------------------------------------
     # create output directory
-    if [[ ! -d ${outdir_dura} ]]; then
-      mkdir -p ${outdir_dura}
+    if [[ ! -d "${outdir_dura}" ]]; then
+      mkdir -p "${outdir_dura}"
     fi
 
     print_create_img "${output_mask}"
 
+    #-----------------------------------------------------------------------------
     # check if we should overwrite
     if [[ ${OW} -eq 1 ]]; then
-      rm ${output_dura} 2>/dev/null
+      rm "${output_dura}" 2>/dev/null
     fi
 
-    if [[ ! -f ${output_dura} ]]; then
+    #-----------------------------------------------------------------------------
+    # make dura with nighres
+    if [[ ! -f "${output_dura}" ]]; then
 
       out_prob="${outdir_dura}/${output_root}-dura_proba.nii.gz"
       if [[ ! -f "${out_prob}" ]]; then
@@ -278,75 +289,98 @@ for subID in ${search}; do
           mv "${out_prob}" "${output_dura}"
         else
           if [[ $? -ne 0 ]]; then
-              echo
-              print_line -
-              print_error_msg "$(basename ${0})" "call_nighresdura"
-              exit 1
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "call_nighresdura"
+            exit 1
           fi
         fi
-
       else
         echo "Found nighres output. Renaming it"
         mv "${out_prob}" "${output_dura}"
       fi
-
     fi
 
-    tmp_dura="${MASKS}/${base_path}/tmp_$(basename ${output_dura})"
-    echo "Thresholding and binarizing $(basename ${output_dura})"
-    if [[ -f "${tmp_dura}" ]]; then
-      rm "${tmp_dura}" 2>/dev/null
-    fi
-
-    # thresholding/binarizing
+    #-----------------------------------------------------------------------------
+    # post-processing
     if [[ -f "${output_dura}" ]]; then
-      fslmaths "${output_dura}" -thr 0.8 "${tmp_dura}"
-      fslmaths "${tmp_dura}" -bin "${output_mask}"
-      fslcpgeom "${inv2_mask}" "${output_mask}"
+
+      # thresholding/binarizing
+      echo "Thresholding and binarizing $(basename ${output_dura})"
+      cmd=(
+        fslmaths
+        "${output_dura}"
+        -thr 0.8
+        -bin
+        "${output_mask}"
+      )
+
+      # print and run
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}"
+        exit 1
+      fi
+
+      # copy header
+      cmd=(
+        call_copyheader
+        "${inv2_mask}"
+        "${output_mask}"
+      )
+
+      # print and run
+      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}"
+        exit 1
+      fi
     else
       print_file_not_exist "${sub_name}" "${output_dura}"
     fi
-
-    # clearing out directory
-    if [[ -f "${tmp_dura}" ]]; then
-      rm "${tmp_dura}" 2>/dev/null
-    fi
-
   else
     print_output_exists "${sub_name}" "${output_mask}"
   fi
 
-  #-----------------------------------------------------------------------------------------
-  # Running skullstrip module with call_nighresskullstrip.py
-
-	output_skullstrip="${outdir_skull}/${output_root}-strip_mask.nii.gz"
+  #-----------------------------------------------------------------------------
+  # skullstripping
 
   # check if we should overwrite
+	output_skullstrip="${outdir_skull}/${output_root}-strip_mask.nii.gz"
   if [[ ${OW} -eq 1 ]]; then
     rm "${output_skullstrip}" 2>/dev/null
   fi
 
+  #-----------------------------------------------------------------------------
+  # run call_nighresskullstrip
   if [[ ! -f "${output_skullstrip}" ]]; then
 
     echo
     print_create_img "${output_skullstrip}"
 
-    if [[ ! -d ${outdir_skull} ]]; then
-      mkdir -p ${outdir_skull}
+    if [[ ! -d "${outdir_skull}" ]]; then
+      mkdir -p "${outdir_skull}"
     fi
 
-    output_skullnighres=${outdir_skull}/${output_root}-strip_mask.nii.gz
-    if [[ ! -f ${output_skullnighres} ]]; then
+    #-----------------------------------------------------------------------------
+    # run
+    output_skullnighres="${outdir_skull}/${output_root}-strip_mask.nii.gz"
+    if [[ ! -f "${output_skullnighres}" ]]; then
       echo "Running nighres to perform skullstripping"
       cmd=(
         call_nighresskullstrip
-        --inv2 ${inv2}
-        --t1w ${t1w}
-        --t1map ${t1map}
-        --outputdir ${outdir_skull}
-        --name ${output_root}
+        --inv2 "${inv2}"
+        --t1w "${t1w}"
+        --t1map "${t1map}"
+        --outputdir "${outdir_skull}"
+        --name "${output_root}"
       )
 
+      # print and run
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
         echo

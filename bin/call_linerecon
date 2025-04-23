@@ -94,10 +94,41 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 RAW=${@:$OPTIND:1}
 LSD=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${RAW}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find RAW file \"${BOLD_GREEN}${RAW}${RESET}\""
+  exit 1
+else
+  RAW=$(readlink -f "${RAW}")
+fi
+
+if [[ ! -f "${LSD}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find LSD file \"${BOLD_GREEN}${LSD}${RESET}\""
+  exit 1
+else
+  LSD=$(readlink -f "${LSD}")
+fi
+
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# set echo flag
 if [[ ${n_echos} -gt 1 ]]; then
   multiecho=1
 else
@@ -106,105 +137,88 @@ fi
 
 #-----------------------------------------------------------------------------
 # Start loop
-newrecon=$(dirname ${RAW})/$(echo $(basename ${OUT}) | sed 's/[ -]/_/g').m
-if [[ -f ${newrecon} ]]; then
-  rm -r ${newrecon}
-fi
+newrecon="$(dirname ${RAW})/$(echo $(basename ${OUT}) | sed 's/[ -]/_/g').m"
+rm -r "${newrecon}" 2>/dev/null
 
 # make single-/multi-echo script
-if [[ -f ${RAW} && -f ${LSD} ]]; then
+echo "Inputs:"
+echo " bold   = ${RAW}"
+echo " LSD    = ${LSD}"
+echo " Out    = ${OUT}.mat"
+echo " Nordic = ${do_nordic} (comps=${n_comps} | 0=elbow-method)"
+echo " Echos  = ${n_echos}"
 
-  echo "Inputs:"
-  echo " bold   = ${RAW}"
-  echo " LSD    = ${LSD}"
-  echo " Out    = ${OUT}.mat"
-  echo " Nordic = ${do_nordic} (comps=${n_comps} | 0=elbow-method)"
-  echo " Echos  = ${n_echos}"
+# add stuff that's shared between single-/ and multi-echo
+(
+  echo "%% paths"
+  echo "addpath('${MRRECON}') %working without patch or with seline patch"
+  echo "addpath(genpath('${REPO_DIR}/recon'));"
+  # echo "addpath(genpath(fullfile(getenv('PATH_HOME'), 'programs', 'luisa')))"
+  echo "disp('-----------------------------------------------------------------------------------------------------')"
+  echo "disp(\"Starting recon\")"
+  echo "filelocation = '$(dirname ${RAW})/';"
+  echo ""
+  echo "% py_PAR   = 'RECON_PAR'; % sub-xxx_desc-recon.PAR"
+  echo "py_lab   = '$(basename ${LSD})';  % sub-xxx_desc-recon.LAB"
+  echo "nopy_lab = '$(basename ${RAW})'; % sub-xxx_task-2R_bold.LAB"
+  echo "nordic   = '${do_nordic}';"
+  echo ""
+  echo "Nc = 32; % nr of channels"
+  echo "TR = 105; %TR in ms"
+  echo "sp_res = 0.25; %line resolution [mm]"
+  echo "gausskernel = 24;"
+  echo ""
+  echo "Data_pc        = basic_recon(py_lab,filelocation, Nc);"
+  echo "csm4ls_sm_cplx = coil_sens_MELS(abs(Data_pc), gausskernel);"
+  echo "nord_tresh     = ${n_comps}; % if 0, use scree-plot"
+  echo "varargin_par   = {'before', nord_tresh};"    
+) >> ${newrecon}
 
-  # add stuff that's shared between single-/ and multi-echo
+# make output directory
+if [[ ! -d "$(dirname ${OUT})" ]]; then
+  mkdir -p "$(dirname ${OUT})"
+fi
+
+if [[ ${multiecho} -eq 0 ]]; then
+  # SINGLE-ECHO
+  recon_cmd = "LS_recon_1way"
   (
-    echo "%% paths"
-    echo "addpath('${MRRECON}') %working without patch or with seline patch"
-    echo "addpath(genpath('${REPO_DIR}/recon'));"
-    # echo "addpath(genpath(fullfile(getenv('PATH_HOME'), 'programs', 'luisa')))"
-    echo "disp('-----------------------------------------------------------------------------------------------------')"
-    echo "disp(\"Starting recon\")"
-    echo "filelocation = '$(dirname ${RAW})/';"
+    echo "Data_wcsmtSNR = ${recon_cmd}(nopy_lab, filelocation, Nc, 'all', TR, gausskernel, 'no', 'wcsmtSNR', nordic, varargin_par);"
     echo ""
-    echo "% py_PAR   = 'RECON_PAR'; % sub-xxx_desc-recon.PAR"
-    echo "py_lab   = '$(basename ${LSD})';  % sub-xxx_desc-recon.LAB"
-    echo "nopy_lab = '$(basename ${RAW})'; % sub-xxx_task-2R_bold.LAB"
-    echo "nordic   = '${do_nordic}';"
-    echo ""
-    echo "Nc = 32; % nr of channels"
-    echo "TR = 105; %TR in ms"
-    echo "sp_res = 0.25; %line resolution [mm]"
-    echo "gausskernel = 24;"
-    echo ""
-    echo "Data_pc        = basic_recon(py_lab,filelocation, Nc);"
-    echo "csm4ls_sm_cplx = coil_sens_MELS(abs(Data_pc), gausskernel);"
-    echo "nord_tresh     = ${n_comps}; % if 0, use scree-plot"
-    echo "varargin_par   = {'before', nord_tresh};"    
+    echo "save('${OUT}','Data_wcsmtSNR');"
+    echo "disp(\"Done\")"
   ) >> ${newrecon}
 
-  # make output directory
-  if [[ ! -d $(dirname ${OUT}) ]]; then
-    mkdir -p $(dirname ${OUT})
-  fi
+elif [[ ${multiecho} -eq 1 ]]; then
+  ## MULTI-ECHO w/ NORDIC
+  recon_cmd="GELINEME_NORDIC_FastRecon"
+  (
+    echo "Nechos = ${n_echos};"
+    echo "if strcmp(nordic,'off')"
+    echo "Data = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
+    echo "else"
+    echo "[Data, removed_comp] = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
+    echo "end"
+    echo ""
+    echo "TE1 = 6.*10^(-3);"
+    echo "deltaTE= 8.*10^(-3);"
+    echo "echotimes = TE1(1):deltaTE(1):(TE1(1)+deltaTE(1)*(Nechos(1)-1));"
+    echo "Data_comb = CombineEchoes_nofor_LS(Data, echotimes, 'SoS');"
+    echo "save('${OUT}','Data_comb');"
+    echo "disp(\"Done\")"
+  ) >> ${newrecon}
+fi
 
-  if [[ ${multiecho} -eq 0 ]]; then
-    # SINGLE-ECHO
-    recon_cmd = "LS_recon_1way"
-    (
-      echo "Data_wcsmtSNR = ${recon_cmd}(nopy_lab, filelocation, Nc, 'all', TR, gausskernel, 'no', 'wcsmtSNR', nordic, varargin_par);"
-      echo ""
-      echo "save('${OUT}','Data_wcsmtSNR');"
-      echo "disp(\"Done\")"
-    ) >> ${newrecon}
-  
-  elif [[ ${multiecho} -eq 1 ]]; then
-    ## MULTI-ECHO w/ NORDIC
-    recon_cmd="GELINEME_NORDIC_FastRecon"
-    (
-      echo "Nechos = ${n_echos};"
-      echo "if strcmp(nordic,'off')"
-      echo "Data = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
-      echo "else"
-      echo "[Data, removed_comp] = ${recon_cmd}(csm4ls_sm_cplx, nopy_lab, filelocation, Nc, Nechos, TR, sp_res, 'off', nordic, varargin_par);"
-      echo "end"
-      echo ""
-      echo "TE1 = 6.*10^(-3);"
-      echo "deltaTE= 8.*10^(-3);"
-      echo "echotimes = TE1(1):deltaTE(1):(TE1(1)+deltaTE(1)*(Nechos(1)-1));"
-      echo "Data_comb = CombineEchoes_nofor_LS(Data, echotimes, 'SoS');"
-      echo "save('${OUT}','Data_comb');"
-      echo "disp(\"Done\")"
-    ) >> ${newrecon}
-  fi
-  
-  if [[ $DEBUG -eq 0 ]]; then
-    echo "Initiating call to Matlab"
-    call_matlab ${newrecon} 
+if [[ $DEBUG -eq 0 ]]; then
+  echo "Initiating call to Matlab"
+  call_matlab ${newrecon} 
 
-    if [[ $? -ne 0 || ! -f "${OUT}" ]]; then
-      echo
-      print_line -
-      print_error_msg "$(basename ${0})" "${recon_cmd}" "\"${BOLD_GREEN}${OUT}${RESET} not created\""
-      exit 1
-    fi
-  else
-    echo "Script: \"${newrecon}\""
+  if [[ $? -ne 0 || ! -f "${OUT}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${recon_cmd}" "\"${BOLD_GREEN}${OUT}${RESET} not created\""
+    exit 1
   fi
 else
-
-  if [[ ! -f ${LSD} ]]; then
-    txt="LSD-"
-  elif [[ ! -f ${RAW} ]]; then
-    txt="BOLD-"
-  fi
-
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "find" "Could not find \"${BOLD_GREEN}${txt}${RESET}\"-file"
-  exit 1
+  echo "Script: \"${newrecon}\""
 fi

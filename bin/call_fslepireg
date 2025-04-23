@@ -122,24 +122,26 @@ out_file=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
 # Check if we have FreeSurfer flag
-if [[ ! -z ${subject} ]]; then
+if [[ ! -z "${subject}" ]]; then
 
-  if [[ -z ${SUBJECTS_DIR} ]];	then
-    echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): FreeSurfer was requested, but SUBJECTS_DIR is not set"
+  if [[ -z "${SUBJECTS_DIR}" ]];	then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" FreeSurfer "FreeSurfer was requested, but SUBJECTS_DIR is not set"
     exit 1
   fi
 
-  wm_file=${SUBJECTS_DIR}/${subject}/mri/wm.nii.gz
-  t1head=${SUBJECTS_DIR}/${subject}/mri/orig.nii.gz
-  t1brain=${SUBJECTS_DIR}/${subject}/mri/brainmask.nii.gz
+  wm_file="${SUBJECTS_DIR}/${subject}/mri/wm.nii.gz"
+  t1head="${SUBJECTS_DIR}/${subject}/mri/orig.nii.gz"
+  t1brain="${SUBJECTS_DIR}/${subject}/mri/brainmask.nii.gz"
   
   # convert them to nifti for safety
-  for ii in ${wm_file} ${t1head} ${t1brain}; do
-    if [[ ! -f ${ii} ]]; then
+  for ii in "${wm_file}" "${t1head}" "${t1brain}"; do
+    if [[ ! -f "${ii}" ]]; then
       
       cmd=(
         call_mriconvert
-        "$(dirname ${ii})/$(basename ${ii} .nii.gz).mgz"
+        "${ii/.nii.gz/.mgz}"
       )
 
       # print and run
@@ -171,7 +173,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # check if we got a white matter file
-if [[ -z ${wm_file} ]]; then
+if [[ -z "${wm_file}" ]]; then
   do_we_have_wm=0
 else
   do_we_have_wm=1
@@ -179,9 +181,6 @@ fi
 
 #-----------------------------------------------------------------------------
 # Check if we should warp anatomical stuff
-epi_file=$(fetch_filepath ${epi_file})
-out_file=${out_file}
-
 if [[ ! -z ${matrix_file} ]]; then
 
   matrix_file=$(fetch_filepath ${matrix_file})
@@ -248,9 +247,10 @@ if [[ ! -z ${matrix_file} ]]; then
     exit 1
   fi
 
-  # overwrite variables; we need to do that after call_antsapplytransforms otherwise bad things happen
-  t1head=$(dirname ${out_file})/t1head_$(basename $out_file)
-  t1brain=$(dirname ${out_file})/t1brain_$(basename $out_file)
+  # overwrite variables; we need to do that after call_antsapplytransforms otherwise bad things 
+  # happen
+  t1head="${out_file%/*}/t1head_${out_file##*/}"
+  t1brain="${out_file%/*}/t1brain_${out_file##*/}"
 
 else
   if [[ ${do_we_have_wm} -eq 1 ]]; then
@@ -262,8 +262,17 @@ fi
 
 #-----------------------------------------------------------------------------
 # Check if we should warp functional stuff
-if [[ ! -z ${initial} ]]; then
-  initial=$(fetch_filepath ${initial})
+if [[ ! -z "${initial}" ]]; then
+
+  if [[ ! -f "${initial}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" initial "Could not find initial transformation file \"${BOLD_GREEN}${initial}${RESET}\""
+    exit 1
+  else
+    initial=$(readlink -f "${initial}")
+  fi
+
   cmd=(
     call_antsapplytransforms
     --lin
@@ -282,12 +291,12 @@ if [[ ! -z ${initial} ]]; then
     exit 1
   fi
 
-  epi_file=$(dirname ${out_file})/bold_in_t1head.nii.gz
+  epi_file="$(dirname ${out_file})/bold_in_t1head.nii.gz"
 fi
 
 #-----------------------------------------------------------------------------
 # Run the epi_reg command
-if [[ -f ${t1head} && -f ${t1brain} ]]; then
+if [[ -f "${t1head}" && -f "${t1brain}" ]]; then
   cmd=(
     epi_reg
     --epi="${epi_file}"
@@ -315,7 +324,7 @@ fi
 #-----------------------------------------------------------------------------
 # Check if we should convert the matrix to ANTs format
 if [[ "${@}" == *"-a"* ]]; then
-  fname=$(dirname ${out_file})/$(basename ${out_file} .nii.gz)
+  fname="${out_file%.nii.gz}"
   cmd=(
     call_ras2fsl
     -i

@@ -100,20 +100,30 @@ do
   esac
 done
 
-# Positional arguments
+#-----------------------------------------------------------------------------
+# read args
 input=${@:$OPTIND:1}
 output=${@:$OPTIND+1:1}
 
+#-----------------------------------------------------------------------------
 # check inputs
-if [[ ! -f ${input} ]]; then
+if [[ ! -f "${input}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" input "could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
   input=$(readlink -f "${input}")
 fi
 
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # read dimensions
 dim=$(fslval "${input}" dim0)
 if [[ $? -ne 0 ]]; then
@@ -153,6 +163,6 @@ print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "dcm2niix"
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
 fi

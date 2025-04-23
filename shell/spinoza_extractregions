@@ -148,8 +148,7 @@ else
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# define ROIs and suffixes
 declare -a ROI=(
   "left_cerebrum"
   "right_cerebrum"
@@ -195,40 +194,44 @@ start_timer "Extract ROI from MGDM-reconstruction with Nighres"
 # nighres required this module
 check_python_package "nighres"
 
-if [[ ! -d ${INPUT} ]]; then
+if [[ ! -d "${INPUT}" ]]; then
   print_directory_not_exist "WARNING" "${INPUT}" "No nighres-steps have been run yet.."
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set paths
-  mgdm_dir=${INPUT}/${base_path}/mgdm
-  mask_dir=${LEVELSET}/${base_path}
-  cat12_dir=${DIR_DATA_DERIV}/cat12/${base_path}
-  region_dir=$(dirname ${mgdm_dir})/region
+  mgdm_dir="${INPUT}/${base_path}/mgdm"
+  mask_dir="${LEVELSET}/${base_path}"
+  cat12_dir="${DIR_DATA_DERIV}/cat12/${base_path}"
+  region_dir="$(dirname ${mgdm_dir})/region"
 
   # this can also be FAST-output
-  if [[ $(basename ${fprep}) == "fmriprep" ]]; then
-    fprep_dir=${fprep}/${base_path}/anat
+  if [[ $(basename "${fprep}") == "fmriprep" ]]; then
+    fprep_dir="${fprep}/${base_path}/anat"
   else
-    fprep_dir=${fprep}/${base_path}
+    fprep_dir="${fprep}/${base_path}"
   fi
 
   #-----------------------------------------------------------------------------
   # Running region extraction with nighres
-  if [[ ! -d ${mgdm_dir} ]]; then
+  if [[ ! -d '${mgdm_dir}' ]]; then
     print_directory_not_exist "${sub_name}" "${mgdm_dir}"
     continue
   fi
 
+  #-----------------------------------------------------------------------------
+  # find MGDM output
   declare -a MGDM=(seg dist mems lbls)
   declare -a INPUTS=()
 
@@ -260,11 +263,13 @@ for subID in ${search}; do
     fi
   done
 
+  # double check
   if [[ -z "${INPUTS}" ]]; then
     print_file_not_in_dir "${sub_name}" "MGDM" "${mgdm_dir}" "Run MGDM first"
     continue
   fi
 
+  #-----------------------------------------------------------------------------
   # define outputs
   output_root="${region_dir}/${base}_acq-${DATA^^}_desc"
   output="${output_root}-xproba_${suff}-gm.nii.gz"
@@ -275,7 +280,8 @@ for subID in ${search}; do
     mkdir -p "${region_dir}"
   fi
 
-  # OVERWRITE ALL CREATED FILES; SHOULD BE DEFAULT AND CAN BE DISABLE BY SPECIFYING MASTER -M <MODULE> -O N
+  #-----------------------------------------------------------------------------
+  # overwrite
   if [[ ${OW} -eq 1 ]]; then
     rm "${gm_prob}" 2>/dev/null
     if [[ ${COMB_ONLY} -eq 0 ]]; then
@@ -283,11 +289,14 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
+  # run it
   executed_nighres=0
   if [[ ${COMB_ONLY} -eq 0 ]]; then
     if [[ ! -f "${output}" ]]; then
       if [[ ! -f "${output_root}_xproba-${suff}gm.nii.gz" ]]; then
 
+        #-----------------------------------------------------------------------------
         # print header
         print_subject_header ${sub_name}
         print_create_img "${output}" "Suffix=\"${suff}\""
@@ -303,6 +312,7 @@ for subID in ${search}; do
           "${kwargs_flag}"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
@@ -317,6 +327,8 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
+  # combine segmentations
   if { [[ ! -f "${gm_prob}" ]] || [[ "${COMB_ONLY}" -eq 1 ]]; } && [[ "${SKIP_COMB}" -eq 0 ]]; then
 
     if [[ "${mask_dir}" != *"nighres"* ]]; then
@@ -325,6 +337,8 @@ for subID in ${search}; do
         print_subject_header ${sub_name}
       fi
       
+      #-----------------------------------------------------------------------------
+      # check directories
       fs="${SUBJECTS_DIR}/${sub_name}"
       for i in "${fprep_dir}" "${fs}" "${mask_dir}" "${region_dir}"; do
         if [[ ! -d ${i} ]]; then
@@ -335,6 +349,8 @@ for subID in ${search}; do
         fi
       done
 
+      #-----------------------------------------------------------------------------
+      # CAT12 is optional
       if [[ -d "${cat12_dir}" ]]; then
         print_create_img "custom levelset" "Input=(fmriprep+FS+MGDM+CAT12)"
         cat12="${cat12_dir}"
@@ -343,6 +359,7 @@ for subID in ${search}; do
         cat12=""
       fi
 
+      #-----------------------------------------------------------------------------
       # combine segmentations
       if [[ ${COMBINE_SEGMENTATIONS} == "weighted" ]]; then
         run_cmd="call_gdhcombine"
@@ -353,6 +370,7 @@ for subID in ${search}; do
         exit 1
       fi
 
+      # define command
       cmd=(
         "${run_cmd}"
         --sub "${sub_name}"
@@ -365,6 +383,7 @@ for subID in ${search}; do
         --name "${base}_acq-${DATA^^}"
       )
 
+      # print and run
       print_cmd "${cmd[@]}" && eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
         echo

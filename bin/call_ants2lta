@@ -53,25 +53,58 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
+in_file="${1}"
+out_file="${2}"
+src="${3}"
+trg="${4}"
+
 #-----------------------------------------------------------------------------
 # check if input exists
-if [[ ! -f "${1}" ]]; then
+if [[ ! -f "${in_file}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" input "Could not find input file ${BOLD_GREEN}${1}${RESET}"
+  print_error_msg "$(basename ${0})" input "Could not find input file ${BOLD_GREEN}${in_file}${RESET}"
   exit 1
 else
-  input=$(readlink -f "${1}")
+  in_file=$(readlink -f "${in_file}")
+fi
+
+# src file
+if [[ ! -f "${src}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find SOURCE file ${BOLD_GREEN}${trg}${RESET}"
+  exit 1
+else
+  src=$(readlink -f "${src}")
+fi
+
+# trg file
+if [[ ! -f "${trg}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find TARGET file ${BOLD_GREEN}${trg}${RESET}"
+  exit 1
+else
+  trg=$(readlink -f "${trg}")
+fi
+
+# output
+if [[ -z "${out_file}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # convert if needed
-if [[ ${1} == *".mat"* ]]; then
-  in_file=$(dirname "${input}")/$(basename "${input}" .mat).txt
+if [[ ${in_file} == *".mat"* ]]; then
+  in_file="${in_file/.mat/.txt}"
   cmd=(
     ConvertTransformFile
     3
-    ${input}
+    ${in_file}
     ${in_file}
   )
 
@@ -82,20 +115,16 @@ if [[ ${1} == *".mat"* ]]; then
     print_error_msg "$(basename ${0})" ConvertTransformFile
     exit 1
   fi
-else
-  in_file="${input}"
 fi
 
-# set output
-out_file=${2}
-
+#-----------------------------------------------------------------------------
 # define command
 cmd=(
   "lta_convert"
   --initk "${in_file}"
   --outlta "${out_file}"
-  --src "${3}"
-  --trg "${4}"
+  --src "${src}"
+  --trg "${trg}"
 )
 
 # print and run
@@ -103,6 +132,6 @@ print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" lta_convert
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
 fi

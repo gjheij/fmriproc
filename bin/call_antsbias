@@ -64,8 +64,28 @@ if [[ $# -lt 1 ]]; then
   Usage && exit 0
 fi
 
-input="$(readlink -f "$1")"
+#-----------------------------------------------------------------------------
+# read args
+input="${1}"
 output="${2:-}"
+
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${input}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  exit 1
+else
+  input=$(readlink -f "${input}")
+fi
+
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
 shift 2 || true  # Shift away input & output arguments if present
 
@@ -78,13 +98,6 @@ done
 
 #-----------------------------------------------------------------------------
 # Run N4BiasFieldCorrection
-if [[ ! -f "$input" ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
-  exit 1
-fi
-
 if [[ -z "$output" ]]; then
   echo
   print_line -
@@ -101,8 +114,8 @@ fi
 
 if [[ ${verbose} -eq 1 ]]; then
   echo "Running N4BiasFieldCorrection:"
-  echo "  Input          = $(basename "$input")"
-  echo "  Output         = $(basename "$output")"
+  echo "  Input          = $(basename "${input}")"
+  echo "  Output         = $(basename "${output}")"
   echo "  Dimensionality = $dim"
   echo "  Extra options  = ${extra_args[*]:-(none)}"
   echo
@@ -117,12 +130,12 @@ cmd=(
   "${extra_args[@]}"
 )
 
+# print and run
 if [[ ${verbose} -eq 1 ]]; then
-  echo "Executing: ${cmd[*]}"
+  print_cmd "${cmd[@]}"
 fi
 
 eval "${cmd[@]}"
-
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

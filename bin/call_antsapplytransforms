@@ -125,31 +125,48 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 REF=${@:$OPTIND:1}
 MOV=${@:$OPTIND+1:1}
+OUT=${@:$OPTIND+2:1}
+TRAFOS=${@:$OPTIND+3:1}
 
-# check inputs
-if [[ ! -f ${REF} ]]; then
+#-----------------------------------------------------------------------------
+# check if input exists
+if [[ ! -f "${REF}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" input "could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
+  print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 else
   REF=$(readlink -f "${REF}")
 fi
 
-if [[ ! -f ${MOV} ]]; then
+if [[ ! -f "${MOV}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" input "could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
+  print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
   MOV=$(readlink -f "${MOV}")
 fi
 
-OUT=${@:$OPTIND+2:1}
-TRAFOS=${@:$OPTIND+3:1}
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
+if [[ -z "${TRAFOS}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify transformation file(s)"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # read transformations into array
 IFS=', ' read -r -a WARP <<< "${TRAFOS}"
 unset IFS
@@ -168,7 +185,22 @@ fi
 
 ARRAY=()
 if [[ ${WARP} == "identity" ]] || [[ ${WARP} == "ident" ]] || [[ ${WARP} == "identty" ]]; then
-  call_createident -s "tmp" $(dirname ${OUT})/ident.mat
+  cmd=(
+    call_createident
+      -s "tmp"
+      "$(dirname ${OUT})/ident.mat"
+  )
+
+  # print and run
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" lta_convert
+    exit 1
+  fi
+
+  # append to array
   INITIAL=$(echo "-t [$(dirname ${OUT})/ident.mat,0]")
   ARRAY+=("${INITIAL}")
 else
@@ -181,8 +213,8 @@ else
 fi
 
 # check if we have mgz file
-REF_ext=$(fetch_extension ${REF})
-MOV_ext=$(fetch_extension ${MOV})
+REF_ext=$(fetch_extension "${REF}")
+MOV_ext=$(fetch_extension "${MOV}")
 
 if [[ ${REF_ext} == "mgz" ]]; then
   call_mriconvert "${REF}"
@@ -191,7 +223,7 @@ if [[ ${REF_ext} == "mgz" ]]; then
     exit 1
   fi  
   echo
-  REF=$(dirname ${REF})/$(basename ${REF} .mgz).nii.gz
+  REF="${REF/.mgz/.nii.gz}"
 fi
 
 if [[ ${MOV_ext} == "mgz" ]]; then
@@ -201,11 +233,11 @@ if [[ ${MOV_ext} == "mgz" ]]; then
     exit 1
   fi
   echo
-  MOV=$(dirname ${MOV})/$(basename ${MOV} .mgz).nii.gz
+  MOV="${MOV/.mgz/.nii.gz}"
 fi
 
-if [[ ! -d $(dirname ${OUT}) ]]; then
-  mkdir -p $(dirname ${OUT})
+if [[ ! -d "$(dirname ${OUT})" ]]; then
+  mkdir -p "$(dirname ${OUT})"
 fi
 
 cmd=(
@@ -252,7 +284,7 @@ if [[ ${res} -eq 0 ]]; then
   # set sform with qform [MOST LIKELY THE CASE]
   if [[ ${sform} -eq 0 ]]; then
     if [[ ${qform} -ne 0 ]]; then
-      fslorient -copyqform2sform ${OUT}
+      fslorient -copyqform2sform "${OUT}"
     fi
   fi 
 fi

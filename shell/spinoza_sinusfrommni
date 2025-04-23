@@ -5,6 +5,8 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# launch viewer
 launch_viewer() {
   local ref="${1}"
   local mask="${2}"
@@ -155,6 +157,7 @@ else
   unset IFS
 fi
 
+#-----------------------------------------------------------------------------
 # first-pass check for directories
 if [[ ! -d "${ANAT}" ]]; then
   echo 
@@ -170,6 +173,7 @@ if [[ ! -d "${MATRIX}" ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # decide message depending on software
 if [[ ${open_viewer} -eq 1 ]]; then
   if [[ "${use_software}" == "itk" ]]; then
@@ -191,10 +195,10 @@ fi
 start_timer "Generate sagittal sinus mask from MNI and T1w/T2w"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
@@ -208,6 +212,8 @@ for subID in ${search}; do
     mkdir -p "${pn_masks}"
   fi
 
+  #-----------------------------------------------------------------------------
+  # run if directory exists
   if [[ -d "${pn_anat}" ]]; then
 
     #-----------------------------------------------------------------------------
@@ -221,7 +227,9 @@ for subID in ${search}; do
       rm "${fn_ratio}" "${fn_nuisance}" "${fn_out}" "${fn_mni}" 2>/dev/null
     fi
 
-    if [[ ! -f ${fn_out} ]]; then
+    #-----------------------------------------------------------------------------
+    # run if outptu file doesn't exists
+    if [[ ! -f "${fn_out}" ]]; then
 
       # print header
       print_subject_header ${sub_name}
@@ -264,15 +272,16 @@ for subID in ${search}; do
 
           #-----------------------------------------------------------------------------
           # if we have a mask-image, we can create a sinus mask directly from the T2-image
-          if [[ ! -z ${mask} ]]; then
+          if [[ ! -z "${mask}" ]]; then
             print_create_img "${fn_nuisance}" "Using T2-only"
 
             # mask t2 with brain mask
+            tmp_file="${t2%/*}/tmp_${t2##*/}"
             cmd=(
               fslmaths
               "${t2}"
               -mas "${mask}"
-              $(dirname "${t2}")/tmp_$(basename "${t2}")
+              "${tmp_file}"
             )
 
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
@@ -286,7 +295,7 @@ for subID in ${search}; do
             # threshold
             cmd=(
               fslmaths
-              $(dirname "${t2}")/tmp_$(basename "${t2}")
+              "${tmp_file}"
               -uthr 10000
               -bin
               "${fn_nuisance}"
@@ -302,7 +311,7 @@ for subID in ${search}; do
             fi
 
             # delete tmp files          
-            rm $(dirname "${t2}")/tmp_$(basename "${t2}") 2>/dev/null
+            rm "${t2%/*}/tmp_${t2##*/}" 2>/dev/null
           else
 
           #-----------------------------------------------------------------------------
@@ -390,9 +399,9 @@ for subID in ${search}; do
               "${mat_file}"
             )
 
+            # print and run
             echo
             print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
             if [[ $? -ne 0 || -f "${fn_mni}" ]]; then
               print_error_msg "$(basename ${0})" "call_antsapplytransforms"
               exit 1

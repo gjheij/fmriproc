@@ -5,6 +5,8 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+#-----------------------------------------------------------------------------
+# function to rename output
 rename_fast_outputs() {
 
   local output_root="${1}"
@@ -35,6 +37,7 @@ rename_fast_outputs() {
 
   done
 }
+
 #-----------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -139,6 +142,7 @@ else
   unset IFS
 fi
 
+#-----------------------------------------------------------------------------
 # parse into string
 if [[ ! -z ${kwargs} ]]; then
   kwargs=$(echo ${kwargs} | tr ' =' ' ' | tr ',' ' ')
@@ -158,6 +162,7 @@ start_timer "Tissue segmentation with FAST"
 
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
@@ -171,7 +176,7 @@ for subID in ${search}; do
     continue
   fi
   
-  #-----------------------------------------------------------------------------------------
+  #-----------------------------------------------------------------------------
   # Running FAST with call_fslfast
 
   if [[ ! -d ${input_dir} ]]; then
@@ -199,7 +204,9 @@ for subID in ${search}; do
     fi
   fi
 
-  if [[ -f ${input_t1w} ]]; then
+  #-----------------------------------------------------------------------------
+  # run if input exists
+  if [[ -f "${input_t1w}" ]]; then
 
     seg_file="${outputroot}_desc-seg.nii.gz"
     if [[ ! -f "${seg_file}" ]]; then
@@ -207,10 +214,12 @@ for subID in ${search}; do
       # print header
       print_subject_header ${sub_name}
 
-      if [[ ! -f ${output_dir} ]]; then
-        mkdir -p ${output_dir}
+      if [[ ! -f "${output_dir}" ]]; then
+        mkdir -p "${output_dir}"
       fi
 
+      #-----------------------------------------------------------------------------
+      # run if output root doesn't exist
       if [[ ! -f ${outputroot}_seg.nii.gz ]]; then
         echo -e "Running FAST on ${BOLD_GREEN}${input_t1w}${RESET}"
         cmd=(
@@ -220,6 +229,7 @@ for subID in ${search}; do
           "${kwargs}"
         )
 
+        # print and run
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           print_error_msg "$(basename ${0})" "call_fslfast"

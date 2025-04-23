@@ -81,88 +81,110 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
+# read args
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
+# check inputs
+if [[ ! -f "${INPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
+  exit 1
+else
+  INPUT=$(readlink -f "${INPUT}")
+fi
+
+if [[ -z "${OUTPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # Define default LOG-path
-if [[ -z ${LOG} ]]; then
-  if [[ -z ${DIR_LOGS} ]]; then
-    LOG_DIR=${PWD}
+if [[ -z "${LOG}" ]]; then
+  if [[ -z "${DIR_LOGS}" ]]; then
+    LOG_DIR="${PWD}"
   else
-    LOG_DIR=${DIR_LOGS}
+    LOG_DIR="${DIR_LOGS}"
   fi
 else
-  LOG_DIR=${LOG}
+  LOG_DIR="${LOG}"
 fi
 
-if [[ ! -d ${LOG_DIR} ]]; then
-  mkdir -p ${LOG_DIR}
+if [[ ! -d "${LOG_DIR}" ]]; then
+  mkdir -p "${LOG_DIR}"
 fi
 
 #-----------------------------------------------------------------------------
 # Define default SPM-path
-if [[ -z ${SPM} ]]; then
-  if [[ -z ${SPM_PATH} ]]; then
-    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+if [[ -z "${SPM}" ]]; then
+  if [[ -z "${SPM_PATH}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
     exit 1
   else
-    SPM_PATH=${SPM_PATH}
+    SPM_PATH="${SPM_PATH}"
   fi
 else
-  SPM_PATH=${SPM}
+  SPM_PATH="${SPM}"
 fi
 
 # double check if directory exists
-if [[ ! -d ${SPM_PATH} ]]; then
+if [[ ! -d "${SPM_PATH}" ]]; then
+  echo
+  print_line -
   print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
-# Get extension from input file
-ext=$(fetch_extension ${INPUT})
+# if file specified is in current directory, add entire path
+ext=$(fetch_extension "${INPUT}")
 if [[ ${ext} == "gz" ]]; then
-  in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
-  gunzip -fc ${INPUT} > ${in_file}
+  in_file="${INPUT%.gz}"
+  gunzip -fc "${INPUT}" > "${in_file}"
 else
-  in_file=${INPUT}
+  in_file="${INPUT}"
 fi
 
 # if file specified is in current directory, add entire path
-in_file=$(fetch_filepath ${in_file})
-out_file=${OUTPUT}
-
-out_ext=$(fetch_extension ${out_file})
-if [[ ${out_ext} == "gz" ]]; then
+out_file="${OUTPUT}"
+out_ext=$(fetch_extension "${out_file}")
+if [[ "${out_ext}" == "gz" ]]; then
   is_niigz=1
-  tmp_out=$(dirname ${out_file})/$(basename ${out_file} .gz)
+  tmp_out=$(dirname "${out_file}")/$(basename "${out_file}" .gz)
 else
   is_niigz=0
-  tmp_out=${out_file}
+  tmp_out="${out_file}"
 fi
 
 #-----------------------------------------------------------------------------
 # Create new script
-new_script=$(dirname ${in_file})/spm_mask.m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
+new_script="$(dirname "${in_file}")/spm_mask.m"
+rm -r "${new_script}" 2>/dev/null
+
+# make output directory
+if [[ ! -d "$(dirname "${out_file}")" ]]; then
+  mkdir -p "$(dirname "${out_file}")"
 fi
 
-if [[ ! -d $(dirname ${out_file}) ]]; then
-  mkdir -p $(dirname ${out_file})
-fi
-
+#-----------------------------------------------------------------------------
 # generate the m-script
-make_mask_script ${SPM_PATH} ${in_file} ${tmp_out} ${new_script}
-  
-# call_matlab = in call_bashhelper
-call_matlab ${new_script}
+make_mask_script \
+  "${SPM_PATH}" \
+  "${in_file}" \
+  "${tmp_out}" \
+  "${new_script}"
 
+#-----------------------------------------------------------------------------
+# call_matlab = in call_bashhelper
+call_matlab "${new_script}"
 if [[ $? -ne 0 || ! -f "${tmp_out}" ]]; then
   echo
   print_line -
@@ -170,22 +192,40 @@ if [[ $? -ne 0 || ! -f "${tmp_out}" ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
 if [[ ${is_niigz} -eq 1 ]]; then
-  gzip -f ${tmp_out} 2>/dev/null
-  rm ${in_file} 2>/dev/null
+  gzip -f "${tmp_out}" 2>/dev/null
+  rm "${in_file}" 2>/dev/null
 fi
 
+#-----------------------------------------------------------------------------
 # cp geom
-if [[ -f ${out_file} ]]; then
-  call_copyheader ${INPUT} ${out_file}
+if [[ -f "${out_file}" ]]; then
+  cmd=(
+    call_copyheader
+    "${INPUT}"
+    "${out_file}"
+  )
+
+  # run
+  eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo 
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
 else
-  echo "ERROR: gzip did not create \"${out_file}\""
+  echo 
+  print_line -  
+  print_error_msg "$(basename ${0})" "gzip did not create ${BOLD_GREEN}${out_file}${RESET}"
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # clean up files
 if [[ ${CLEAN_UP} -eq 1 ]]; then
-  rm -r $(dirname ${in_file})/c*$(basename ${in_file}) 2>/dev/null
-  rm -r $(dirname ${in_file})/*seg8* 2>/dev/null
+  rm -r "$(dirname "${in_file}")/c"*"$(basename "${in_file}")" 2>/dev/null
+  rm -r "$(dirname "${in_file}")/"*seg8* 2>/dev/null
 fi

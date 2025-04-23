@@ -363,25 +363,29 @@ fi
 start_timer "pRF-fitting with pRFpy"
 
 #-----------------------------------------------------------------------------
-# Run it
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set paths
   if [[ -z ${merge_flag} ]]; then
-    input_dir=${INPUT}/${base_path}
-    prf_dir=${OUTPUT}/${base_path}
+    input_dir="${INPUT}/${base_path}"
+    prf_dir="${OUTPUT}/${base_path}"
   else
-    input_dir=${INPUT}/${sub_name}
-    prf_dir=${OUTPUT}/${sub_name}
+    input_dir="${INPUT}/${sub_name}"
+    prf_dir="${OUTPUT}/${sub_name}"
   fi
 
-  png_dir=${PNG}/${sub_name}
+  # png dir
+  png_dir="${PNG}/${sub_name}"
 
+  #-----------------------------------------------------------------------------
   # check if we got model specification
   if [[ -z ${model} ]]; then
     use_model="gauss"
@@ -398,6 +402,7 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
   # look for parameter file
   if [[ ${grid_only} -eq 1 ]]; then
     txt="grid-fit only with model ${use_model}"
@@ -407,8 +412,9 @@ for subID in ${search}; do
     stage="stage-iter"
   fi
 
+  #-----------------------------------------------------------------------------
   # check if input is pybest or fmriprep
-  if [[ $(basename ${INPUT}) == "pybest" ]]; then
+  if [[ $(basename "${INPUT}") == "pybest" ]]; then
     if [[ ! -z ${zscore_flag} ]]; then
       use_dir="denoising" # directly use pybest output (= zscored)
     else
@@ -416,19 +422,20 @@ for subID in ${search}; do
     fi
 
     if [[ -z ${merge_flag} ]]; then 
-      full_input=${input_dir}/${use_dir}
+      full_input="${input_dir}/${use_dir}"
       pyb_flag=""
     else
-      full_input=${input_dir}
+      full_input="${input_dir}"
       pyb_flag="--pyb-type ${use_dir}"
     fi
-  elif [[ $(basename ${INPUT}) == "fmriprep" ]]; then
+  elif [[ $(basename "${INPUT}") == "fmriprep" ]]; then
     # internally, call_prf uses utils.FindFiles, which searches for files recursively. No futher addition is required
-    full_input=${input_dir}
+    full_input="${input_dir}"
   fi
 
+  #-----------------------------------------------------------------------------
   # do stuff if input directory exists
-  if [[ -d ${full_input} || ${refit_data} -eq 1 ]]; then
+  if [[ -d "${full_input}" || ${refit_data} -eq 1 ]]; then
 
     # print header
     print_subject_header ${sub_name}
@@ -436,14 +443,20 @@ for subID in ${search}; do
     if [[ ! -d ${prf_dir} ]]; then
       mkdir -p ${prf_dir}
     fi
-
+    
+    #-----------------------------------------------------------------------------
     # fetch PNG-directories, sort, and save in array
-    PNG_UNSORTED=$(find ${png_dir} -type d \( -name "*Screenshots*" \) 2>/dev/null)
+    PNG_UNSORTED=$(
+      find "${png_dir}" \
+      -type d \
+      -name "*Screenshots*" \
+      2>/dev/null
+    )
+
     IFS=$'\n' PNGS_DIR=($(sort <<<"${PNG_UNSORTED[*]}"))
     unset IFS    
     
-    echo "Running pRF-analysis; ${txt}"
-
+    #-----------------------------------------------------------------------------
     # check if we got custom specified task ID; otherwise loop through task IDs from setup file
     if [[ ! -z ${task_ID} ]]; then
       IFS=', ' read -r -a search_tasks <<< "${task_ID}"
@@ -452,9 +465,12 @@ for subID in ${search}; do
       search_tasks=${TASK_IDS[@]}
     fi
 
+    #-----------------------------------------------------------------------------
     # loop through tasks
+    echo "Running pRF-analysis; ${txt}"
     for task in ${search_tasks[@]}; do
 
+      #-----------------------------------------------------------------------------
       # Check if we should overwrite file
       if [[ ! -z ${lbl_flag} ]]; then
         if [[ ${lbl_flag} == *"v1"* ]]; then
@@ -468,6 +484,7 @@ for subID in ${search}; do
           exit 1
         fi
 
+        # find existing parameters
         prf_params=$(
           find "${prf_dir}" \
           -type f \
@@ -479,6 +496,7 @@ for subID in ${search}; do
           2>/dev/null
         )
       else
+        # no ROI
         prf_params=$(
           find "${prf_dir}" \
           -type f \
@@ -492,19 +510,19 @@ for subID in ${search}; do
       fi
       
       if [[ ${OW} -eq 1 ]]; then
-        if [[ -f ${prf_params} ]]; then
-          rm -r ${prf_params}
-        fi
+        rm -r "${prf_params}" 2>/dev/null
       fi
 
+      #-----------------------------------------------------------------------------
       # run stuff if file doesn't exist
-      if [[ ! -f ${prf_params} ]] || [[ ! -z ${fit_flag} ]] || [[ ${refit_data} -eq 1 ]]; then
+      if [[ ! -f "${prf_params}" ]] || [[ ! -z ${fit_flag} ]] || [[ ${refit_data} -eq 1 ]]; then
 
         # exclude rest as task
         if [[ ${task} != "rest" ]]; then
 
           echo "Dealing with task-ID: ${task}"
 
+          #-----------------------------------------------------------------------------
           # decide on design matrix for tasks in TASK_IDS
           if [[ ${multi_design} -eq 0 ]]; then
 
@@ -516,15 +534,23 @@ for subID in ${search}; do
               exit 2
             fi
 
-            if [[ -f ${DIR_DATA_HOME}/code/design_task-${task}.mat ]]; then
-              echo "Creating symlink to ${PROJECT}/code/design_task-${task}.mat"
-              ln -s ${DIR_DATA_HOME}/code/design_task-${task}.mat ${prf_dir}/design_task-${task}.mat 2>/dev/null
-              use_pngdir=${DIR_DATA_HOME}/code/design_task-${task}.mat
-            elif [[ -f ${prf_dir}/design_task-${task}.mat ]]; then
-              use_pngdir=${prf_dir}/design_task-${task}.mat
+            #-----------------------------------------------------------------------------
+            # sort out design matrix
+            proj_dm="${DIR_DATA_HOME}/code/design_task-${task}.mat"
+            final_dm="${prf_dir}/design_task-${task}.mat"
+
+            # 1) design exists in "code"-folder
+            if [[ -f "${proj_dm}" ]]; then
+              echo -e "Creating symlink to ${BOLD_GREEN}${proj_dm}${RESET}"
+              ln -s "${proj_dm}" "${final_dm}" 2>/dev/null
+              use_pngdir="${proj_dm}"
+            elif [[ -f "${final_dm}" ]]; then
+              # 2) dm exists in subject folder
+              use_pngdir="${final_dm}"
             else
-              if [[ ! -z ${PNGS_DIR} ]]; then
-                use_pngdir=${PNGS_DIR[0]}
+              # 3) create design from PNGs
+              if [[ ! -z "${PNGS_DIR}" ]]; then
+                use_pngdir="${PNGS_DIR[0]}"
               else
                 echo
                 print_line -
@@ -537,7 +563,14 @@ for subID in ${search}; do
               fi
 
               # check if directory contains png-files
-              if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null) ]]; then
+              pngs=$(
+                find "${use_pngdir}" \
+                -type f \
+                -name "*.png" \
+                2>/dev/null
+              ) 
+                
+              if [[ -z "${pngs[@]}" ]]; then
                 echo
                 print_line -  
                 print_error_msg "$(basename ${0})" "find" "no *.png-files in \"${use_pngdir}\""
@@ -546,15 +579,35 @@ for subID in ${search}; do
             fi
             
           else
+            #-----------------------------------------------------------------------------
+            # multi-session pRF setup
+
             # how cool; list comprehension-like structure in bash
             # https://stackoverflow.com/a/6721137
-            if [[ ! -z ${PNGS_DIR} ]]; then
-              task_dirs=($(for x in ${PNGS_DIR[@]}; do if [[ ${x} == *"task-${task}"* ]]; then echo ${x}; fi done))
-              if [[ ! -z ${task_dirs} ]]; then
-                use_pngdir=${task_dirs[0]}
+            if [[ ! -z "${PNGS_DIR}" ]]; then
+              task_dirs=(
+                $(
+                  for x in ${PNGS_DIR[@]}; do
+                    if [[ ${x} == *"task-${task}"* ]]; then
+                      echo "${x}"
+                    fi
+                  done
+                )
+              )
 
+              # select first directory if many exist
+              if [[ ! -z "${task_dirs}" ]]; then
+
+                use_pngdir="${task_dirs[0]}"
+                pngs=$(
+                  find "${use_pngdir}" \
+                  -type f \
+                  -name "*.png" \
+                  2>/dev/null
+                ) 
+                  
                 # check if directory contains png-files
-                if [[ -z $(find ${use_pngdir} -type f \( -name "*.png" \) 2>/dev/null) ]]; then
+                if [[ -z "${pngs[@]}" ]]; then
                   echo
                   print_line -  
                   print_error_msg "$(basename ${0})" "find" "no *.png-files in \"${use_pngdir}\""
@@ -564,6 +617,7 @@ for subID in ${search}; do
                 echo
                 print_line -  
                 print_error_msg "$(basename ${0})" "find" "Could not find \"task-${task}\" folders in ${BOLD_GREEN}${PNGS_DIR}${RESET}"
+              fi
             else
               echo
               print_line -
@@ -578,13 +632,14 @@ for subID in ${search}; do
 
           echo "Using \"${use_pngdir}\" for design matrix"
 
-          # check if we have screen delimiter file (should be json file) if clip=1 (can be set to 0 by --no-clip)
+          #-----------------------------------------------------------------------------
+          # check delimiter file (should be json file) if clip=1 (can be set to 0 by --no-clip)
           if [[ ${clip} -eq 1 ]]; then
 
             # check if we got manual clip information
             if [[ -z ${clipper} ]]; then
 
-              if [[ -d ${use_pngdir} ]]; then
+              if [[ -d "${use_pngdir}" ]]; then
                 # check first if we have a json file
                 screen_=$(
                   find "$(dirname ${use_pngdir})" \
@@ -622,12 +677,14 @@ for subID in ${search}; do
             fi
           fi
 
+          #-----------------------------------------------------------------------------
           # decide how to execute the process
           if [[ ${refit_data} -eq 0 ]]; then
             script_name="call_prf"
           else
             script_name="call_refit"
 
+            #-----------------------------------------------------------------------------
             # check bold file/ design matrix
             bold_file=$(
               find "${prf_dir}" \
@@ -637,14 +694,14 @@ for subID in ${search}; do
               2>/dev/null
             )
 
-            if [[ ! -f ${bold_file} ]]; then
+            if [[ ! -f "${bold_file}" ]]; then
               print_file_not_in_dir "${sub-name}" "\"hemi-LR\" and \"avg_bold.npy\"" "${prf_dir}"
               exit 1
             fi
 
             # design file should exist by now
             dm_file="${prf_dir}/design_task-${task}.mat"
-            if [[ ! -f ${dm_file} ]]; then
+            if [[ ! -f '${dm_file}' ]]; then
               print_file_not_exist "${sub_name}" "${dm_file}"
               exit 1
             fi
@@ -657,15 +714,15 @@ for subID in ${search}; do
               echo "Refitting \"${prf_params}\""
               
               # rename iter fit to grid; iter will be the refitted data
-              if [[ ${prf_params} == *"stage-iter"* ]]; then
-                file_grid=${prf_params//stage-iter/stage-grid}
+              if [[ "${prf_params}" == *"stage-iter"* ]]; then
+                file_grid="${prf_params//stage-iter/stage-grid}"
                 cp "${prf_params}" "${file_grid}" 2>/dev/null
               fi
               par_flag="--old ${prf_params}"
             fi
-
           fi
 
+          #-----------------------------------------------------------------------------
           # decide job
           job="$(
             decide_job_type \
@@ -677,6 +734,7 @@ for subID in ${search}; do
               "${SGE_QUEUE}"
           )"
 
+          #-----------------------------------------------------------------------------
           # define call to call_prf
           export DISPLAY=:0
           cmd=(
@@ -718,6 +776,7 @@ for subID in ${search}; do
             "${fix_hrf}"
           )
 
+          # print and run
           if [[ ${run_local} -eq 1 ]]; then
             print_cmd "${cmd[@]}"
           fi

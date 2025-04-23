@@ -37,13 +37,13 @@ Usage:
   call_antsapplytopoints [arguments] [options] <input csv|coord> <output csv> <warp file>
 
 Arguments:
-  <-i>            invert selected <warp file> (no argument required). Paradoxially, if you have a
-                  coordinate in space B that needs to go to space A, and the warp describes the
-                  transformation from A to B, you do NOT need to invert the matrix!
   <-d dimension>  image dimensions (default = 3)
 
 Options:
   -h|--help       print this help text
+  -i|--invert     invert selected <warp file> (no argument required). Paradoxially, if you have a
+                  coordinate in space B that needs to go to space A, and the warp describes the
+                  transformation from A to B, you do NOT need to invert the matrix!
   --ras           input coordinate is RAS (default)
   --lpi           input coordinate is LPI
   --coord         print the coordinate to the terminal
@@ -51,13 +51,14 @@ Options:
                   fault. Unless this flag is specified. Then the file is retained
 
 Positional:
-  <input csv>     file containing coordinate that we need to warp (NEEDS TO BE LPS!!). If your 
-                  coordinate comes straight from FreeSurfer/Pycortex, it's in RAS convention. If 
-                  that's the case, make sure to use 'call_antsmakechicken <coord> <filename> RAS'!
-                  You can also specify a comma-separated coordinate in any space (use --ras/--lpi),
-                  in which case a temporary chicken file is produced. The coordinate must be in 
-                  the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO AVOID THAT THE
-                  ARGUMENT HANDLES THINKS THE COORDINATE IS A FLAG !!
+  <input csv>     Input file/coordinate:     
+                    - file containing coordinate that we need to warp (NEEDS TO BE LPS!!). If your 
+                      coordinate comes straight from FreeSurfer/Pycortex, it's in RAS convention. 
+                      If that's the case, make sure to use 'call_antsmakechicken <coord> 
+                      <filename> RAS'!
+                    - You can also specify a comma-separated coordinate in any space (use --ras/
+                      --lpi), in which case a temporary chicken file is produced. The coordinate must be in the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO 
+                      AVOID THAT THE ARGUMENT HANDLES THINKS THE COORDINATE IS A FLAG !!
   <output csv>    file containing the coordinate in the new space
   <warp files>    all warp files in order of application; if multiple warp files
 
@@ -71,20 +72,23 @@ Example:
   # print output coordinate
   call_antsapplytopoints \\
     --coord \\
-    -i point_in_space1.csv \\
+    -i \\
+    point_in_space1.csv \\
     point_in_space2.csv \\
     from-space1_to-space2.mat
   
   # input RAS coordinate (it assumes RAS-coordinate, unless --lps is specified)
   call_antsapplytopoints \\
-    -i \"-8.38654,-93.1835,-39.7082\" \\
+    --invert \\
+    \"-8.38654,-93.1835,-39.7082\" \\
     point_in_space2.csv \\
     from-space1_to-space2.mat  
 
   # input LPS coordinate
   call_antsapplytopoints \\
     --lps \\
-    -i \"8.38654,93.1835,-39.7082\" \\
+    --invert \\
+    \"8.38654,93.1835,-39.7082\" \\
     point_in_space2.csv \\
     from-space1_to-space2.mat  
 
@@ -147,10 +151,31 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-IN_CSV=${@:$OPTIND:1}
-OUT_CSV=${@:$OPTIND+1:1}
-WARP=$(readlink -f ${@:$OPTIND+2:1})
+#-----------------------------------------------------------------------------
+# read args
+IN_CSV="${@:$OPTIND:1}"
+OUT_CSV="${@:$OPTIND+1:1}"
+WARP="${@:$OPTIND+2:1}"
 
+#-----------------------------------------------------------------------------
+# check if input exists
+if [[ -z "${OUT_CSV}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+if [[ -z "${WARP}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify transformation file"
+  exit 1
+else
+  WARP=$(readlink -f "${WARP}")
+fi
+
+#-----------------------------------------------------------------------------
 # check if we have to invert our matrix
 APPLY="[${WARP},${INVERT}]"
 
@@ -160,21 +185,37 @@ else
   DIMS=3
 fi
 
+#-----------------------------------------------------------------------------
 # check if input is a set of coordinates
-if [[ ! -f ${IN_CSV} ]]; then
-  tmp_chicken=$(dirname ${OUT_CSV})/tmp.csv
+if [[ -f "${IN_CSV}" ]]; then
+  input_csv="${IN_CSV}"
+  rm_file=0
+else
+  tmp_chicken="$(dirname ${OUT_CSV})/tmp.csv"
+  in_coord=$(echo "${IN_CSV}" | tr -d '"')
+  cmd=(
+    call_antsmakechicken
+    "${in_coord}"
+    "${tmp_chicken}"
+    "${trafo_type}"
+  )
 
-  in_coord=$(echo $IN_CSV | tr -d '"')
-  call_antsmakechicken ${in_coord} ${tmp_chicken} ${trafo_type}
-  input_csv=${tmp_chicken}
+  # print and run
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  # set input
+  input_csv="${tmp_chicken}"
 
   rm_file=1
   if [[ ${keep_tmp} -eq 1 ]]; then
     rm_file=0
   fi
-else
-  input_csv=${IN_CSV}
-  rm_file=0
 fi
 
 # apply
@@ -186,16 +227,16 @@ cmd=(
   --transform "${APPLY}"
 )
 
+# print and run
 if [[ ${verb} -eq 1 ]]; then
   print_cmd "${cmd[@]}"
 fi
 
 eval "${cmd[@]}"
-
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" antsApplyTransformsToPoints
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
   exit 1
 fi
 

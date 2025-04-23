@@ -95,9 +95,27 @@ if [[ $# -lt 1 ]]; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 SUB=${@:$OPTIND:1}
 OUT=${@:$OPTIND+1:1}
 
+if [[ -z "${SUB}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify subject ID"
+  exit 1
+fi
+
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# decide surface type
 if [[ ${fiducial} -eq 1 ]]; then
   SURF="fiducial"
 fi
@@ -110,6 +128,8 @@ if [[ ${pial} -eq 1 ]]; then
   SURF="pial"
 fi
 
+#-----------------------------------------------------------------------------
+# start
 start_timer "call_distance; distance estimation using Dykstra's algorithm"
 echo "sub   = ${SUB}"
 echo "surf  = ${SURF}"
@@ -119,6 +139,8 @@ echo "start = ${start_v}"
 echo "end   = ${end_v}"
 echo "out   = ${OUT}"
 
+#-----------------------------------------------------------------------------
+# clean up
 function clean {
   rm -r $PWD/M_weights_distance.mat 2>/dev/null
   rm -r $PWD/options.txt 2>/dev/null
@@ -128,6 +150,8 @@ function clean {
   rm -r $PWD/cost.txt 2>/dev/null
 }
 
+#-----------------------------------------------------------------------------
+# read vertices 
 function read_vertices {
   PYTHON_CODE=$(cat <<END
 from cxutils import optimal;
@@ -144,6 +168,8 @@ END
   echo $PYTHON_CODE
 }
 
+#-----------------------------------------------------------------------------
+# redo vertices
 function fill_vertices {
   PYTHON_CODE=$(cat <<END
 import json;
@@ -227,7 +253,7 @@ else
       done
     fi
     # iteratively fill vertices where process exited with non-zero status
-    fill_vertices ${OUT}
+    fill_vertices "${OUT}"
   fi 
 fi
 

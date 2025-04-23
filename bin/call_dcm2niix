@@ -217,17 +217,24 @@ fi
 #-----------------------------------------------------------------------------
 # Run it
 
-if [[ ! -d ${pathOutput} ]]; then
-  mkdir -p ${pathOutput}
+if [[ ! -d "${pathOutput}" ]]; then
+  mkdir -p "${pathOutput}"
 fi
 
-log=${pathInput}/log.txt
-if [[ -f ${log} ]]; then
-  rm ${log}
-fi
+log="${pathInput}/log.txt"
+rm "${log}" 2>/dev/null
 
 # redirect output to log-file so we can monitor catastrophic errors
-n_par_files=($(find ${pathInput} -type f -iname "*par"))
+n_par_files=(
+  $(
+    find "${pathInput}" \
+    -type f \
+    -iname "*par"
+  )
+)
+
+#-----------------------------------------------------------------------------
+# if PAR-files, use parrec2nii
 if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 
   echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
@@ -248,6 +255,7 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
     echo
   } >> "$log"
   
+  #-----------------------------------------------------------------------------
   # Convert using parrec2nii (adjust output handling if needed)
   print_cmd "${cmd[@]}" && eval "${cmd[@]}" >> "${log}" 2>&1
 
@@ -256,7 +264,8 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
     exit 1
   fi
 else
-
+  #-----------------------------------------------------------------------------
+  # otherwise, use dcm2niix
   echo "Assuming DICOM format, using 'dcm2niix'"
   
   # Turn kwargs into space-separated array

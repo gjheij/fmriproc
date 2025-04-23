@@ -119,11 +119,15 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
+#-----------------------------------------------------------------------------
+# read args
 SUBJECT=${@:$OPTIND:1}
 MOVING=${@:$OPTIND+1:1}
 OUTPUT=${@:$OPTIND+2:1}
 
-if [[ ! -d ${FS}/${SUBJECT} ]]; then
+#-----------------------------------------------------------------------------
+# Check if FreeSurfer ran
+if [[ ! -d "${FS}/${SUBJECT}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Directory doesn't exist. Run FreeSurfer first.."
@@ -131,22 +135,30 @@ if [[ ! -d ${FS}/${SUBJECT} ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Start loop
-
-if [[ ! -f ${MOVING} ]]; then
+# check inputs
+if [[ ! -f "${MOVING}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "Could not find moving image ${BOLD_GREEN}\"${MOVING}\"${RESET}"
+  print_error_msg "$(basename ${0})" "find" "Could not find MOVING image ${BOLD_GREEN}\"${MOVING}\"${RESET}"
+  exit 1
+else
+  MOVING=$(readlink -f "${MOVING}")
+fi
+
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
+# get extension
 filename=$(basename -- "${init}")
 extension="${filename##*.}"
 filename="${filename%.*}"
 
-# echo $filename
-# echo $extension
-
+#-----------------------------------------------------------------------------
 # Turn kwargs into space-separated array
 if [[ -n "${kwargs}" ]]; then
   IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
@@ -164,6 +176,7 @@ cmd_args=(
   --mov "${MOVING}"
 )
 
+#-----------------------------------------------------------------------------
 # check the initialization
 if [[ ! "$arg_str" =~ (--init-reg|--init-header) ]]; then
 
@@ -182,6 +195,7 @@ if [[ ! "$arg_str" =~ (--init-reg|--init-header) ]]; then
   cmd_args+=("${init}")
 fi
 
+#-----------------------------------------------------------------------------
 # check reg output
 format="--reg ${OUTPUT}.dat"
 if [[ ! "$arg_str" =~ (--fslmat) ]]; then
@@ -190,18 +204,19 @@ if [[ ! "$arg_str" =~ (--fslmat) ]]; then
   fi
   cmd_args+=("${format}")
 fi
-
+#-----------------------------------------------------------------------------
 # check contrast
 if [[ ! "$arg_str" =~ (--t1|--t2|--bold|--dti) ]]; then
   cmd_args+=("${contrast}")
 fi
 
+#-----------------------------------------------------------------------------
 # Add user-specified options
 cmd_args+=("${user_args[@]}")
 
+#-----------------------------------------------------------------------------
 # print and run
 print_cmd "${cmd_args[@]}" && eval "${cmd_args[@]}"
-
 if [[ $? -ne 0 ]]; then
   echo
   print_line -

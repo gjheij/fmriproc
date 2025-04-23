@@ -70,94 +70,150 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
+# read args
 INPUT=${@:$OPTIND:1}
 OUTPUT=${@:$OPTIND+1:1}
 
 #-----------------------------------------------------------------------------
-# Define default LOG-path
-if [[ -z ${LOG} ]]; then
-  if [[ -z ${DIR_LOGS} ]]; then
-    LOG_DIR=${PWD}
-  else
-    LOG_DIR=${DIR_LOGS}
-  fi
+# check inputs
+if [[ ! -f "${INPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
+  exit 1
 else
-  LOG_DIR=${LOG}
+  INPUT=$(readlink -f "${INPUT}")
 fi
 
-if [[ ! -d ${LOG_DIR} ]]; then
-  mkdir -p ${LOG_DIR}
+if [[ -z "${OUTPUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Define default LOG-path
+if [[ -z "${LOG}" ]]; then
+  if [[ -z "${DIR_LOGS}" ]]; then
+    LOG_DIR="${PWD}"
+  else
+    LOG_DIR="${DIR_LOGS}"
+  fi
+else
+  LOG_DIR="${LOG}"
+fi
+
+if [[ ! -d "${LOG_DIR}" ]]; then
+  mkdir -p "${LOG_DIR}"
 fi
 
 #-----------------------------------------------------------------------------
 # Define default SPM-path
-if [[ -z ${SPM} ]]; then
-  if [[ -z ${SPM_PATH} ]]; then
-    echo "ERROR: SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
+if [[ -z "${SPM}" ]]; then
+  if [[ -z "${SPM_PATH}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "SPM" "SPM_PATH-variable is empty. Either define it, or specify an SPM-path with \"-s <path/to/spm>\""
     exit 1
   else
-    SPM_PATH=${SPM_PATH}
+    SPM_PATH="${SPM_PATH}"
   fi
 else
-  SPM_PATH=${SPM}
+  SPM_PATH="${SPM}"
 fi
 
 # double check if directory exists
-if [[ ! -d ${SPM_PATH} ]]; then
+if [[ ! -d "${SPM_PATH}" ]]; then
+  echo
+  print_line -
   print_error_msg "$(basename ${0})" "SPM" "Could not find SPM directory ${BOLD_GREEN}${SPM_PATH}${RESET}"
   exit 1
 fi
 
-# if file specified is in current directory, add entire path
-INPUT=$(fetch_filepath ${INPUT})
-
-ext=$(fetch_extension ${INPUT})
+#-----------------------------------------------------------------------------
+# get extension and make nii
+ext=$(fetch_extension "${INPUT}")
 if [[ ${ext} == "gz" ]]; then
-  in_file=$(dirname ${INPUT})/$(basename ${INPUT} .gz)
-  gunzip -fc ${INPUT} > ${in_file}
+  in_file="${INPUT%.gz}"
+  gunzip -fc "${INPUT}" > "${in_file}"
 else
-  in_file=${INPUT}
+  in_file="${INPUT}"
 fi
 
 #-----------------------------------------------------------------------------
 # Create new script
-new_script=$(dirname ${in_file})/spm_sanlm.m
-if [[ -f ${new_script} ]]; then
-  rm -r ${new_script}
+output_dir="$(dirname "${OUTPUT}")"
+new_script="$(dirname "${in_file}")/spm_sanlm.m"
+rm -r "${new_script}" 2>/dev/null
+
+# make output directory
+if [[ ! -d "${output_dir}" ]]; then
+  mkdir -p "${output_dir}"
 fi
 
-if [[ ! -d $(dirname ${OUTPUT}) ]]; then
-  mkdir -p $(dirname ${OUTPUT})
-fi
+#-----------------------------------------------------------------------------
+# check output
+filter_img=$(
+  find "$(dirname "${in_file}")" \
+  -type f \
+  -name "sanlm_$(basename "${in_file}")"* \
+  2>/dev/null
+)
 
-filter_img=$(find $(dirname ${in_file}) -type f -name "sanlm_$(basename ${in_file})*" 2>/dev/null)
-if [[ -z ${filter_img} ]]; then
+if [[ -z "${filter_img}" ]]; then
 
-  make_sanlm_script ${SPM_PATH} ${in_file} ${new_script}
+  #-----------------------------------------------------------------------------
+  # make script
+  make_sanlm_script \
+    "${SPM_PATH}" \
+    "${in_file}" \
+    "${new_script}"
 
+  #-----------------------------------------------------------------------------
   # call_matlab = in call_bashhelper
   call_matlab ${new_script}
-
   if [[ $? -ne 0 || ! -f "${filter_img}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "make_sanlm_script"
     exit 1
   fi
-
 fi
 
+#-----------------------------------------------------------------------------
 # Convert SPM's .nii-files to .nii.gz if the input file was nii.gz
-filter_img=$(find $(dirname ${in_file}) -type f -name "sanlm_$(basename ${in_file})*" 2>/dev/null)
-if [[ ! -z ${filter_img} ]]; then
-  if [[ ${ext} == "gz" ]]; then
-    gzip -fc ${filter_img} > ${OUTPUT} 2>/dev/null
+filter_img=$(
+  find "$(dirname "${in_file}")" \
+  -type f \
+  -name "sanlm_$(basename "${in_file}")"* \
+  2>/dev/null
+)
 
-    rm -r ${in_file} 2>/dev/null
-  
+if [[ ! -z "${filter_img}" ]]; then
+  if [[ ${ext} == "gz" ]]; then
+    gzip -fc "${filter_img}" > "${OUTPUT}" 2>/dev/null
+    rm -r "${in_file}" 2>/dev/null  
   else
-    mv ${filter_img} ${OUTPUT}
+    mv "${filter_img}" "${OUTPUT}"
   fi
-  rm -r ${filter_img} 2>/dev/null
-  call_copyheader ${INPUT} ${OUTPUT}
+  rm -r "${filter_img}" 2>/dev/null
+fi
+
+#-----------------------------------------------------------------------------
+# copy header
+cmd=(
+  call_copyheader
+  "${in_file}"
+  "${OUTPUT}"
+)
+
+# run
+eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo 
+  print_line -
+  print_error_msg "$(basename ${0})" "${cmd[0]}"
+  exit 1
 fi

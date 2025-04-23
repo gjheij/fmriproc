@@ -88,12 +88,13 @@ SUBJECT=${@:$OPTIND:1}
 
 #-----------------------------------------------------------------------------
 # Check some directories/files
-if [[ ! -d $CTX/${SUBJECT} ]]; then
-  call_ctximport -s ${SUBJECT}
+if [[ ! -d "$CTX/${SUBJECT}" ]]; then
+  call_ctximport -s "${SUBJECT}"
 fi
 
-orig=${FS}/${SUBJECT}/mri/orig.nii.gz
-ses2=$(find "${DIR_DATA_HOME}/${SUBJECT}/ses-${SESSION}/anat" \
+orig="${FS}/${SUBJECT}/mri/orig.nii.gz"
+ses2=$(
+  find "${DIR_DATA_HOME}/${SUBJECT}/ses-${SESSION}/anat" \
   -type f \
   -name "${SUBJECT}*" \
   -and -name "*acq-MP2RAGE_T1w.nii.gz" \
@@ -101,10 +102,10 @@ ses2=$(find "${DIR_DATA_HOME}/${SUBJECT}/ses-${SESSION}/anat" \
 )
 
 # convert mgz to nifti
-if [[ ! -f ${orig} ]]; then
+if [[ ! -f "${orig}" ]]; then
   cmd=(
     call_mriconvert
-    "$(dirname ${orig})/$(basename ${orig} .nii.gz).mgz"
+    "${orig/.nii.gz/.mgz}"
   )
   eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
@@ -113,24 +114,24 @@ if [[ ! -f ${orig} ]]; then
   fi  
 fi
 
-if [[ -z ${ses2} ]]; then
+if [[ -z "${ses2}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find ses-${SESSION} anatomy"
   exit 1
 fi
 
-aff=${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-ses${SESSION}_desc-genaff.mat
-if [[ ! -d $(dirname ${aff}) ]]; then
-  mkdir -p $(dirname ${aff})
+aff="${CTX}/${SUBJECT}/transforms/${SUBJECT}_from-fs_to-ses${SESSION}_desc-genaff.mat"
+if [[ ! -d "$(dirname ${aff})" ]]; then
+  mkdir -p "$(dirname ${aff})"
 fi
 
-if [[ ! -f ${aff} ]]; then
+if [[ ! -f "${aff}" ]]; then
   cmd=(
     call_antsregistration
     "${ses2}"
     "${orig}"
-    "$(dirname ${aff})/$(basename ${aff} genaff.mat)"
+    "${aff%genaff.mat}"
     rigid
   )
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"

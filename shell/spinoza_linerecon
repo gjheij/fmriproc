@@ -173,15 +173,15 @@ fi
 start_timer "Reconstruction of line-scanning data [Luisa's scripts]"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
-  # set paths
+  # check input folder
   lab_func="${INPUT}/${base_path}"
   if [[ -d "${lab_func}" ]]; then
 
@@ -190,7 +190,8 @@ for subID in ${search}; do
       mkdir -p "${bidsfunc}"
     fi
 
-    # fetch and sort the lab-files
+    #-----------------------------------------------------------------------------
+    # find bold files with 'run-'
     if [[ ! -z ${runs} ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
@@ -212,6 +213,8 @@ for subID in ${search}; do
       unset IFS
 
     else
+      #-----------------------------------------------------------------------------
+      # no run-identifier specified
       bold_files=(
         $(
           find -L "${lab_func}" \
@@ -224,7 +227,7 @@ for subID in ${search}; do
       )
     fi
 
-    if [[ -z ${bold_files} ]]; then
+    if [[ -z "${bold_files}" ]]; then
       print_file_not_in_dir "${sub_name}" "line-scanning data (*.lab)" "${lab_func}"
       continue
     fi
@@ -232,22 +235,26 @@ for subID in ${search}; do
     # print header
     print_subject_header ${sub_name}
 
+    #-----------------------------------------------------------------------------
+    # loop through bold-files
     count=0
     old_lsd=""
     for bold in ${bold_files[@]}; do
 
+      # update counter
       ((count++))
 
-      # fetch run
+      #-----------------------------------------------------------------------------
+      # fetch IDs
       run=$(run_id "${bold}")
       if [[ ${run} -eq 0 ]]; then
         run=${count}
       fi
 
-      # fetch task
       task=$(task_id "${bold}")
 
-      # get task from corresponding PAR-file, which is more accurate than gtpackngo's export names
+      #-----------------------------------------------------------------------------
+      # try to read identifiers from par-file
       par_file=(
         $(
           find "$(dirname ${bold})" \
@@ -260,7 +267,7 @@ for subID in ${search}; do
           2>/dev/null
         )
       )
-
+  
       if [[ -f ${par_file} ]]; then
         if [[ ${#par_file[@]} -gt 1 ]]; then
           echo
@@ -271,7 +278,8 @@ for subID in ${search}; do
         else
           par_file=${par_file[0]}
         fi
-        
+
+        #-----------------------------------------------------------------------------
         # read protocol name from par
         fileparts=$(
           read_par \
@@ -289,6 +297,7 @@ for subID in ${search}; do
           "number of echoes"
         )
 
+        #-----------------------------------------------------------------------------
         # define echo flag
         if [[ -z ${echo_flag} ]]; then
           if [[ ! -z ${n_par_echo} ]]; then
@@ -305,24 +314,32 @@ for subID in ${search}; do
         fi
       fi
 
+      #-----------------------------------------------------------------------------
       # set output name
       outputbase="${bidsfunc}/${base}_task-${task}_run-${run}_${suffix}"
       if [[ ${OW} -eq 1 ]]; then
         rm -r "${outputbase}.mat" 2>/dev/null
       fi
 
-      # decide when to execute command
+      #-----------------------------------------------------------------------------
+      # set execution rules
       execute_cmd=0
+
+      # 1) if output doesn't exists
       if [[ ! -f "${outputbase}.mat" ]]; then
         execute_cmd=1
       fi
-
+      
+      # 2) --debug is specified (just for printing)
       if [[ ! -z ${DEBUG} ]]; then
         execute_cmd=1
       fi
 
+      #-----------------------------------------------------------------------------
+      # execute
       if [[ ${execute_cmd} -eq 1 ]]; then
 
+        #-----------------------------------------------------------------------------
         # find corresponding LSD-image
         lsd=$(
           find "${lab_func}" \
@@ -344,6 +361,7 @@ for subID in ${search}; do
           exit 1
         fi
 
+        #-----------------------------------------------------------------------------
         # check run-specific LSD?
         if [[ -z "${lsd}" ]]; then
           # old LSD?
@@ -380,11 +398,14 @@ for subID in ${search}; do
           fi
         fi
 
+        #-----------------------------------------------------------------------------
+        # set log file
         log_file="$(dirname ${bidsfunc})/$(basename ${outputbase}).log"
         if [[ ${run_local} -eq 1 && ${verbose} -eq 1 ]]; then
           echo -e "Running recon for run-${BOLD_RED}${run}${RESET} (task-${BOLD_RED}${task}${RESET})"
         fi
 
+        #-----------------------------------------------------------------------------
         # decide the job type
         job="$(
           decide_job_type \
@@ -395,7 +416,7 @@ for subID in ${search}; do
           "1" \
           "${SGE_QUEUE}"
         )"
-
+        
         # define cmd
         cmd=(
           "${job}"

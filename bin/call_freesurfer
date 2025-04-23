@@ -207,20 +207,20 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-if [[ -z ${SUBJECTS_DIR} ]]; then
+if [[ -z "${SUBJECTS_DIR}" ]]; then
   echo "SUBJECTS_DIR is not set"
   exit 1
 fi
 
-if [[ -z ${subj_ID} ]]; then
+if [[ -z "${subj_ID}" ]]; then
   Usage
   echo "Whatever you want to do, I'll always need a subject ID"
   exit 1
 fi
 
 # check if we got expert file
-if [[ ! -z ${EXPERT_FILE} ]]; then
-  if [[ ! -f ${EXPERT_FILE} ]]; then
+if [[ ! -z "${EXPERT_FILE}" ]]; then
+  if [[ ! -f "${EXPERT_FILE}" ]]; then
     echo 
     print_line -
     print_error_msg "$(basename ${0})" "file" "Specified expert file \"${EXPERT_FILE}\" does not exist"
@@ -232,7 +232,7 @@ if [[ ! -z ${EXPERT_FILE} ]]; then
   # check if there's an expert-options file already and whether the user has specified a protocol
   subj_xopts="${SUBJECTS_DIR}/${subj_ID}/scripts/expert-options"
   if [[ -f "${subj_xopts}" ]]; then
-    if [[ -z ${XOPTS_} ]]; then
+    if [[ -z "${XOPTS_}" ]]; then
       echo 
       print_line -
       print_error_msg "$(basename ${0})" "file" "An expert-options file was specified, but one already exists [${BOLD_GREEN}${subj_xopts}${RESET}]."
@@ -278,28 +278,25 @@ define_fs_command(){
   fi
 
   # delete previously existing file
-  fs_script=${PATH_HOME}/freesurfer/${PROJECT}/${subj_id}_stage-${stage_id}.sh
-  echo $fs_script
-  if [[ -f ${fs_script} ]]; then
-    rm -r ${fs_script}
-  fi
+  fs_script="${PATH_HOME}/freesurfer/${PROJECT}/${subj_id}_stage-${stage_id}.sh"
+  echo "${fs_script}"
+  rm -r "${fs_script}" 2>/dev/null
 
   # bash will complain if you want to create a file but the directory doesn't exist
-  if [[ ! -d $(dirname ${fs_script}) ]]; then
-    mkdir -p $(dirname ${fs_script})
+  if [[ ! -d "$(dirname ${fs_script})" ]]; then
+    mkdir -p "$(dirname ${fs_script})"
   fi
 
   # remove old log file
-  if [ -f $(dirname ${fs_script})/$(basename ${fs_script} .sh).log ]; then
-    rm $(dirname ${fs_script})/$(basename ${fs_script} .sh).log
-  fi 
+  log_file="${fs_script/.sh/.log}"
+  rm "${log_file}" 2>/dev/null
 
   # If you have ran FreeSurfer in fMRIprep, fsaverage will miss a few labels that
   # FreeSurfer v7 has.
-  if [[ ! -z ${SGE_QUEUE} ]]; then
-    QUEUE=${SGE_QUEUE}
+  if [[ ! -z "${SGE_QUEUE}" ]]; then
+    QUEUE="${SGE_QUEUE}"
   else
-    QUEUE=${SGE_QUEUE_LONG}
+    QUEUE="${SGE_QUEUE_LONG}"
   fi    
   
 # Generate recon-all script
@@ -330,7 +327,7 @@ EOF
       "$(dirname ${fs_script})"
     )
   
-    ${submit} ${fs_script}
+    eval "${submit}" "${fs_script}"
     echo "Now wait until the program has finished and do some editing in FreeView if required."
     echo "Waiting to qstat/squeue.."
     sleep 5
@@ -343,7 +340,7 @@ EOF
     fi
   else
     echo "Running FreeSurfer locally"
-    bash ${fs_script}
+    bash "${fs_script}"
     echo "Now do some editing in FreeView if required."
   fi
 
@@ -360,17 +357,32 @@ validate_inputs(){
     fi
   else
     if [[ ${1} == "all" || ${1} == *"1"* ]]; then
-      T1=$(fetch_filepath ${T1})
+
+      if [[ ! -f "${T1}" ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" T1w "Could not find T1w image \"${BOLD_GREEN}${T1}${RESET}\""
+        exit 1
+      else
+        T1=$(readlink -f "${T1}")
+      fi
       T1_flag="-i ${T1}"
     fi
   fi
 
-  if [[ ! -z ${T2} ]]; then
+  if [[ ! -z "${T2}" ]]; then
     # also got a T2 weighted image
-    T2=$(fetch_filepath ${T2})
+    if [[ ! -f "${T2}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" T2w "Could not find T2w image \"${BOLD_GREEN}${T2}${RESET}\""
+      exit 1
+    else
+      T2=$(readlink -f "${T2}")
+    fi
 
     # check if input if FLAIR or T2
-    if [[ ${T2} == *"T2w.nii.gz"* ]]; then
+    if [[ "${T2}" == *"T2w.nii.gz"* ]]; then
       if [[ ${1} == "all" ]]; then
         T2_flag="-T2 ${T2} -T2pial"
       else
@@ -380,7 +392,7 @@ validate_inputs(){
           T2_flag=""
         fi
       fi
-    elif [[ ${T2} == *"FLAIR.nii.gz"* ]]; then
+    elif [[ "${T2}" == *"FLAIR.nii.gz"* ]]; then
       if [[ ${1} == "all" ]]; then
         T2_flag="-FLAIR ${T2} -FLAIRpial"
       else
@@ -400,9 +412,9 @@ validate_inputs(){
     # for stage != 'all', check if there's a T2.mgz file in the mri folder if no T2 image was specified
     if [[ ${1} != "all" || ${1} != *"1"* ]]; then
       if [[ ${reuse_t2} -eq 1 ]]; then
-        if [[ -f ${SUBJECTS_DIR}/${subj_ID}/mri/T2.mgz ]]; then
+        if [[ -f "${SUBJECTS_DIR}/${subj_ID}/mri/T2.mgz" ]]; then
           T2_flag="-T2pial"
-        elif [[ -f ${SUBJECTS_DIR}/${subj_ID}/mri/FLAIR.mgz ]]; then
+        elif [[ -f "${SUBJECTS_DIR}/${subj_ID}/mri/FLAIR.mgz" ]]; then
           T2_flag="-FLAIRpial"
         fi
       fi
@@ -414,7 +426,7 @@ validate_inputs(){
 }
 
 check_is_running(){
-  is_running=${SUBJECTS_DIR}/${subj_ID}/scripts/IsRunning.lh+rh
+  is_running="${SUBJECTS_DIR}/${subj_ID}/scripts/IsRunning.lh+rh"
   if [[ -f ${is_running} ]]; then
     rm -r ${is_running}
   fi
@@ -425,12 +437,12 @@ check_execution(){
   # execute either when there's no directory, or when there's no files in /surf, or force-exec=1
   execute=0
 
-  if [[ -d ${SUBJECTS_DIR}/${subj_ID} ]]; then
-    if [[ ! -d ${SUBJECTS_DIR}/${subj_ID}/surf ]]; then
+  if [[ -d "${SUBJECTS_DIR}/${subj_ID}" ]]; then
+    if [[ ! -d "${SUBJECTS_DIR}/${subj_ID}/surf" ]]; then
       reason="directory \"${SUBJECTS_DIR}/${subj_ID}\" is empty"
       execute=1
     else
-      nr_files=$(ls -l ${SUBJECTS_DIR}/${subj_ID}/surf | grep "total" | cut -d' ' -f2)
+      nr_files=$(ls -l "${SUBJECTS_DIR}/${subj_ID}/surf" | grep "total" | cut -d' ' -f2)
       if [ ${nr_files} -eq 0 ]; then
         reason="directory \"${SUBJECTS_DIR}/${subj_ID}/surf\" is empty"
         execute=1
@@ -451,14 +463,14 @@ check_execution(){
 #-----------------------------------------------------------------------------
 # Run it
 
-if [[ ! -d ${SUBJECTS_DIR} ]]; then
-  mkdir -p ${SUBJECTS_DIR}
+if [[ ! -d "${SUBJECTS_DIR}" ]]; then
+  mkdir -p "${SUBJECTS_DIR}"
 fi
 
 # start with the simplest option: check if there's gcut
 if [[ ! -z ${option} ]]; then
 
-  if [ ! -d ${SUBJECTS_DIR}/${subj_ID} ]; then
+  if [ ! -d "${SUBJECTS_DIR}/${subj_ID}" ]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "gcut" "You're trying to run gcut (i presume) before running recon-all..?"
@@ -472,14 +484,28 @@ if [[ ! -z ${option} ]]; then
     fi
   fi
 
-  if [ ! -d ${SUBJECTS_DIR}/${subj_ID}_backup ]; then
+  if [ ! -d "${SUBJECTS_DIR}/${subj_ID}_backup" ]; then
     echo "Backing up FS-directory"
-    cp -r ${SUBJECTS_DIR}/${subj_ID} ${SUBJECTS_DIR}/${subj_ID}_backup
+    cp -r "${SUBJECTS_DIR}/${subj_ID}" "${SUBJECTS_DIR}/${subj_ID}_backup" 2>/dev/null
   fi
 
   if [[ -z ${edit} ]]; then
     echo "Running gcut .."
-    recon-all -skullstrip -clean-bm -gcut -s ${subj_ID}
+    cmd=(
+      recon-all
+      -skullstrip
+      -clean-bm
+      -gcut
+      -s "${subj_ID}"
+    )
+
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}"
+      exit 1
+    fi
   else
     echo
     print_line -

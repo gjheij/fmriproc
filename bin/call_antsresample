@@ -56,13 +56,42 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-if [[ -z $3 ]]; then
-  output=$(dirname ${1})/$(basename ${1} .nii.gz)_resampled.nii.gz
+#-----------------------------------------------------------------------------
+# read args
+input=${@:$OPTIND:1}
+new_matrix=${@:$OPTIND+1:1}
+output=${@:$OPTIND+2:1}
+
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${input}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  exit 1
 else
-  output=$3
+  input=$(readlink -f "${input}")
 fi
 
-if [[ ! -f ${output} ]]; then
+if [[ -z "${new_matrix}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify a matrix (e.g., '256x256x192')"
+  exit 1
+fi
+
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# set output
+if [[ -z "${output}" ]]; then
+  output="${input/.nii.gz/_resampled.nii.gz}"
+fi
 
  #  Usage: ResampleImage imageDimension inputImage outputImage MxNxO [size=1,spacing=0] [interpolate type] [pixeltype]
  #  Interpolation type:
@@ -81,21 +110,21 @@ if [[ ! -f ${output} ]]; then
  #  6  :  float (default)
  #  7  :  double
  #
-  cmd=(
-    ResampleImage
-    3 
-    "${1}"
-    "${output}" 
-    "${2}"
-    3
-    2
-  )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-  if [[ $? -ne 0 ]]; then
-    echo
-    print_line -
-    print_error_msg "$(basename ${0})" "ResampleImage"
-    exit 1
-  fi  
+cmd=(
+  ResampleImage
+  3 
+  "${input}"
+  "${output}" 
+  "${new_matrix}"
+  3
+  2
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ $? -ne 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "ResampleImage"
+  exit 1
 fi

@@ -289,28 +289,32 @@ fi
 start_timer "Select coordinate and normal vector using Pycortex"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# loop through subjects
 for subID in ${search}; do
 
+  #-----------------------------------------------------------------------------
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   sub_id=$(get_subject_id "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
+  #-----------------------------------------------------------------------------
   # set the paths
   fs_dir="${DERIV}/freesurfer"
   cx_dir="${DERIV}/pycortex/${sub_name}/ses-${ls_ses}"
   prf_dir="${DERIV}/prf/${base_path}"
-
-  # make the pycortex directory if it doesn't exists; the others should exists already. If not, it will complain about it below
+  
+  #-----------------------------------------------------------------------------
+  # make the pycortex directory if it doesn't exists; the others should exists already. If not, it 
+  # will complain about it below
   if [[ ! -d "${DERIV}/pycortex" ]]; then
     mkdir -p "${DERIV}/pycortex"
   fi
 
-  # never really delete a line_pycortex file, but rename numerically, so that the highest number is the oldest file.
-  # The file without any numbering will be the most recent one and also the one that will be used; unless otherwise
-  # specified in the master script
+  # never really delete a line_pycortex file, but rename numerically, so that the highest number 
+  # is the oldest file.
+  # The file without any numbering will be the most recent one and also the one that will be used; 
+  # unless otherwise specified in the master script
   line_orientation_file="${cx_dir}/${sub_name}_ses-${ls_ses}_desc-coords.csv"
   if [[ ${FULL_OW} -eq 1 ]]; then
     rm -r "${line_orientation_file}" 2>/dev/null
@@ -318,6 +322,7 @@ for subID in ${search}; do
     if [[ ${OW} -eq 1 ]]; then
       if [[ -f "${line_orientation_file}" ]]; then
         
+        #-----------------------------------------------------------------------------
         # check number of coordinate files
         nr=$(
           find -L $(dirname "${line_orientation_file}") \
@@ -334,6 +339,7 @@ for subID in ${search}; do
     fi
   fi
 
+  #-----------------------------------------------------------------------------
   # start process
   if [[ ! -f "${line_orientation_file}" ]]; then
 
@@ -350,10 +356,13 @@ for subID in ${search}; do
       man_verts="-v [${vert}]"
     fi
 
+    #-----------------------------------------------------------------------------
+    # use the --use-prf flag if the roi = V1. Otherwise exclude pRFs in the selecting of the vertex
     epi_flag=""
     pars_flag=""
-    # use the --use-prf flag if the roi = V1. Otherwise exclude pRFs in the selecting of the vertex
     case "${roi}" in
+      #-----------------------------------------------------------------------------
+      # label files
       "V1_exvivo.thresh"|"V2_exvivo.thresh"|"V1_custom")
         use_prfs="--use-prf"
 
@@ -384,15 +393,15 @@ for subID in ${search}; do
           2>/dev/null
         )
 
-        if [[ -z ${pars} ]]; then
+        if [[ -z "${pars}" ]]; then
           print_file_not_in_dir "${sub_name}" "*model-${model}*, *stage-${stage}*, *task-${task}*, *prf_params.${prf_ext}${txt}" "${prf_dir}"
           continue
         fi
         pars_flag="-p ${pars}"
 
-        if [[ ${srf_file} -eq 1 ]]; then
+        if [[ "${srf_file}" -eq 1 ]]; then
           srf_file=$(find -L "${prf_dir}" -type f -name "*desc-srfs_centered.pkl" 2>/dev/null)
-          if [[ -z ${srf_file} ]]; then
+          if [[ -z "${srf_file}" ]]; then
             echo
             print_line -
             print_error_msg "$(basename ${0})" find "\"--srf-file\" was specified, but no \"*desc-srfs_centered.pkl\" found in ${BOLD_GREEN}${prf_dir}${RESET}. Create with ${BOLD_BLUE}call_sizeresponse${RESET}"
@@ -403,6 +412,8 @@ for subID in ${search}; do
           srf_file_flag=""
         fi
         ;;
+      #-----------------------------------------------------------------------------
+      # any other situation
       *)
         use_prfs=""
         srf_file_flag=""
@@ -410,6 +421,7 @@ for subID in ${search}; do
         ;;
     esac
 
+    #-----------------------------------------------------------------------------
     # set srf flag if model is norm
     srf_flag=""
     if [[ ${model} == "norm" ]]; then
@@ -418,6 +430,8 @@ for subID in ${search}; do
       fi
     fi
 
+    #-----------------------------------------------------------------------------
+    # define cmd
     cmd=(
       call_targetvertex
       -s "${sub_name}"
@@ -439,6 +453,7 @@ for subID in ${search}; do
       "${skip_prf_info}"
     )
     
+    # print and run
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     if [[ $? -ne 0 ]]; then
       echo

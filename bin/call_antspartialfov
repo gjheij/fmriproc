@@ -105,11 +105,15 @@ do
   esac
 done
 
+#-----------------------------------------------------------------------------
+# read args
 REF=${@:$OPTIND:1}
 MOV=${@:$OPTIND+1:1}
 OUT=${@:$OPTIND+2:1}
 
-if [[ ! -f ${REF} ]]; then
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${REF}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
@@ -118,7 +122,7 @@ else
   REF=$(readlink "${REF}")
 fi
 
-if [[ ! -f ${MOV} ]]; then
+if [[ ! -f "${MOV}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
@@ -127,12 +131,19 @@ else
   MOV=$(readlink -f "${MOV}")
 fi  
 
+if [[ -z "${OUT}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
 echo "Partial FOV > Whole brain"
 
 #-----------------------------------------------------------------------------
 # 1) mask binary FOV
 echo " Creating binary mask of partial FOV"
-MASK=$(dirname ${MOV})/$(basename ${MOV} .nii.gz)_mask.nii.gz
+MASK="${MOV/.nii.gz/_mask.nii.gz}"
 cmd=(
   fslmaths
   "${MOV}"
@@ -140,6 +151,7 @@ cmd=(
   "${MASK}"
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
@@ -148,7 +160,9 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
-if [[ $(fslval ${MASK} dim0) -eq 4 ]]; then
+#-----------------------------------------------------------------------------
+# make refvol
+if [[ $(fslval "${MASK}" dim0) -eq 4 ]]; then
   cmd=(
     fslroi
     "${MASK}"
@@ -157,6 +171,7 @@ if [[ $(fslval ${MASK} dim0) -eq 4 ]]; then
     1
   )
 
+  # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo
@@ -169,7 +184,7 @@ fi
 #-----------------------------------------------------------------------------
 # 2) register partial FOV to whole-brain with mask
 echo " Register partial FOV to whole-brain with mask"
-XFM=$(dirname ${OUT})/$(basename ${OUT} .nii.gz)_desc-
+XFM="${OUT/.nii.gz/_desc-}"
 
 cmd=(
   call_antsregistration
@@ -180,6 +195,7 @@ cmd=(
   "${XFM}"
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
@@ -199,6 +215,7 @@ cmd=(
   "${XFM}genaff.mat"
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo
@@ -211,11 +228,12 @@ fi
 # 4) convert back to specified data format
 cmd=(
   fslmaths
-  ${OUT}
-  ${OUT}
+  "${OUT}"
+  "${OUT}"
   -odt ${dtype}
 )
 
+# print and run
 print_cmd "${cmd[@]}" && eval "${cmd[@]}"
 if [[ $? -ne 0 ]]; then
   echo

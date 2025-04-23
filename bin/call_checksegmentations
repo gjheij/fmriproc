@@ -66,8 +66,7 @@ done
 read base_path base <<< "$(collect_session_info "$ses" "$sub")"
 
 #-----------------------------------------------------------------------------
-# Run it
-
+# find segmentations
 declare -a SEG=(
   "label-GM"
   "label-WM"
@@ -82,8 +81,15 @@ declare -a SEG=(
 ARRAY=()
 j=0
 for r in ${SEG[@]}; do
-  file=$(find "${MASKS}/${base_path}" -type f \( -name "*${r}*" -and -name "*.nii.gz" \) 2>/dev/null)
-  if [[ -f ${file} ]]; then
+  file=$(
+    find "${MASKS}/${base_path}" \
+    -type f \
+    -name "*${r}*" \
+    -and -name "*.nii.gz" \
+    2>/dev/null
+  )
+
+  if [[ -f "${file}" ]]; then
 
     if [[ ${j} -eq 0 ]]; then
         ADD_SEG=$(echo "-o ${file}")
@@ -97,7 +103,18 @@ for r in ${SEG[@]}; do
   fi
 done
 
-ANAT=$(find "${DIR_DATA_DERIV}/cat12/${base_path}" -type f \( -name "${sub}*" -and -name "*T1w.nii.gz" \) 2>/dev/null)
+#-----------------------------------------------------------------------------
+# find anatomical file
+ANAT=$(
+  find "${DIR_DATA_DERIV}/cat12/${base_path}" \
+  -type f \
+  -name "${sub}*" \
+  -and -name "*T1w.nii.gz" \
+  2>/dev/null
+)
+
+#-----------------------------------------------------------------------------
+# define cmd
 cmd=(
   launch_itksnap
   -g "${ANAT}"

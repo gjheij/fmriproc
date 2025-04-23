@@ -88,16 +88,16 @@ else
   B=""
 fi
 
-if [ ! -z ${OUTDIR} ]; then
-  outdir=${OUTDIR}
+if [ ! -z "${OUTDIR}" ]; then
+  outdir="${OUTDIR}"
 else
-  outdir=${PWD}
+  outdir="${PWD}"
 fi
 
-if [ ! -z ${BASENAME} ]; then
+if [ ! -z "${BASENAME}" ]; then
   fname=${BASENAME}
 else
-  fname=$(basename ${INPUT} .nii.gz).png
+  fname=$(basename "${INPUT}" .nii.gz).png
 fi
 
 sliceropts="${edgeopts} -x 0.4 ${outdir}/grota.png -x 0.5 ${outdir}/grotb.png -x 0.6 ${outdir}/grotc.png -y 0.4 ${outdir}/grotd.png -y 0.5 ${outdir}/grote.png -y 0.6 ${outdir}/grotf.png -z 0.4 ${outdir}/grotg.png -z 0.5 ${outdir}/groth.png -z 0.6 ${outdir}/groti.png"

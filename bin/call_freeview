@@ -62,13 +62,31 @@ TYPE=${TYPE:-surf}
 
 #-----------------------------------------------------------------------------
 # File detection
-FS=${SUBJECTS_DIR:-$HOME/freesurfer/subjects}
-lh_point=$(find "$FS/$SUBJECT/mri" -name "*space-fs*hemi-L*" 2>/dev/null | head -n1)
-rh_point=$(find "$FS/$SUBJECT/mri" -name "*space-fs*hemi-R*" 2>/dev/null | head -n1)
-T2=$(find "$FS/$SUBJECT/mri" -name "T2.mgz" 2>/dev/null | head -n1)
 
-surf_dir="$FS/$SUBJECT/surf"
-mri_dir="$FS/$SUBJECT/mri"
+# set SUBJECTS_DIR
+FS="${SUBJECTS_DIR:-$HOME/freesurfer/subjects}"
+
+# find left hemi points
+lh_point=$(
+  find "${FS}/${SUBJECT}/mri" \
+  -name "*space-fs*hemi-L*" \
+  2>/dev/null | \
+  head -n1
+)
+
+# find right hemi point
+rh_point=$(
+  find "${FS}/${SUBJECT}/mri" \
+  -name "*space-fs*hemi-R*" \
+  2>/dev/null | \
+  head -n1
+)
+
+# find T2
+T2="${FS}/${SUBJECT}/mri/T2.mgz"
+
+surf_dir="${FS}/${SUBJECT}/surf"
+mri_dir="${FS}/${SUBJECT}/mri"
 
 function add_vertex_points {
   [[ $point -eq 1 && -f $lh_point && -f $rh_point ]] && \
@@ -76,7 +94,7 @@ function add_vertex_points {
 }
 
 function add_fiducials {
-  [[ -f $surf_dir/lh.fiducial && -f $surf_dir/rh.fiducial ]] && \
+  [[ -f "${surf_dir}/lh.fiducial" && -f "${surf_dir}/rh.fiducial" ]] && \
     echo "$surf_dir/lh.fiducial:edgecolor=green $surf_dir/rh.fiducial:edgecolor=green"
 }
 
@@ -85,12 +103,12 @@ function add_fiducials {
 if [[ $VIEWPORT -eq 1 ]]; then
   surface="fiducial"
   [[ $SUBJECT == "fsaverage" ]] && surface="inflated"
-  launch_freeview -f "$surf_dir/lh.$surface" "$surf_dir/rh.$surface" -viewport 3d
+  launch_freeview -f "${surf_dir}/lh.${surface}" "${surf_dir}/rh.${surface}" -viewport 3d
 fi
 
 #-----------------------------------------------------------------------------
 # Main logic
-VOLUMES="$mri_dir/orig.mgz $mri_dir/brainmask.mgz $mri_dir/rawavg.mgz"
+VOLUMES="${mri_dir}/orig.mgz ${mri_dir}/brainmask.mgz ${mri_dir}/rawavg.mgz"
 VERTICES=$(add_vertex_points)
 FIDUCIALS=$(add_fiducials)
 
@@ -123,12 +141,12 @@ function generate_gradient {
 case $TYPE in
   surf)
     SURFACES=(
-      "$surf_dir/lh.white:edgecolor=yellow"
-      "$surf_dir/lh.pial:edgecolor=blue"
-      "$surf_dir/rh.white:edgecolor=yellow"
-      "$surf_dir/rh.pial:edgecolor=blue"
+      "${surf_dir}/lh.white:edgecolor=yellow"
+      "${surf_dir}/lh.pial:edgecolor=blue"
+      "${surf_dir}/rh.white:edgecolor=yellow"
+      "${surf_dir}/rh.pial:edgecolor=blue"
     )
-    launch_freeview -v $VOLUMES $VERTICES -f "${SURFACES[@]}" $FIDUCIALS
+    launch_freeview -v ${VOLUMES} ${VERTICES} -f "${SURFACES[@]}" ${FIDUCIALS}
     ;;
   layers)
 
@@ -137,9 +155,14 @@ case $TYPE in
     hemi_list=(lh rh)
 
     # Get sorted list of unique layer tags
-    layer_keys=$(find "${surf_dir}" -type f -name "*.${suffix}" | \
+    layer_keys=$(
+      find "${surf_dir}" \
+      -type f \
+      -name "*.${suffix}" | \
       sed -En "s|.*/[lr]h\.(${prefix}[^\.]+)\.${suffix}$|\1|p" | \
-      sort -V | uniq)
+      sort -V | \
+      uniq
+    )
 
     # Count layers
     n_layers=$(echo "$layer_keys" | wc -l | tr -d ' ')
@@ -158,15 +181,15 @@ case $TYPE in
       ((i++))
     done
 
-    launch_freeview -v $VOLUMES $VERTICES -f $FIDUCIALS $LAYERS
+    launch_freeview -v ${VOLUMES} ${VERTICES} -f ${FIDUCIALS} ${LAYERS}
     ;;
   anat)
-    VOLS="$VOLUMES"
-    [[ -f $T2 ]] && VOLS="$VOLS $T2"
-    launch_freeview -v $VOLS $VERTICES
+    VOLS="${VOLUMES}"
+    [[ -f $T2 ]] && VOLS="${VOLS} $T2"
+    launch_freeview -v ${VOLS} ${VERTICES}
     ;;
   *)
-    echo "Invalid type: $TYPE"
+    echo "Invalid type: ${TYPE}"
     Usage
     ;;
 esac

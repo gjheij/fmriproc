@@ -50,26 +50,52 @@ input="$1"
 output="$2"
 full="$3"
 
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${input}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  exit 1
+else
+  input=$(readlink -f "${input}")
+fi
+
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
 # Shift to get extra flags for BET
 shift 3 || true
 extra_args=("$@")
 
 #-----------------------------------------------------------------------------
-# Validate input
-if [[ ! -f "${input}" ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename $0)" "find" "Input file ${BOLD_GREEN}${input}${RESET} does not exist"
-  exit 1
-fi
-
-#-----------------------------------------------------------------------------
 # Run it
 if [[ -f "${input}" && ! -f "${output}.nii.gz" ]]; then
   if [[ "${full}" =~ ^[Yy]$ ]]; then
-    cmd=(bet "${input}" "${output}" -m -s -A "${extra_args[@]}")
+    cmd=(
+      bet
+      "${input}"
+      "${output}"
+      -m
+      -s
+      -A
+      "${extra_args[@]}"
+    )
   elif [[ "${full}" =~ ^[Nn]$ ]]; then
-    cmd=(bet2 "${input}" "${output}" -m -s -n "${extra_args[@]}")
+    cmd=(
+      bet2
+      "${input}"
+      "${output}"
+      -m
+      -s
+      -n
+      "${extra_args[@]}"
+    )
   else
     echo
     print_line -
@@ -77,6 +103,7 @@ if [[ -f "${input}" && ! -f "${output}.nii.gz" ]]; then
     exit 1
   fi
 
+  # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo

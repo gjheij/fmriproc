@@ -112,28 +112,28 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 # we need SUBJECTS_DIR for mri_vol2surf
-if [[ -z ${fsdir} ]]; then
-  if [[ -z ${SUBJECTS_DIR} ]]; then
+if [[ -z "${fsdir}" ]]; then
+  if [[ -z "${SUBJECTS_DIR}" ]]; then
     echo
     print_line -
     print_error_msg "$(basename ${0})" "FreeSurfer" "SUBJECTS_DIR-variable not set.."
     exit 1
   else
-    fsdir=${SUBJECTS_DIR}
+    fsdir="${SUBJECTS_DIR}"
   fi
 else
-  export SUBJECTS_DIR=${fsdir}
+  export SUBJECTS_DIR="${fsdir}"
 fi
 
 # check if we have a valid subjects-directory
-if [[ ! -d ${fsdir} ]]; then
+if [[ ! -d "${fsdir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "FreeSurfer" "Could not find ${BOLD_GREEN}${fsdir}${RESET}"
   exit 1
 fi
 
-if [[ ! -f ${warp} ]]; then
+if [[ ! -f "${warp}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" "input" "Please specify transformation file"
@@ -141,14 +141,14 @@ if [[ ! -f ${warp} ]]; then
 fi
 
 # check if input was directory or file
-if [[ -f ${input} ]]; then
-  input=$(fetch_filepath ${input})
-  ext=$(fetch_extension ${input})
+if [[ -f "${input}" ]]; then
+  input=$(fetch_filepath "${input}")
+  ext=$(fetch_extension "${input}")
 
   if [[ ${ext} == "gz" ]]; then
-    search=$(basename ${input} .nii.gz)
+    search=$(basename "${input}" .nii.gz)
   elif [[ ${ext} == "nii" ]]; then
-    search=$(basename ${input} .nii)
+    search=$(basename "${input}" .nii)
   else
     echo
     print_line -
@@ -158,9 +158,9 @@ if [[ -f ${input} ]]; then
   
   # for later output naming
   set_zstat_id=0
-elif [[ -d ${input} ]]; then
+elif [[ -d "${input}" ]]; then
   set_zstat_id=1
-  if [[ ! -z ${search} ]]; then
+  if [[ ! -z "${search}" ]]; then
     input=$(
       find "${input}" \
       -maxdepth 1 \
@@ -193,10 +193,10 @@ IFS=$'\n' inputs=($(sort <<<"${input[*]}"))
 unset IFS
 
 # get the reference anatomy (in native space)
-if [[ -z ${reference} ]]; then
-  if [[ ${input} == *".gfeat"* ]]; then
+if [[ -z "${reference}" ]]; then
+  if [[ "${input}" == *".gfeat"* ]]; then
     T1=$(
-      find $(dirname ${warp}) \
+      find "$(dirname "${warp}")" \
       -type f \
       -name "*preproc_T1w.nii.gz" \
       -and -not -name "*space-*" \
@@ -212,11 +212,13 @@ if [[ -z ${reference} ]]; then
     )
   fi
 else
-  T1=${reference}
+  T1="${reference}"
 fi
 
 if [[ ! -f ${T1} ]]; then
-  echo -e "${BOLD_RED}ERROR${RESET} in $(basename ${0}): Could not locate reference image. "
+  echo 
+  print_line -
+  print_error_msg "$(basename ${0})" "Could not locate reference image. "
   echo " - If the input is gfeat-directory, I'm looking for \"preproc_T1w.nii.gz\" in \"$(dirname ${warp})\""
   echo " - If the input is a FEAT-directory, I'm looking for \"highres.nii.gz\" in \"${input}\""
   echo " - If the input is a file, I'm looking for the -r flag, \"${reference}\""
@@ -224,9 +226,9 @@ if [[ ! -f ${T1} ]]; then
 fi
 
 # output stuff
-if [[ ! -z ${outdir} ]]; then
-  if [[ ! -d ${outdir} ]]; then
-    mkdir -p ${outdir}
+if [[ ! -z "${outdir}" ]]; then
+  if [[ ! -d "${outdir}" ]]; then
+    mkdir -p "${outdir}"
   fi
   out_flag="-o ${outdir}"
 else
@@ -237,15 +239,15 @@ for i in ${inputs[@]}; do
 
   # set output name for space-T1w file
   if [[ ${set_zstat_id} -eq 1 ]]; then
-    STRING=$(basename ${i})
+    STRING="$(basename "${i}")"
     nr=$(echo "${STRING//[!0-9]/}")
-    new_warp=${i}/${subj_ID}_space-T1w_desc-${search}${nr}.nii.gz
+    new_warp="${i}/${subj_ID}_space-T1w_desc-${search}${nr}.nii.gz"
   else
-    new_warp=$(dirname ${i})/${subj_ID}_space-T1w_desc-${search}.nii.gz
+    new_warp="$(dirname "${i}")/${subj_ID}_space-T1w_desc-${search}.nii.gz"
   fi
 
   # warp to T1w-space
-  if [[ ! -f ${new_warp} ]]; then
+  if [[ ! -f "${new_warp}" ]]; then
     echo "Warping $(basename ${i}) image to T1w-space"
     cmd=(
       call_antsapplytransforms
@@ -302,6 +304,7 @@ for i in ${inputs[@]}; do
     "${base_out}"
   )
 
+  # print and run
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     echo

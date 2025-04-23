@@ -83,33 +83,40 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
-# set input/output
+#-----------------------------------------------------------------------------
+# read args
 in=${@:$OPTIND:1}
 out=${@:$OPTIND+1:1}
 
-in_file=$(readlink -f ${in})
-if [[ ! -f ${in_file} ]]; then
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${in}" ]]; then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" "find" "File \"${in_file}\" does not exist"
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in}${RESET}\""
   exit 1
+else
+  in_file=$(readlink -f "${in}")
 fi
 
+#-----------------------------------------------------------------------------
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
-  intensities_pre=$(fslstats ${in_file} -R)
+  intensities_pre=$(fslstats "${in_file}" -R)
   echo "pre: ${intensities_pre}"
 fi
 
+#-----------------------------------------------------------------------------
 # set output to input if no output is specified
-if [[ -z ${out} ]]; then
+if [[ -z "${out}" ]]; then
   out_file="${in_file}"
 else
   out_file="${out}"
 fi
 
+#-----------------------------------------------------------------------------
 # set dimensions and define command
-dim=$(fslval ${in_file} dim0)
+dim=$(fslval "${in_file}" dim0)
 cmd=(
   ImageMath
   "${dim}"
@@ -128,7 +135,6 @@ fi
 
 # run cmd
 eval "${cmd[@]}"
-
 if [[ $? -ne 0 ]]; then
   echo
   print_line -
@@ -136,8 +142,9 @@ if [[ $? -ne 0 ]]; then
   exit 1
 fi
 
+#-----------------------------------------------------------------------------
 # echo intensities before Truncation
 if [[ ${VERB} -eq 1 ]]; then
-  intensities_post=$(fslstats ${out_file} -R)
+  intensities_post=$(fslstats "${out_file}" -R)
   echo "post: ${intensities_post}"
 fi
