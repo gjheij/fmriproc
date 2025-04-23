@@ -109,6 +109,7 @@ FULL_OW=""                # spinoza_scanner2bids
 SEARCH_DEPTH=""           # spinoza_scanner2bids
 TR_FLAG=""                # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
+COMPRESS_FLAG=""          # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
 REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
@@ -344,6 +345,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no-clip)
           CLIP="--no-clip"
           ;;
+        no-compress)
+          COMPRESS_FLAG="--no-compress"
+          ;;              
         no-epi)
           MAN_EPI="--no-epi"
           ;;
@@ -831,6 +835,7 @@ if [[ $? -eq 0 ]]; then
     "${CUT_VOLS}"
     "${PATTERN_FLAG}"
     "${KEEP_RUNS}"
+    "${COMPRESS_FLAG}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 

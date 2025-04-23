@@ -62,6 +62,7 @@
 --no-boldref
 --no-bounds
 --no-clip
+--no-compress
 --no-epi
 --no-fit
 --no-freeview

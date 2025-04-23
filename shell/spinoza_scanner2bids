@@ -104,6 +104,8 @@ Options:
                   puts on more raw data, I'd advise you to reorient to LPI and to NOT use this 
                   flag. This flag is mainly here because it can take some time with big files
                   which slows down debugging.
+  --no-compress   create nii's instead of nii.gz's (default). Passes on '--no-compress' to call-
+                  parrec2nii, and '-c n' to dcm2niix                  
   --sge           submit individual subjects to cluster as call_parrec2nii can take a while..
   --phys          run only physiology conversion
   --skip-tr       do not overwrite the TR in the header during call_bids. Generally not recom-
@@ -201,6 +203,7 @@ TRIM_FMAP=""
 SGE_QUEUE=${SGE_QUEUE_SHORT}
 pattern_flag=""
 search_flag=""
+compress_flag=""
 while getopts :-:hos:n:r:q:d:t:v:p:a: argument
 do
   case ${argument} in
@@ -258,7 +261,10 @@ do
           ;;                       
         help)
           Usage && exit 0
-          ;;                      
+          ;;
+        no-compress)
+          compress_flag="--no-compress"
+          ;;    
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -388,6 +394,7 @@ for subID in ${search}; do
       echo " TRIM FMAP   = ${TRIM_FMAP}"
       echo " PATTERN     = ${pattern_flag}"
       echo " SEARCH ANAT = ${search_flag}"
+      echo " COMPRESS    = ${compress_flag}"
     fi
 
     #-----------------------------------------------------------------------------
@@ -406,13 +413,14 @@ for subID in ${search}; do
       "${CUT_VOLS}"
       "${TRIM_FMAP}"
       "${search_flag}"
+      "${compress_flag}"
+      "${RUNS}"
+      "${pattern_flag}"
       -i "${input_dir}"
       -o "${output_dir}"
       -b "${bids_dir}"
       -n "${base}"
       -d "${SEARCH_DEPTH}"
-      "${RUNS}"
-      "${pattern_flag}"
     )
 
     # print and run

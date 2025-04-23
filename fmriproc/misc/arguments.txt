@@ -267,6 +267,9 @@ Options:
 
 --no-clip         prevent design matrix clipping.
 
+--no-compress     create nii's instead of nii.gz's (default). Passes on '--no-compress' to call-
+                  parrec2nii, and '-c n' to dcm2niix
+
 --no-fit          stop after saving averaged data.
 
 --no-freeview     disable FreeView.
