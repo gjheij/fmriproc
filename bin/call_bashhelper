@@ -2168,9 +2168,8 @@ function make_cat_script {
     ) >> "${4}"
 
     # also save the matlabbatch-only lines to a file that we can load in SPM/CAT12
-    rm "$(basename ${4/.m/_batch.m})" 2>/dev/null
-
-    cat "${4}" | grep -A0 "matlabbatch{" >> "$(basename ${4/.m/_batch.m})"
+    rm "${4/.m/_batch.m}" 2>/dev/null
+    cat "${4}" | grep -A0 "matlabbatch{" >> "${4/.m/_batch.m}"
   fi
 }
 

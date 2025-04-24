@@ -4,7 +4,7 @@ import os
 import sys
 import getopt
 import nibabel as nb
-from nilearn import imageimagern import imageimage
+from nilearn import image
 
 def main(argv):
 

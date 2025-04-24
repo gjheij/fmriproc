@@ -14,7 +14,7 @@ tation matrices. Sneakily assumes the image you're transforming to FreeSurfer sp
 ted. If not, change the bbregister --t1 flag in this script.
 
 Usage:
-  call_bbregister.sh <subject number> <moving> <header | init> <FSL (0=no|1=yes)> <output>
+  call_bbregister <subject number> <moving> <header | init> <FSL (0=no|1=yes)> <output>
 
 Arguments:
   -i <type>       if you want to register based on header, type "header" here if you want to

@@ -5,7 +5,7 @@ import sys
 import getopt
 import nibabel as nb
 from fmriproc import prf
-from lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilss
+from lazyfmri import utils
 opj = os.path.join
 
 def main(context):

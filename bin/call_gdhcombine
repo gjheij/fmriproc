@@ -5,7 +5,7 @@ import sys
 import getopt
 from nilearn import image
 from scipy import ndimage
-from lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilssfrom lazyfmri import utilssi import utilss
+from lazyfmri import utils
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"

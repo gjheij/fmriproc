@@ -10,7 +10,7 @@ import sys
 import getopt
 import numpy as np
 from lazyfmri import utils
-from fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkrfrom fmriproc.transform import fs2tkr
+from fmriproc.transform import fs2tkr
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["subject", "mesh", "output"])

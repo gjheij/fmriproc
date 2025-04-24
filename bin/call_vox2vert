@@ -6,7 +6,7 @@ import ast
 import getopt
 import numpy as np
 from lazyfmri import utils
-from fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert fmriproc.transform import fs2vertmport fs2vertrom fmriproc.transform import fs2vertmport fs2vert
+from fmriproc.transform import fs2vert
 
 opj = os.path.join
 

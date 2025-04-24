@@ -8,7 +8,7 @@ from lazyfmri import (
     dataset,
 )
 import shutil
-import pandas as pd d  d  d  d  d  d  d  d 
+import pandas as pd
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"

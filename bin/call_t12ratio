@@ -6,7 +6,7 @@ import getopt
 import numpy as np
 import nibabel as nb
 from nilearn import image
-from lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss lazyfmri import utilssrom lazyfmri import utilss
+from lazyfmri import utils
 opj = os.path.join
 
 @utils.validate_cli_inputs(required_keys=["t1w", "t2w", "out"])

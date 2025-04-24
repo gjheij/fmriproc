@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-import nibabel as nbnb
+import nibabel as nb
 
 def main(argv):
 

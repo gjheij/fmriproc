@@ -13,13 +13,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_freesurfer
 
-wrapper for surface parcellation with FreeSurfer. Called in spinoza_freesurfer. You can also run
+Wrapper for surface parcellation with FreeSurfer. Called in spinoza_freesurfer. You can also run
 this script after editing your volumes/surfaces. Read below what the possible options and defaults
-are. The idea is to let fMRIprep run FreeSurfer 6.0.0 first, and then re-run FreeSurfer 7.1.0 with
-this script to include a proper T2-based pial surface reconstruction (FS v6.0.0 is not well suited 
-for this task). For this, FreeSurfer needs 'autodet.gw.stats.?h.dat'-files, which are created in 
-step 20: 'Automatic Topology Fixer', right before -autorecon3. So in order to include T2 here we 
-need to run autorecon2 and 3.
+are. 
 
 Usage:
   call_freesurfer [arguments] [options]
@@ -106,13 +102,26 @@ Instructions for editing (from Andrew Jahn's YouTube series):
     6.) Re-run with call_freesurfer -s sub-001 -r 23 -e pial
 
 Example (TL;DR):
-  Regular recon-all:      call_freesurfer -s <subj ID> -t <T1 image> -p <T2 image> -r all
-  Run gcut:               call_freesurfer -s <subj ID> -o gcut
-  After gcut:             call_freesurfer -s <subj ID> -r 23
-  After control points:   call_freesurfer -s <subj ID> -r 23 -e cp
-  After call_gdhinject:   call_freesurfer -s <subj ID> -r 23 -e wm
-  After pial edits:       call_freesurfer -s <subj ID> -r 23 -e pial
-  Include T2 after FS v6: call_freesurfer -s <subj ID> -r 23 -e wm -p <T2 image>
+  # Regular recon-all
+  call_freesurfer -s sub-01 -t sub-01_ses-1_T1w.nii.gz
+
+  # add T2
+   call_freesurfer -s sub-01 -t sub-01_ses-1_T1w.nii.gz -p sub-01_ses-1_T2w.nii.gz
+
+  # run gcut
+  call_freesurfer -s sub-01 -o gcut
+
+  # then, after gcut, rerun autonrecon2/3
+  call_freesurfer -s sub-01 -r 23
+  
+  # After control points
+  call_freesurfer -s sub-01 -r 23 -e cp
+  
+  # After call_gdhinject or white matter edits
+  call_freesurfer -s sub-01 -r 23 -e wm
+  
+  # After pial edits
+  call_freesurfer -s sub-01 -r 23 -e pial
 
 Notes:
   When an expert options is passed, it will be copied to scripts/expert-options. Future calls to 

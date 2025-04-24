@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 import nibabel as nb
 from nilearn import image
-from lazyfmri import utilsfrom lazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utilslazyfmri import utils
+from lazyfmri import utils
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
