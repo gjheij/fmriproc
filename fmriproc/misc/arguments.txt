@@ -74,10 +74,10 @@ Input arguments:
                       follows: different parameters comma-separated, and parameter-value pair 
                       separated by '=':
                   
-                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+                        '-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>'
 
                       E.g.,:
-                        "-k -mail,-deface"
+                        '-k -mail,-deface'
                         
                     - ${BOLD_BLUE}spinoza_fmriprep${RESET}: specify a file with additional 
                       arguments, similar to FreeSurfer's expert options
@@ -177,7 +177,21 @@ Input arguments:
                       best_vertex.
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: volumes to cut from timeseries.
 
--x <kwargs>       used for various extra options passed to specific modules.
+-x <kwargs>       used for various extra options passed to specific modules. Generally, the format 
+                  should be as follows: different parameters comma-separated, and parameter-value 
+                  pair separated by '=' (though check specific modules for exact details):
+                  
+                    '-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>'
+
+                    E.g.,:
+                      - spinoza_scanner2bids (args for parrec2nii):
+                          '-x -b=y=0.05,--ignore_trigger_times,-x=y'
+
+                      - spinoza_lsprep (args for call_lsprep):
+                          '-x --filter-pca=0.18,--verbose'
+
+                      - spinoza_mgdm (args for mgdm_segmentation):
+                          '-x regularization_weight=0.05,max_iterations=1000'
 
 Options:
 

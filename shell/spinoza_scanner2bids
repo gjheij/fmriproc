@@ -85,6 +85,37 @@ Arguments:
                   "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
                   will be added to the search. 'acq' and 'run' tags are derived from the file-
                   name.
+  -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The 
+                  format should be as follows: different parameters comma-separated, and para-
+                  meter-value pair separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-x -b=y=0.05,--ignore_trigger_times,-x=y"
+
+                  The kwargs specified in this flag take precedent over the default args:
+
+                  # dcm2niix
+                  cmd_args=(
+                    dcm2niix
+                    -b y          # output JSON side cars
+                    -f %n_%p      # file name pattern     (-p flag)
+                    -z o          # compression           (-c flag)
+                    -d 0          # search depth          (-d flag)
+                    -o output_dir # output directory      (-o flag)
+                    -v 1          # verbosity
+                    input_dir     # input directory       (-i flag)
+                  )
+
+                  # parrec2nii
+                  cmd_args=(
+                    parrec2nii
+                    --scaling fp  # floating point
+                    --verbose     # make noise
+                    --compressed  # make nii.gz, suppressed with --no-compress
+                    --output-dir  # output directory      (-o flag)
+                  )
 
 Options:
   -h|--help       print this help text
