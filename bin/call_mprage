@@ -168,7 +168,6 @@ rm "${mask_file%.gz}"* 2>/dev/null
 
 cmd=(
   call_spmmask
-  --clean
   "${in_file}"
   "${mask_file}"
 )
