@@ -13,7 +13,7 @@ import sys
 import getopt
 import pathlib
 from lazyfmri import utils
-from fmriproc import imagefrom fmriproc import imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import imageort imageort imagefrom fmriproc import image
+from fmriproc import image
 opj = os.path.join
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"

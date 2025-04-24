@@ -4,7 +4,7 @@ import os
 import sys
 import getopt
 import subprocess as sb
-from lazyfmri import utils utilsmri import utils utils
+from lazyfmri import utils
 
 @utils.validate_cli_inputs(required_keys=["subject"])
 def main(context):

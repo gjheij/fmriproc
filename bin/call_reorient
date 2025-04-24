@@ -3,7 +3,7 @@
 import sys
 import getopt
 from fmriproc import image
-from lazyfmri import utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utilsrt utilstilsrt utils
+from lazyfmri import utils
 
 @utils.validate_cli_inputs(required_keys=["infile"])
 def main(context):
