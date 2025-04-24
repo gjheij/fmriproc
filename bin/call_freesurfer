@@ -312,14 +312,17 @@ define_fs_command(){
 
   # check if it's not overflowing the system:
   if [[ "${n_cpus}" -gt "${available_cores}" ]]; then
-    echo && print_line -
-    print_error_msg "$(basename ${0})" "check_n_cpus" "Number of ${BOLD_RED}requested${RESET} cores (${BOLD_RED}${n_cpus}${RESET}) is more than the number of ${BOLD_RED}available${RESET} cores (${available_cores})"
-    exit 1
+    if [ ${FORCE_EXEC} -eq 0 ]; then
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "check_n_cpus" "Number of ${BOLD_RED}requested${RESET} cores (${BOLD_RED}${n_cpus}${RESET}) is more than the number of ${BOLD_RED}available${RESET} cores (${available_cores}). Use '--force-exec' to force the issue.."
+      exit 1
+    else
+      echo -e "${BOLD_RED}WARNING${RESET}: You've requested ${n_cpus} cores, which is more than the available cores (${BOLD_RED}${available_cores}${RESET})"
+    fi
   else
     # throw warning in its not modulo 2
     if (( n_cpus % 2 != 0 )); then
-      echo && print_line -
-      echo "WARNING: You've requested ${n_cpus} cores, which isn't a multiple of 2. Splitting evenly will round down to $(( n_cpus / 2 )) threads per hemisphere, leaving one core unused."
+      echo -e "${BOLD_RED}WARNING${RESET}: You've requested ${n_cpus} cores, which isn't a multiple of 2. Splitting evenly will round down to $(( n_cpus / 2 )) threads per hemisphere, leaving one core unused."
     fi
 
     # split hemispheres
