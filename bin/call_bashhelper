@@ -3,41 +3,41 @@
 # ---------------------------------------------------------------------------------------------------
 # Get full path without the requirement that it exists
 generate_submission_command() {
-    local queue="$1"
-    local n_cpus="$2"
-    local job_name="$3"
-    local workdir="$4"   # This can be either a directory or a file
+  local queue="$1"
+  local n_cpus="$2"
+  local job_name="$3"
+  local workdir="$4"   # This can be either a directory or a file
 
-    local system="unknown"
-    local command=""
-    local log_path=""
+  local system="unknown"
+  local command=""
+  local log_path=""
 
-    # Check scheduler type
-    system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
+  # Check scheduler type
+  system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
 
-    # Determine if workdir is a file or a directory
-    if [[ -d "$workdir" ]]; then
-      if [[ "$system" == "slurm" ]]; then
-        # SLURM auto appends filename if only directory is given
-        log_path="${workdir}/%x_%j.out"
-      else
-        # SoGE requires explicit filename
-        log_path="${workdir}/${job_name}.log"
-      fi
+  # Determine if workdir is a file or a directory
+  if [[ -d "$workdir" ]]; then
+    if [[ "$system" == "slurm" ]]; then
+      # SLURM auto appends filename if only directory is given
+      log_path="${workdir}/%x_%j.out"
     else
-      # Assume full file path is given
-      log_path="$workdir"
+      # SoGE requires explicit filename
+      log_path="${workdir}/${job_name}.log"
     fi
+  else
+    # Assume full file path is given
+    log_path="$workdir"
+  fi
 
-    # Build submission command
-    if [[ "$system" == "soge" ]]; then
-        command="qsub -q ${queue} -pe smp ${n_cpus} -N ${job_name} -o ${log_path} -j Y -V"
-    elif [[ "$system" == "slurm" ]]; then
-        command="sbatch --partition=${queue} --cpus-per-task=${n_cpus} --job-name=${job_name} --output=${log_path} --export=ALL"
-    fi
+  # Build submission command
+  if [[ "$system" == "soge" ]]; then
+      command="qsub -q ${queue} -pe smp ${n_cpus} -N ${job_name} -o ${log_path} -j Y -V"
+  elif [[ "$system" == "slurm" ]]; then
+      command="sbatch --partition=${queue} --cpus-per-task=${n_cpus} --job-name=${job_name} --output=${log_path} --export=ALL"
+  fi
 
-    # Output the result
-    echo "$command"
+  # Output the result
+  echo "$command"
 }
 
 decide_job_type() {
@@ -59,7 +59,13 @@ decide_job_type() {
   else
     QUEUE="${queue:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
     call_="$(which ${script_name})"
-    submit=$(generate_submission_command "${QUEUE}" "${n_cpus}" "${job_name}" "${workdir}")
+    submit=$(
+      generate_submission_command \
+      "${QUEUE}" \
+      "${n_cpus}" \
+      "${job_name}" \
+      "${workdir}"
+    )
     job="${submit} ${call_}"
   fi
 
@@ -148,7 +154,12 @@ activate_conda() {
   # Deactivate until fully clean
   while true; do
     local active_env
-    active_env=$(conda info | grep "active environment" | awk -F':' '{print $2}' | xargs)
+    active_env=$(
+      conda info | \
+      grep "active environment" | \
+      awk -F':' '{print $2}' | \
+      xargs
+    )
 
     if [[ "$active_env" == "None" ]]; then
       break
@@ -226,44 +237,38 @@ print_subject_header() {
 }
 
 print_output_exists() {
-  subject="${1}"
-  output="${2}"
-  extra="${3}"
+  local subject="${1}"
+  local output="${2}"
+  local extra="${3}"
 
-  if [[ -f "${output}" ]]; then
-    txt=$(basename "${output}")
-  else
-    txt="${output}"
-  fi
-
-  echo -e "${BOLD_CYAN}${subject}${RESET}: output already exists [${BOLD_GREEN}${txt}${RESET}]. ${extra}"
+  echo -e "${BOLD_CYAN}${subject}${RESET}: output already exists [${BOLD_GREEN}${output}${RESET}]. ${extra}"
 }
 
 print_directory_not_exist() {
-  subject="${1}"
-  dir="${2}"
-  extra="${3}"
+  local subject="${1}"
+  local dir="${2}"
+  local extra="${3}"
   echo -e "${BOLD_CYAN}${subject}${RESET}: could not find input directory [${BOLD_GREEN}${dir}${RESET}]. ${extra}"
 }
 
 print_create_img() {
-  file="${1}"
-  extra="${2}"
-  echo -e "Creating ${BOLD_GREEN}$(basename ${file})${RESET}. ${extra}"
+  local file="${1}"
+  local extra="${2}"
+  echo -e "Creating ${BOLD_GREEN}${file}${RESET}. ${extra}"
 }
 
 print_file_not_in_dir() {
-  subject="${1}"
-  file="${2}"
-  dir="${3}"
-  extra="${4}"
+  local subject="${1}"
+  local file="${2}"
+  local dir="${3}"
+  local extra="${4}"
   echo -e "${BOLD_CYAN}${subject}${RESET}: could not find \"${BOLD_RED}${file}${RESET}\"-image/file in ${BOLD_GREEN}${dir}${RESET}. ${extra}"
 }
 
 print_file_not_exist() {
-  subject="${1}"
-  file="${2}"
-  extra="${3}"
+  local subject="${1}"
+  local file="${2}"
+  local extra="${3}"
   echo -e "${BOLD_CYAN}${subject}${RESET}: could not find \"${BOLD_GREEN}${file}${RESET}\". ${extra}"
 }
 
@@ -277,31 +282,31 @@ print_error_msg() {
 #-----------------------------------------------------------------------------
 # Start timing a process
 function start_timer() {
-    echo
-    print_line =
-    printf "${1}\n"
-    start=$(date +%s)
-    start_date=$(date)
-    printf "Started at ${start_date}\n"
-    print_line =
+  echo
+  print_line =
+  printf "${1}\n"
+  start=$(date +%s)
+  start_date=$(date)
+  printf "Started at ${start_date}\n"
+  print_line =
 }
 
 #-----------------------------------------------------------------------------
 # End timing a process
 function end_timer() {
-    echo
-    print_line -
-    end=$(date +%s)
-    end_date=$(date)
-    printf "Done at ${end_date}\n"
+  echo
+  print_line -
+  end=$(date +%s)
+  end_date=$(date)
+  printf "Done at ${end_date}\n"
 
-    local deltatime=$((end - start))
-    local hours=$((deltatime / 3600))
-    local minutes=$(((deltatime / 60) % 60))
-    local seconds=$((deltatime % 60))
+  local deltatime=$((end - start))
+  local hours=$((deltatime / 3600))
+  local minutes=$(((deltatime / 60) % 60))
+  local seconds=$((deltatime % 60))
 
-    printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
-    print_line -
+  printf "Time spent: %d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+  print_line -
 }
 
 function conda2jupyter {
@@ -317,13 +322,13 @@ function reverse_array {
 
   while [[ min -lt max ]]
   do
-      # Swap current first and last elements
-      x="${array[$min]}"
-      array[$min]="${array[$max]}"
-      array[$max]="$x"
+    # Swap current first and last elements
+    x="${array[$min]}"
+    array[$min]="${array[$max]}"
+    array[$max]="$x"
 
-      # Move closer
-      (( min++, max-- ))
+    # Move closer
+    (( min++, max-- ))
   done
 
   IFS=" "
@@ -333,8 +338,8 @@ function reverse_array {
 function recache_mpl_fonts {
   
   cache_file=$(find ~/.cache/matplotlib -type f -name "*fontlist*")
-  if [[ ! -z ${cache_file} ]]; then
-    rm -r ${cache_file} 2>/dev/null
+  if [[ ! -z "${cache_file}" ]]; then
+    rm -r "${cache_file}" 2>/dev/null
   fi
 
   python_code="""import matplotlib.font_manager; matplotlib.font_manager._load_fontmanager(try_read_cache=False);"""
@@ -378,7 +383,7 @@ USAGE
   if [[ $# -eq 0 ]]; then
     Usage
   else
-    stage="${1}"
+    local stage="${1}"
 
     INPUT_DIR=""
     if [[ ${stage} -eq 1 ]]; then
@@ -434,8 +439,8 @@ USAGE
 }
 
 function search_character_substring {
-  input=${1}
-  searchstring=${2}
+  local input="${1}"
+  local searchstring="${2}"
   rest=${input#*$searchstring}
   starts_at=$(echo $(( ${#input} - ${#rest} - ${#searchstring} )))
   echo $starts_at
@@ -469,20 +474,28 @@ USAGE
     Usage
   else
 
-    json_file=${1}
-    read_key=${2}
+    local json_file="${1}"
+    local read_key="${2}"
 
     if [[ -z ${read_key} ]]; then
       echo "Please specify a key (e.g., \"RepetitionTime\") to read"
     else
       # reads x lines, cuts the :, removes white spaces, and removes carriage return
-      json_key=$(cat ${json_file} | grep ${read_key} | cut -d':' -f2)
-      if [ ! -z ${json_key} ]; then
-        if [[ ${json_key} == *","* ]]; then
-          json_key=$(echo ${json_key} | cut -d"," -f1)
+      json_key=$(
+        cat "${json_file}" | \
+        grep "${read_key}" | \
+        cut -d':' -f2
+      )
+      if [ ! -z "${json_key}" ]; then
+        if [[ "${json_key}" == *","* ]]; then
+          json_key=$(echo "${json_key}" | cut -d"," -f1)
         fi
-        json_key=$(echo ${json_key} |  xargs | sed 's/\r$//')
-        echo ${json_key}
+        json_key=$(
+          echo "${json_key}" | \
+          xargs | \
+          sed 's/\r$//'
+        )
+        echo "${json_key}"
       else
         echo ""
       fi
@@ -521,45 +534,49 @@ USAGE
   else
     # Check for subject & session flags
     read_lines=50
-    par_file=${1}
+    par_file="${1}"
     if [[ $# -eq 3 ]]; then
-      read_lines=${1}
-      par_file=${2}
-      read_key=${3}
+      local read_lines="${1}"
+      local par_file="${2}"
+      local read_key="${3}"
     elif [[ $# -eq 2 ]]; then
-      par_file=${1}
-      read_key=${2}
+      local par_file="${1}"
+      local read_key="${2}"
     fi
 
-    if [[ -z ${read_key} ]]; then
+    if [[ -z "${read_key}" ]]; then
       echo "Please specify a key (e.g., \"number of echoes\") to read"
     else
       # reads x lines, cuts the :, removes white spaces, and removes carriage return
-      par_key=`head -${read_lines} ${par_file} | grep "${read_key}" | cut -d":" -f2 | xargs | sed 's/\r$//'`
-      echo ${par_key}
+      par_key=$(
+        head -${read_lines} "${par_file}" | \
+        grep "${read_key}" | \
+        cut -d":" -f2 | \
+        xargs | \
+        sed 's/\r$//'
+      )
+      echo "${par_key}"
     fi
-
   fi
-
 }
 
 function phase_encoding_from_dcm {
-    dcm_file="$1"
+  
+  local dcm_file="${1}"
+  if [[ ! -f "${dcm_file}" ]]; then
+      echo "Error: File does not exist - ${dcm_file}"
+      return 1
+  fi
 
-    if [[ ! -f "$dcm_file" ]]; then
-        echo "Error: File does not exist - $dcm_file"
-        return 1
-    fi
-
-    phase_encoding=$(python3 - <<END
+  phase_encoding=$(python3 - <<END
 import pydicom
 
-dcm = pydicom.dcmread("$dcm_file")
+dcm = pydicom.dcmread("${dcm_file}")
 phase_encoding = getattr(dcm, "InPlanePhaseEncodingDirection", "UNKNOWN")
 print(phase_encoding)
 END
 )
-    echo "$phase_encoding"
+  echo "${phase_encoding}"
 }
 
 function read_dcm {
@@ -590,37 +607,38 @@ USAGE
     Usage
   else
 
+    local dcm_file="${1}"
+    local key="${2}"
+
     PYTHON_CODE=$(cat <<END
 from pydicom import dcmread
 
-dcm = dcmread("${1}")
+dcm = dcmread("${dcm_file}")
 
-if "$2" == "NumberOfImagesInMosaic":
+if "${key}" == "NumberOfImagesInMosaic":
   res = dcm.get((0x0019, 0x100a), None)
   res = res.value if res is not None else ""
-elif "${2}" == "polarity":
+elif "${key}" == "polarity":
   res = dcm.get((0x0051, 0x1013), None)
   res = res.value if res is not None else ""
-elif "${2}" == "PhaseEncodingDirection":
+elif "${key}" == "PhaseEncodingDirection":
   res = dcm.get((0x0018, 0x1312), None)
   res = res.value if res is not None else ""  
 else:
-  res = getattr(dcm, "${2}", None)
+  res = getattr(dcm, "${key}", None)
 
 print(res)
 END
 )
-    if [[ ${2} == "RepetitionTime" ]]; then
-      res=`tr_from_dcm ${1}`
-    elif [[ ${2} == "PhaseEncodingDirection" ]]; then
-      res=`phase_encoding_from_dcm ${1}`
-    else
-      res=("$(python -c "${PYTHON_CODE}")")
-    fi
-
-    echo $res
-
+  if [[ "${key}" == "RepetitionTime" ]]; then
+    res="$(tr_from_dcm ${dcm_file})"
+  elif [[ "${key}" == "PhaseEncodingDirection" ]]; then
+    res="$(phase_encoding_from_dcm ${dcm_file})"
+  else
+    res=("$(python -c "${PYTHON_CODE}")")
   fi
+  echo "${res}"
+fi
 
 }
 
@@ -663,39 +681,38 @@ collect_session_info() {
 
 function pe_from_dcm {
 
-  dcm_file=${1}
-  axis=$(read_dcm ${dcm_file} PhaseEncodingDirection)
-  csa_dir=$(read_dcm ${dcm_file} polarity)
+  dcm_file="${1}"
+  axis="$(read_dcm "${dcm_file}" PhaseEncodingDirection)"
+  csa_dir="$(read_dcm "${dcm_file}" polarity)"
 
   # phase encoding direction; check variable in setup file
-  if [ ! -z ${PE_DIR_BOLD} ]; then
-    PE=${PE_DIR_BOLD}
-    bids_pe=`fprep_pe ${PE}`
+  if [ ! -z "${PE_DIR_BOLD}" ]; then
+    PE="${PE_DIR_BOLD}"
+    bids_pe=$(fprep_pe "${PE}")
   else
     # Infer BIDS PhaseEncodingDirection
     if [[ "$axis" == "COL" ]]; then
-        if [[ "$csa_dir" == *"L"* ]]; then
-            bids_pe="j"
-        elif [[ "$csa_dir" == *"R"* ]]; then
-            bids_pe="j-"
-        else
-            echo "Error: Unexpected CSA Direction for COL: $csa_dir" >&2
-            exit 1
-        fi
-    elif [[ "$axis" == "ROW" ]]; then
-        if [[ "$csa_dir" == *"P"* ]]; then
-            bids_pe="i"
-        elif [[ "$csa_dir" == *"A"* ]]; then
-            bids_pe="i-"
-        else
-            echo "Error: Unexpected CSA Direction for ROW: $csa_dir" >&2
-            exit 1
-        fi
-    else
-        echo "Error: Could not read InPlanePhaseEncodingDirection." >&2
+      if [[ "$csa_dir" == *"L"* ]]; then
+        bids_pe="j"
+      elif [[ "$csa_dir" == *"R"* ]]; then
+        bids_pe="j-"
+      else
+        echo "Error: Unexpected CSA Direction for COL: $csa_dir" >&2
         exit 1
+      fi
+    elif [[ "$axis" == "ROW" ]]; then
+      if [[ "$csa_dir" == *"P"* ]]; then
+        bids_pe="i"
+      elif [[ "$csa_dir" == *"A"* ]]; then
+        bids_pe="i-"
+      else
+        echo "Error: Unexpected CSA Direction for ROW: $csa_dir" >&2
+        exit 1
+      fi
+    else
+      echo "Error: Could not read InPlanePhaseEncodingDirection." >&2
+      exit 1
     fi
-
   fi
 
   echo "${bids_pe}"
@@ -735,8 +752,8 @@ USAGE
     Usage
   else
 
-    par=${1}
-    use_case=${2}
+    par="${1}"
+    use_case="${2}"
 
     if [[ -z ${use_case} ]]; then
       use_case="average"
@@ -744,18 +761,27 @@ USAGE
 
     # fetch where parameters begin
     str="=== IMAGE INFORMATION ="
-    line_startpar=`grep -n -m 1 "${str}" ${par} | sed  's/\([0-9]*\).*/\1/'`
+    line_startpar=$(
+      grep -n -m 1 "${str}" "${par}" | \
+      sed  's/\([0-9]*\).*/\1/'
+    )
 
     # get TR column
-    tr_column=($(sed -n "$((${line_startpar}+2)),$ p" ${par} | awk '{ print $32 }' | sed 's/\r$//'))
+    tr_column=(
+      $(
+        sed -n "$((${line_startpar}+2)),$ p" "${par}" | \
+        awk '{ print $32 }' | \
+        sed 's/\r$//'
+      )
+    )
 
-    tr_file=$(dirname ${par})/tr.txt
-    if [[ -f ${tr_file} ]]; then
-      rm -r ${tr_file}
+    tr_file="$(dirname "${par}")/tr.txt"
+    if [[ -f "${tr_file}" ]]; then
+      rm -r "${tr_file}"
     fi
     
     # echo list of TRs to tmp file to use np.diff
-    echo ${tr_column[@]} >> ${tr_file}
+    echo ${tr_column[@]} >> "${tr_file}"
 
     # define python code
     PYTHON_CODE="""
@@ -776,11 +802,11 @@ except:
     tr="$(python -c "$PYTHON_CODE")"
 
     # remove tmp file
-    if [[ -f ${tr_file} ]]; then
-      rm -r ${tr_file}
+    if [[ -f "${tr_file}" ]]; then
+      rm -r "${tr_file}"
     fi
 
-    echo ${tr}
+    echo "${tr}"
   fi  
 }
 
@@ -815,47 +841,53 @@ USAGE
     Usage
     do_stuff=0
   elif [[ $# -eq 1 ]]; then
-    pathInput=${1}
-    pathOutput=${pathInput}/nifti
+    pathInput="${1}"
+    pathOutput="${pathInput}/nifti"
   elif [[ $# -eq 2 ]]; then
-    pathInput=${1}
-    pathOutput=${2}  
+    pathInput="${1}"
+    pathOutput="${2}"
   fi
 
   if [[ ${do_stuff} -eq 1 ]]; then
-    for ii in ${pathOutput}/*.nii.gz; do
-      if [[ $(basename ${ii}) == *"_bold"* || $(basename ${ii}) == *"_epi"* ]]; then
+    for ii in "${pathOutput}/"*.nii.gz; do
+      if [[ $(basename "${ii}") == *"_bold"* || $(basename "${ii}") == *"_epi"* ]]; then
         # cross reference with par files in pathInput
-        for par in ${pathInput}/*; do
+        for par in "${pathInput}/"*; do
 
           # if file > philips
-          if [ -f ${par} ]; then
-            ext=$(fetch_extension ${par})
+          if [ -f "${par}" ]; then
+            ext=$(fetch_extension "${par}")
             ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
             if [[ ${ext_lower} == *"par"* ]]; then
-              pat=$(read_par ${par} "Patient name")
-              prot=$(read_par ${par} "Protocol name")
+              pat=$(read_par "${par}" "Patient name")
+              prot=$(read_par "${par}" "Protocol name")
 
               # assuming dcm2niix command above did not change!
-              nifti_from_par=${pathOutput}/${pat}_${prot}
-              if [[ ${nifti_from_par}.nii.gz -ef ${ii} ]]; then
-                call_json ${nifti_from_par}.json ParFile ${par}
+              nifti_from_par="${pathOutput}/${pat}_${prot}"
+              if [[ "${nifti_from_par}.nii.gz" -ef ${ii} ]]; then
+                call_json "${nifti_from_par}.json" ParFile "${par}"
               fi
             fi
-          elif [ -d ${par} ]; then
+          elif [ -d "${par}" ]; then
 
             # deal with siemens DCM folders
-            if [[ "$(basename ${par})" =~ ^[0-9] ]]; then
+            if [[ "$(basename "${par}")" =~ ^[0-9] ]]; then
 
               # reconstruct filename from dcm file for each directory
-              dcm_tmp=$(find ${par} -type f -name "*.dcm" | head -n 1)
-              pat=$(read_dcm ${dcm_tmp} "PatientName")
-              prot=$(read_dcm ${dcm_tmp} "ProtocolName")
+              dcm_tmp=$(
+                find "${par}" \
+                -type f -name "*.dcm" | \
+                head -n 1
+              )
+
+              # read patient/protocol name
+              pat=$(read_dcm "${dcm_tmp}" "PatientName")
+              prot=$(read_dcm "${dcm_tmp}" "ProtocolName")
 
               # assuming dcm2niix command above did not change!
-              nifti_from_dcm=${pathOutput}/${pat}_${prot}
-              if [[ ${nifti_from_dcm}.nii.gz -ef ${ii} ]]; then
-                call_json ${nifti_from_dcm}.json ParFile ${dcm_tmp}
+              nifti_from_dcm="${pathOutput}/${pat}_${prot}"
+              if [[ "${nifti_from_dcm}.nii.gz" -ef "${ii}" ]]; then
+                call_json "${nifti_from_dcm}.json" ParFile "${dcm_tmp}"
               fi
             fi
           fi
@@ -895,17 +927,17 @@ This function extracts the TR using these strategies:
         return 1
     fi
 
-    dcm_file="$1"
+    dcm_file="${1}"
     if [[ ! -f "$dcm_file" ]]; then
-      echo "Error: File does not exist - $dcm_file"
+      echo "Error: File does not exist - ${dcm_file}"
       return 1
     fi
 
     # Extract TR hint from filename (supports multiple patterns)
     filename_tr=""
-    if [[ "$dcm_file" =~ [Tt][Rr][=_]?([0-9]+\.[0-9]+) ]]; then
+    if [[ "${dcm_file}" =~ [Tt][Rr][=_]?([0-9]+\.[0-9]+) ]]; then
         filename_tr="${BASH_REMATCH[1]}"
-    elif [[ "$dcm_file" =~ _[Tt][Rr]([0-9]+p[0-9]+)_ ]]; then
+    elif [[ "${dcm_file}" =~ _[Tt][Rr]([0-9]+p[0-9]+)_ ]]; then
         filename_tr=$(echo "${BASH_REMATCH[1]}" | tr 'p' '.')
     fi
 
@@ -1008,17 +1040,12 @@ USAGE
     Usage
   else
 
+    par_file="$1"
+    json_file="${2:-}"
     MERGE=""
-    par_file=${1}
-    if [[ $# -eq 1 ]]; then
-      par_file=${1}
-      json_file=""
-    elif [[ $# -eq 2 ]]; then
-      par_file=${1}
-      json_file=${2}
-    elif [[ $# -eq 3 ]]; then
-      par_file=${2}
-      json_file=${3}
+    if [[ $# -eq 3 ]]; then
+      par_file="${2}"
+      json_file="${3}"
       MERGE="--merge"
     fi
 
@@ -1034,10 +1061,10 @@ USAGE
     wf_ppm=3.35
 
     # EPI factor
-    epi_f=$(read_par ${par_file} "EPI factor")
+    epi_f=$(read_par "${par_file}" "EPI factor")
 
     # water fat shift
-    WFS=$(read_par ${par_file} "Water Fat shift")
+    WFS=$(read_par "${par_file}" "Water Fat shift")
 
     # WFS (freq)
     WFS_hz=$(echo "${FIELD_STRENGTH} * ${wf_ppm} * ${gyro}" | bc -l)
@@ -1050,51 +1077,55 @@ USAGE
 
     # phase encoding direction; check variable in setup file
     if [ -z ${PE_DIR_BOLD} ]; then
-      PE=$(read_par ${par_file} "Preparation direction")
+      PE=$(read_par "${par_file}" "Preparation direction")
     else
       PE=${PE_DIR_BOLD}
     fi
 
-    ADD_PE=$(fprep_pe ${PE})
+    ADD_PE=$(fprep_pe "${PE}")
 
     # protocol name
-    PROT=$(read_par ${par_file} "Protocol name")
+    PROT=$(read_par "${par_file}" "Protocol name")
 
     # EPI factor
-    EPI_FACTOR=$(read_par ${par_file} "EPI factor")
+    EPI_FACTOR=$(read_par "${par_file}" "EPI factor")
 
     # protocol name
-    PROT_NAME=$(read_par ${par_file} "Protocol name")
+    PROT_NAME=$(read_par "${par_file}" "Protocol name")
 
     # acquisition scheme
-    AQ=$(read_par ${par_file} "Scan mode")
+    AQ=$(read_par "${par_file}" "Scan mode")
 
     # flip PE if protocol name is BOLD but json file EPI
     txt=""
     if [[ ${PROT} == *"_bold"* ]]; then
-      if [[ -f ${json_file} ]]; then
-        if [[ $(basename ${json_file}) == *"epi.json"* ]]; then
-          ADD_PE=$(fprep_pe ${PE} 1)
+      if [[ -f "${json_file}" ]]; then
+        if [[ $(basename "${json_file}") == *"epi.json"* ]]; then
+          ADD_PE=$(fprep_pe "${PE}" 1)
           txt="flipped for epi_json"
         else
-          ADD_PE=$(fprep_pe ${PE} 0)
+          ADD_PE=$(fprep_pe "${PE}" 0)
           txt="not flipped"
         fi
       else
-        ADD_PE=$(fprep_pe ${PE} 0)
+        ADD_PE=$(fprep_pe "${PE}" 0)
         txt="not flipped"
       fi
     elif [[ ${PROT} == *"_epi"* ]]; then
-      ADD_PE=$(fprep_pe ${PE} 1)
+      ADD_PE=$(fprep_pe "${PE}" 1)
       txt="flipped for epi_json"
     fi
 
-    if [[ ! -z ${json_file} ]]; then
-      call_json ${merge} ${json_file} TotalReadoutTime,PhaseEncodingDirection,EffectiveEchoSpacing,ProtocolName,MagneticFieldStrength,WaterFatShift,EPIFactor,ProtocolName,AcquisitionTechnique ${TRT},${ADD_PE},${EES},${PROT},${FIELD_STRENGTH},${WFS},${EPI_FACTOR},${PROT_NAME},${AQ}
+    if [[ ! -z "${json_file}" ]]; then
+      call_json \
+        "${merge}" \
+        "${json_file}" \
+        TotalReadoutTime,PhaseEncodingDirection,EffectiveEchoSpacing,ProtocolName,MagneticFieldStrength,WaterFatShift,EPIFactor,ProtocolName,AcquisitionTechnique \
+        "${TRT}","${ADD_PE}","${EES}"",${PROT}","${FIELD_STRENGTH}","${WFS}","${EPI_FACTOR}","${PROT_NAME}","${AQ}"
 
-      if [[ ! -z ${MB_FACTOR} ]]; then
+      if [[ ! -z "${MB_FACTOR}" ]]; then
         if [[ ${AQ} != "3D" ]]; then
-          call_json ${json_file} MultiBandAccelerationFactor ${MB_FACTOR}
+          call_json "${json_file}" MultiBandAccelerationFactor "${MB_FACTOR}"
         fi
       fi
     else
@@ -1117,33 +1148,33 @@ function fprep_pe {
   FLIP=${2}
 
   # check if we want the flipped version
-  if [[ -z ${FLIP} ]]; then
+  if [[ -z "${FLIP}" ]]; then
     FLIP=0
   else
-    FLIP=${FLIP}
+    FLIP="${FLIP}"
   fi
 
   # derive code from PE
-  if [[ ${PE} == "AP" ]] || [[ ${PE} == "Anterior-Posterior" ]]; then
-    if [[ ${FLIP} -eq 0 ]]; then
+  if [[ "${PE}" == "AP" ]] || [[ "${PE}" == "Anterior-Posterior" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
       ADD_PE="j"
     else
       ADD_PE="j-"
     fi
-  elif [[ ${PE} == "PA" ]] || [[ ${PE} == "Posterior-Anterior" ]]; then
-    if [[ ${FLIP} -eq 0 ]]; then
+  elif [[ "${PE}" == "PA" ]] || [[ "${PE}" == "Posterior-Anterior" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
       ADD_PE="j-"
     else
       ADD_PE="j"
     fi
-  elif [[ ${PE} == "LR" ]] || [[ ${PE} == "Left-Right" ]]; then
-    if [[ ${FLIP} -eq 0 ]]; then
+  elif [[ "${PE}" == "LR" ]] || [[ "${PE}" == "Left-Right" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
       ADD_PE="i"
     else
       ADD_PE="i-"
     fi
-  elif [[ ${PE} == "RL" ]] || [[ ${PE} == "Right-Left" ]]; then
-    if [[ ${FLIP} -eq 0 ]]; then
+  elif [[ "${PE}" == "RL" ]] || [[ "${PE}" == "Right-Left" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
       ADD_PE="i-"
     else
       ADD_PE="i"
@@ -1158,15 +1189,15 @@ function add_nordic_msg {
   if [[ $# -ne 2 ]]; then
     echo "Please specify an input folder and the message to add to the json files"
   else
-    folder=${1}
-    msg=${2}
+    local folder="${1}"
+    local msg="${2}"
 
-    if [[ ! -d ${folder} ]]; then
+    if [[ ! -d "${folder}" ]]; then
       echo "ERROR: input is not a folder"
     else
       echo "Adding {\"Nordic\": \"${msg}\"} to json-files in \"${folder}\""
-      for file in ${folder}/*.json; do
-        call_json ${file} "Nordic" "${msg}"
+      for file in "${folder}/"*.json; do
+        call_json "${file}" "Nordic" "${msg}"
       done
     fi
   fi
@@ -1177,13 +1208,13 @@ function fn_exists {
   if [[ $# -eq 0 ]]; then
     echo -e "${BOLD_RED}ERROR${RESET} in function: please specify an input"
   else
-    func=${1}
-    FN=`type -t ${func}`
+    local func="${1}"
+    FN=$(type -t ${func})
     if [[ -z ${FN} ]]; then
       echo "Didn't find function \"${func}\""
 
-      if [[ ! -z ${2} ]]; then
-        if [[ ${2} -eq 1 ]]; then
+      if [[ ! -z "${2}" ]]; then
+        if [[ "${2}" -eq 1 ]]; then
           exit 1
         fi
       fi
@@ -1193,10 +1224,10 @@ function fn_exists {
 }
 
 function check_file {
-  input=${1}
-  if [ -f ${input} ]; then
+  local input="${1}"
+  if [ -f "${input}" ]; then
     echo "File exists at ${input}"
-  elif [ -d ${input} ]; then
+  elif [ -d "${input}" ]; then
     echo "Directory exists at ${input}"
   else
     echo "File/directory \"${input}\" does not exist"
@@ -1254,33 +1285,13 @@ function dykstra_distance {
     )
 
     # write output to json file
-    if [[ ! -z ${6} ]]; then
-      call_json ${6} "${5}" "${dist}"
+    if [[ ! -z "${6}" ]]; then
+      call_json "${6}" "${5}" "${dist}"
     else
-      echo ${dist}
+      echo "${dist}"
     fi
   fi
 }
-
-function flywheel2bids {
-  input_dir=${1}
-  fname=${2}
-  for ii in ${input_dir}/*.json; do
-  
-    if [[ ${ii} == *"_ph.json"* ]]; then
-      suff="_ph"
-    else
-      suff=""
-    fi
-
-    # get SeriesDescription
-    SD=$(cat ${ii} | grep "SeriesDescription" | cut -d ":" -f2 | cut -d" " -f2 | cut -d"," -f1 | tr -d '"')
-    outbase=${fname}_${SD}${suff}
-    mv ${ii} $(dirname $ii)/${outbase}.json
-    mv $(dirname $ii)/$(basename ${ii} .json).nii.gz $(dirname $ii)/${outbase}.nii.gz
-
-  done
-} 
 
 function permission_codes {
   stat -c "%a %n" *
@@ -1295,16 +1306,23 @@ function add_prefix {
 }
 
 function get_id {
-  func=$(basename $(readlink -f "${1}"))
-  tag=${2}
-  if [[ ${func} != *"${tag}"* ]]; then
+  local file="${1}"
+  local tag="${2}"
+
+  # read basename
+  func="$(basename $(readlink -f "${file}"))"
+  if [[ "${func}" != *"${tag}"* ]]; then
     tag=""
   else
     # need some operations to find the task ID
-    part_after_task=${func#*$tag}
-    if [[ ! -z ${part_after_task} ]]; then
+    part_after_task="${func#*$tag}"
+    if [[ ! -z "${part_after_task}" ]]; then
       # use brute force underscore as delimiter an pray your sequences have been set correctly
-      tag=$(echo ${part_after_task} | cut -d'_' -f1 | cut -d"-" -f2)
+      tag=$(
+        echo "${part_after_task}" | \
+        cut -d'_' -f1 | \
+        cut -d"-" -f2
+      )
     else
       # could not derive task; assume its pRF
       tag=""
@@ -1312,23 +1330,23 @@ function get_id {
   fi
 
   # get rid of dots by assuming the tag-of-interest precedes dot (lazy solution)
-  if [[ ${tag} == *"."* ]]; then
-    tag=$(echo ${tag} | cut -d"." -f1)
+  if [[ "${tag}" == *"."* ]]; then
+    tag=$(echo "${tag}" | cut -d"." -f1)
   fi
 
-  echo ${tag}
+  echo "${tag}"
 }
 
 function task_id {
-  func=${1}
-  task=`get_id ${func} task`
-  echo $task
+  func="${1}"
+  task="$(get_id "${func}" task)"
+  echo "${task}"
 }
 
 function run_id {
-  func=${1}
-  run=`get_id ${func} run`
-  echo $run
+  func="${1}"
+  run="$(get_id "${func}" run)"
+  echo "${run}"
 }
 
 #start_ssh client
@@ -1336,8 +1354,8 @@ function start_ssh {
   # start the ssh-agent in the background
   eval $(ssh-agent -s)
   # Add a private key to SSH.
-  if [ -f ${SSH_KEY} ]; then
-    ssh-add ${SSH_KEY}
+  if [ -f "${SSH_KEY}" ]; then
+    ssh-add "${SSH_KEY}"
     ssh -T git@github.com
   else
     echo "${SSH_KEY} key not found! Confirm file exists or set SSH_KEY variable in ~/.bash_profile"
@@ -1345,9 +1363,9 @@ function start_ssh {
 }
 
 function check_function {
-  FN=`type -t $1`
+  FN="$(type -t "${1}")"
 
-  if [[ -z ${FN} ]]; then
+  if [[ -z "${FN}" ]]; then
     echo 1
   else
     echo 0
@@ -1464,12 +1482,16 @@ function get_module_nr() {
     fi
 
     # Process file to extract module numbers that match the search string(s)
-    mods=$(grep "$find_mod" "$modules_txt" | awk '{print $1}' | cut -d"-" -f2 | cut -d':' -f1)
+    mods=$(
+      grep "$find_mod" "$modules_txt" | \
+      awk '{print $1}' | \
+      cut -d"-" -f2 | \
+      cut -d':' -f1
+    )
 
     # Sort and return results (space-separated)
     if [[ -n "$mods" ]]; then
       echo "${mods}" | cut -d"}" -f2 | cut -d "$" -f1
-      echo
     else
       echo "No matching module found for \"$find_mod\"" >&2
       return 1
@@ -1492,10 +1514,10 @@ function fetch_filepath {
   if [[ $(echo ${1:0:1}) != "/" ]]; then
     INPUT=$(readlink -f "${1}")
   else
-    INPUT=${1}
+    INPUT="${1}"
   fi
 
-  echo ${INPUT}
+  echo "${INPUT}"
 }
 
 #-----------------------------------------------------------------------------
@@ -1593,7 +1615,7 @@ function make_sanlm_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. SANLM-filtering with CAT12"
+    echo "% Created on $(date). SANLM-filtering with CAT12"
     echo ""
     echo "clear;"
 
@@ -1648,7 +1670,7 @@ function make_suit_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Cerebellum segmentation with SUIT"
+    echo "% Created on $(date). Cerebellum segmentation with SUIT"
     echo ""
     echo "clear;"
     
@@ -1706,7 +1728,7 @@ function make_nordic_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Nordic on $(basename ${1})"
+    echo "% Created on $(date). Nordic on $(basename ${1})"
     echo ""
     echo "clear;"
     echo "addpath(genpath('${REPO_DIR}/misc'));"
@@ -1752,43 +1774,43 @@ Example:
 USAGE
 }
 
-  in_file=$(readlink -f "${1}")
-  interp=${2}
-  output_dir=${3}
-  base_name=${4}
-  script_name=${5}
+  local in_file="$(readlink -f "${1}")"
+  local interp="${2}"
+  local output_dir="${3}"
+  local base_name="${4}"
+  local script_name="${5}"
   
   if [[ ${HELP} -eq 1 || $# -lt 5 ]]; then
     Usage
   else
 
     # set default output directory
-    if [[ -z ${output_dir} ]]; then
-      output_dir=${FS}/fsaverage/surf
+    if [[ -z "${output_dir}" ]]; then
+      output_dir="${FS}/fsaverage/surf"
     fi
 
     # create it if it doesn't exit
-    if [[ ! -d ${output_dir} ]]; then
-      mkdir -p ${output_dir}
+    if [[ ! -d "${output_dir}" ]]; then
+      mkdir -p "${output_dir}"
     fi
 
     # set default basename
-    if [[ -z ${base_name} ]]; then
+    if [[ -z "${base_name}" ]]; then
       base_name="mni2fsaverage"
     fi
 
     # set default basename
     if [[ -z ${script_name} ]]; then
-      script_name=$(dirname ${in_file})/$(basename ${in_file} .nii.gz).m
+      script_name="$(echo "${in_file%.nii.gz}" | tr '-' '_').m"
     fi
 
     # output files
-    lh_output=${output_dir}/lh.${base_name}.nii.gz
-    rh_output=${output_dir}/rh.${base_name}.nii.gz
+    lh_output="${output_dir}/lh.${base_name}.nii.gz"
+    rh_output="${output_dir}/rh.${base_name}.nii.gz"
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Projecting $(basename ${in_file}) to FSAverage"
+    echo "% Created on $(date). Projecting $(basename ${in_file}) to FSAverage"
     echo ""
     echo "clear;"
     echo "addpath(genpath('${REPO_DIR}/misc'));"
@@ -1803,7 +1825,7 @@ USAGE
     echo "MRIwrite(input, '${rh_output}');"
     echo ""
     echo "exit;"
-    ) >> ${script_name}
+    ) >> "${script_name}"
 
   fi
 
@@ -1839,7 +1861,7 @@ function make_bias_script {
   else
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Bias field correction with SPM12"
+    echo "% Created on $(date). Bias field correction with SPM12"
     echo ""
     echo "clear;"
 
@@ -1902,11 +1924,11 @@ function make_physio_script {
 
     local spm_path="${1}"
     local input_file="${2}"
-    local tr=${3}
-    local vols=${4}
+    local tr="${3}"
+    local vols="${4}"
     local output="${5}"
-    local dummies=${6}
-    local n_slices=${7}
+    local dummies="${6}"
+    local n_slices="${7}"
     local job_name="${8}"
 
     ext=$(fetch_extension "${input_file}")
@@ -1930,16 +1952,16 @@ function make_physio_script {
     fi
     ) >> "${job_name}"
 
-    batch_file=${REPO_DIR}/misc/spm_batch_phys.m
+    batch_file="${REPO_DIR}/misc/spm_batch_phys.m"
     cat "${batch_file}" >> "${job_name}"
 
     call_replace CHANGE_THIS_INPUT "${input_file}" "${job_name}"
     call_replace CHANGE_THIS_VENDOR "${vendor}" "${job_name}"
-    call_replace CHANGE_THIS_N_SLICES ${n_slices} "${job_name}"
-    call_replace CHANGE_THIS_TR ${tr} "${job_name}"
-    call_replace CHANGE_THIS_N_DUMMIES ${dummies} "${job_name}"
-    call_replace CHANGE_THIS_N_VOLS ${vols} "${job_name}"
-    call_replace CHANGE_THIS_OUTPUT ${output} "${job_name}"
+    call_replace CHANGE_THIS_N_SLICES "${n_slices}" "${job_name}"
+    call_replace CHANGE_THIS_TR "${tr}" "${job_name}"
+    call_replace CHANGE_THIS_N_DUMMIES "${dummies}" "${job_name}"
+    call_replace CHANGE_THIS_N_VOLS "${vols}" "${job_name}"
+    call_replace CHANGE_THIS_OUTPUT "${output}" "${job_name}"
 
     (
     echo ""
@@ -1949,7 +1971,7 @@ function make_physio_script {
     echo "exit"
     ) >> "${job_name}"
 
-    cat "${job_name}" | grep -A0 "matlabbatch{" >> $(dirname "${job_name}")/$(basename "${job_name}" .m)_batch.m
+    cat "${job_name}" | grep -A0 "matlabbatch{" >> "${job_name/.m/_batch.m}"
 
   fi
   
@@ -1985,7 +2007,7 @@ function make_mask_script {
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Running with ${VER}"
+    echo "% Created on $(date). Running with ${VER}"
     echo ""
     echo "clear;"
     echo ""
@@ -2040,8 +2062,15 @@ function make_cat_script {
   else
 
     # find cat directory
-    cat12_dir=$(find -L ${1} -type d -name "*cat12*" -print -quit 2>/dev/null)
-    if [[ -z ${cat12_dir} ]]; then
+    cat12_dir=$(
+      find -L "${1}" \
+      -type d \
+      -name "*cat12*" \
+      -print \
+      -quit \
+      2>/dev/null
+    )
+    if [[ -z "${cat12_dir}" ]]; then
       echo "Could not find CAT12-directory in \"${1}\""
       exit 1
     fi
@@ -2064,25 +2093,32 @@ function make_cat_script {
         exit 1
       fi
     else
-      batch_file=${REPO_DIR}/misc/cat_batch_custom.m
+      batch_file="${REPO_DIR}/misc/cat_batch_custom.m"
       echo "Using custom batch-file: \"${batch_file}\""
     fi
 
-    if [[ ! -f ${batch_file} ]]; then
+    if [[ ! -f "${batch_file}" ]]; then
       echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
       for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
       exit 1
     fi
 
-    tpm_dir=$(find -L ${1} -type d -name "*tpm*" -print -quit 2>/dev/null)
-    if [[ -z ${tpm_dir} ]]; then
+    tpm_dir=$(
+      find -L "${1}" \
+      -type d \
+      -name "*tpm*" \
+      -print \
+      -quit \
+      2>/dev/null
+    )
+    if [[ -z "${tpm_dir}" ]]; then
       echo "Could not find template-directory in \"${1}\""
       exit 1
     fi
 
     (
     echo "%-----------------------------------------------------------------------------"
-    echo "% Created on `date`. Running with ${VER}"
+    echo "% Created on $(date). Running with ${VER}"
     echo ""
     echo "clear;"
 
@@ -2111,16 +2147,16 @@ function make_cat_script {
     fi
 
     # echo to file
-    cat "${batch_file}" >> ${4}
+    cat "${batch_file}" >> "${4}"
 
     # # change parameters (perl is agnostic to MacOS/Linux)
-    call_replace CHANGE_THIS_SPM_PATH "${1}" ${4}
-    call_replace CHANGE_THIS_INPUT "${2}" ${4}
-    call_replace CHANGE_BIAS_STR "${bias_str}" ${4}
-    call_replace CHANGE_BIAS_REG "${bias_reg}" ${4}
-    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" ${4}
-    call_replace CHANGE_THIS_APP_TERM "${app}" ${4}
-    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" ${4}
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${4}"
+    call_replace CHANGE_BIAS_STR "${bias_str}" "${4}"
+    call_replace CHANGE_BIAS_REG "${bias_reg}" "${4}"
+    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" "${4}"
+    call_replace CHANGE_THIS_APP_TERM "${app}" "${4}"
+    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" "${4}"
 
     (
     echo ""
@@ -2129,14 +2165,12 @@ function make_cat_script {
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('run', matlabbatch);"
     echo "exit"
-    ) >> ${4}
+    ) >> "${4}"
 
     # also save the matlabbatch-only lines to a file that we can load in SPM/CAT12
-    if [[ -f $(dirname ${4})/$(basename ${4} .m)_batch.m ]]; then
-      rm $(dirname ${4})/$(basename ${4} .m)_batch.m
-    fi
+    rm "$(basename ${4/.m/_batch.m})" 2>/dev/null
 
-    cat ${4} | grep -A0 "matlabbatch{" >> $(dirname ${4})/$(basename ${4} .m)_batch.m
+    cat "${4}" | grep -A0 "matlabbatch{" >> "$(basename ${4/.m/_batch.m})"
   fi
 }
 
