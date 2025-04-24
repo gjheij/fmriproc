@@ -178,7 +178,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # Intro
-start_timer "New brain extraction using \"$(make_lower ${software})\""
+start_timer "New brain extraction using \"${soft_lower}\""
 
 #-----------------------------------------------------------------------------
 # loop through subjects
@@ -222,12 +222,12 @@ for subID in ${search}; do
 
   # copy as spm-mask
   if [[ ! -z "${inv2_mask}" ]]; then
-    cp "${inv2_mask}" ${MASKS}/${base}_acq-${DATA_UPR}_desc-spm_mask.nii.gz 2>/dev/null
+    cp "${inv2_mask}" "${MASKS}/${base}_acq-${DATA_UPR}_desc-spm_mask.nii.gz" 2>/dev/null
   fi
 
   #-----------------------------------------------------------------------------
   # ANTs
-  if [[ $(make_lower ${SOFTWARE}) == "ants" ]]; then
+  if [[ "${soft_lower}" == "ants" ]]; then
 
     input=$(
       find -L "${INPUTDIR}" \
@@ -236,7 +236,7 @@ for subID in ${search}; do
       -and -name "*.nii.gz" \
       2>/dev/null
     )
-    if [[ -f ${input} ]]; then
+    if [[ -f "${input}" ]]; then
 
       declare -a OUT=(brain mask)
       final_brain="${BET}/${base}_acq-${DATA_UPR}_desc-ants_brain_T1w.nii.gz"
@@ -299,7 +299,7 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------s
         # Delete affine file if present
-        rm -r "$(dirname ${final_brain})/*.mat" 2/dev/null
+        rm -r "$(dirname ${final_brain})/"*.mat 2/dev/null
 
         # Orient the output according to fixed image
         echo "copying header info from $(basename ${input}) image"
@@ -327,7 +327,7 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # FSL
-  elif [[ $(make_lower ${SOFTWARE}) == "fsl" ]]; then
+  elif [[ "${soft_lower}" == "fsl" ]]; then
 
     #-----------------------------------------------------------------------------
     # fetch input
@@ -442,11 +442,11 @@ for subID in ${search}; do
       if [[ -f ${output_mask} ]]; then
         print_output_exists "${sub_name}" "${output_mask}"
       fi
-    
+    fi
     
   #-----------------------------------------------------------------------------
   # CAT12 [default]
-  elif [[ $(make_lower ${SOFTWARE}) == "cat12" ]]; then
+  elif [[ "${soft_lower}" == "cat12" ]]; then
 
     #-----------------------------------------------------------------------------
     # define outputs
@@ -516,11 +516,10 @@ for subID in ${search}; do
       #-----------------------------------------------------------------------------
       # use fMRIPrep
       elif [[ ${use_fprep} -eq 1 ]]; then
-        echo -e "Using ${BOLD_RED}fMRIprep${RESET} input"
         in_dir="${DIR_DATA_DERIV}/fmriprep/${base_path}/anat"
-        if [[ ! -d ${in_dir} ]]; then
+        if [[ ! -d "${in_dir}" ]]; then
           print_directory_not_exist "${sub_name}" "${in_dir}" "Run fMRIPrep first.."
-          exit 1
+          continue
         fi
 
         #-----------------------------------------------------------------------------
@@ -534,6 +533,11 @@ for subID in ${search}; do
           2>/dev/null
         )
         rename_base=1
+
+        if [[ ! -f "${input}" ]]; then
+          print_file_not_in_dir "${sub_name}" "${in_dir}" "No file with \"${base}*\", \"_desc-preproc_T1w.nii.gz\""
+          continue
+        fi
       else
         #-----------------------------------------------------------------------------
         # use T1w from specified input folder
@@ -777,23 +781,25 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
     if [[ -f "${spm}" && -f "${brainmask}" ]]; then
-      cmd=(
-        fslmaths
-        "${spm}"
-        -sub "${brainmask}"
-        -thr 0
-        "${duramask}"
-      )
+      if [[ ! -f "${duramask}" ]]; then
+        cmd=(
+          fslmaths
+          "${spm}"
+          -sub "${brainmask}"
+          -thr 0
+          "${duramask}"
+        )
 
-      # print and run
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "fslmaths"
-        exit 1
-      fi      
-      echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
+        # print and run
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "fslmaths"
+          exit 1
+        fi      
+        echo -e "Created ${BOLD_GREEN}${duramask}${RESET}"
+      fi
     fi
 
     # If we do not have INV2 images, we did not run spinoza_qmrimaps. So, we dont have a cat_dura 

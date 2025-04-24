@@ -266,8 +266,10 @@ for subID in ${search}; do
   # input/output
   input_dir="${INPUT}/${base_path}"
   output_dir="${OUTPUT}/${base_path}"
-
   write_output=0
+
+  #-----------------------------------------------------------------------------
+  # subject anat to subject anat
   if [[ "${TYPE}" == $(make_lower "${ACQ[0]}") ]]; then
 
     write_output=1
@@ -338,13 +340,15 @@ for subID in ${search}; do
   #-----------------------------------------------------------------------------
   # unknown type
   else
-    echo "Incorrect usage. Please specify mp2rage or mni"
-    Usage
+    echo && print_line -
+    print_error_msg "$(basename ${0})" "type" "Please specify mp2rage or mni, not \"${TYPE}\""
+    exit 1
   fi
 
   #-----------------------------------------------------------------------------
   # Check if required files exist
   if [[ ! -f "${fixed_file}" || -z "${moving_files}" ]]; then
+    echo && print_line -
     print_error_msg "$(basename ${0})" "find" "Could not find ${BOLD_GREEN}FIXED${RESET} and ${BOLD_GREEN}MOVING${RESET} images for TYPE=\"${BOLD_RED}${TYPE}${RESET}\" (code=\"${BOLD_RED}${code}${RESET}\"). Is your setup correct?"
     exit 1
   fi
