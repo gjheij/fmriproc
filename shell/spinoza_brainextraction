@@ -480,10 +480,8 @@ for subID in ${search}; do
       if [[ ${use_fs} -eq 1 ]]; then
         in_dir="${SUBJECTS_DIR}/${sub_name}/mri"
         if [[ ! -d "${in_dir}" ]]; then
-          echo
-          print_line -  
-          print_error_msg "$(basename ${0})" "FreeSurfer" "Directory ${BOLD_GREEN}${in_dir}${RESET} does not exist"
-          exit 1
+          print_directory_not_exist "${sub_name}" "${in_dir}" "Run FreeSurfer first.."
+          continue
         fi
 
         echo -e "Using ${BOLD_RED}FreeSurfer${RESET} input"
@@ -616,7 +614,7 @@ for subID in ${search}; do
             fi
           
           else
-            echo "${BOLD_GREEN}$(basename ${brainmask})${RESET} already exists. Skipping CAT12"
+            echo -e "${BOLD_GREEN}$(basename ${brainmask})${RESET} already exists. Skipping CAT12"
           fi
         else
           echo "Found existing output"
@@ -702,6 +700,7 @@ for subID in ${search}; do
 
             #-----------------------------------------------------------------------------
             # run post-processing
+            echo && print_line -
             echo "Running post-processing to fix intensities and datatype"
             cmd=(
               call_wsd
@@ -726,22 +725,10 @@ for subID in ${search}; do
           fi
         else
           #-----------------------------------------------------------------------------
-          # post-processing
-          echo -e "Could not find m*-image; running ${BOLD_BLUE}call_wsd${RESET} on ${BOLD_GREEN}${input}${RESET}"
-          cmd=(
-            call_wsd
-            -l "${lower}"
-            -u "${upper}"
-            "${input}"
-            "${BET}/$(basename ${input})"
-          )
-
-          # print and run
-          print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-          if [[ ! -f "${corrected_t1w}" || $? -ne 0 ]]; then
-            print_error_msg "$(basename ${0})" "call_wsd"
-            exit 1
-          fi
+          # copy 
+          cat_out="${BET}/$(basename ${input})"
+          echo -e "Could not find m*-image; copying input to ${BOLD_GREEN}${cat_out}${RESET}"
+          cp "${input}" "${cat_out}" 2>/dev/null
         fi
       else
         if [[ -z "${input}" ]]; then
