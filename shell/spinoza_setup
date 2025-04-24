@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-if [[ -f ${CONFIG_FILE} ]]; then
-  source ${CONFIG_FILE}
+if [[ -f "${CONFIG_FILE}" ]]; then
+  source "${CONFIG_FILE}"
 else
   echo "ERROR: could not source \"${CONFIG_FILE}\""
   exit 1
@@ -11,31 +11,27 @@ fi
 # PATHS
 #=================================================================================================
 
-export DIR_SCRIPTS=${REPO_DIR}
-export DIR_DATA_HOME=${DIR_PROJECTS}/${PROJECT}
-export DIR_LOGS=${DIR_DATA_HOME}/code/logs
-export DIR_DATA_SOURCE=${DIR_DATA_HOME}/sourcedata
-export DIR_DATA_DERIV=${DIR_DATA_HOME}/derivatives
-export DIR_DATA_ATLAS=${PATH_HOME}/atlas/MICCAI2012-Multi-Atlas-Challenge-Data
-export SOURCEDATA=${DIR_DATA_HOME}
-export DERIVATIVES=${DIR_DATA_DERIV}
-export MASKS=${DIR_DATA_DERIV}/manual_masks
-export ANTS=${DIR_DATA_DERIV}/ants
-export FS=${DIR_DATA_DERIV}/freesurfer
-export SUBJECTS_DIR=${FS}
-export ANTS=${DIR_DATA_DERIV}/ants
-export AVG=${DIR_DATA_DERIV}/average
-export MASKED_AVG=${DIR_DATA_DERIV}/masked_average
-export PYMP2RAGE=${DIR_DATA_DERIV}/pymp2rage
-export NIGHRES=${DIR_DATA_DERIV}/nighres
-export FSL=${DIR_DATA_DERIV}/fsl
-export SKULLSTRIP=${DIR_DATA_DERIV}/skullstripped
-export CTX=${DIR_DATA_DERIV}/pycortex
-export PRF=${DIR_DATA_DERIV}/prf
-
-# Make executables available in environment
-export PATH=${PATH}:${DIR_SCRIPTS}/bin
-export PATH=${PATH}:${DIR_SCRIPTS}/shell
+export DIR_SCRIPTS="${REPO_DIR}"
+export DIR_DATA_HOME="${DIR_PROJECTS}/${PROJECT}"
+export DIR_LOGS="${DIR_DATA_HOME}/code/logs"
+export DIR_DATA_SOURCE="${DIR_DATA_HOME}/sourcedata"
+export DIR_DATA_DERIV="${DIR_DATA_HOME}/derivatives"
+export DIR_DATA_ATLAS="${PATH_HOME}/atlas/MICCAI2012-Multi-Atlas-Challenge-Data"
+export SOURCEDATA="${DIR_DATA_HOME}"
+export DERIVATIVES="${DIR_DATA_DERIV}"
+export MASKS="${DIR_DATA_DERIV}/manual_masks"
+export ANTS="${DIR_DATA_DERIV}/ants"
+export FS="${DIR_DATA_DERIV}/freesurfer"
+export SUBJECTS_DIR="${FS}"
+export ANTS="${DIR_DATA_DERIV}/ants"
+export AVG="${DIR_DATA_DERIV}/average"
+export MASKED_AVG="${DIR_DATA_DERIV}/masked_average"
+export PYMP2RAGE="${DIR_DATA_DERIV}/pymp2rage"
+export NIGHRES="${DIR_DATA_DERIV}/nighres"
+export FSL="${DIR_DATA_DERIV}/fsl"
+export SKULLSTRIP="${DIR_DATA_DERIV}/skullstripped"
+export CTX="${DIR_DATA_DERIV}/pycortex"
+export PRF="${DIR_DATA_DERIV}/prf"
 
 # set SSH_KEY for start_ssh
 export SSH_KEY="${HOME}/.ssh/hp_windows"

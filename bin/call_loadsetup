@@ -2,9 +2,9 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-if [[ -f ${SETUP_FILE} ]]; then
+if [[ -f "${SETUP_FILE}" ]]; then
   #echo loading in setup file
-  source ${SETUP_FILE}
+  source "${SETUP_FILE}"
 else
   echo please run script from directory containing the scripts
   echo e.g., ${PATH_HOME}/programs
