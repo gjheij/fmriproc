@@ -29,10 +29,17 @@ Arguments:
 Options:
   -h|--help       print this help text
   -v|--verbose    Turn on verbose
-  --<interp>      interpolation type: 'lin' (linear), 'nn' (NearestNeighbor), mul (MultiLabel),   
-                  gau (Gaussian), bspl<order>, cws (CosineWindowedSinc), wws (WelchWindowedSinc),
-                  hws (HammingWindowedSinc), lws (LanczosWindowedSinc), gen (GenericLabel);
-                  default = 'nn'
+  --<interp>      interpolation type (default = 'lin'):
+                    - 'lin'         | linear
+                    - 'nn'          | NearestNeighbor
+                    - 'mul'         | MultiLabel
+                    - 'gau'         | Gaussian
+                    - 'bspl<order>' | BSpline
+                    - 'cws'         | CosineWindowedSinc
+                    - 'wws'         | WelchWindowedSinc)
+                    - 'hws'         | HammingWindowedSinc
+                    - 'lws'         | LanczosWindowedSinc
+                    - 'gen'         | GenericLabel
 
                   For instance, to use:
                     - 'Linear' interpolation, use '--lin'
@@ -217,7 +224,12 @@ REF_ext=$(fetch_extension "${REF}")
 MOV_ext=$(fetch_extension "${MOV}")
 
 if [[ ${REF_ext} == "mgz" ]]; then
-  call_mriconvert "${REF}"
+  cmd=(
+    call_mriconvert
+    "${REF}"
+  )
+
+  eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "call_mriconvert"
     exit 1
@@ -244,8 +256,8 @@ cmd=(
   antsApplyTransforms
   --dimensionality 3
   --float 1
-  ${VERBOSE}
-  --interpolation ${INT}
+  "${VERBOSE}"
+  --interpolation "${INT}"
   --input-image-type 3
   --reference-image "${REF}"
   --input "${MOV}"
@@ -270,14 +282,14 @@ fi
 
 # check if we need to set s/qform code
 res=$(check_function fslorient)
-if [[ ${res} -eq 0 ]]; then
-  qform=$(fslorient -getqformcode ${OUT})
-  sform=$(fslorient -getsformcode ${OUT})
+if [[ "${res}" -eq 0 ]]; then
+  qform=$(fslorient -getqformcode "${OUT}")
+  sform=$(fslorient -getsformcode "${OUT}")
 
   # set qform with sform
   if [[ ${qform} -eq 0 ]]; then
     if [[ ${sform} -ne 0 ]]; then
-      fslorient -copysform2qform ${OUT}
+      fslorient -copysform2qform "${OUT}"
     fi
   fi
 
