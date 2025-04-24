@@ -3,7 +3,7 @@
 import os
 import sys
 import json
-from lazyfmri import utilsfrom lazyfmri import utils
+from lazyfmri import utils
 
 def main(argv):
     """

@@ -3,7 +3,7 @@
 import os
 import sys
 import getopt
-from bids import BIDSLayoutimport BIDSLayout
+from bids import BIDSLayout
 from lazyfmri import (
     utils,
     dataset,
