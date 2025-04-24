@@ -40,7 +40,7 @@ Example:
 
     if len(argv) < 3:
         print(main.__doc__)
-        sys.exit(1)
+        sys.exit()
 
     input_image, min_range, max_range = argv[:3]
     output = argv[3] if len(argv) > 3 else input_image

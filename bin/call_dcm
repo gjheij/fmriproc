@@ -41,7 +41,7 @@ Notes:
 
     if len(argv) < 3:
         print(main.__doc__)
-        sys.exit(1)
+        sys.exit()
 
     dcm_file    = argv[0]
     add_key     = argv[1]
