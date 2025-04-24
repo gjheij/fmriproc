@@ -14,7 +14,7 @@ spinoza_averageanatomies_
     This script takes the MP2RAGE and MEMP2RAGE-derived T1-weighted images to calculate the average.
     This results in an image that takes advantage of the better WM/GM contrast of the MP2RAGE and the
     QSM-properties of the MEMP2RAGE sequence. This will only happen if you have two elements in the
-    \$ACQ variable of the \$CONFIG_FILE and if the DATA-variable is set to "AVERAGE".
+    \$ACQ variable of the \$CONFIG_FILE and if the \$DATA-variable is set to "AVERAGE".
     
     Usage:
       spinoza_averagesanatomies [arguments] [options] <anat folder> <output folder>
@@ -213,7 +213,16 @@ spinoza_biassanlm_
       --spm           run bias correction with SPM (default = False)
       --no-sanlm      do not run SANLM denoising (in case you don't have CAT12..)
       --no-mask       do not use SPM mask for SANLM/Bias correction with ANTs
-      --n4            run bias correction with N4BiasCorrection (ANTs)
+      --n4            run bias correction with N4BiasCorrection (ANTs); if a mask is found with the
+                      following search, this will be included (improves correction):
+    
+                        # output from spinoza_qmrimaps
+                        spm_mask=\$(
+                          find "\${INPUTDIR}" \\
+                          -name "*acq-\${DATA}*" \\
+                          -and -name "*spm_mask.nii.gz"
+                        )
+    
       --denoise       use SANLM algorithm implemented in ANTs (DenoiseImage), rather than
                       CAT12.
     
@@ -852,10 +861,18 @@ spinoza_freesurfer_
       -n <session>    session ID (e.g., 1, 2, or n)
       -e <start>      start stage (maps to '-r' from 'call_freesurfer'). Must be one of 'pial',
                       cp', or 'wm' if <freesurfer stage> != 'all'
-      -j <cpus>       number of cores to use (default is 1)
+      -j <cpus>       number of cores to use (default is 2). As we parallellize over hemispheres
+                      by default, the number of cores is divided by 2.
       -x <file>       use expert file
       -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+      -k <kwargs>     Extra arguments that will be directly passed to 'recon-all'. The format should
+                      be as follows: different parameters comma-separated, and parameter-value pair
+                      separated by '='):
     
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+    
+                      E.g.,:
+                        "-k -mail,-deface"
     Options:
       -h|--help       print this help text
       -o|--ow         overwrite existing files
@@ -873,7 +890,7 @@ spinoza_freesurfer_
     Positional arguments:
       <anat folder>   folder containing the T1w-file. In 'master', we'll look through various fol-
                       ders. In order of priority:
-                        -'\$DIR_DATA_DERIV/masked_\${DATA,,}'
+                        -'\$DIR_DATA_DERIV/masked_\${DATA_LWR}'
                         -'\$DIR_DATA_DERIV/denoised'
                         -'\$DIR_DATA_DERIV/pymp2rage'
                         -'\$DIR_DATA_HOME'
@@ -1721,7 +1738,7 @@ spinoza_profiling_
                           boundaries=\$(
                             find "\${nighres_dir}/layering" \\
                             -type f \\
-                            -name "*acq-\${DATA^^}*" \\
+                            -name "*acq-\${DATA_UPR}*" \\
                             -and -name "*boundaries.nii.gz"
                           )
       <sample loc.>   directory where the to-be-sampled lives:
@@ -2087,6 +2104,37 @@ spinoza_scanner2bids_
                       "-a T2star,QSM,T1map". Input must be comma-separated without spaces. *.nii.gz
                       will be added to the search. 'acq' and 'run' tags are derived from the file-
                       name.
+      -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The
+                      format should be as follows: different parameters comma-separated, and para-
+                      meter-value pair separated by '='):
+    
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+    
+                      E.g.,:
+                        "-x -b=y=0.05,--ignore_trigger_times,-x=y"
+    
+                      The kwargs specified in this flag take precedent over the default args:
+    
+                      # dcm2niix
+                      cmd_args=(
+                        dcm2niix
+                        -b y          # output JSON side cars
+                        -f %n_%p      # file name pattern     (-p flag)
+                        -z o          # compression           (-c flag)
+                        -d 0          # search depth          (-d flag)
+                        -o output_dir # output directory      (-o flag)
+                        -v 1          # verbosity
+                        input_dir     # input directory       (-i flag)
+                      )
+    
+                      # parrec2nii
+                      cmd_args=(
+                        parrec2nii
+                        --scaling fp  # floating point
+                        --verbose     # make noise
+                        --compressed  # make nii.gz, suppressed with --no-compress
+                        --output-dir  # output directory      (-o flag)
+                      )
     
     Options:
       -h|--help       print this help text
@@ -2106,6 +2154,8 @@ spinoza_scanner2bids_
                       puts on more raw data, I'd advise you to reorient to LPI and to NOT use this
                       flag. This flag is mainly here because it can take some time with big files
                       which slows down debugging.
+      --no-compress   create nii's instead of nii.gz's (default). Passes on '--no-compress' to call-
+                      parrec2nii, and '-c n' to dcm2niix
       --sge           submit individual subjects to cluster as call_parrec2nii can take a while..
       --phys          run only physiology conversion
       --skip-tr       do not overwrite the TR in the header during call_bids. Generally not recom-
