@@ -49,16 +49,20 @@ Options:
   --dti           contrast = DTI          | same as "-c dti" or "-x --dti"
 
 Positional
-  <sub number>      number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
-                    for "sub-001", enter "001").
-  <moving>          string-like path to moving object (either .mgz or .nii.gz)                    
-  <output>          string-like basename for output. Extensions ".mat" and ".lta" will be added
+  <sub number>    number of subject's FreeSurfer directory from which you can omit "sub-" (e.g.,
+                  for "sub-001", enter "001").
+  <moving>        string-like path to moving object (either .mgz or .nii.gz)                    
+  <output>        string-like basename for output. Extensions ".mat" and ".lta" will be added
 
 Example:
-  call_bbregister 001 moving.nii.gz native2fs > use header init, no FSL output
-  call_bbregister -f -i /path/to/init.txt 01 moving.nii.gz native2fs > use init.txt for initiali-
-                                                                       zation & output FSL matrix
-  call_bbregister -c t2 001 func.nii.gz func2fs > use header init, no FSL output, t2 contrast
+  # use header init, no FSL output
+  call_bbregister 001 moving.nii.gz native2fs
+
+  # use init.txt for initialization & output FSL matrix
+  call_bbregister -f -i /path/to/init.txt 01 moving.nii.gz native2fs
+  
+  # use header init, no FSL output, t2 contrast
+  call_bbregister -c t2 001 func.nii.gz func2fs
 
 ---------------------------------------------------------------------------------------------------
 
