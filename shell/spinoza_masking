@@ -350,7 +350,7 @@ for subID in ${search}; do
         print_line -
         echo "Skullstripping files for mgdm-input"
         inputs=("T1w" "T1map")
-        ct=1
+        ct=0
         for f in "${masked_anat}" "${t1map}"; do
           if [[ ! -z "${f}" ]]; then
             # echo " apply mask to masked T1-weighted image"

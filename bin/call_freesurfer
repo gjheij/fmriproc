@@ -43,11 +43,20 @@ Optional (flags with defaults):
                     'wm'  = you made white matter edits   > runs -autorecon2-wm
                     'pial'= you made pial edits           > runs -autorecon-pial
                     'aseg'= edits to aseg.presurf.mgz     > runs -autorecon2-noaseg
-  -j <cpus>       number of cores to use (default is 1)
+  -j <cpus>       number of cores to use (default is 2). As we parallellize over hemispheres
+                  by default, the number of cores is divided by 2. 
   -o <other>      Here you can specify the gcut-option to remove latched on pial surface
   -x <expt file>  expert option file that maps to '-expert'. See:
                   \REPO_DIR/misc/example_experts.opts
   -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
+  -k <kwargs>     Extra arguments that will be directly passed to 'recon-all'. The format should 
+                  be as follows: different parameters comma-separated, and parameter-value pair 
+                  separated by '='):
+                  
+                    "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                  E.g.,:
+                    "-k -mail,-deface"
 
 Options:
   -h|--help       print this help text
@@ -145,9 +154,10 @@ XOPTS_=""
 EXPERT_FILE=""
 reuse_t2=1
 allowed_edits=("cp" "wm" "pial" "aseg")
-n_cpus=1
+n_cpus=2
 stage="all"
-while getopts :-:hs:t:p:r:e:o:f:c:x:q:j: arg
+kwargs=""
+while getopts :-:hs:t:p:r:e:o:f:c:x:q:j:k: arg
 do
   case ${arg} in
     -)
@@ -207,8 +217,10 @@ do
           ;;  
     j)  n_cpus=${OPTARG}
           ;;
+    k)  kwargs=${OPTARG}
+          ;;          
     h)  Usage && exit 0
-          ;;                                   
+          ;;                             
   esac
 done
 
@@ -258,6 +270,29 @@ else
 fi
 
 #-----------------------------------------------------------------------------
+# check cores
+check_n_cpus() {
+  # Detect slots / cores in a portable way
+  if   [[ -n "$SLURM_CPUS_PER_TASK" ]]; then
+    NCORES=$SLURM_CPUS_PER_TASK
+  elif [[ -n "$NSLOTS" ]]; then
+    NCORES=$NSLOTS
+  elif [[ -n "$PBS_NP" ]]; then
+    NCORES=$PBS_NP
+  else
+    # portable on Linux, macOS, *BSD
+    if command -v getconf &>/dev/null; then
+      NCORES=$(getconf _NPROCESSORS_ONLN)
+    else
+      # fallback for very old systems
+      NCORES=1
+    fi
+  fi
+
+  echo $NCORES
+
+}
+#-----------------------------------------------------------------------------
 # Create function that submits or runs stuff locally
 define_fs_command(){
 
@@ -267,28 +302,37 @@ define_fs_command(){
   local t1_flag="${4}"
   local t2_flag="${5}"
 
-  # $1 = subject ID (subj_ID)
-  # $2 = stage nr
-  # $3 = stage flag (stage)
-  # $4 = T1_flag
-  # $5 = T2_flag
-
   # check if function exists, will throw an error if it doesn't exist
   fn_exists freesurfer
-  echo "Using FreeSurfer from: $(which freesurfer)"
+  echo && print_line -
+  echo -e "Using FreeSurfer from: ${BOLD_GREEN}$(which freesurfer)${RESET}"
 
-  if [[ ${run_local} -eq 0 ]]; then
-    echo "Submitting job to cluster with ${n_cpus} core(s)"
-    parallel_flag="-parallel"
-    mp_flag="-openmp ${n_cpus}"
+  # check number of cores
+  available_cores="$(check_n_cpus)"
+
+  # check if it's not overflowing the system:
+  if [[ "${n_cpus}" -gt "${available_cores}" ]]; then
+    echo && print_line -
+    print_error_msg "$(basename ${0})" "check_n_cpus" "Number of ${BOLD_RED}requested${RESET} cores (${BOLD_RED}${n_cpus}${RESET}) is more than the number of ${BOLD_RED}available${RESET} cores (${available_cores})"
+    exit 1
   else
-    parallel_flag=""
-    mp_flag="-nthreads ${n_cpus}"
+    # throw warning in its not modulo 2
+    if (( n_cpus % 2 != 0 )); then
+      echo && print_line -
+      echo "WARNING: You've requested ${n_cpus} cores, which isn't a multiple of 2. Splitting evenly will round down to $(( n_cpus / 2 )) threads per hemisphere, leaving one core unused."
+    fi
+
+    # split hemispheres
+    hemi_cpu=$(( n_cpus / 2 ))
+    echo -e "Allocating ${BOLD_RED}$hemi_cpu${RESET} OpenMP threads per hemisphere (total ${hemi_cpu}×2=${BOLD_RED}$((hemi_cpu*2))${RESET} cores)"
   fi
+
+  parallel_flag="-parallel"
+  mp_flag="-openmp ${hemi_cpu}"
 
   # delete previously existing file
   fs_script="${PATH_HOME}/freesurfer/${PROJECT}/${subj_id}_stage-${stage_id}.sh"
-  echo "${fs_script}"
+  echo -e "Script: ${BOLD_GREEN}${fs_script}${RESET}"
   rm -r "${fs_script}" 2>/dev/null
 
   # bash will complain if you want to create a file but the directory doesn't exist
@@ -307,25 +351,27 @@ define_fs_command(){
   else
     QUEUE="${SGE_QUEUE_LONG}"
   fi    
-  
+
+  # Turn kwargs into space-separated array
+  if [[ -n "${kwargs}" ]]; then
+    IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
+  else
+    user_args=()
+  fi
+
 # Generate recon-all script
 cat <<EOF > "${fs_script}"
 #!/bin/bash
 
 export SUBJECTS_DIR="${SUBJECTS_DIR}"
+recon-all -subjid ${subj_id} ${t1_flag} ${highres_flag} ${parallel_flag} ${mp_flag} ${stage_flag} ${t2_flag} ${expert_flag} ${XOPTS_} ${user_args[@]}
 
-recon-all \\
-  -subjid ${subj_id} \\
-  ${t1_flag} \\
-  ${highres_flag} \\
-  ${parallel_flag} \\
-  ${mp_flag} \\
-  ${stage_flag} \\
-  ${t2_flag} \\
-  ${expert_flag} \\
-  ${XOPTS_}
 EOF
-  
+
+  # collapse repeating spaces
+  tr -s ' ' < "${fs_script}" > "${fs_script}.tmp" && mv "${fs_script}.tmp" "${fs_script}"
+
+  # run
   if [[ ${run_local} -eq 0 ]]; then
   
     submit=$(
@@ -337,6 +383,12 @@ EOF
     )
   
     eval "${submit}" "${fs_script}"
+    if [[ $? -ne 0 ]]; then
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "${submit}"
+      exit 1
+    fi
+
     echo "Now wait until the program has finished and do some editing in FreeView if required."
     echo "Waiting to qstat/squeue.."
     sleep 5
@@ -350,6 +402,11 @@ EOF
   else
     echo "Running FreeSurfer locally"
     bash "${fs_script}"
+    if [[ $? -ne 0 ]]; then
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "${BOLD_GREEN}${fs_script}${RESET}"
+      exit 1
+    fi
     echo "Now do some editing in FreeView if required."
   fi
 

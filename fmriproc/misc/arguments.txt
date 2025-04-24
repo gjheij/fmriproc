@@ -68,7 +68,19 @@ Input arguments:
 
 -j <n-jobs>       number of jobs to use when submitting to SoGE. Used in multiple modules
 
--k <file>         specify a file with additional arguments, similar to FreeSurfer's expert options
+-k <input>        used for:
+                    - ${BOLD_BLUE}spinoza_freesurfer${RESET}: directly specify extra arguments 
+                      that will be directly passed to 'recon-all'. The format should be as 
+                      follows: different parameters comma-separated, and parameter-value pair 
+                      separated by '=':
+                  
+                        "-x <parameter1>=<value1>,<parameter2>=<value2>,<parameterX>=<valueX>"
+
+                      E.g.,:
+                        "-k -mail,-deface"
+                        
+                    - ${BOLD_BLUE}spinoza_fmriprep${RESET}: specify a file with additional 
+                      arguments, similar to FreeSurfer's expert options
 
 -l <value>        used for:
                     - general: look for a module number given a string to search for (e.g., master

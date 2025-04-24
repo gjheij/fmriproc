@@ -76,6 +76,7 @@ FIX_FLAG=""               # spinoza_fitprfs
 highres_flag=""           # spinoza_freesurfer
 XOPTS_=""                 # spinoza_freesurfer
 expert_flag=""            # spinoza_freesurfer
+fs_kwargs=""              # spinoza_freesurfer
 TSNR_FLAG=""              # spinoza_nordic
 mag_flag=""               # spinoza_nordic
 RUNS=""                   # spinoza_nordic
@@ -608,7 +609,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       FOLDS_FLAG="-f ${OPTARG}"
       ;;
     k)
-      kwargs_file="-k $(readlink -f \"${OPTARG}\")"
+      if [[ -f "${OPTARG}" ]]; then
+        kwargs_file="-k $(readlink -f \"${OPTARG}\")"
+      fi
+      fs_kwargs="-k ${OPTARG}"
       ;;
   esac
 done
@@ -1600,6 +1604,7 @@ if [[ $? -eq 0 ]]; then
     "${use_t2_flag}"
     "${SGE_QUEUE}"
     "${jobs_flag}"
+    "${fs_kwargs}"
     "${INPUT_DIR}" "${FS_stage}" "${DIR_DATA_HOME}"
   )
 
