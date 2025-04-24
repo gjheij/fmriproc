@@ -128,8 +128,8 @@ Here's how you can map **SGE queues** to **SLURM partitions**:
 
 The following functions can be submitted (regardless of SoGE/SLURM) using the ``--sge`` flag:
 
-- `call_feat <https://github.com/gjheij/fmriproc/blob/main/bin/call_feat>`
-- `call_freesurfer <https://github.com/gjheij/fmriproc/blob/main/bin/call_freesurfer>`
+- `call_feat <https://github.com/gjheij/fmriproc/blob/main/bin/call_feat>_`
+- `call_freesurfer <https://github.com/gjheij/fmriproc/blob/main/bin/call_freesurfer>_`
 - spinoza_scanner2bids_ [-m 02a]
 - spinoza_mriqc_ [-m 02b]
 - spinoza_qmrimaps_ [-m 04]
