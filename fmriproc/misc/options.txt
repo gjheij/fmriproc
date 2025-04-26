@@ -39,6 +39,7 @@
 --grid
 --help
 --hrf
+--is
 --identity
 --ident
 --inv
@@ -93,6 +94,7 @@
 --rh
 --rigid
 --rl
+--si
 --save-grid
 --sge
 --separate-hrf

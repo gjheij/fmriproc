@@ -15,7 +15,7 @@ spinoza_scanner2bids
 
 Convert raw data from the scanner to nifti format using 'call_dcm2niix'. This script can handle 
 both PAR/RECs and DCM input. DCM files will be converted using 'dcm2niix', whereas PAR/RECs will be
-converted using 'parrec2nii' (wrapper in 'call_parrec2nii'). Complete json sidecars will be produ-
+converted using 'parrec2nii' (wrapped in 'call_parrec2nii'). Complete json sidecars will be produ-
 ced and populated with relevant information for fMRIPrep, including:
   - SliceTiming (if BOLD files are 2D); see also 'call_slicetiming'. Important factors for this
     function are:
@@ -23,9 +23,11 @@ ced and populated with relevant information for fMRIPrep, including:
       - Multiband factor (either read from PAR-file or from \$MB_FACTOR-variable)
       - Assumes ascending slice ordering
   - PhaseEncodingDirection:
+    - Read from fmap-file (e.g., sub-01_ses-1_task-rest_run-1_dir-AP_bold.nii.gz)
     - Read from the \$PE_DIR_BOLD-variable (priority)
-    - Specified for BOLD through flags (--ap|--pa|--lr|--rl), reversed for FMAP
-    - Either read from PAR (but is ambiguous) or DCM (via 'CSA')
+    - Specified for BOLD through flags (--ap|--pa|--lr|--rl), reversed for FMAP; overwrites speci-
+      fied \$PE_DIR_BOLD
+    - Read from DCM (via 'CSA'), but is difficult
     - Defaults to AP for BOLD, reversed for FMAP
   - RepetitionTime:
     - For DCMs:
@@ -37,7 +39,9 @@ ced and populated with relevant information for fMRIPrep, including:
         4.  For 2D multi-band sequences, apply multi-band correction (TR / MultiBandFactor).
     - For PAR/RECs:
         We can read the 'dtime' column and extra unique values between slices/volumes. This works
-        well for 3D acquisitions.
+        well for 3D acquisitions. By default, the first element of this list is taken. Alternative-
+        ly, you can specify '--take-avg-tr' to get the average over the interslice/volume differen-
+        ce.
     - Both:
         Specified through the '-t <tr' flag.
 
@@ -127,10 +131,12 @@ Options:
   --take-avg-tr   Derive RepetitionTime by averaging the time differences between all slices.
                   Default behavior is to take the difference between the first and second volume.
                   Only works for PAR/REC-files!
-  --ap            set the phase-encoding of the BOLD to AP (FMAP=PA)
-  --pa            set the phase-encoding of the BOLD to PA (FMAP=AP)
-  --lr            set the phase-encoding of the BOLD to LR (FMAP=RL)
-  --rl            set the phase-encoding of the BOLD to RL (FMAP=LR)
+  --ap            set PhaseEncodingDirection to AP: anterior-to-posterior → 'j'
+  --pa            set PhaseEncodingDirection to PA: posterior-to-anterior → 'j-'
+  --lr            set PhaseEncodingDirection to LR: left-to-right         → 'i'
+  --rl            set PhaseEncodingDirection to RL: right-to-left         → 'i-'
+  --is            set PhaseEncodingDirection to IS: inferior-to-superior  → 'k'
+  --si            set PhaseEncodingDirection to SI: superior-to-inferior  → 'k-'
   --no-lpi        do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
                   puts on more raw data, I'd advise you to reorient to LPI and to NOT use this 
                   flag. This flag is mainly here because it can take some time with big files
@@ -261,7 +267,13 @@ do
           ;;         
         rl)
           PE_FLAG="--rl"
-          ;;        
+          ;;  
+        si)
+          PE_FLAG="--si"
+          ;;
+        is)
+          PE_FLAG="--is"
+          ;;                       
         no-lpi)
           ORIENT_FLAG="--no-lpi"
           ;;       
@@ -370,10 +382,6 @@ for subID in ${search}; do
     base="${sub_name}"
     msg="${BOLD_CYAN}${sub_name}${RESET}: already processed"
   fi  
-
-  #-----------------------------------------------------------------------------
-  # print header
-  print_subject_header ${sub_name}
   
   #-----------------------------------------------------------------------------
   # input/output
@@ -385,9 +393,17 @@ for subID in ${search}; do
   # full overwrite
   [[ $FULL_OW -eq 1 ]] && rm -rf "${output_dir}" "${bids_dir}"
   
+  # check if input directory exists
   if [[ ! -d "${input_dir}" ]]; then
     print_directory_not_exist "${sub_name}" "${input_dir}"
     exit 1
+  fi
+
+  # print header
+  if [[ "${run_local}" -eq 1 ]]; then
+    #-----------------------------------------------------------------------------
+    # print header
+    print_subject_header ${sub_name}
   fi
 
   #-----------------------------------------------------------------------------
@@ -395,9 +411,9 @@ for subID in ${search}; do
   if [[ ! -d "${bids_dir}/anat" || ! -d "${bids_dir}/func" || -n "${OW}" || ${DEBUG_MODE} -eq 1 || -n "${PHYS_FLAG}" ]]; then
 
     if [[ ${SES_TYPE} == "lines" ]]; then
-      intro_txt="Exotic session (e.g., line-scanning); using call_dcm2niix"
+      intro_txt="Exotic session (e.g., line-scanning)"
     else
-      intro_txt="Regular session, but with call_parrec2nii fix for big PAR/REC files"
+      intro_txt="Relatively regular session (i.e., no line-scanning..)"
     fi
 
     #-----------------------------------------------------------------------------
@@ -460,7 +476,7 @@ for subID in ${search}; do
 
     # print and run
     if [[ ${SGE_FLAG} -eq 0 ]]; then
-      echo
+      echo "${intro_txt}"
       print_cmd "${cmd[@]}"
       echo
     fi
