@@ -83,7 +83,7 @@ Examples:
     #-----------------------------------------------------------------------------
     # generate SPM mask
     if not os.path.exists(output_file):
-        cmd = f'call_spmmask --clean {input_file} {output_file}'
+        cmd = f'call_spmmask {input_file} {output_file}'
         utils.run_shell_wrapper(
             cmd,
             "Make mask with SPM from INV2-image",
