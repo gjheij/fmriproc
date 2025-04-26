@@ -112,7 +112,7 @@ fi
 # set input dir
 in_dir="$(dirname "${in_file}")"
 
-if [[ -z "${out_file}" ]]; then
+if [[ -z "${out_dir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" input "Please specify output directory"
