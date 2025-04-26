@@ -2,7 +2,7 @@
 
 #-----------------------------------------------------------------------------
 # source helper functions
-source ${SETUP_FILE}
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -18,14 +18,14 @@ construct_bids_filename() {
 
   # Determine task
   local task
-  task=$(task_id "${bold}")
-  if [[ -z ${task} ]]; then
-    task=${TASK_IDS[0]:-stim}
+  task="$(task_id "${bold}")"
+  if [[ -z "${task}" ]]; then
+    task="${TASK_IDS[0]:-stim}"
   fi
 
   # Get desc and acq
   local desc acq add_acq
-  [[ "${bold}" == *"desc"* ]] && desc=$(get_id "${bold}" desc)
+  [[ "${bold}" == *"desc"* ]] && desc="$(get_id "${bold}" desc)"
   acq=$(get_id "${bold}" acq)
 
   if [[ -n "${acq}" ]]; then
@@ -38,7 +38,7 @@ construct_bids_filename() {
   fi
 
   # fetch run
-  run=$(run_id ${bold})
+  run=$(run_id "${bold}")
   if [[ "${run}" -eq 0 ]]; then
     run="${count}"
   fi 
@@ -58,13 +58,13 @@ maybe_trim_volumes() {
   if [[ "${cut_vols}" -gt 0 ]]; then
     if [[ "${image}" == "func" || "${image}" == "phase" || ( "${image}" == "fmap" && "${trim_fmap}" -eq 1 ) ]]; then
       local n_vols
-      n_vols=$(fslval "${ff}" dim4 | xargs)
+      n_vols="$(fslval "${ff}" dim4 | xargs)"
 
       if [[ "$n_vols" -gt "${cut_vols}" ]]; then
         local tmp_file
 
         tmp_file="$(dirname "${ff}")/tmp.nii.gz"
-        echo "  Trimming first ${cut_vols} volumes (originally ${n_vols} volumes)..."
+        echo "Trimming first ${cut_vols} volumes (originally ${n_vols} volumes)..."
         
         # define command
         cmd=(
@@ -86,7 +86,7 @@ maybe_trim_volumes() {
           mv "${tmp_file}" "${ff}" 2>/dev/null
         fi
       else
-        echo "  Skipping trim: ${ff} has only ${n_vols} volumes (cut_vols=${cut_vols})"
+        echo "Skipping trim: ${ff} has only ${n_vols} volumes (cut_vols=${cut_vols})"
       fi
     fi
   fi
@@ -99,7 +99,7 @@ maybe_reorient() {
   local reorient="${2}"
 
   # reorient
-  if [[ ${reorient} -eq 1 ]]; then
+  if [[ "${reorient}" -eq 1 ]]; then
 
     # cmd
     cmd=(
@@ -120,18 +120,37 @@ maybe_reorient() {
 #-----------------------------------------------------------------------------
 # Add data from PAR/DCM to JSON file
 handle_json_metadata() {
-  local orig="$1" ff="$2" image="$3" set_tr="$4" skip_tr="$5" pe_dir="$6" idx="$7"
+  local orig="$1" ff="$2" image="$3" set_tr="$4" skip_tr="$5" pe_dir="$6" idx="$7" ftype="$8"
 
   local json_file json_bids
   json_file="${orig/.nii.gz/.json}"
   json_bids="${ff/.nii.gz/.json}"
 
-  [[ ! -f ${json_file} ]] && return 0
+  [[ ! -f "${json_file}" ]] && return 0
   cp "${json_file}" "${json_bids}"
 
-  ensure_intended_for "${json_bids}" "${image}" "${idx}"
-  enrich_with_par_data "${json_bids}" "${ff}" "${set_tr}" "${skip_tr}" "${image}"
-  set_pe_direction "${json_bids}" "${image}" "${pe_dir}"
+  # add other relevant parameters (SliceTiming, MB Factor, TR, etc)
+  enrich_with_par_data \
+    "${json_bids}" \
+    "${ff}" \
+    "${set_tr}" \
+    "${skip_tr}" \
+    "${image}" \
+    "${tr_prot}"
+  
+  if [[ "${ftype}" == "epi" ]]; then
+    # ensure json has IntendedFor/B0FieldIdentifier
+    ensure_intended_for \
+      "${json_bids}" \
+      "${image}" \
+      "${idx}"
+
+    # set PhaseEncodingDirection-direction
+    set_pe_direction \
+      "${json_bids}" \
+      "${image}" \
+      "${pe_dir}"
+  fi
 }
 
 #-----------------------------------------------------------------------------
@@ -139,7 +158,7 @@ handle_json_metadata() {
 rel_path() {
   local input="${1}"
   local base_path=""
-  if [[ $(basename "${input}") == *"ses"* ]]; then
+  if [[ "$(basename "${input}")" == *"ses"* ]]; then
     base_path="$(basename "${input}" | cut -d"_" -f2)/"
   fi
   echo "${base_path}"
@@ -150,7 +169,7 @@ rel_path() {
 ensure_intended_for() {
   local json_bids="$1" image="$2" idx="$3"
 
-  if [[ ${image} != "fmap" ]]; then return; fi
+  if [[ "${image}" != "fmap" ]]; then return; fi
 
   if ! grep -q "IntendedFor" "${json_bids}"; then
     local base_path="$(rel_path "${json_bids}")"
@@ -178,48 +197,48 @@ ensure_intended_for() {
 #-----------------------------------------------------------------------------
 # Store data in JSON and fix TR
 enrich_with_par_data() {
-  local json_bids="$1" ff="$2" set_tr="$3" skip_tr="$4" image="$5"
+  local json_bids="$1" ff="$2" set_tr="$3" skip_tr="$4" image="$5" prot="$6"
 
   local par_f ext tr tr_hd mb_factor scan_mode n_slices
   par_f="$(read_json "${json_bids}" ParFile)"
   [[ -z "${par_f}" ]] && return
 
-  ext=$(fetch_extension "${par_f}")
-  local ext_lower=$(echo "$ext" | tr '[:upper:]' '[:lower:]')
+  ext="$(fetch_extension "${par_f}")"
+  local ext_lower="$(make_lower "${ext}")"
 
   if [[ ${ext_lower} == *"par"* ]]; then
-    echo -e "  Storing information from ${BOLD_RED}$(basename "${par_f}")${RESET} in json file"
+    echo -e " Storing information from ${BOLD_RED}$(basename "${par_f}")${RESET} in json file"
     pars_for_json --merge "${par_f}" "${json_bids}"
   fi
 
   tr_hd="$(fslval "${ff}" pixdim4 | xargs)"
   if [[ -z "${set_tr}" ]]; then
     if [[ "${ext_lower}" == *"par"* ]]; then
-      tr="$(tr_from_par "${par_f}")"
+      tr="$(tr_from_par "${par_f}" "${prot}")"
     else
       tr="$(read_dcm "${par_f}" RepetitionTime)"
     fi
-    echo -e "  TR in $(basename "${par_f}") is ${BOLD_RED}${tr}${RESET}s"
+    echo -e " TR in $(basename "${par_f}") is ${BOLD_RED}${tr}${RESET}s"
   else
-    tr=${set_tr}
-    echo -e "  TR manually specified with '-t ${BOLD_RED}${tr}${RESET}'; setting RepetitionTime"
+    tr="${set_tr}"
+    echo -e " TR manually specified with '-t ${BOLD_RED}${tr}${RESET}'; setting RepetitionTime"
   fi
 
-  [[ -n ${tr} ]] && call_json "${json_bids}" RepetitionTime "${tr}"
+  [[ -n "${tr}" ]] && call_json "${json_bids}" RepetitionTime "${tr}"
 
   # TR correction
-  if [[ ${skip_tr} -eq 0 ]]; then
+  if [[ "${skip_tr}" -eq 0 ]]; then
     if (( $(echo "${tr_hd} == 0.0" | bc -l) )); then
-      echo -e "  WARNING: TR is zero — correcting to ${BOLD_RED}${tr}${RESET}"
+      echo -e " WARNING: TR is zero — correcting to ${BOLD_RED}${tr}${RESET}"
       call_settr "${ff}" "${tr}" || exit 1
     elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
-      echo -e "  WARNING: TR mismatch (file=${BOLD_RED}${tr_hd}${RESET}, json=${BOLD_RED}${tr}${RESET}) — correcting"
+      echo -e " WARNING: TR mismatch (file=${BOLD_RED}${tr_hd}${RESET}, json=${BOLD_RED}${tr}${RESET}) — correcting"
       call_settr "${ff}" "${tr}" || exit 1
     else
-      echo -e "  TR in header [${BOLD_RED}${tr_hd}${RESET}] matches specified value [${BOLD_RED}${tr}${RESET}]"
+      echo -e " TR in header [${BOLD_RED}${tr_hd}${RESET}] matches specified value [${BOLD_RED}${tr}${RESET}]"
     fi
   elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
-    echo -e "  WARNING: TR mismatch (file=${tr_hd}, json=${tr}), but ${BOLD_RED}--skip-tr${RESET} is used"
+    echo -e " WARNING: TR mismatch (file=${tr_hd}, json=${tr}), but ${BOLD_RED}--skip-tr${RESET} is used"
   fi
 
   # Slice timing (only for non-3D func)
@@ -231,21 +250,27 @@ enrich_with_par_data() {
     scan_mode="$(read_dcm "${par_f}" "MRAcquisitionType")"
   fi
 
-  [[ ${scan_mode} == "3D" ]] && return
+  [[ "${scan_mode}" == "3D" ]] && return
 
+  #-----------------------------------------------------------------------------
+  # add slicetiming if scan mode = 2D
   mb_factor="$(read_json "${json_bids}" MultiBandAccelerationFactor)"
   if [[ -z "${mb_factor}" ]]; then
     mb_factor=3
-    echo -e "  WARNING: Defaulting to multiband factor ${BOLD_RED}3${RESET} — override with 'export MB_FACTOR=...'"
+    echo -e " WARNING: Defaulting to multiband factor ${BOLD_RED}3${RESET} — override with 'export MB_FACTOR=...'"
   fi
 
+  # get TR
   tr="$(read_json "${json_bids}" RepetitionTime)"
-  if [[ ${ext_lower} == *"par"* ]]; then
+
+  # get number of slices
+  if [[ "${ext_lower}" == *"par"* ]]; then
     n_slices="$(read_par "${par_f}" "Max. number of slices/locations")"
   else
     n_slices="$(read_dcm "${par_f}" "NumberOfImagesInMosaic")"
   fi
 
+  # add to json
   cmd=(
     call_slicetiming
     "${json_bids}"
@@ -270,42 +295,88 @@ set_pe_direction() {
 
   local ph_dir txt ext_lower par_f pe_from_dcm pe_dir_from_file
 
-  # read from filename
-  pe_dir_from_file=$(get_id "${json_bids}" "dir")
+  #-----------------------------------------------------------------------------
+  # read from filename (e.g., 'sub-01_ses-1_dir-AP_epi.nii.gz')
+  pe_dir_from_file="$(get_id "${json_bids}" "dir")"
   if [[ ! -z "${pe_dir_from_file}" ]]; then
-    ph_dir=$(fprep_pe "${pe_dir_from_file}")
+    ph_dir="$(fprep_pe "${pe_dir_from_file}")"
     txt="Read PhaseEncodingDirection from ${BOLD_RED}filename${RESET}"
   else
+    #-----------------------------------------------------------------------------
     # try other options
-    par_f=$(read_json "${json_bids}" ParFile)
-    [[ -n "${par_f}" ]] && ext_lower=$(fetch_extension "${par_f}" | tr '[:upper:]' '[:lower:]')
 
+    # check if ParFile is set
+    par_f="$(read_json "${json_bids}" ParFile)"
+    [[ -n "${par_f}" ]] && ext_lower="$(make_lower "$(fetch_extension "${par_f}")")"
+
+    #-----------------------------------------------------------------------------
+    # pe_dir is set with --ap/--pa/--lr/--rl [PRIORITY]
     if [[ -n "${pe_dir}" ]]; then
-      ph_dir=$(fprep_pe "${pe_dir}" $([[ ${image} == "fmap" ]] && echo "1"))
-      txt="PE-direction set with '${BOLD_RED}--${pe_dir}${RESET}'"
+      txt="PE-direction set with '${BOLD_RED}--$(make_lower ${pe_dir})${RESET}': ${BOLD_BLUE}$(make_upper "${pe_dir}")${RESET}"
+
+      # set ph_dir with pe_dir
+      ph_dir="$(fprep_pe "${pe_dir}" "$([[ "${image}" == "fmap" ]] && echo "1")")"
+    elif [[ -n "${PE_DIR_BOLD}" ]]; then
+      #-----------------------------------------------------------------------------
+      # pe_dir is set with PE_DIR_BOLD [SECOND PRIORITY]   
+      ph_dir="$(fprep_pe "${PE_DIR_BOLD}" "$([[ "${image}" == "fmap" ]] && echo "1")")"
+      txt="PhaseEncodingDirection set with ${BOLD_RED}PE_DIR_BOLD${RESET}: ${BOLD_BLUE}${PE_DIR_BOLD}${RESET}"
     elif [[ -n "${par_f}" && "${ext_lower}" == *"dcm"* ]]; then
-      pe_from_dcm="$(pe_from_dcm "${par_f}")"
-      if [[ -n "${pe_from_dcm}" ]]; then
-        txt="PE-direction from ${BOLD_RED}DICOM${RESET}: ${pe_from_dcm}"
-        if [[ "${image}" == "fmap" ]]; then
-          # Invert for fmap
-          case "${pe_from_dcm}" in
-            j) ph_dir="j-" ;;
-            j-) ph_dir="j" ;;
-            i) ph_dir="i-" ;;
-            i-) ph_dir="i" ;;
-          esac
-          txt="${txt} (inverted for fmap)"
-        else
-          ph_dir="${pe_from_dcm}"
-        fi
+      #-----------------------------------------------------------------------------
+      # read from dcm file, should default to PE_DIR_BOLD [THIS IS WHERE IS GETS DODGY]
+      pe_dcm="$(pe_from_dcm "${par_f}")"
+
+      # check if output is valid
+      if [[ $? -ne 0 ]]; then
+        echo && print_line -
+        print_error_msg "$(basename ${0})" "pe_from_dcm" "${pe_dcm}"
+        exit 1
+      fi
+
+      #-----------------------------------------------------------------------------
+      # found PE from file 
+      if [[ -n "${pe_dcm}" ]]; then
+        ph_dir="$(fprep_pe "${pe_dcm}" "$([[ "${image}" == "fmap" ]] && echo "1")")"    
+        txt="PhaseEncoding read from ${BOLD_RED}DICOM${RESET}: ${BOLD_BLUE}${pe_dcm}${RESET}"
+      fi
+    elif [[ -n "${par_f}" && "${ext_lower}" == *"par"* ]]; then
+      #-----------------------------------------------------------------------------
+      # read from par, invert for FMAP  [DODGY]
+      pe_par="$(read_par "${par_file}" "Preparation direction")"
+
+      # check if output is valid
+      if [[ $? -ne 0 ]]; then
+        echo && print_line -
+        print_error_msg "$(basename ${0})" "pe_from_dcm" "${pe_par}"
+        exit 1
+      fi
+
+      #-----------------------------------------------------------------------------
+      # found PE from file
+      if [[ -n "${pe_par}" ]]; then
+        ph_dir="$(fprep_pe "${pe_par}" "$([[ "${image}" == "fmap" ]] && echo "1")")"    
+        txt="PhaseEncoding read from ${BOLD_RED}PAR${RESET}: ${BOLD_BLUE}${pe_par}${RESET}"
       fi
     else
+      #-----------------------------------------------------------------------------
       # Try reading existing PhaseEncodingDirection
-      ph_dir=$(read_json "${json_bids}" PhaseEncodingDirection)
-      [[ -n "${ph_dir}" ]] && txt="Read PhaseEncodingDirection from ${BOLD_RED}JSON${RESET}"
+      ph_dir="$(read_json "${json_bids}" PhaseEncodingDirection)"
+      [[ -n "${ph_dir}" ]] && txt="Read PhaseEncodingDirection from ${BOLD_RED}JSON${RESET}: ${BOLD_BLUE}${ph_dir}${RESET}"
     fi
 
+    #-----------------------------------------------------------------------------
+    # final validation
+    case "${ph_dir}" in
+      i|i-|j|j-|k|k-)
+        # okay
+        ;;
+      *)
+        echo -e " ${BOLD_RED}WARNING${RESET}Computed invalid BIDS PhaseEncodingDirection '${bids_pe}'. Defaulting to ${BOLD_RED}AP${RESET} for BOLD"
+        ph_dir=""
+        ;;
+    esac    
+
+    #-----------------------------------------------------------------------------
     # Fallback default
     if [[ -z "${ph_dir}" ]]; then
       if [[ "${image}" == "fmap" ]]; then
@@ -317,12 +388,28 @@ set_pe_direction() {
     fi
   fi
 
-  if [[ -n ${ph_dir} ]]; then
-    echo -e "  WARNING: ${txt}"
-    echo -e "  PE-direction for $(make_upper ${image})=\"${BOLD_RED}${ph_dir}${RESET}\" — confirm or set with 'PE_DIR_BOLD' or flag"
-    call_json "${json_bids}" PhaseEncodingDirection "${ph_dir}"
+  #-----------------------------------------------------------------------------
+  # finalize
+  if [[ -n "${ph_dir}" ]]; then
+    echo -e " WARNING: ${txt}"
+    echo -e " PE-direction for $(make_upper ${image})=\"${BOLD_RED}${ph_dir}${RESET}\" — confirm or set with 'PE_DIR_BOLD' or flag"
+    
+    # add to json file
+    cmd=(
+      call_json
+      "${json_bids}"
+      PhaseEncodingDirection
+      "${ph_dir}"
+    )
+
+    eval "${cmd[@]}"
+    if [[ $? -ne 0 ]]; then
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "${cmd[0]}" "${cmd[@]}"
+      exit 1
+    fi
   else
-    echo "  WARNING: Could not derive PE-direction — please set PE_DIR_BOLD or use a direction flag"
+    echo " WARNING: Could not derive PE-direction — please set PE_DIR_BOLD or use a direction flag ('--ap'/'--pa'/'--lr'/'--rl')"
   fi
 }
 
@@ -334,7 +421,7 @@ process_lowres_mp2rage() {
   local base="$3"
   local ls_ses="$4"
 
-  if [[ ${ls_ses} -ne 1 ]]; then return; fi
+  if [[ "${ls_ses}" -ne 1 ]]; then return; fi
 
   local anat_lowres anat_t1map min acq acq_flag
 
@@ -367,7 +454,7 @@ process_lowres_mp2rage() {
     if [[ -f "${anat_t1map}" ]]; then
       min=$(fslstats "${anat_lowres}" -R | awk '{print $1}')
       if [[ ${min} != "0.000000" ]]; then
-        echo " Rescaling lowres MP2RAGE-file"
+        echo "Rescaling lowres MP2RAGE-file"
         cmd=(
           call_maskmp2rage
           "${anat_lowres}"
@@ -375,7 +462,7 @@ process_lowres_mp2rage() {
           "${anat_lowres}"
         )
 
-        eval "${cmd[@]}"
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
         if [[ $? -ne 0 ]]; then
           echo
           print_line -
@@ -385,12 +472,11 @@ process_lowres_mp2rage() {
       fi
     fi
 
-    acq=$(get_id "${anat_lowres}" acq)
-    [[ -z ${acq} ]] && acq="MP2RAGE"
+    acq="$(get_id "${anat_lowres}" acq)"
+    [[ -z "${acq}" ]] && acq="MP2RAGE"
     acq_flag="_acq-${acq}"
 
-    echo " Relocating lowres MP2RAGE-file as ${base}${acq_flag}_T1w.nii.gz"
-
+    echo "Relocating lowres MP2RAGE-file as ${base}${acq_flag}_T1w.nii.gz"
     cp "${anat_lowres}" "${bids_dir}/anat/${base}${acq_flag}_T1w.nii.gz" 2>/dev/null
 
     local json_file
@@ -398,7 +484,7 @@ process_lowres_mp2rage() {
     if [[ -f "${json_file}" ]]; then
       cp "${json_file}" "${bids_dir}/anat/${base}${acq_flag}_T1w.json" 2>/dev/null
     else
-      echo "  WARNING: Could not find JSON sidecar for ${anat_lowres}"
+      echo "WARNING: Could not find JSON sidecar for ${anat_lowres}"
     fi
 
   else
@@ -416,8 +502,6 @@ process_anatomical_inversions() {
   local OW="$5"
   local reorient="$6"
 
-  echo " Processing anatomical images..."
-
   local invs=()
   while IFS= read -r f; do invs+=("$f"); done < <(
     find -L "${tmp_dir}" \
@@ -431,27 +515,30 @@ process_anatomical_inversions() {
   if [[ ${#invs[@]} -gt 0 ]]; then
     [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
 
+    echo && print_line -
+    echo "Processing MP2RAGE(ME) files..."
+    
     for ff in "${invs[@]}"; do
       local rec_tag inv_tag ext out_fn
 
-      if [[ $(basename "${ff}") == *"_ph_"* || $(basename "${ff}") == *"phase"* ]]; then
+      if [[ "$(basename "${ff}")" == *"_ph_"* || "$(basename "${ff}")" == *"phase"* ]]; then
         rec_tag="part-phase"
       else
         rec_tag="part-mag"
       fi
 
-      if [[ $(basename "${ff}") == *"t10"* || $(basename "${ff}") == *"inv-1"* ]]; then
+      if [[ "$(basename "${ff}")" == *"t10"* || "$(basename "${ff}")" == *"inv-1"* ]]; then
         inv_tag="inv-1"
       else
         inv_tag="inv-2"
       fi
 
-      ext=$(fetch_extension "${ff}")
-      [[ ${ext} == "gz" ]] && ext="nii.gz"
+      ext="$(fetch_extension "${ff}")"
+      [[ "${ext}" == "gz" ]] && ext="nii.gz"
 
       out_fn="${bids_dir}/anat/${base}_acq-${DATA}_${inv_tag}_${rec_tag}.${ext}"
-      if [[ ! -f "${out_fn}" || ${OW} -eq 1 ]]; then
-        echo -e "  Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+      if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
         cp "${ff}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -474,8 +561,18 @@ process_anatomical_inversions() {
 
     if [[ ${#parts[@]} -gt 0 ]]; then
       [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
-      echo "  Copying pre-reconstructed part-mag/phase files to anat/"
-      cp "${parts[@]}" "${bids_dir}/anat" 2>/dev/null
+      echo "Copying pre-reconstructed part-mag/phase files.."
+
+      for ff in "${parts[@]}"; do
+        out_fn="${bids_dir}/anat/$(basename ${ff})"
+        if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+          echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+          cp "${ff}" "${out_fn}" 2>/dev/null
+
+          # reorient to LPI
+          maybe_reorient "${ff}" "${reorient}"
+        fi
+      done
     fi
   fi
 }
@@ -498,20 +595,23 @@ process_search_anatomicals() {
       2>/dev/null
     )
 
-    if [[ -n ${img} ]]; then
+    if [[ -n "${img}" ]]; then
       local acq run acq_tag run_tag out_fn json_fn
 
-      acq=$(get_id "${img}" acq)
-      [[ -n ${acq} ]] && acq_tag="_acq-${acq}" || acq_tag=""
+      echo && print_line -
+      echo "Processing additional anatomical files (${SEARCH_ANATOMICALS[@]})..."
+    
+      acq="$(get_id "${img}" acq)"
+      [[ -n "${acq}" ]] && acq_tag="_acq-${acq}" || acq_tag=""
 
-      run=$(get_id "${img}" run)
-      [[ -n ${run} ]] && run_tag="_run-${run}" || run_tag=""
+      run="$(get_id "${img}" run)"
+      [[ -n "${run}" ]] && run_tag="_run-${run}" || run_tag=""
 
       [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
 
       out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
-      if [[ ! -f "${out_fn}" || ${OW} -eq 1 ]]; then
-        echo -e "  Renaming $(basename "${img}") → ${BOLD_GREEN}${out_fn}${RESET}"
+      if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+        echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}${out_fn}${RESET}"
         cp "${img}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -544,35 +644,39 @@ process_motion_images() {
     sort
   )
 
-  echo " Relocating multi-slice file (${#motion_img[@]})"
+  if [[ ${#motion_img[@]} -gt 0 ]]; then
+    echo && print_line -
+    echo "Relocating multi-slice file (${#motion_img[@]})"
 
-  for i in "${motion_img[@]}"; do
-    local run fname json_src json_dst
+    for i in "${motion_img[@]}"; do
+      local run fname json_src json_dst
 
-    run=$(get_id "${i}" motion)
-    [[ -z ${run} ]] && run="${i}"
+      run="$(get_id "${i}" motion)"
+      [[ -z "${run}" ]] && run="${i}"
 
-    fname="${bids_dir}/anat/${base}_acq-MP2RAGE_rec-motion${run}.nii.gz"
+      fname="${bids_dir}/anat/${base}_acq-MP2RAGE_rec-motion${run}.nii.gz"
+      if [[ ! -f "${fname}" || ${OW} -eq 1 ]]; then
+        if [[ -f "${i}" ]]; then
+          echo -e " Renaming → ${BOLD_GREEN}$(basename "${fname}")${RESET}"
+          cp "${i}" "${fname}" 2>/dev/null
 
-    if [[ ! -f "${fname}" || ${OW} -eq 1 ]]; then
-      if [[ -f "${i}" ]]; then
-        echo -e "  Renaming → ${BOLD_GREEN}$(basename "${fname}")${RESET}"
-        cp "${i}" "${fname}" 2>/dev/null
-
-        json_src="${i/.nii.gz/.json}"
-        json_dst="${fname/.nii.gz/.json}"
-        if [[ -f "${json_src}" ]]; then
-          cp "${json_src}" "${json_dst}" 2>/dev/null
+          json_src="${i/.nii.gz/.json}"
+          json_dst="${fname/.nii.gz/.json}"
+          if [[ -f "${json_src}" ]]; then
+            cp "${json_src}" "${json_dst}" 2>/dev/null
+          else
+            echo " WARNING: JSON sidecar not found for ${i}"
+          fi
         else
-          echo "  WARNING: JSON sidecar not found for ${i}"
+          echo " WARNING: Could not locate motion file: ${i}"
         fi
       else
-        echo "  WARNING: Could not locate motion file: ${i}"
+        echo -e " File ${BOLD_GREEN}${fname}${RESET} exists"
       fi
-    else
-      echo "  $(basename "${fname}") exists"
-    fi
-  done
+    done
+  else
+    echo -e "WARNING: no \"motion\"-files were found in ${BOLD_GREEN}${tmp_dir}${RESET}"
+  fi    
 }
 
 #-----------------------------------------------------------------------------
@@ -595,40 +699,41 @@ process_single_slice_anatomicals() {
   local count=0
 
   if [[ ${#slice_img[@]} -gt 0 ]]; then
-    echo " Found \"acq-1slice\" files"
+    echo && print_line -
+    echo "Found ${#slice_img[@]} \"acq-1slice\" file(s)"
 
     for slice in "${slice_img[@]}"; do
       ((count++))
 
       local run task_id task_flag bids_slice json_src json_dst
 
-      run=$(run_id "${slice}")
-      [[ ${run} -eq 0 ]] && run="${count}"
+      run="$(run_id "${slice}")"
+      [[ "${run}" -eq 0 ]] && run="${count}"
 
-      task_id=$(get_id "${slice}" task)
-      [[ -n ${task_id} ]] && task_flag="_task-${task_id}" || task_flag=""
+      task_id="$(get_id "${slice}" task)"
+      [[ -n "${task_id}" ]] && task_flag="_task-${task_id}" || task_flag=""
 
       bids_slice="${bids_dir}/anat/${base}${task_flag}_run-${run}_acq-1slice_T1w.nii.gz"
       if [[ ! -f "${bids_slice}" || ${OW} -eq 1 ]]; then
         if [[ -f "${slice}" ]]; then
-          echo -e "  Renaming → ${BOLD_GREEN}$(basename "${bids_slice}")${RESET}"
+          echo -e " Renaming → ${BOLD_GREEN}${bids_slice}${RESET}"
           cp "${slice}" "${bids_slice}" 2>/dev/null
 
-          json_src="${slicei/.nii.gz/.json}"
+          json_src="${slice/.nii.gz/.json}"
           json_dst="${bids_slice/.nii.gz/.json}"
           if [[ -f "${json_src}" ]]; then
             cp "${json_src}" "${json_dst}" 2>/dev/null
           else
-            echo "  WARNING: No JSON sidecar for ${slice}"
+            echo " WARNING: No JSON sidecar for ${slice}"
           fi
         fi
       else
-        echo "  $(basename "${bids_slice}") exists"
+        echo -e " File ${BOLD_GREEN}${bids_slice}${RESET} exists"
       fi
     done
 
   else
-    echo "  WARNING: no \"1slice\"-files were found in ${tmp_dir}"
+    echo -e "WARNING: no \"1slice\"-files were found in ${BOLD_GREEN}${tmp_dir}${RESET}"
   fi
 }
 
@@ -653,12 +758,13 @@ process_linescanning_bold_lab() {
   )
 
   if [[ ${#bold_files[@]} -eq 0 ]]; then
-    echo "  WARNING: no \"bold*.lab\"-files were found in ${input_dir}"
+    echo "WARNING: no \"bold*.lab\"-files were found in ${input_dir}"
     return
   fi
 
   [[ ! -d "${bids_dir}/func" ]] && mkdir -p "${bids_dir}/func"
-  echo " Found line-scanning bold-files (*.lab)"
+  echo && print_line -
+  echo "Found ${#bold_files[@]} line-scanning bold-file(s) (*.lab)"
 
   # Determine foldover direction
   local info_file
@@ -670,20 +776,25 @@ process_linescanning_bold_lab() {
   )
 
   local fold="FH"
-  [[ -f "${info_file}" ]] && fold=$(grep -A0 "foldover" "${info_file}" | cut -d',' -f3)
-  echo -e "  foldover is set to: ${BOLD_RED}${fold}${RESET}"
+  [[ -f "${info_file}" ]] && fold="$(grep -A0 "foldover" "${info_file}" | cut -d',' -f3)"
+  echo -e " Foldover is set to: ${BOLD_RED}${fold}${RESET}"
 
   # Find 1slice template for run-1
   local slice_img=()
   while IFS= read -r f; do slice_img+=("$f"); done < <(
-    find -L "${bids_dir}/anat" -type f \
-      -name "${base}*" -a -name "*1slice*" -a -name "*run-1*" -a -name "*.nii.gz" 2>/dev/null
+    find -L "${bids_dir}/anat" ]
+    -type f \
+    -name "${base}*" \
+    -and -name "*1slice*" \
+    -and -name "*run-1*" \
+    -and -name "*.nii.gz" \
+    2>/dev/null
   )
 
   local ct=0
   for ii in "${slice_img[@]}"; do ((ct++)); done
   if [[ ${ct} -gt 1 ]]; then
-    echo "  WARNING: multiple matching [\"acq-1slice\" and \"run-1\"] files found — using first"
+    echo " WARNING: multiple matching [\"acq-1slice\" and \"run-1\"] files found — using first"
   fi
   local slice_template="${slice_img[0]}"
 
@@ -693,13 +804,13 @@ process_linescanning_bold_lab() {
 
     local run task par_file fileparts line_img
 
-    run=$(get_id "${bold}" run)
-    [[ -z ${run} || ${run} -eq 0 ]] && run=${count}
+    run="$(get_id "${bold}" run)"
+    [[ -z "${run}" || "${run}" -eq 0 ]] && run="${count}"
 
-    task=$(get_id "${bold}" task)
-    [[ -z ${task} ]] && task=${TASK_IDS[0]}
-    [[ ${task} == "prf" ]] && task="pRF"
-    [[ ${task} == "sr" ]] && task="SR"
+    task="$(get_id "${bold}" task)"
+    [[ -z "${task}" ]] && task="${TASK_IDS[0]}"
+    [[ "${task}" == "prf" ]] && task="pRF"
+    [[ "${task}" == "sr" ]] && task="SR"
 
     # Try to get more accurate task label from corresponding .par file
     par_file=$(
@@ -714,7 +825,7 @@ process_linescanning_bold_lab() {
 
     if [[ -f "${par_file}" ]]; then
       fileparts="$(read_par "${par_file}" "Protocol name")"
-      task=$(get_id "${fileparts}" task)
+      task="$(get_id "${fileparts}" task)"
     fi
 
     line_img="${bids_dir}/func/${base}_task-${task}_run-${run}_bold.nii.gz"
@@ -736,12 +847,12 @@ process_linescanning_bold_lab() {
           exit 1
         fi
 
-        echo -e "  wrote ${BOLD_GREEN}$(basename "${line_img}")${RESET}"
+        echo -e " Wrote ${BOLD_GREEN}${line_img}${RESET}"
       else
-        echo "  $(basename "${line_img}") exists"
+        echo -e " File ${BOLD_GREEN}${line_img}${RESET} exists"
       fi
     else
-      echo "  WARNING: could not find slice template (1slice, run-1) in ${bids_dir}/anat"
+      echo " WARNING: could not find slice template (1slice, run-1) in ${bids_dir}/anat"
     fi
   done
 }
@@ -750,135 +861,138 @@ process_linescanning_bold_lab() {
 # Final run-through for BOLD-FMAP pairing
 fix_final_intendedfor() {
   local bids_dir="$1"
+  local fmap_type="$2"
 
   local func_files fmap_files funcs=() fmaps=()
 
+  echo && print_line -
+  echo "Finalize IntendedFor/B0FieldIdentifier fields.."
+  
+  #-----------------------------------------------------------------------------
   # Get and sort BOLD and FMAP files
   func_files=()
   while IFS= read -r line; do func_files+=("$line"); done < <(
-    find -L "${bids_dir}/func" -type f -name "*_bold.nii.gz" | sort
+    find -L "${bids_dir}/func" \
+    -type f \
+    -name "*_bold.nii.gz" | \
+    sort
   )
 
+  #-----------------------------------------------------------------------------
+  # find FMAP files of different types
   fmap_files=()
-  while IFS= read -r line; do fmap_files+=("$line"); done < <(
-    find -L "${bids_dir}/fmap" -type f -name "*_epi.json" | sort
-  )
+  # PePolar fieldmaps
+  if [[ "${fmap_type}" == "epi" ]]; then
+    fmap_tag="pepolar_"
+    while IFS= read -r line; do fmap_files+=("$line"); done < <(
+      find -L "${bids_dir}/fmap" \
+      -type f \
+      -name "*_epi.json" | \
+      sort
+    )
+  elif [[ "${fmap_type}" == "gre" ]]; then
+    # phasediff fieldmaps
+    fmap_tag="phasediff_fmap"
+    while IFS= read -r line; do fmap_files+=("$line"); done < <(
+      find -L "${bids_dir}/fmap" \
+      -type f \
+      -name "*_phasediff.json" | \
+      sort
+    )
+  elif [[ "${fmap_type}" == "direct" ]]; then
+    # direct fieldmaps
+    fmap_tag="b0map_fmap"
+    while IFS= read -r line; do fmap_files+=("$line"); done < <(
+      find -L "${bids_dir}/fmap" \
+      -type f \
+      -name "*_fieldmap.json" | \
+      sort
+    )
+  else
+    echo && print_line -
+    print_error_msg "$(basename ${0})" "FMAP" "Unrecognized FMAP type ${BOLD_RED}${fmap_type}${RESET}. Allowed types are \"epi\" (Reversed-PE), \"gre\" (phasediff), or \"direct\" (direct B0 mapping)"
+    exit 1
+  fi
 
+  #-----------------------------------------------------------------------------
   # Filter out line-scanning BOLDs (dim0 > 3)
   for ff in "${func_files[@]}"; do
     local dim0
-    dim0=$(fslval "${ff}" dim0)
-    if [[ ${dim0} -gt 3 ]]; then
+    dim0="$(fslval "${ff}" dim0)"
+    if [[ "${dim0}" -gt 3 ]]; then
       funcs+=("${ff}")
     fi
   done
 
+  #-----------------------------------------------------------------------------
+  # check number of fmaps/funcs
   fmaps=("${fmap_files[@]}")
-
   local num_funcs="${#funcs[@]}"
   local num_fmaps="${#fmaps[@]}"
-
-  if [[ ${num_funcs} -ne ${num_fmaps} ]]; then
-
-    if [[ ${num_fmaps} -eq 1 && ${num_funcs} -gt 1 ]]; then
-      echo -e "${BOLD_RED}1${RESET} FMAP for ${BOLD_RED}all${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
+  
+  if [[ ! -z "${fmaps}" ]]; then
+    if [[ "${num_funcs}" -ne "${num_fmaps}" ]]; then
 
       #-----------------------------------------------------------------------------
-      # parse all funcs in list and add B0FieldSource to json
-      local func_list=""
-      for i in "${!funcs[@]}"; do
-        local base_path="$(rel_path "${funcs[$i]}")"
-        local rel_path="${base_path}func/$(basename "${funcs[$i]}")"
-        func_list+="${rel_path}"
-        [[ $i -lt $((num_funcs - 1)) ]] && func_list+=","
-        
-        # add B0FieldSource to FUNC's JSON
-        local json_func="${funcs[$i]%.nii.gz/.json}"
-        if [[ -f "${json_func}" && "${json_func}" == *.json ]]; then
-          cmd=(
-            call_json
-            "${json_func}"
-            "B0FieldSource"
-            "pepolar_01"
-          )
+      # N_FMAPS == N_FUNCS
+      if [[ "${num_fmaps}" -eq 1 && "${num_funcs}" -gt 1 ]]; then
+        echo -e "${BOLD_RED}1${RESET} FMAP for ${BOLD_RED}all${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
 
-          eval "${cmd[@]}"
-          if [[ $? -ne 0 ]]; then
-            echo
-            print_line -
-            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-            exit 1
-          fi
-        else
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "json" "Json file ${BOLD_GREEN}${json_func}${RESET} does not exist or is not a json-file..?"
-          exit 1          
-        fi
-      done
-
-      #-----------------------------------------------------------------------------
-      # add IntendedFor
-      cmd=(
-        call_json
-        "${fmaps[0]}"
-        "IntendedFor"
-        "${func_list}"
-      )
-
-      eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-        exit 1
-      fi    
-      
-      # add B0FieldIdentifier
-      cmd=(
-        call_json
-        "${fmaps[0]}"
-        "B0FieldIdentifier"
-        "pepolar_01"
-      )
-
-      eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-        exit 1
-      fi          
-
-    elif [[ $((num_funcs / num_fmaps)) -eq 2 ]]; then
-      echo -e "${BOLD_RED}1${RESET} FMAP per ${BOLD_RED}2${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
-
-      local fm_ct=0
-      local fc=$((num_funcs / num_fmaps))
-      local id=1
-
-      for fmap in "${fmaps[@]}"; do
-        local tmp_list=""
-        local field_id="pepolar_$(printf "%02d" ${id})"
-
-        for ((j = 0; j < fc; j++)); do
-          local idx=$((fm_ct + j))
+        #-----------------------------------------------------------------------------
+        # parse all funcs in list and add B0FieldSource to json
+        local func_list=""
+        for i in "${!funcs[@]}"; do
           local base_path="$(rel_path "${funcs[$i]}")"
           local rel_path="${base_path}func/$(basename "${funcs[$i]}")"
-          tmp_list+="${rel_path}"
-          [[ $j -lt $((fc - 1)) ]] && tmp_list+=","
+          func_list+="${rel_path}"
+          [[ $i -lt $((num_funcs - 1)) ]] && func_list+=","
+          
+          # add B0FieldSource to FUNC's JSON
+          local json_func="${funcs[$i]/.nii.gz/.json}"
+          if [[ -f "${json_func}" && "${json_func}" == *.json ]]; then
+            cmd=(
+              call_json
+              "${json_func}"
+              "B0FieldSource"
+              "${fmap_type}01"
+            )
 
-          # Set B0FieldSource on each BOLD JSON
-          local json_func="${funcs[$idx]/.nii.gz/.json}"
-          [[ -f "${json_func}" ]] && call_json "${json_func}" B0FieldSource "${field_id}"
+            eval "${cmd[@]}"
+            if [[ $? -ne 0 ]]; then
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+              exit 1
+            fi
+          else
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "json" "Json file ${BOLD_GREEN}${json_func}${RESET} does not exist or is not a json-file..?"
+            exit 1          
+          fi
         done
 
+        #-----------------------------------------------------------------------------
+        # Split on commas
+        IFS=',' read -r -a intended_for_list <<< "$func_list"
+
+        # Restore the default IFS if you need to
+        unset IFS
+
+        # print situation
+        echo -e " ${BOLD_MAGENTA}${fmaps[0]}${RESET}:"
+
+        for i in ${intended_for_list[@]}; do
+          echo -e "  → ${BOLD_GREEN}${i}${RESET}"
+        done
+
+        #-----------------------------------------------------------------------------
         # add IntendedFor
         cmd=(
           call_json
-          "${fmap}"
+          "${fmaps[0]}"
           "IntendedFor"
-          "${tmp_list}"
+          "${func_list}"
         )
 
         eval "${cmd[@]}"
@@ -892,9 +1006,9 @@ fix_final_intendedfor() {
         # add B0FieldIdentifier
         cmd=(
           call_json
-          "${fmap}"
+          "${fmaps[0]}"
           "B0FieldIdentifier"
-          "${field_id}"
+          "${fmap_type}01"
         )
 
         eval "${cmd[@]}"
@@ -903,67 +1017,177 @@ fix_final_intendedfor() {
           print_line -
           print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
           exit 1
-        fi
+        fi          
 
-        fm_ct=$((fm_ct + fc))
-        id=$((id + 1))
-      done
+      #-----------------------------------------------------------------------------
+      # 1 FMAP FOR EVERY 2 BOLD      
+      elif [[ $((num_funcs / num_fmaps)) -eq 2 ]]; then
+        echo -e "${BOLD_RED}1${RESET} FMAP per ${BOLD_RED}2${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
 
-    elif [[ $((num_funcs / num_fmaps)) -eq 1 ]]; then
-      echo -e "${BOLD_RED}1${RESET} FMAP per BOLD — applying individual B0FieldIdentifiers"
+        local fm_ct=0
+        local fc=$((num_funcs / num_fmaps))
+        local id=1
 
-      for i in "${!fmaps[@]}"; do
-        local base_path="$(rel_path "${funcs[$i]}")"
-        local rel_path="${base_path}func/$(basename ${funcs[$i]})"
-        local field_id="pepolar_$(printf "%02d" $((i + 1)))"
+        for fmap in "${fmaps[@]}"; do
+          local tmp_list=""
+          local field_id="${fmap_type}$(printf "%02d" ${id})"
 
-        # add intendedfor
-        cmd=(
-          call_json
-          "${fmaps[$i]}"
-          "IntendedFor"
-          "${rel_path}"
-        )
+          for ((j = 0; j < fc; j++)); do
+            local idx=$((fm_ct + j))
+            local base_path="$(rel_path "${funcs[$i]}")"
+            local rel_path="${base_path}func/$(basename "${funcs[$i]}")"
+            tmp_list+="${rel_path}"
+            [[ $j -lt $((fc - 1)) ]] && tmp_list+=","
 
-        eval "${cmd[@]}"
-        if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-          exit 1
-        fi
+            # Set B0FieldSource on each BOLD JSON
+            local json_func="${funcs[$idx]/.nii.gz/.json}"
+            if [[ -f"${json_func}" ]]; then
+              cmd=(
+                call_json
+                "${json_func}"
+                "B0FieldSource"
+                "${field_id}"
+              )
 
-        # add B0FieldIdentifier
-        cmd=(
-          call_json
-          "${fmaps[$i]}"
-          "B0FieldIdentifier"
-          "${field_id}"
-        )
+              eval "${cmd[@]}"
+              if [[ $? -ne 0 ]]; then
+                echo
+                print_line -
+                print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+                exit 1
+              fi
+            fi
+          done
 
-        eval "${cmd[@]}"
-        if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-          exit 1
-        fi
+          #-----------------------------------------------------------------------------
+          # Split on commas
+          IFS=',' read -r -a intended_for_list <<< "$tmp_list"
 
-        # Set B0FieldSource on BOLD JSON
-        local json_func="${funcs[$i]/.nii.gz/.json}"
-        [[ -f "${json_func}" ]] && call_json "${json_func}" B0FieldSource "${field_id}"      
-      done
+          # Restore the default IFS if you need to
+          unset IFS
 
+          # print situation
+          echo -e " ${BOLD_MAGENTA}${fmap}${RESET}:"
+
+          for i in ${intended_for_list[@]}; do
+            echo -e "  → ${BOLD_GREEN}${i}${RESET}"
+          done
+
+          #-----------------------------------------------------------------------------
+          # add IntendedFor
+          cmd=(
+            call_json
+            "${fmap}"
+            "IntendedFor"
+            "${tmp_list}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi    
+          
+          # add B0FieldIdentifier
+          cmd=(
+            call_json
+            "${fmap}"
+            "B0FieldIdentifier"
+            "${field_id}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi
+
+          fm_ct=$((fm_ct + fc))
+          id=$((id + 1))
+        done
+
+      #-----------------------------------------------------------------------------
+      # EACH BOLD HAS OWN FMAP      
+      elif [[ $((num_funcs / num_fmaps)) -eq 1 ]]; then
+        echo -e "${BOLD_RED}1${RESET} FMAP per BOLD — applying individual B0FieldIdentifiers"
+
+        for i in "${!fmaps[@]}"; do
+          local base_path="$(rel_path "${funcs[$i]}")"
+          local rel_path="${base_path}func/$(basename ${funcs[$i]})"
+          local field_id="${fmap_type}$(printf "%02d" $((i + 1)))"
+
+          #-----------------------------------------------------------------------------
+          # print situation
+          echo -e " ${BOLD_MAGENTA}${fmaps[$i]}${RESET} → ${BOLD_GREEN}${rel_path}${RESET}"
+
+          #-----------------------------------------------------------------------------
+          # add intendedfor
+          cmd=(
+            call_json
+            "${fmaps[$i]}"
+            "IntendedFor"
+            "${rel_path}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi
+
+          # add B0FieldIdentifier
+          cmd=(
+            call_json
+            "${fmaps[$i]}"
+            "B0FieldIdentifier"
+            "${field_id}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi
+
+          # Set B0FieldSource on BOLD JSON
+          local json_func="${funcs[$i]/.nii.gz/.json}"
+          if [[ -f"${json_func}" ]]; then
+            cmd=(
+              call_json
+              "${json_func}"
+              "B0FieldSource"
+              "${field_id}"
+            )
+            
+            eval "${cmd[@]}"
+            if [[ $? -ne 0 ]]; then
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+              exit 1
+            fi
+          fi
+        done
+
+      else
+        local ratio=$((num_funcs / num_fmaps))
+        echo -e "WARNING: got ${BOLD_RED}${num_funcs}${RESET} BOLD files and ${BOLD_RED}${num_fmaps}${RESET} FMAP files."
+        echo "I can only handle:"
+        echo " - 1 FMAP for all BOLDs"
+        echo " - 1 FMAP per BOLD"
+        echo " - 1 FMAP for every ${ratio} BOLDs"
+      fi
     else
-      local ratio=$((num_funcs / num_fmaps))
-      echo "WARNING: got ${num_funcs} BOLD files and ${num_fmaps} FMAP files."
-      echo "I can only handle:"
-      echo " - 1 FMAP for all BOLDs"
-      echo " - 1 FMAP per BOLD"
-      echo " - 1 FMAP for every ${ratio} BOLDs"
+      echo " Number of BOLDs (${num_funcs}) and FMAPs (${num_fmaps}) match — assuming already linked"
     fi
-  else
-    echo "Number of BOLDs and FMAPs match — assuming already linked"
   fi
 }
 
@@ -977,6 +1201,7 @@ scrape_and_link_fieldmaps() {
   local cut_vols="$5"
   local trim_fmap="$6"
   local reorient="$7"
+  local use_fmap="$8"
 
   local func_dir="${bids_dir}/func"
   local fmap_dir="${bids_dir}/fmap"
@@ -984,16 +1209,23 @@ scrape_and_link_fieldmaps() {
   [[ ! -d "${func_dir}" ]] && return
   [[ ! -d "${fmap_dir}" ]] && mkdir -p "${fmap_dir}"
 
-  echo -e " Scanning for ${BOLD_RED}deviating PEPolar${RESET} fieldmaps in \"${tmp_dir}\""
+  echo && print_line -
+  echo -e "Scanning for ${BOLD_RED}deviating PEPolar/GRE/B0${RESET} fieldmaps in ${BOLD_GREEN}${tmp_dir}${RESET}"
 
+  #-----------------------------------------------------------------------------
   # Collect BOLD files
   local -a bolds=()
   while IFS= read -r bold; do bolds+=("${bold}"); done < <(
     find "${func_dir}" -type f -name "*_bold.nii.gz"
   )
-
-  # find FMAP files
+  
+  #-----------------------------------------------------------------------------
+  # find FMAP files; default to PePolar EPI files
   local fmap_count=0
+  fmap_type="pepolar_"
+  suff="PePolar (EPI)"
+  add_txt=" [make sure PE-dir aligns with BOLD files!]"
+  search_mag=0
   fmaps=(
     $(
       find "${tmp_dir}" \
@@ -1003,67 +1235,178 @@ scrape_and_link_fieldmaps() {
       2>/dev/null
     )
   )
-  echo " Found ${#fmaps[@]} FMAP file(s)"
-  idx=1
-  for fmap_file in ${fmaps[@]}; do
-    local fname="$(basename "${fmap_file}")"
-    local fmap_json="${fmap_file/.nii.gz/.json}"
-    local target_nii="${fmap_dir}/${fname}"
-    local target_json="${fmap_dir}/$(basename "${fmap_json}")"
 
-    # Move if not already in fmap_dir
-    if [[ "${fmap_file}" != "${target_nii}" ]]; then
-      echo -e " #${idx}: ${BOLD_GREEN}${fmap_file}${RESET}"
-      cp "${fmap_file}" "${target_nii}" 2>/dev/null
-      [[ -f "${fmap_json}" ]] && cp "${fmap_json}" "${target_json}" 2>/dev/null
-    fi
+  #-----------------------------------------------------------------------------
+  # check for GRE fieldmaps
+  if [[ "${use_fmap}" == "gre" || "${#fmaps[@]}" -eq 0 ]]; then
+    fmaps=(
+      $(
+        find "${tmp_dir}" \
+        -type f \
+        -name "*phasediff.nii.gz" | \
+        sort \
+        2>/dev/null
+      )
+    )
+    fmap_type="phasediff_fmap"
+    suff="PhaseDiff (GRE)"
+    add_txt=""
+    search_mag=1
+  fi
 
-    # cut volumes
-    maybe_trim_volumes \
-    "${target_nii}" \
-    "fmap" \
-    "${cut_vols}" \
-    "${trim_fmap}"
+  #-----------------------------------------------------------------------------
+  # check for B0Field 
+  if [[ "${use_fmap}" == "direct_b0" || "${#fmaps[@]}" -eq 0 ]]; then
+    fmaps=(
+      $(
+        find "${tmp_dir}" \
+        -type f \
+        -name "*fieldmap.nii.gz" | \
+        sort \
+        2>/dev/null
+      )
+    )
+    fmap_type="b0map_fmap"
+    suff="Direct B0"
+    add_txt=""
+    search_mag=1
+  fi
 
-    # reorient to LPI
-    maybe_reorient \
-      "${target_nii}" \
-      "${reorient}"
+  #-----------------------------------------------------------------------------
+  # loop through fieldmaps and link them
+  if [[ "${#fmaps[@]}" -gt 0 ]]; then
+    echo "Found ${#fmaps[@]} ${suff} FMAP file(s)${add_txt}"
+    idx=1
+    for fmap_file in ${fmaps[@]}; do
 
-    # add data from PAR/DCM file
-    enrich_with_par_data \
-      "${target_json}" \
-      "${target_nii}" \
-      "${set_tr}" \
-      "${skip_tr}" \
-      "fmap"
+      #-----------------------------------------------------------------------------
+      # add warning; whatever was specified for BOLD must align with filenaming of FMAP
+      local fname="$(basename "${fmap_file}")"
+      local fmap_json="${fmap_file/.nii.gz/.json}"
+      local target_nii="${fmap_dir}/${fname}"
+      local target_json="${fmap_dir}/$(basename "${fmap_json}")"
 
-    # read PE-direction from filename
-    set_pe_direction "${target_json}" "fmap"
+      #-----------------------------------------------------------------------------
+      # Move if not already in fmap_dir
+      if [[ "${fmap_file}" != "${target_nii}" ]]; then
+        echo -e "#${idx}: ${BOLD_MAGENTA}${fmap_file}${RESET}"
+        echo -e " BIDS fmap-file → ${BOLD_GREEN}${target_nii}${RESET}"
+        cp "${fmap_file}" "${target_nii}" 2>/dev/null
+        [[ -f "${fmap_json}" ]] && cp "${fmap_json}" "${target_json}" 2>/dev/null
+      fi
 
-    [[ ! -f "${target_json}" ]] && echo "  Missing JSON for ${fname}, skipping" && continue
+      #-----------------------------------------------------------------------------
+      # cut volumes
+      maybe_trim_volumes \
+        "${target_nii}" \
+        "fmap" \
+        "${cut_vols}" \
+        "${trim_fmap}"
 
-    # Add IntendedFor if not present
-    if ! grep -q "IntendedFor" "${target_json}"; then
-      echo "  Adding IntendedFor to $(basename "${target_json}")"
+      # reorient to LPI
+      maybe_reorient \
+        "${target_nii}" \
+        "${reorient}"
 
-      for bold in "${bolds[@]}"; do
-        # macOS-compatible relative path fallback
-        local rel_bold
-        local base_path="$(rel_path "${bold}")"
-        local rel_bold="${base_path}func/$(basename "${bold}")"
-        call_json "${target_json}" IntendedFor "${rel_bold}"
+      # add data from PAR/DCM file
+      enrich_with_par_data \
+        "${target_json}" \
+        "${target_nii}" \
+        "${set_tr}" \
+        "${skip_tr}" \
+        "fmap" \
+        "${tr_prot}"
+
+      #-----------------------------------------------------------------------------
+      # read PE-direction from filename
+      if [[ "${use_fmap}" == "epi" ]]; then
+        set_pe_direction "${target_json}" "fmap"
+      fi
+
+      [[ ! -f "${target_json}" ]] && echo "  Missing JSON for ${fname}, skipping" && continue
+
+      #-----------------------------------------------------------------------------
+      # Add IntendedFor if not present
+      if ! grep -q "IntendedFor" "${target_json}"; then
+        echo " Adding IntendedFor to $(basename "${target_json}")"
+
+        for bold in "${bolds[@]}"; do
+          # macOS-compatible relative path fallback
+          local rel_bold
+          local base_path="$(rel_path "${bold}")"
+          local rel_bold="${base_path}func/$(basename "${bold}")"
+          
+          cmd=(
+            call_json
+            "${target_json}"
+            "IntendedFor"
+            "${rel_bold}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi         
+        done
+      fi
+
+      # Add unique B0FieldIdentifier if not present
+      if ! grep -q "B0FieldIdentifier" "${target_json}"; then
+        ((fmap_count++))
+        local identifier="${fmap_type}$(printf "%02d" ${fmap_count})"
+        echo " Adding B0FieldIdentifier=${identifier}"
+        cmd=(
+          call_json
+          "${target_json}"
+          "B0FieldIdentifier"
+          "${identifier}"
+        )
+
+        eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+          exit 1
+        fi
+      fi
+    done
+
+    #-----------------------------------------------------------------------------
+    # also get magnitude images from non-EPI files
+    if [[ "${search_mag}" -eq 1 ]]; then
+      mag_files=(
+        $(
+          find "${tmp_dir}" \
+          -type f \
+          -name "*magnitude*.nii.gz" | \
+          sort \
+          2>/dev/null
+        )
+      )
+      
+      #-----------------------------------------------------------------------------
+      # Move if not already in fmap_dir
+      for ff in ${mag_files[@]}; do
+
+        # define bids file
+        out_fn="${bids_dir}/fmap/$(basename "${ff}")"
+        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+        cp "${ff}" "${out_fn}" 2>/dev/null
+
+        # reorient to LPI
+        maybe_reorient \
+          "${ff}" \
+          "${reorient}"
+
       done
     fi
 
-    # Add unique B0FieldIdentifier if not present
-    if ! grep -q "B0FieldIdentifier" "${target_json}"; then
-      ((fmap_count++))
-      local identifier="pepolar_$(printf "%02d" ${fmap_count})"
-      echo "  Adding B0FieldIdentifier=${identifier}"
-      call_json "${target_json}" B0FieldIdentifier "${identifier}"
-    fi
-  done
+    echo " Done"
+  fi
 }
 
 #-----------------------------------------------------------------------------
@@ -1074,10 +1417,9 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_bids
 
-convert raw data from the scanner to nifti format. Depending on which session we're analyzing, 
-we'll use either call_dcm2niix (session 1 - which is FromScannerToBIDS from M. Aqil) which can deal
-nicely with the anatomical and functional stuff or call_dcm2niix, which is more specific for the
-line scanning stuff.
+Convert raw data from the scanner to nifti format using 'call_dcm2niix'. This script can handle 
+both PAR/RECs and DCM input. DCM files will be converted using 'dcm2niix', whereas PAR/RECs will be
+converted using 'parrec2nii' (wrapped in 'call_parrec2nii').
 
 Mandatory inputs:
   -i <input dir>  directory containing the PAR-files
@@ -1145,10 +1487,12 @@ Options:
   --inv           add individual inversion files from anatomies in 'anat' folder
   --take-avg-tr   Take the average over all TRs from the par file, rather than the first in the
                   sequence of TRs
-  --ap            set phase-encoding direction for BOLD to AP (overwrite PE_DIR_BOLD-variable)
-  --pa            set phase-encoding direction for BOLD to PA (overwrite PE_DIR_BOLD-variable)
-  --lr            set phase-encoding direction for BOLD to LR (overwrite PE_DIR_BOLD-variable)
-  --rl            set phase-encoding direction for BOLD to RL (overwrite PE_DIR_BOLD-variable)
+  --ap            set phase-encoding direction for BOLD to Anterior-Posterior   (j)
+  --pa            set phase-encoding direction for BOLD to Posterior-Anterior   (j-)
+  --lr            set phase-encoding direction for BOLD to Left-Right           (i)
+  --rl            set phase-encoding direction for BOLD to Right-Left           (i-)
+  --is            set phase-encoding direction for BOLD to Inferior-Superior    (k)
+  --si            set phase-encoding direction for BOLD to Superior-Inferior    (k-)
   --no-lpi        do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
                   puts on more raw data, I'd advise you to reorient to LPI and to NOT use this 
                   flag. This flag is mainly here because it can take some time with big files
@@ -1161,6 +1505,8 @@ Options:
   --no-compress   create nii's instead of nii.gz's (default). Passes on '--no-compress' to call-
                   parrec2nii, and '-c n' to dcm2niix
   --force-exec    Force execution even though converted nifti already exists (passed to parrec2nii)
+  --fmap-gre      Use phasediff from GRE-sequence as FMAP, also if you have Reversed-PE EPI images
+  --fmap-b0       Use direct fieldmap from GE systems, also if you have other fieldmaps
 
 Example:
   # simple call
@@ -1185,6 +1531,58 @@ Notes:
       pymp2rage
   - FLAIR/T2w files will be selected on the presence of '{FLAIR|T2w}.nii.gz' in the filename
 
+JSON Sidecars:
+Complete json sidecars will be produced and populated with relevant information for fMRIPrep, including:
+  - SliceTiming (if BOLD files are 2D); see also 'call_slicetiming'. Important factors for this
+    function are:
+      - number of slices (read from PAR/DCM-file)
+      - Multiband factor (either read from PAR-file or from \$MB_FACTOR-variable)
+      - Assumes ascending slice ordering
+  - PhaseEncodingDirection:
+    - Read from fmap-file (e.g., sub-01_ses-1_task-rest_run-1_dir-AP_bold.nii.gz)
+    - Read from the \$PE_DIR_BOLD-variable (priority)
+    - Specified for BOLD through flags (--ap|--pa|--lr|--rl), reversed for FMAP; overwrites speci-
+      fied \$PE_DIR_BOLD
+    - Read from DCM (via 'CSA'), but is difficult
+    - Defaults to AP for BOLD, reversed for FMAP
+  - RepetitionTime:
+    - For DCMs:
+        1.  Parse TR directly from the filename if present (TR2.9, TR=2.9, TR_2p9, _TR2p9_).
+            This is the most reliable for modern Siemens 3D EPI.
+        2.  For 3D acquisitions, trust RepetitionTime (0018,0080) from DICOM directly.
+        3.  For 2D Mosaic acquisitions, calculate TR = NumSlices × SliceMeasurementDuration.
+            This works for Siemens 2D-EPI (especially in fMRI).
+        4.  For 2D multi-band sequences, apply multi-band correction (TR / MultiBandFactor).
+    - For PAR/RECs:
+        We can read the 'dtime' column and extra unique values between slices/volumes. This works
+        well for 3D acquisitions. By default, the first element of this list is taken. Alternative-
+        ly, you can specify '--take-avg-tr' to get the average over the interslice/volume differen-
+        ce.
+    - Both:
+        Specified through the '-t <tr' flag.
+
+    The RepetitionTime-key from the json-file is used as reference. The TR in the header will be 
+    updated to this value if a mismatch is detected.
+  - IntendedFor/B0FieldIdentifier): the script can deal and set the IntendedFor-key appropriately 
+    in the following scenarios:
+      - 1 FMAP per BOLD [best/most stable]
+      - 1 FMAP for every 2 BOLD [most likely case]
+      - 1 FMAP for all BOLDs [iffy]
+
+    Generally, it is best to have an FMAP per BOLD, in which case the filenaming will be matched,
+    assuming the BOLD file ends with '_bold.nii.gz' and the FMAP with '_epi.nii.gz'. In a final
+    attempt, the folder with converted nifti-files is scraped to search for "*_dir-*_epi.nii.gz"-
+    files, which are then linked to BOLD files if possible.
+
+    TIP: check 'call_replace'/'call_dcm' how to update PAR/DCM files so that this is set correctly.
+    File are converted using %n_%p pattern (see -p flag), so you can update these fields in the
+    PAR/DCM-files to help the BIDS-ification process (see also link in 'Notes').
+
+By default, all files will be converted to have the RAS+ (or LPI) coordinate system. This system
+is used by fMRIPrep and makes the output from that software compatible with 'older' files before
+fMRIPrep. This is especially handy if you want to combine multiple segmentations to boost surfa-
+ce reconstruction. If you do not want this, use '--no-lpi'.
+
 ---------------------------------------------------------------------------------------------------
 
 EOF
@@ -1197,6 +1595,7 @@ ses_type="regular"
 add_inv=0
 reorient=1
 tr_prot_flag=""
+tr_prot="first"
 compress_flag=""
 compress="-c o"
 pe_dir=""
@@ -1212,6 +1611,7 @@ pattern_flag=""
 include_anatomicals=""
 kwargs=""
 force_flag=""
+use_fmap="epi"
 while getopts :-:hi:o:b:n:r:d:t:v:p:a:c:x: argument
 do
   case ${argument} in
@@ -1226,6 +1626,7 @@ do
           ;;
         take-avg-tr)
           tr_prot_flag="--take-avg-tr"
+          tr_prot="average"
           ;;      
         ap)
           pe_dir="AP"
@@ -1257,7 +1658,13 @@ do
           ;;
         force-exec)
           force_flag="--force-exec"
-          ;;          
+          ;;
+        fmap-gre)
+          use_fmap="gre"
+          ;;
+        fmap-b0)
+          use_fmap="direct_b0"
+          ;;
         no-compress)
           compress="-c n"
           compress_flag="--no-compress"
@@ -1306,7 +1713,7 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 # sort out runs
-if [[ ! -z ${runs} ]]; then
+if [[ ! -z "${runs}" ]]; then
   # read specified subjects into array
   IFS=', ' read -r -a n_runs <<< "${runs}"
   unset IFS
@@ -1333,9 +1740,11 @@ if [[ -d "${tmp_dir}" ]]; then
     print_error_msg "$(basename ${0})" "find" "\"${tmp_dir}\" exists, but is empty. You probably need to change the search depth for dcm2niix with \"-d <depth>\" (now ${searchDepth}). Append \"--full -d <depth>\" to your call. "
     exit 1
   else
+    print_line -
     echo "Directory exists, skipping conversion (use \"--full\" to overwrite this folder too)." 
   fi
 else
+  print_line -
   echo "Converting files to nifti-format"
   cmd=(
     call_dcm2niix
@@ -1384,15 +1793,15 @@ if [[ ${phys_only} -eq 0 ]]; then
   #-----------------------------------------------------------------------------
   # anatomicals
   inv_files=0
-  if [[ ${ls_ses} -eq 1 ]]; then
-    if [[ ${add_inv} -eq 1 ]]; then
+  if [[ "${ls_ses}" -eq 1 ]]; then
+    if [[ "${add_inv}" -eq 1 ]]; then
       inv_files=1
     fi
   else
     inv_files=1
   fi  
 
-  if [[ ${inv_files} -eq 1 ]]; then
+  if [[ "${inv_files}" -eq 1 ]]; then
 
     # INV-images
     process_anatomical_inversions \
@@ -1415,7 +1824,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
   #-----------------------------------------------------------------------------
   # acq-motion files for line-scanning
-  if [[ ${ls_ses} -eq 1 ]]; then
+  if [[ "${ls_ses}" -eq 1 ]]; then
 
     if [[ ! -d "${bids_dir}/anat" ]]; then
       mkdir -p "${bids_dir}/anat"
@@ -1448,11 +1857,11 @@ if [[ ${phys_only} -eq 0 ]]; then
 
   #-----------------------------------------------------------------------------
   # check for more whole-brainy stuff
-  if [[ ${ls_ses} -eq 1 ]]; then
+  if [[ "${ls_ses}" -eq 1 ]]; then
     # deal with stuff added by sequence development editor..
     sde=1
 
-    if [[ ! -z ${runs} ]]; then
+    if [[ ! -z "${runs}" ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
         run_f=$(
@@ -1483,7 +1892,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
   else
     sde=0
-    if [[ ! -z ${runs} ]]; then
+    if [[ ! -z "${runs}" ]]; then
       b_files=()
       for r in ${n_runs[@]}; do
         run_f=$(
@@ -1517,18 +1926,19 @@ if [[ ${phys_only} -eq 0 ]]; then
   warning=0
   if [[ ! -z ${bold_files[@]} ]]; then
 
-    echo " Found ${#bold_files[@]} BOLD file(s)"
+    echo && print_line -
+    echo "Found ${#bold_files[@]} BOLD file(s)"
     idx=1
     for bold in ${bold_files[@]}; do
 
-      echo -e " #${idx}: ${BOLD_GREEN}${bold}${RESET}"
+      echo -e "#${idx}: ${BOLD_MAGENTA}${bold}${RESET}"
 
       func="${bold}"
       phase="${bold/.nii.gz/_ph.nii.gz}"
       
       # sort out sequence development editor suffix
       if [[ ${sde} -eq 1 ]]; then
-        fmap=$(echo "${bold}" | sed "s,bold,epi,g")
+        fmap="$(echo "${bold}" | sed "s,bold,epi,g")"
       else
         fmap="${bold/bold.nii.gz/epi.nii.gz}"
       fi
@@ -1548,7 +1958,7 @@ if [[ ${phys_only} -eq 0 ]]; then
         fi
 
         # compile filename
-        ff=$(
+        ff="$(
           construct_bids_filename \
           "${bold}" \
           "${bids_dir}" \
@@ -1557,12 +1967,12 @@ if [[ ${phys_only} -eq 0 ]]; then
           "${run}" \
           "${ext}" \
           "${count}"
-        )
+        )"
 
         if [[ ! -f "${ff}" || ${OW} -eq 1 ]]; then
 
           txt=""
-          if [[ ${reorient} -eq 1 ]]; then
+          if [[ "${reorient}" -eq 1 ]]; then
             txt=" and reorienting to LPI"
           fi
 
@@ -1573,7 +1983,7 @@ if [[ ${phys_only} -eq 0 ]]; then
               mkdir -p "$(dirname "${ff}")"
             fi
 
-            echo "  BIDS ${image}-file → ${ff}"
+            echo -e " BIDS ${image}-file → ${BOLD_GREEN}${ff}${RESET}"
             cp "${orig}" "${ff}"
 
             # cut volumes
@@ -1596,10 +2006,11 @@ if [[ ${phys_only} -eq 0 ]]; then
               "${set_tr}" \
               "${skip_tr}" \
               "${pe_dir}" \
-              "${idx}"
+              "${idx}" \
+              "${use_fmap}"
           fi
         else
-          echo "  $(basename ${ff}) exists"
+          echo -e " File ${BOLD_GREEN}${ff}${RESET} exists"
         fi
       done
 
@@ -1614,16 +2025,19 @@ if [[ ${phys_only} -eq 0 ]]; then
       "${skip_tr}" \
       "${cut_vols}" \
       "${trim_fmap}" \
-      "${reorient}"
+      "${reorient}" \
+      "${use_fmap}"
 
     # final fix
-    fix_final_intendedfor "${bids_dir}"
+    fix_final_intendedfor \
+      "${bids_dir}" \
+      "${use_fmap}"
 
   fi
 
   #-----------------------------------------------------------------------------
   # check for event files
-  if [[ -z ${runs} ]]; then
+  if [[ -z "${runs}" ]]; then
     tsv_files=(
       $(
         find -L "${input_dir}" \
@@ -1657,12 +2071,14 @@ if [[ ${phys_only} -eq 0 ]]; then
     fi
   fi
 
-  if [[ ! -z ${tsv_files} ]]; then
+  if [[ ! -z "${tsv_files}" ]]; then
     
     if [[ ! -d "${bids_dir}/func" ]]; then
       mkdir -p "${bids_dir}/func"
     fi
-    echo " Found ${#tsv_files[@]} event file(s)"    
+
+    echo && print_line -
+    echo "Found ${#tsv_files[@]} event file(s)"    
 
     count=0
     for file in ${tsv_files[@]}; do
@@ -1671,15 +2087,15 @@ if [[ ${phys_only} -eq 0 ]]; then
       ((count++))
 
       # fetch task
-      task=$(get_id "${file}" task)
+      task="$(get_id "${file}" task)"
 
       # fetch run
       run=$(get_id "${file}" run)
       if [[ -z "${run}" ]]; then
-        run=${count}
+        run="${count}"
       fi              
 
-      acq=$(get_id "${file}" acq)
+      acq="$(get_id "${file}" acq)"
       if [[ ! -z "${acq}" ]]; then
         add_acq="_acq-${acq}"
       else
@@ -1688,7 +2104,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       bids_tsv="${bids_dir}/func/${base}_task-${task}_run-${run}${add_acq}_events.tsv"
       if [[ ! -f "${bids_tsv}" || ${OW} -eq 1 ]]; then
-        echo -e "  TSV-file → ${BOLD_GREEN}$(basename ${bids_tsv})${RESET}"
+        echo -e " TSV-file → ${BOLD_GREEN}$(basename ${bids_tsv})${RESET}"
         cp "${file}" "${bids_tsv}" 2>/dev/null
       fi
     done
@@ -1696,7 +2112,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
   #-----------------------------------------------------------------------------
   # check for eyetracker files
-  if [[ -z ${runs} ]]; then
+  if [[ -z "${runs}" ]]; then
     edf_files=(
       $(
         find -L "${input_dir}" \
@@ -1728,13 +2144,14 @@ if [[ ${phys_only} -eq 0 ]]; then
     fi
   fi
 
-  if [[ ! -z ${edf_files} ]]; then
+  if [[ ! -z "${edf_files}" ]]; then
 
     if [[ ! -d "${bids_dir}/func" ]]; then
       mkdir -p "${bids_dir}/func"
     fi
 
-    echo " Found ${#edf_files[@]} eyetracker file(s)"    
+    echo && print_line -
+    echo "Found ${#edf_files[@]} eyetracker file(s)"    
 
     count=0
     for file in ${edf_files[@]}; do
@@ -1743,20 +2160,20 @@ if [[ ${phys_only} -eq 0 ]]; then
       ((count++))
 
       # fetch task
-      task=$(get_id "${file}" task)
+      task="$(get_id "${file}" task)"
       if [[" ${task}" == "prf" ]]; then
         task="pRF"
       fi
 
       # fetch run
-      run=$(get_id "${file}" run)
+      run="$(get_id "${file}" run)"
       if [[ "${run}" -eq 0 ]]; then
         run=${count}
       fi
 
       bids_edf="${bids_dir}/func/${base}_task-${task}_run-${run}_eye.edf"
       if [[ ! -f "${bids_edf}" || ${OW} -eq 1 ]]; then
-        echo -e "  EDF-file → ${BOLD_GREEN}$(basename ${bids_edf})${RESET}"
+        echo -e " EDF-file → ${BOLD_GREEN}$(basename ${bids_edf})${RESET}"
         cp "${file}" "${bids_edf}" 2>/dev/null
       fi              
     done
@@ -1777,9 +2194,10 @@ phys=(
   )
 )
 
-if [[ ! -z ${phys} ]]; then
+if [[ ! -z "${phys}" ]]; then
 
-  echo " Found physio file(s)"
+  echo && print_line -
+  echo "Found physio file(s)"
   if [[ ! -d "${bids_dir}/physio" ]]; then
     mkdir -p "${bids_dir}/physio"
   fi            
@@ -1791,7 +2209,7 @@ if [[ ! -z ${phys} ]]; then
     ((count++))
 
     # fetch task
-    task=$(get_id "${file}" task)
+    task="$(get_id "${file}" task)"
     add_task=""
     if [ ! -z "${task}" ]; then
       if [[ "${task}" == "prf" ]]; then
@@ -1802,7 +2220,7 @@ if [[ ! -z ${phys} ]]; then
 
     # fetch run
     add_run=""
-    run=$(get_id "${file}" run)
+    run="$(get_id "${file}" run)"
     if [[ ! -z "${run}" ]]; then
       if [[ "${run}" -eq 0 ]]; then
         run="${count}"
@@ -1811,10 +2229,10 @@ if [[ ! -z ${phys} ]]; then
     fi
 
     # check if we got acquisition; if we also got desc, add it to acq, as fMRIprep doesn't like the desc- field
-    acq=$(get_id "${file}" acq)
+    acq="$(get_id "${file}" acq)"
     if [[ ! -z "${acq}" ]]; then
       add_acq="_acq-${acq}"
-      if [[ ! -z ${desc} ]]; then
+      if [[ ! -z "${desc}" ]]; then
         add_acq+="${desc}"
       fi
     else
@@ -1840,7 +2258,7 @@ if [[ ! -z ${phys} ]]; then
 
       bids_phys="${bids_dir}/physio/${phys_base}"
       if [[ ! -f "${bids_phys}" ]]; then
-        echo -e "  Physio-file → ${BOLD_GREEN}$(basename ${bids_phys})${RESET}"
+        echo -e " Physio-file → ${BOLD_GREEN}$(basename ${bids_phys})${RESET}"
         cp "${file}" "${bids_phys}" 2>/dev/null
       fi
 
@@ -1869,24 +2287,39 @@ if [[ ! -z ${phys} ]]; then
       # add func file to json
       if [[ $? -eq 0 ]]; then
         if [[ -f "${out_}.json" ]]; then
-          call_json "${out_}.json" FuncFile "${func_phys}"
+          cmd=(
+            call_json
+            "${out_}.json"
+            FuncFile
+            "${func_phys}"
+          )
+
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi           
         fi
       fi
     fi
   done
 fi
-echo "Done"
 
-if [[ ${warning} -eq 1 ]]; then
+# done
+echo && echo "Done"
+
+if [[ "${warning}" -eq 1 ]]; then
   echo
   print_line -
   echo "WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING"
   echo ""
-  if [[ ${pe_warning} -eq 1 ]]; then
+  if [[ "${pe_warning}" -eq 1 ]]; then
     echo "I assumed the PhaseEncoding direction in the FMAP/FUNC-folder; please make sure this is correct!"
   fi
 
-  if [[ ${mb_warning} -eq 1 ]]; then
+  if [[ "${mb_warning}" -eq 1 ]]; then
     echo "I might have assumed information about the acceleration factor to get the slice timings.."
   fi
 
