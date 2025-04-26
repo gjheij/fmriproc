@@ -115,7 +115,7 @@ Example (TL;DR):
   call_freesurfer -s sub-01 -t sub-01_ses-1_T1w.nii.gz
 
   # add T2
-   call_freesurfer -s sub-01 -t sub-01_ses-1_T1w.nii.gz -p sub-01_ses-1_T2w.nii.gz
+  call_freesurfer -s sub-01 -t sub-01_ses-1_T1w.nii.gz -p sub-01_ses-1_T2w.nii.gz
 
   # run gcut
   call_freesurfer -s sub-01 -o gcut
