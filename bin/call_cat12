@@ -307,7 +307,12 @@ done
 #-----------------------------------------------------------------------------
 # compress output if needed
 echo "Finding and processing segmentation output files..."
-find "${in_dir}" -type f \( -name "p[0-4]sub*.nii" -o -name "msub*.nii" \) -print0 | sort -z | while IFS= read -r -d '' file; do
+find "${in_dir}" \
+  -type f \
+  \( -name "p[0-4]sub*.nii" -o -name "msub*.nii" \) \
+  -print0 | \
+  sort -z | \
+  while IFS= read -r -d '' file; do
   
   # copy file 
   mv "$file" "${out_dir}/"
