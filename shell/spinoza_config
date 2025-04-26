@@ -15,10 +15,6 @@ export ACQ=("MPRAGE")  # or ("MP2RAGE" "MP2RAGEME")
 export DATA=${ACQ[0]}   # or MP2RAGEME/AVERAGE
 export SEARCH_ANATOMICALS=("T2w" "FLAIR" "T1w")
 
-# leave these alone
-export DATA_LWR=$(printf '%s' "${DATA}" | tr '[:upper:]' '[:lower:]')
-export DATA_UPR=$(printf '%s' "${DATA}" | tr '[:lower:]' '[:upper:]')
-
 # phase encoding direction for BOLD; assume inverse for FMAP
 export PE_DIR_BOLD="AP"
 
