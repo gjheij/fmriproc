@@ -63,6 +63,8 @@ Examples:
     inv2    = None
     output  = None
 
+    #-----------------------------------------------------------------------------
+    # deal with arguments
     try:
         opts = getopt.getopt(
             argv,
@@ -90,8 +92,13 @@ Examples:
     if len(argv) < 4:
         print(main.__doc__)
         sys.exit()
-
+    
+    #-----------------------------------------------------------------------------
+    # ensure binary
     mask = image.math_img('(t1w_mask > 0)', t1w_mask=mask)
+
+    #-----------------------------------------------------------------------------
+    # run masking
     new_t1w = image.math_img(
         't1w * t1w_mask * np.mean(inv2[t1w_mask == 1]/np.max(inv2)) + t1w * inv2/np.max(inv2) * (1-t1w_mask)',
         t1w=t1w_fn,
