@@ -149,7 +149,7 @@ else
   MOVING=$(readlink -f "${MOVING}")
 fi
 
-if [[ -z "${output}" ]]; then
+if [[ -z "${OUTPUT}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" input "Please specify output file"
