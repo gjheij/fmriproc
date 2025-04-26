@@ -39,7 +39,7 @@ construct_bids_filename() {
 
   # fetch run
   run=$(run_id "${bold}")
-  if [[ "${run}" -eq 0 ]]; then
+  if [[ -z "${run}" || "${run}" -eq 0 ]]; then
     run="${count}"
   fi 
 
@@ -298,7 +298,7 @@ set_pe_direction() {
   #-----------------------------------------------------------------------------
   # read from filename (e.g., 'sub-01_ses-1_dir-AP_epi.nii.gz')
   pe_dir_from_file="$(get_id "${json_bids}" "dir")"
-  if [[ ! -z "${pe_dir_from_file}" ]]; then
+  if [[ -n "${pe_dir_from_file}" ]]; then
     ph_dir="$(fprep_pe "${pe_dir_from_file}")"
     txt="Read PhaseEncodingDirection from ${BOLD_RED}filename${RESET}"
   else
@@ -511,6 +511,7 @@ process_anatomical_inversions() {
     2>/dev/null | \
     sort
   )
+  unset IFS
 
   if [[ ${#invs[@]} -gt 0 ]]; then
     [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
@@ -558,6 +559,7 @@ process_anatomical_inversions() {
       2>/dev/null | \
       sort
     )
+    unset IFS
 
     if [[ ${#parts[@]} -gt 0 ]]; then
       [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
@@ -643,6 +645,7 @@ process_motion_images() {
     2>/dev/null | \
     sort
   )
+  unset IFS
 
   if [[ ${#motion_img[@]} -gt 0 ]]; then
     echo && print_line -
@@ -695,6 +698,7 @@ process_single_slice_anatomicals() {
       -a -name "*anat*" \
       -a -name "*.nii.gz" 2>/dev/null | sort
   )
+  unset IFS
 
   local count=0
 
@@ -756,6 +760,7 @@ process_linescanning_bold_lab() {
     2>/dev/null | \
     sort
   )
+  unset IFS
 
   if [[ ${#bold_files[@]} -eq 0 ]]; then
     echo "WARNING: no \"bold*.lab\"-files were found in ${input_dir}"
@@ -790,6 +795,7 @@ process_linescanning_bold_lab() {
     -and -name "*.nii.gz" \
     2>/dev/null
   )
+  unset IFS
 
   local ct=0
   for ii in "${slice_img[@]}"; do ((ct++)); done
@@ -877,6 +883,7 @@ fix_final_intendedfor() {
     -name "*_bold.nii.gz" | \
     sort
   )
+  unset IFS
 
   #-----------------------------------------------------------------------------
   # find FMAP files of different types
@@ -890,6 +897,7 @@ fix_final_intendedfor() {
       -name "*_epi.json" | \
       sort
     )
+    unset IFS
   elif [[ "${fmap_type}" == "gre" ]]; then
     # phasediff fieldmaps
     fmap_tag="phasediff_fmap"
@@ -899,6 +907,7 @@ fix_final_intendedfor() {
       -name "*_phasediff.json" | \
       sort
     )
+    unset IFS
   elif [[ "${fmap_type}" == "direct" ]]; then
     # direct fieldmaps
     fmap_tag="b0map_fmap"
@@ -908,6 +917,7 @@ fix_final_intendedfor() {
       -name "*_fieldmap.json" | \
       sort
     )
+    unset IFS
   else
     echo && print_line -
     print_error_msg "$(basename ${0})" "FMAP" "Unrecognized FMAP type ${BOLD_RED}${fmap_type}${RESET}. Allowed types are \"epi\" (Reversed-PE), \"gre\" (phasediff), or \"direct\" (direct B0 mapping)"
@@ -930,7 +940,7 @@ fix_final_intendedfor() {
   local num_funcs="${#funcs[@]}"
   local num_fmaps="${#fmaps[@]}"
   
-  if [[ ! -z "${fmaps}" ]]; then
+  if [[ -n "${fmaps}" ]]; then
     if [[ "${num_funcs}" -ne "${num_fmaps}" ]]; then
 
       #-----------------------------------------------------------------------------
@@ -982,7 +992,7 @@ fix_final_intendedfor() {
         # print situation
         echo -e " ${BOLD_MAGENTA}${fmaps[0]}${RESET}:"
 
-        for i in ${intended_for_list[@]}; do
+        for i in "${intended_for_list[@]}"; do
           echo -e "  → ${BOLD_GREEN}${i}${RESET}"
         done
 
@@ -1069,7 +1079,7 @@ fix_final_intendedfor() {
           # print situation
           echo -e " ${BOLD_MAGENTA}${fmap}${RESET}:"
 
-          for i in ${intended_for_list[@]}; do
+          for i in "${intended_for_list[@]}"; do
             echo -e "  → ${BOLD_GREEN}${i}${RESET}"
           done
 
@@ -1218,6 +1228,7 @@ scrape_and_link_fieldmaps() {
   while IFS= read -r bold; do bolds+=("${bold}"); done < <(
     find "${func_dir}" -type f -name "*_bold.nii.gz"
   )
+  unset IFS
   
   #-----------------------------------------------------------------------------
   # find FMAP files; default to PePolar EPI files
@@ -1277,7 +1288,7 @@ scrape_and_link_fieldmaps() {
   if [[ "${#fmaps[@]}" -gt 0 ]]; then
     echo "Found ${#fmaps[@]} ${suff} FMAP file(s)${add_txt}"
     idx=1
-    for fmap_file in ${fmaps[@]}; do
+    for fmap_file in "${fmaps[@]}"; do
 
       #-----------------------------------------------------------------------------
       # add warning; whatever was specified for BOLD must align with filenaming of FMAP
@@ -1390,7 +1401,7 @@ scrape_and_link_fieldmaps() {
       
       #-----------------------------------------------------------------------------
       # Move if not already in fmap_dir
-      for ff in ${mag_files[@]}; do
+      for ff in "${mag_files[@]}"; do
 
         # define bids file
         out_fn="${bids_dir}/fmap/$(basename "${ff}")"
@@ -1713,14 +1724,14 @@ if [[ $# -lt 3 ]] ; then
 fi
 
 # sort out runs
-if [[ ! -z "${runs}" ]]; then
+if [[ -n "${runs}" ]]; then
   # read specified subjects into array
   IFS=', ' read -r -a n_runs <<< "${runs}"
   unset IFS
 fi
 
 # sort out anatomicals
-if [[ ! -z "${include_anatomicals}" ]]; then
+if [[ -n "${include_anatomicals}" ]]; then
   # read specified subjects into array
   IFS=', ' read -r -a SEARCH_ANATOMICALS <<< "${include_anatomicals}"
   unset IFS
@@ -1861,9 +1872,9 @@ if [[ ${phys_only} -eq 0 ]]; then
     # deal with stuff added by sequence development editor..
     sde=1
 
-    if [[ ! -z "${runs}" ]]; then
+    if [[ -n "${runs}" ]]; then
       b_files=()
-      for r in ${n_runs[@]}; do
+      for r in "${n_runs[@]}"; do
         run_f=$(
           find -L "${input_dir}" \
           -type f \
@@ -1892,9 +1903,9 @@ if [[ ${phys_only} -eq 0 ]]; then
 
   else
     sde=0
-    if [[ ! -z "${runs}" ]]; then
+    if [[ -n "${runs}" ]]; then
       b_files=()
-      for r in ${n_runs[@]}; do
+      for r in "${n_runs[@]}"; do
         run_f=$(
           find -L "${input_dir}" \
           -type f \
@@ -1924,12 +1935,12 @@ if [[ ${phys_only} -eq 0 ]]; then
   mb_warning=0
   pe_warning=0
   warning=0
-  if [[ ! -z ${bold_files[@]} ]]; then
+  if [[ -n ${bold_files[@]} ]]; then
 
     echo && print_line -
     echo "Found ${#bold_files[@]} BOLD file(s)"
     idx=1
-    for bold in ${bold_files[@]}; do
+    for bold in "${bold_files[@]}"; do
 
       echo -e "#${idx}: ${BOLD_MAGENTA}${bold}${RESET}"
 
@@ -2050,7 +2061,7 @@ if [[ ${phys_only} -eq 0 ]]; then
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       tsv_files=()
-      for r in ${n_runs[@]}; do
+      for r in "${n_runs[@]}"; do
         run_f=$(
           find -L "${input_dir}" \
           -type f \
@@ -2071,7 +2082,7 @@ if [[ ${phys_only} -eq 0 ]]; then
     fi
   fi
 
-  if [[ ! -z "${tsv_files}" ]]; then
+  if [[ -n "${tsv_files}" ]]; then
     
     if [[ ! -d "${bids_dir}/func" ]]; then
       mkdir -p "${bids_dir}/func"
@@ -2081,7 +2092,7 @@ if [[ ${phys_only} -eq 0 ]]; then
     echo "Found ${#tsv_files[@]} event file(s)"    
 
     count=0
-    for file in ${tsv_files[@]}; do
+    for file in "${tsv_files[@]}"; do
       
       # add counter in case file does not contain run-X id
       ((count++))
@@ -2096,7 +2107,7 @@ if [[ ${phys_only} -eq 0 ]]; then
       fi              
 
       acq="$(get_id "${file}" acq)"
-      if [[ ! -z "${acq}" ]]; then
+      if [[ -n "${acq}" ]]; then
         add_acq="_acq-${acq}"
       else
         add_acq=""
@@ -2124,7 +2135,7 @@ if [[ ${phys_only} -eq 0 ]]; then
   else
     if [[ ${#n_runs[@]} -gt 1 ]]; then
       edf_files=()
-      for r in ${n_runs[@]}; do
+      for r in "${n_runs[@]}"; do
         run_f=$(
           find -L "${input_dir}" \
           -type f \
@@ -2144,7 +2155,7 @@ if [[ ${phys_only} -eq 0 ]]; then
     fi
   fi
 
-  if [[ ! -z "${edf_files}" ]]; then
+  if [[ -n "${edf_files}" ]]; then
 
     if [[ ! -d "${bids_dir}/func" ]]; then
       mkdir -p "${bids_dir}/func"
@@ -2154,21 +2165,24 @@ if [[ ${phys_only} -eq 0 ]]; then
     echo "Found ${#edf_files[@]} eyetracker file(s)"    
 
     count=0
-    for file in ${edf_files[@]}; do
+    for file in "${edf_files[@]}"; do
       
       # add counter in case file does not contain run-X id
       ((count++))
 
       # fetch task
       task="$(get_id "${file}" task)"
-      if [[" ${task}" == "prf" ]]; then
+      if [[ "${task}" == "prf" ]]; then
         task="pRF"
       fi
 
       # fetch run
       run="$(get_id "${file}" run)"
-      if [[ "${run}" -eq 0 ]]; then
-        run=${count}
+      if [[ -n "${run}" ]]; then
+        if [[ "${run}" -eq 0 ]]; then
+          run="${count}"
+        fi           
+        add_run="_run-${run}"
       fi
 
       bids_edf="${bids_dir}/func/${base}_task-${task}_run-${run}_eye.edf"
@@ -2194,7 +2208,7 @@ phys=(
   )
 )
 
-if [[ ! -z "${phys}" ]]; then
+if [[ -n "${phys}" ]]; then
 
   echo && print_line -
   echo "Found physio file(s)"
@@ -2203,7 +2217,7 @@ if [[ ! -z "${phys}" ]]; then
   fi            
 
   count=0
-  for file in ${phys[@]}; do
+  for file in "${phys[@]}"; do
     
     # add counter in case file does not contain run-X id
     ((count++))
@@ -2221,7 +2235,7 @@ if [[ ! -z "${phys}" ]]; then
     # fetch run
     add_run=""
     run="$(get_id "${file}" run)"
-    if [[ ! -z "${run}" ]]; then
+    if [[ -n "${run}" ]]; then
       if [[ "${run}" -eq 0 ]]; then
         run="${count}"
       fi           
@@ -2230,14 +2244,14 @@ if [[ ! -z "${phys}" ]]; then
 
     # check if we got acquisition; if we also got desc, add it to acq, as fMRIprep doesn't like the desc- field
     acq="$(get_id "${file}" acq)"
-    if [[ ! -z "${acq}" ]]; then
+    if [[ -n "${acq}" ]]; then
       add_acq="_acq-${acq}"
-      if [[ ! -z "${desc}" ]]; then
+      if [[ -n "${desc}" ]]; then
         add_acq+="${desc}"
       fi
     else
       add_acq=""
-      if [[ ! -z "${desc}" ]]; then
+      if [[ -n "${desc}" ]]; then
         add_acq="_acq-${desc}"
       fi
     fi    
@@ -2253,7 +2267,7 @@ if [[ ! -z "${phys}" ]]; then
       -and -name "*.nii.gz"
     )
 
-    if [[ ! -z "${func_phys}" ]]; then
+    if [[ -n "${func_phys}" ]]; then
       phys_base="$(basename ${func_phys} _bold.nii.gz)_physio.log"
 
       bids_phys="${bids_dir}/physio/${phys_base}"
