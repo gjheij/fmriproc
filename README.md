@@ -935,7 +935,10 @@ Now run `source ~/.bash_profile` and you should be good to go.
 - [x] Add support for SLURM (NOT TESTED!)
 - [x] Instructions and functionality for Matlab Runtime (MCR)
 - [x] Workflow for multiple MPRAGEs 
+- [x] Port documentation from `linescanning` to `fmriproc`
+- [x] Double-quoting
+- [x] Add support for `phasediff` fieldmaps (needs to be tested thoroughly though)
+- [ ] Add support for DWI/ASL?
 - [ ] Port [CBIG_RF_projectMNI2fsaverage.m](https://github.com/gjheij/fmriproc/blob/dev/fmriproc/misc/CBIG_RF_projectMNI2fsaverage.m) to python
-- [ ] Port documentation from `linescanning` to `fmriproc`
-- [ ] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version)
+- [x] Make pipeline more agnostic to CAT12-version. Now r1113 is recommended (or at least, I've always used that version) > use version-specific templates that can be inserted by user
 - ..
