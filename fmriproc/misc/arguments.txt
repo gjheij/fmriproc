@@ -35,8 +35,9 @@ Input arguments:
                         - r1450
                         - r2043
                         - r2170
-                        - r2556 [CAT12 Linux Standalone]
-                        - r2557 [CAT12 MacOS Standalone]
+                        - r2556 [CAT12 Linux Standalone (2017b)]
+                        - r2557 [CAT12 MacOS Standalone (2023b)]
+                        - r2664 [CAT12 Linux Standalone (2023b)]
 
                       you can either save your batch-file as '\$REPO_DIR/misc/cat_batch_custom.m' 
                       or use this flag to use a different version.

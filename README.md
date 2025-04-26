@@ -837,7 +837,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     cmd="curl -O"
 else
     # Linux uses GNU sed
-    mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2017b/deployment_files/R2017b/installers/glnxa64/MCR_R2017b_glnxa64_installer.zip"
+    mcr_link="https://ssd.mathworks.com/supportfiles/downloads/R2023b/Release/10/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R2023b_Update_10_glnxa64.zip"
     cmd="wget"
 fi
 
@@ -849,8 +849,8 @@ Then, unzip and install the MCR (`-mode silent` is necessary for <2022).
 For linux, run the following commands:
 
 ```bash
-mkdir ~/software/MCR_R2017b
-unzip $(basename ${mcr_link}) -d ~/software/MCR_R2017b
+mkdir ~/software
+unzip $(basename ${mcr_link}) -d ~/software/$(basename ${mcr_link} .zip)
 sudo ./install -agreeToLicense yes -mode silent
 
 # if you do not have sudo rights use:
@@ -862,7 +862,7 @@ For MacOS, double click the extracted `dmg`-file, then double click the Matlab i
 This will launch the installer.
 
 The installation will take a few minutes.
-If you have used `sudo`, it will place the output in `/usr/local/MATLAB/MATLAB_Runtime/v93`.
+If you have used `sudo`, it will place the output in `/usr/local/MATLAB/MATLAB_Runtime/R2023b`.
 If you have used `-destinationFolder`, it'll be different.
 For MacOS, the default installation path is `/Applications/MATLAB/MATLAB_Runtime/`.
 Regardless, this path needs to be in the `~/.bash_profile` file as `MCRROOT`.
@@ -875,20 +875,19 @@ These paths will be added only when MCR is actually called to avoid messing up t
 if [[ "$OSTYPE" == "darwin"* ]]; then
     export MCRROOT="/Applications/MATLAB/MATLAB_Runtime/R2023b"
 else
-    export MCRROOT="/usr/local/MATLAB/MATLAB_Runtime/v93"
+    export MCRROOT="/usr/local/MATLAB/MATLAB_Runtime/R2023b"
 fi
 ```
 
 Next, install the standalone version of CAT12:
 ```bash
-
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # mac (UNTESTED: paths below are representative for linux install [WSL-tested])
     cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2023b_MCR_Mac.zip"
     cmd="curl -O"
 else
     # Linux uses GNU sed
-    cat_link="https://www.neuro.uni-jena.de/cat12/cat12_latest_R2017b_MCR_Linux.zip"
+    cat_link="https://dbm.neuro.uni-jena.de/cat12/cat12_latest_R2023b_MCR_Linux.zip"
     cmd="wget"
 fi
 
@@ -909,9 +908,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     export MATLAB_CMD="${install_dir}/run_spm12.sh ${MCRROOT} script"
     export SPM_PATH="${install_dir}/spm12.app/Contents/Resources/spm12_mcr/Users/gaser/spm/spm12"
 else
-    install_dir="${HOME}/software/CAT12.9_R2017b_MCR_Linux"
-    export MATLAB_CMD="${install_dir}/run_spm12.sh ${MCRROOT} script"
-    export SPM_PATH="${install_dir}/spm12_mcr/home/gaser/gaser/spm/spm12"
+    install_dir="${HOME}/software/CAT12.9_R2023b_MCR_Linux/"
+    export MATLAB_CMD="${install_dir}/run_spm25.sh ${MCRROOT} script"
+    export SPM_PATH="${install_dir}/spm25_mcr/home/ubuntu/Desktop/spm12"
 fi
 ```
 

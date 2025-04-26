@@ -1604,7 +1604,7 @@ function call_matlab {
     echo
     return 1
   fi
-
+  
   # Check if SKIP_LINES is set; otherwise, default to 0
   local skip_lines=${SKIP_LINES:-0}
 
@@ -1612,7 +1612,7 @@ function call_matlab {
   local MATLAB_SCRIPT=$(fetch_filepath "${1}")
   
   # Check if MATLAB_CMD contains 'spm_mcr' or 'run_spm12.sh'
-  if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+  if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]  || [[ "${MATLAB_CMD}" == *"run_spm25.sh"* ]]; then
     # If using MCR, do NOT modify the path
     echo "Running with MCR command: ${MATLAB_CMD}"
     
@@ -1622,14 +1622,14 @@ function call_matlab {
     # add the libraries
     export PATH=$MCRROOT/bin:$PATH
     export LD_LIBRARY_PATH=$MCRROOT/runtime/glnxa64:$MCRROOT/bin/glnxa64:$MCRROOT/sys/os/glnxa64
-    ${MATLAB_CMD} "${MATLAB_SCRIPT}" | tail -n +${skip_lines}
+    eval "${MATLAB_CMD}" "${MATLAB_SCRIPT}" | tail -n +${skip_lines}
 
     # unset LD_LIBRARY_PATH
      export LD_LIBRARY_PATH="$OLD_LD_LIBRARY_PATH"
 
   else
     # If using standard MATLAB, add path and execute
-    ${MATLAB_CMD} "addpath('$(dirname "${MATLAB_SCRIPT}")'); $(basename "${MATLAB_SCRIPT}" .m); quit" | tail -n +${skip_lines}
+    eval "${MATLAB_CMD}" "addpath('$(dirname "${MATLAB_SCRIPT}")'); $(basename "${MATLAB_SCRIPT}" .m); quit" | tail -n +${skip_lines}
   fi
 
   # Check exit status and return appropriately
@@ -2067,22 +2067,27 @@ function make_mask_script {
     echo
   else
 
+    local spm_path="${1}"
+    local input_file="${2}"
+    local output_file="${3}"
+    local script_file="${4}"
+
     (
     echo "%-----------------------------------------------------------------------------"
     echo "% Created on $(date). Running with ${VER}"
     echo ""
     echo "clear;"
     echo ""
-    ) >> "${4}"
+    ) >> "${script_file}"
 
     # echo to file
-    batch_file=${REPO_DIR}/misc/spmBrainMask_spm12_job.m
-    cat "${batch_file}" >> "${4}"
+    batch_file="${REPO_DIR}/misc/spmBrainMask_spm12_job.m"
+    cat "${batch_file}" >> "${script_file}"
 
     # perl is agnostic to MacOS/Linux
-    call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
-    call_replace CHANGE_THIS_INPUT "${2}" "${4}"
-    call_replace CHANGE_THIS_OUTPUT "${3}" "${4}"
+    call_replace CHANGE_THIS_SPM_PATH "${spm_path}" "${script_file}"
+    call_replace CHANGE_THIS_INPUT "${input_file}" "${script_file}"
+    call_replace CHANGE_THIS_OUTPUT "${output_file}" "${script_file}"
 
     (
     echo ""
@@ -2090,11 +2095,45 @@ function make_mask_script {
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('serial', matlabbatch);"
     echo "exit"
-    ) >> "${4}"
+    ) >> "${script_file}"
     
   fi
 }
 
+function get_cat_version {
+
+  local spm_path="${1}"
+  
+  # find cat directory
+  cat12_dir="$(
+    find -L "${spm_path}" \
+    -type d \
+    -name "*cat12*" \
+    -print \
+    -quit \
+    2>/dev/null
+  )"
+
+  if [[ -z "${cat12_dir}" ]]; then
+    echo "Could not find CAT12-directory in \"${spm_path}\""
+    exit 1
+  fi
+
+  # Check if we have compatible version; we're using 12.6!!
+  VER=$(
+    cat "${cat12_dir}/Contents.txt" | \
+    grep Version | \
+    cut -d" " -f3 \
+    2>/dev/null
+  )
+
+  if [[ -z "${VER}" ]]; then
+    echo "Could not find CAT12-version in \"${cat12_dir}/Contents.txt\""
+    exit 1
+  fi
+
+  echo "${VER}"
+}
 #-----------------------------------------------------------------------------
 # CAT12 SCRIPT
 function make_cat_script {
@@ -2134,29 +2173,19 @@ function make_cat_script {
     local script_name="$4"
     local tpl_file="${5}"
 
-    # find cat directory
-    cat12_dir="$(
-      find -L "${spm_path}" \
-      -type d \
-      -name "*cat12*" \
-      -print \
-      -quit \
-      2>/dev/null
-    )"
-    if [[ -z "${cat12_dir}" ]]; then
-      echo "Could not find CAT12-directory in \"${spm_path}\""
+    #-----------------------------------------------------------------------------
+    # get cat version
+    VER="$(get_cat_version "${spm_path}")"
+    if [[ $? -ne 0 ]]; then
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "get_cat_version" "${VER}"
       exit 1
     fi
 
-    # Check if we have compatible version; we're using 12.6!!
-    VER=$(
-      cat "${cat12_dir}/Contents.txt" | \
-      grep Version | \
-      cut -d" " -f3 \
-      2>/dev/null
-    )
-
-    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
+    #-----------------------------------------------------------------------------
+    # verify version
+    is_custom_file=0
+    ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557" "2664")
     if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" || ! -f "${tpl_file}" ]]; then
       if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
         batch_file="${REPO_DIR}/misc/cat_batch_r${VER}.m"
@@ -2171,7 +2200,9 @@ function make_cat_script {
         exit 1
       fi
     else
+      #-----------------------------------------------------------------------------
       # custom file specified
+      is_custom_file=1
       if [[ -f "${tpl_file}" ]]; then
         batch_file="${tpl_file}"
       elif [[ -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
@@ -2186,7 +2217,8 @@ function make_cat_script {
       fi
       echo "Using custom batch-file: \"${batch_file}\""
     fi
-
+    
+    #-----------------------------------------------------------------------------
     # double check if file exists
     if [[ ! -f "${batch_file}" ]]; then
       echo && print_line -
@@ -2195,6 +2227,7 @@ function make_cat_script {
       exit 1
     fi
 
+    #-----------------------------------------------------------------------------
     # find tissue-prior folder
     tpm_dir="$(
       find -L "${spm_path}" \
@@ -2210,12 +2243,15 @@ function make_cat_script {
       exit 1
     fi
 
+    #-----------------------------------------------------------------------------
+    # generate script
     (
     echo "%-----------------------------------------------------------------------------"
     echo "% Created on $(date). Running with ${VER}"
     echo ""
     echo "clear;"
 
+    #-----------------------------------------------------------------------------
     # deal with MCR
     if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm*.sh"* ]]; then
       echo ""
@@ -2225,33 +2261,42 @@ function make_cat_script {
     
     ) >> "${script_name}"
 
-    if [[ ${mode} == 'brain' ]]; then
-      echo "Turning off bias/intensity correction & sanlm-filtering"
-      bias_str=2.2204e-16 # ultralight
-      bias_reg=0.01       # ultralight
-      bias_fhwm=90        # ultralight
-      app=0               # none
-      sanlm=0             # none
-    else
-      bias_str=0.25       # light
-      bias_reg=0.001      # medium
-      bias_fhwm=60        # medium
-      app=1070            # default
-      sanlm=1             # classic
-    fi
-
+    #-----------------------------------------------------------------------------
     # echo to file
     cat "${batch_file}" >> "${script_name}"
 
-    # # change parameters (perl is agnostic to MacOS/Linux)
-    call_replace CHANGE_THIS_SPM_PATH "${1}" "${script_name}"
-    call_replace CHANGE_THIS_INPUT "${2}" "${script_name}"
-    call_replace CHANGE_BIAS_STR "${bias_str}" "${script_name}"
-    call_replace CHANGE_BIAS_REG "${bias_reg}" "${script_name}"
-    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" "${script_name}"
-    call_replace CHANGE_THIS_APP_TERM "${app}" "${script_name}"
-    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" "${script_name}"
+    #-----------------------------------------------------------------------------
+    # add stuff if default file
+    if [[ "${is_custom_file}" -eq 0 ]]; then
+      if [[ ${mode} == 'brain' ]]; then
+        echo "Turning off bias/intensity correction & sanlm-filtering"
+        bias_str=2.2204e-16 # ultralight
+        bias_reg=0.01       # ultralight
+        bias_fhwm=90        # ultralight
+        app=0               # none
+        sanlm=0             # none
+        output_modulated=0  # no bias modulated image
+      else
+        bias_str=0.25       # light
+        bias_reg=0.001      # medium
+        bias_fhwm=60        # medium
+        app=1070            # default
+        sanlm=1             # classic
+        output_modulated=1  # bias modulated i# mage
+      fi
 
+      # change parameters (perl is agnostic to MacOS/Linux)
+      call_replace CHANGE_THIS_SPM_PATH "${spm_path}" "${script_name}"
+      call_replace CHANGE_THIS_INPUT "${input}" "${script_name}"
+      call_replace CHANGE_BIAS_STR "${bias_str}" "${script_name}"
+      call_replace CHANGE_BIAS_REG "${bias_reg}" "${script_name}"
+      call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" "${script_name}"
+      call_replace CHANGE_THIS_APP_TERM "${app}" "${script_name}"
+      call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" "${script_name}"
+      call_replace CHANGE_MODULATED_IMG "${output_modulated}" "${script_name}"
+    fi
+
+    # add execution instructions
     (
     echo ""
     echo "cat_get_defaults('extopts.expertgui',1);"
