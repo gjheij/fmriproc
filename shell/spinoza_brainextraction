@@ -30,6 +30,18 @@ Arguments:
   -n <session>    session ID (e.g., 1, 2, or n)
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize
+  -c <file>       specify a custom batch-file for CAT12; versions utilize different inputs, making
+                  it hard to be agnostic to support all versions. For now, I have template files
+                  for the following versions in \$REPO_DIR/misc:
+                    - r1113
+                    - r1450
+                    - r2043
+                    - r2170
+                    - r2556 [CAT12 Linux Standalone]
+                    - r2557 [CAT12 MacOS Standalone]
+
+                  you can either save your batch-file as '\$REPO_DIR/misc/cat_batch_custom.m' or
+                  use this flag to use a different version.
 
 Options:
   -h|--help       print this help text
@@ -108,7 +120,7 @@ use_fs=0
 use_fprep=0
 lower=0.01
 upper=0.99
-while getopts :-:hos:n:m:u:l: argument
+while getopts :-:hos:n:m:u:l:c: argument
 do
   case ${argument} in
     -)
@@ -146,7 +158,9 @@ do
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
-          ;;               
+          ;;
+    c)  custom_file="${OPTARG}"
+          ;;          
   esac
 done
 
@@ -213,12 +227,12 @@ for subID in ${search}; do
   
   #-----------------------------------------------------------------------------
   # check if we generated a mask from INV2
-  inv2_mask=$(
+  inv2_mask="$(
     find -L "${INPUTDIR}" \
     -type f \
     -name "*brain_mask.nii.gz" \
     2>/dev/null
-  )
+  )"
 
   # copy as spm-mask
   if [[ ! -z "${inv2_mask}" ]]; then
@@ -229,13 +243,13 @@ for subID in ${search}; do
   # ANTs
   if [[ "${soft_lower}" == "ants" ]]; then
 
-    input=$(
+    input="$(
       find -L "${INPUTDIR}" \
       -type f \
       -name "*T1w*" \
       -and -name "*.nii.gz" \
       2>/dev/null
-    )
+    )"
     if [[ -f "${input}" ]]; then
 
       declare -a OUT=(brain mask)
@@ -331,21 +345,21 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # fetch input
-    input=$(
+    input="$(
       find -L "${INPUTDIR}" \
       -type f \
       -name "*inv-2*" \
       -and -name "*${DATA_UPR}*" \
       2>/dev/null
-    )
+    )"
 
     #-----------------------------------------------------------------------------
     # define outputs
-    output_root=${BET}/${base}_acq-${DATA_UPR}_inv-2_desc-bet
-    output_brain=${output_root}_brain.nii.gz
-    output_mask=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_mask.nii.gz
-    output_skull=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_skull.nii.gz
-    output_outside=${MASKS}/$(basename ${output_brain} _brain.nii.gz)_outside.nii.gz
+    output_root="${BET}/${base}_acq-${DATA_UPR}_inv-2_desc-bet"
+    output_brain="${output_root}_brain.nii.gz"
+    output_mask="${MASKS}/$(basename "${output_brain}" _brain.nii.gz)_mask.nii.gz"
+    output_skull="${MASKS}/$(basename "${output_brain}" _brain.nii.gz)_skull.nii.gz"
+    output_outside="${MASKS}/$(basename "${output_brain}" _brain.nii.gz)_outside.nii.gz"
 
     if [[ ! -f "${output_mask}" ]]; then
 
@@ -393,7 +407,7 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # inverse mask of head
-        if [[ -f ${output_root}_outskin_mask.nii.gz ]]; then
+        if [[ -f "${output_root}_outskin_mask.nii.gz" ]]; then
           cmd=(
             fslmaths
             "${output_root}_outskin_mask.nii.gz"
@@ -434,12 +448,12 @@ for subID in ${search}; do
           -exec rm -f {} +
         echo "Done"
       else
-        if [[ -z ${input} ]]; then
+        if [[ -z "${input}" ]]; then
           print_file_not_in_dir "${sub_name}" "*acq-${DATA_UPR}*, *inv-2*" "${INPUTDIR}"
         fi
       fi
     else
-      if [[ -f ${output_mask} ]]; then
+      if [[ -f "${output_mask}" ]]; then
         print_output_exists "${sub_name}" "${output_mask}"
       fi
     fi
@@ -470,8 +484,8 @@ for subID in ${search}; do
       print_subject_header ${sub_name}
 
       # create BIDS-compatible output directory
-      if [[ ! -d $(dirname "${corrected_t1w}") ]]; then
-        mkdir -p $(dirname "${corrected_t1w}")
+      if [[ ! -d "$(dirname "${corrected_t1w}")" ]]; then
+        mkdir -p "$(dirname "${corrected_t1w}")"
       fi
 
       #-----------------------------------------------------------------------------
@@ -522,14 +536,14 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # find input
-        input=$(
+        input="$(
           find -L "${in_dir}" \
           -type f \
           -name "${base}*" \
           -and -name "*_desc-preproc_T1w.nii.gz" \
           -and -not -name "*space*" \
           2>/dev/null
-        )
+        )"
         rename_base=1
 
         if [[ ! -f "${input}" ]]; then
@@ -539,27 +553,27 @@ for subID in ${search}; do
       else
         #-----------------------------------------------------------------------------
         # use T1w from specified input folder
-        input=$(
+        input="$(
           find -L "${INPUTDIR}" \
           -type f \
           -name "*T1w*" \
           -and -name "*${DATA_UPR}*" \
           -and -name "*.nii.gz" \
           2>/dev/null
-        )
+        )"
       fi
     
       if [[ ! -z "${input}" ]]; then
 
         # find spm mask
-        mask_img=$(
+        mask_img="$(
           find -L "${INPUTDIR}" \
           -type f \
           -name "mask*" \
           -print \
           -quit \
           2>/dev/null
-        )
+        )"
 
         if [[ -z "${mask_img}" ]]; then
 
@@ -591,8 +605,8 @@ for subID in ${search}; do
             #-----------------------------------------------------------------------------
             # rename might fail on MacOS!
             if [[ ${rename_base} -eq 1 ]]; then 
-              for f in ${BET}/*; do
-                basefile=$(basename "${f}" .nii.gz)
+              for f in "${BET}/"*; do
+                basefile="$(basename "${f}" .nii.gz)"
                 newfile="${base}_${DATA}_T1w.nii.gz"
                 mv "${f}" "$(dirname "${f}")/${newfile}" 2>/dev/null
               done
@@ -600,14 +614,14 @@ for subID in ${search}; do
 
             #-----------------------------------------------------------------------------
             # copy mask to manual_mask folder
-            mask_img=$(
+            mask_img="$(
               find -L "${BET}" \
               -type f \
               -name "mask*" \
               -print \
               -quit \
               2>/dev/null
-            )
+            )"
             
             if [[ ! -z "${mask_img}" ]]; then
               cp "${mask_img}" "${brainmask}" 2>/dev/null
@@ -622,14 +636,14 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # this gets T1-weighted and T1map in one directory for spinoza_masking
-        t1map=$(
+        t1map="$(
           find -L "${INPUTDIR}" \
           -type f \
           -name "*T1map*" \
           -and -name "*${DATA_UPR}*" \
           -and -name "*.nii.gz" \
           2>/dev/null
-        )
+        )"
 
         if [[ ! -z "${t1map}" ]]; then
           echo "Copying T1map needed for spinoza_segmentmgdm"
@@ -640,12 +654,12 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # if mode == FULL; clip and rescale m-image if needed:
-        biascorr=$(
+        biascorr="$(
           find -L "${BET}" \
           -type f \
           -name "m${sub_name}*" \
           2>/dev/null
-        )
+        )"
 
         #-----------------------------------------------------------------------------
         # Post-processing
@@ -653,20 +667,20 @@ for subID in ${search}; do
 
           #-----------------------------------------------------------------------------
           # find masks
-          mask_img=$(
+          mask_img="$(
             find -L "${BET}" \
             -type f \
             -name "mask*" \
             -print \
             -quit \
             2>/dev/null
-          )
+          )"
 
           cp "${mask_img}" "${brainmask}" 2>/dev/null
 
           #-----------------------------------------------------------------------------
           # CAT12 can introduce background stuff; mask that out with SPM-mask
-          spm_mask=$(
+          spm_mask="$(
             find -L "$(dirname ${input})" \
             -type f \
             -name "*spm_mask*" \
@@ -674,7 +688,7 @@ for subID in ${search}; do
             -print \
             -quit \
             2>/dev/null
-          )
+          )"
           if [[ ! -z "${spm_mask}" ]]; then
 
             #-----------------------------------------------------------------------------
@@ -742,13 +756,13 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # still copy SPM-mask even if heavy CAT12-processing was turned off
-    spm_mask=$(
+    spm_mask="$(
       find -L "${INPUTDIR}" \
       -type f \
       -name "*spm_mask*" \
       -and -name "*.nii.gz" \
       2>/dev/null
-    )
+    )"
 
     IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
     unset IFS 

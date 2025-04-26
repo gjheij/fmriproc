@@ -27,6 +27,19 @@ Input arguments:
                         '-a 1,2,5'. Use '-a all' to keep all runs (not recommended..)
 
 -c <arg>          used for:
+                    - ${BOLD_BLUE}spinoza_brainextraction${RESET}: specify a custom batch-file for 
+                      CAT12; versions utilize different inputs, making it hard to be agnostic to 
+                      support all versions. For now, I have template files for the following 
+                      versions in \$REPO_DIR/misc:
+                        - r1113
+                        - r1450
+                        - r2043
+                        - r2170
+                        - r2556 [CAT12 Linux Standalone]
+                        - r2557 [CAT12 MacOS Standalone]
+
+                      you can either save your batch-file as '\$REPO_DIR/misc/cat_batch_custom.m' 
+                      or use this flag to use a different version.
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: list of values used for clipping of 
                       design matrix. Format must be [<top>,<bottom>,<left>,<right>]. Negative 
                       values will be set to zero within 'linescanning.prf.get_prfdesign'
@@ -201,7 +214,16 @@ Options:
 
 --aparc           use ROIs from ?h.aparc.annot atlas.
 
---ap|pa|lr|rl     specify phase-encoding direction for BOLD run.
+--ap|pa|lr|rl|si|is  set phase-encoding direction for BOLD. All cases overwrite the
+                  \$PE_DIR_BOLD-variable, even if it is set. If no flag is specified,
+                  we will default to this variable. If not set, we will try to read from
+                  the DCM/PAR-file, but this gets dodgy really fast.
+                    - AP: anterior-to-posterior → 'j'
+                    - PA: posterior-to-anterior → 'j-'
+                    - LR: left-to-right         → 'i'
+                    - RL: right-to-left         → 'i-'
+                    - IS: inferior-to-superior  → 'k'
+                    - SI: superior-to-inferior  → 'k-'
 
 --bgfs            use L-BGFS minimization for both Gaussian and extended models.
 
