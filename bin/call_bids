@@ -1196,7 +1196,7 @@ fix_final_intendedfor() {
         echo " - 1 FMAP for every ${ratio} BOLDs"
       fi
     else
-      echo " Number of BOLDs (${num_funcs}) and FMAPs (${num_fmaps}) match — assuming already linked"
+      echo -e "Number of BOLDs (${BOLD_RED}${num_funcs}${RESET}) and FMAPs (${BOLD_RED}${num_fmaps}${RESET}) match — assuming already linked"
     fi
   fi
 }
@@ -1417,6 +1417,8 @@ scrape_and_link_fieldmaps() {
     fi
 
     echo " Done"
+  else
+    echo "No other type of FMAP-files found"
   fi
 }
 
