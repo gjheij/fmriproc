@@ -647,7 +647,7 @@ collect_subject_name() {
   local subID="$2"
   local prefix="$3"
 
-  if [[ -n ${sub} ]]; then
+  if [[ -n "${sub}" ]]; then
     echo "${prefix}${subID}"
   else
     echo "$(basename "${subID}")"
@@ -659,7 +659,7 @@ get_subject_id() {
   local subID="$2"
   local prefix="$3"
 
-  if [[ -n ${sub} ]]; then
+  if [[ -n "${sub}" ]]; then
     echo "${subID}"
   else
     echo "$(basename "${subID}")"
@@ -670,7 +670,7 @@ collect_session_info() {
   local ses="$1"
   local sub_name="$2"
 
-  if [[ -n ${ses} ]]; then
+  if [[ -n "${ses}" ]]; then
     local nr
     nr=$(echo "${ses}" | sed -e 's/^[[:space:]]*//')
     echo "${sub_name}/ses-${nr} ${sub_name}_ses-${nr}"
@@ -682,40 +682,44 @@ collect_session_info() {
 function pe_from_dcm {
 
   dcm_file="${1}"
+  # Infer BIDS PhaseEncodingDirection
   axis="$(read_dcm "${dcm_file}" PhaseEncodingDirection)"
   csa_dir="$(read_dcm "${dcm_file}" polarity)"
-
-  # phase encoding direction; check variable in setup file
-  if [ ! -z "${PE_DIR_BOLD}" ]; then
-    PE="${PE_DIR_BOLD}"
-    bids_pe=$(fprep_pe "${PE}")
-  else
-    # Infer BIDS PhaseEncodingDirection
-    if [[ "$axis" == "COL" ]]; then
-      if [[ "$csa_dir" == *"L"* ]]; then
-        bids_pe="j"
-      elif [[ "$csa_dir" == *"R"* ]]; then
-        bids_pe="j-"
-      else
-        echo "Error: Unexpected CSA Direction for COL: $csa_dir" >&2
-        exit 1
-      fi
-    elif [[ "$axis" == "ROW" ]]; then
-      if [[ "$csa_dir" == *"P"* ]]; then
-        bids_pe="i"
-      elif [[ "$csa_dir" == *"A"* ]]; then
-        bids_pe="i-"
-      else
-        echo "Error: Unexpected CSA Direction for ROW: $csa_dir" >&2
-        exit 1
-      fi
+  if [[ "$axis" == "COL" ]]; then
+    if [[ "$csa_dir" == *"L"* ]]; then
+      bids_pe="j"
+    elif [[ "$csa_dir" == *"R"* ]]; then
+      bids_pe="j-"
     else
-      echo "Error: Could not read InPlanePhaseEncodingDirection." >&2
+      echo "Error: Unexpected CSA Direction for COL: $csa_dir" >&2
       exit 1
     fi
+  elif [[ "$axis" == "ROW" ]]; then
+    if [[ "$csa_dir" == *"P"* ]]; then
+      bids_pe="i"
+    elif [[ "$csa_dir" == *"A"* ]]; then
+      bids_pe="i-"
+    else
+      echo "Unexpected CSA Direction for ROW: $csa_dir" >&2
+      exit 1
+    fi
+  else
+    echo "Could not read InPlanePhaseEncodingDirection." >&2
+    exit 1
   fi
 
-  echo "${bids_pe}"
+  # final validation
+  case "$bids_pe" in
+    i|i-|j|j-|k|k-)
+      # okay
+      ;;
+    *)
+      echo "Computed invalid BIDS PhaseEncodingDirection '$bids_pe'" >&2
+      exit 1
+      ;;
+  esac
+
+  echo "$bids_pe"
 
 }
 
@@ -755,7 +759,7 @@ USAGE
     par="${1}"
     use_case="${2}"
 
-    if [[ -z ${use_case} ]]; then
+    if [[ -z "${use_case}" ]]; then
       use_case="average"
     fi
 
@@ -1050,7 +1054,7 @@ USAGE
     fi
 
     # fielstrength
-    if [[ -z ${FIELD_STRENGTH} ]]; then
+    if [[ -z "${FIELD_STRENGTH}" ]]; then
       FIELD_STRENGTH=7.0
     fi
     
@@ -1061,71 +1065,102 @@ USAGE
     wf_ppm=3.35
 
     # EPI factor
-    epi_f=$(read_par "${par_file}" "EPI factor")
+    epi_f="$(read_par "${par_file}" "EPI factor")"
 
     # water fat shift
-    WFS=$(read_par "${par_file}" "Water Fat shift")
+    WFS="$(read_par "${par_file}" "Water Fat shift")"
 
     # WFS (freq)
-    WFS_hz=$(echo "${FIELD_STRENGTH} * ${wf_ppm} * ${gyro}" | bc -l)
+    WFS_hz="$(echo "${FIELD_STRENGTH} * ${wf_ppm} * ${gyro}" | bc -l)"
 
     # total read out time
-    TRT=$(echo "${WFS} / ${WFS_hz}" | bc -l)
+    TRT="$(echo "${WFS} / ${WFS_hz}" | bc -l)"
 
     # effective echo spacing (EPI factor +1)
-    EES=$(echo "${TRT}/(${epi_f}+1)" | bc -l)
+    EES="$(echo "${TRT}/(${epi_f}+1)" | bc -l)"
 
     # phase encoding direction; check variable in setup file
-    if [ -z ${PE_DIR_BOLD} ]; then
-      PE=$(read_par "${par_file}" "Preparation direction")
+    if [[ -n "${PE_DIR_BOLD}" ]]; then
+      PE="${PE_DIR_BOLD}"
     else
-      PE=${PE_DIR_BOLD}
+      PE="$(read_par "${par_file}" "Preparation direction")"
     fi
 
-    ADD_PE=$(fprep_pe "${PE}")
+    ADD_PE="$(fprep_pe "${PE}")"
 
     # protocol name
-    PROT=$(read_par "${par_file}" "Protocol name")
+    PROT="$(read_par "${par_file}" "Protocol name")"
 
     # EPI factor
-    EPI_FACTOR=$(read_par "${par_file}" "EPI factor")
+    EPI_FACTOR="$(read_par "${par_file}" "EPI factor")"
 
     # protocol name
-    PROT_NAME=$(read_par "${par_file}" "Protocol name")
+    PROT_NAME="$(read_par "${par_file}" "Protocol name")"
 
     # acquisition scheme
-    AQ=$(read_par "${par_file}" "Scan mode")
+    AQ="$(read_par "${par_file}" "Scan mode")"
 
     # flip PE if protocol name is BOLD but json file EPI
     txt=""
-    if [[ ${PROT} == *"_bold"* ]]; then
+    if [[ "${PROT}" == *"_bold"* ]]; then
       if [[ -f "${json_file}" ]]; then
-        if [[ $(basename "${json_file}") == *"epi.json"* ]]; then
-          ADD_PE=$(fprep_pe "${PE}" 1)
+        if [[ "$(basename "${json_file}")" == *"epi.json"* ]]; then
+          ADD_PE="$(fprep_pe "${PE}" 1)"
           txt="flipped for epi_json"
         else
-          ADD_PE=$(fprep_pe "${PE}" 0)
+          ADD_PE="$(fprep_pe "${PE}" 0)"
           txt="not flipped"
         fi
       else
-        ADD_PE=$(fprep_pe "${PE}" 0)
+        ADD_PE="$(fprep_pe "${PE}" 0)"
         txt="not flipped"
       fi
-    elif [[ ${PROT} == *"_epi"* ]]; then
-      ADD_PE=$(fprep_pe "${PE}" 1)
+    elif [[ "${PROT}" == *"_epi"* ]]; then
+      ADD_PE="$(fprep_pe "${PE}" 1)"
       txt="flipped for epi_json"
     fi
 
     if [[ ! -z "${json_file}" ]]; then
-      call_json \
-        "${merge}" \
-        "${json_file}" \
-        TotalReadoutTime,PhaseEncodingDirection,EffectiveEchoSpacing,ProtocolName,MagneticFieldStrength,WaterFatShift,EPIFactor,ProtocolName,AcquisitionTechnique \
-        "${TRT}","${ADD_PE}","${EES}"",${PROT}","${FIELD_STRENGTH}","${WFS}","${EPI_FACTOR}","${PROT_NAME}","${AQ}"
 
+      # set key/value pairing
+      keys="TotalReadoutTime,PhaseEncodingDirection,EffectiveEchoSpacing,ProtocolName,MagneticFieldStrength,WaterFatShift,EPIFactor,ProtocolName,AcquisitionTechnique"
+      vals="${TRT}","${ADD_PE}","${EES}"",${PROT}","${FIELD_STRENGTH}","${WFS}","${EPI_FACTOR}","${PROT_NAME}","${AQ}"
+
+      # add to json
+      cmd=(
+        call_json
+        "${merge}"
+        "${json_file}"
+        "${keys}"
+        "${vals}"
+      )
+
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo && print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}" "${cmd[@]}"
+        exit 1
+      fi      
+
+      # add MultiBandAccelerationFactor if scan = 2D
       if [[ ! -z "${MB_FACTOR}" ]]; then
-        if [[ ${AQ} != "3D" ]]; then
-          call_json "${json_file}" MultiBandAccelerationFactor "${MB_FACTOR}"
+        if [[ "${AQ}" != "3D" ]]; then
+
+          # add cmd
+          cmd=(
+            call_json
+            "${json_file}"
+            "MultiBandAccelerationFactor"
+            "${MB_FACTOR}"
+          )
+
+          # run
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo && print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "${cmd[@]}"
+            exit 1
+          fi
         fi
       fi
     else
@@ -1179,6 +1214,18 @@ function fprep_pe {
     else
       ADD_PE="i"
     fi
+  elif [[ "${PE}" == "IS" ]] || [[ "${PE}" == "Inferior-Superior" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
+      ADD_PE="k"
+    else
+      ADD_PE="k-"
+    fi
+  elif [[ "${PE}" == "SI" ]] || [[ "${PE}" == "Superior-Inferior" ]]; then
+    if [[ "${FLIP}" -eq 0 ]]; then
+      ADD_PE="k-"
+    else
+      ADD_PE="k"
+    fi
   fi
 
   echo $ADD_PE
@@ -1197,7 +1244,22 @@ function add_nordic_msg {
     else
       echo "Adding {\"Nordic\": \"${msg}\"} to json-files in \"${folder}\""
       for file in "${folder}/"*.json; do
-        call_json "${file}" "Nordic" "${msg}"
+
+        # define cmd
+        cmd=(
+          call_json
+          "${file}"
+          "Nordic"
+          "${msg}"
+        )
+
+        # run
+        eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo && print_line -
+          print_error_msg "$(basename ${0})" "${cmd[0]}" "${cmd[@]}"
+          exit 1
+        fi        
       done
     fi
   fi
@@ -1209,8 +1271,8 @@ function fn_exists {
     echo -e "${BOLD_RED}ERROR${RESET} in function: please specify an input"
   else
     local func="${1}"
-    FN=$(type -t ${func})
-    if [[ -z ${FN} ]]; then
+    FN="$(type -t "${func}")"
+    if [[ -z "${FN}" ]]; then
       echo "Didn't find function \"${func}\""
 
       if [[ ! -z "${2}" ]]; then
@@ -1331,7 +1393,7 @@ function get_id {
 
   # get rid of dots by assuming the tag-of-interest precedes dot (lazy solution)
   if [[ "${tag}" == *"."* ]]; then
-    tag=$(echo "${tag}" | cut -d"." -f1)
+    tag="$(echo "${tag}" | cut -d"." -f1)"
   fi
 
   echo "${tag}"
@@ -2036,52 +2098,68 @@ function make_mask_script {
 #-----------------------------------------------------------------------------
 # CAT12 SCRIPT
 function make_cat_script {
-  if [[ $# -ne 4 ]]; then
+  if [[ $# -lt 4 ]]; then
     echo "Received only ${#} arguments, need 4:"
     count=0; for ii in "${@}"; do ((count++)); echo " ${count}.) ${ii}"; done
     echo
     print_line -
     echo "make_cat_script"
     echo
-    echo "Make a matlab script to be called with call_matlab to segment your anatomical file with CAT12. Can"
-    echo "also do denoising and stuff, but better and more conservative to do this with call_spmsanlm"
+    echo "Make a matlab script to be called with call_matlab to segment your anatomical file with"
+    echo "CAT12. Can also do denoising and stuff, but better and more conservative to do this"
+    echo "with call_spmsanlm"
     echo ""
     echo "Args:"
     echo "  <spm_path>  path to the desired SPM-installation"
     echo "  <input>     input image (gunzip'ed nii-file)"
-    echo "  <mode>      \"brain\" for just segmentations; \"full\" for intensity normalization & SANLM-filtering"
+    echo "  <mode>      \"brain\" for just segmentations; \"full\" for intensity normalization &"
+    echo "              SANLM-filtering"
     echo "  <script>    script name"
+    echo "  <template>  use a custom template for different CAT12 version"
     echo ""
     echo "Usage:"
     echo "  make_cat_script <path/to/spm12> <anat.nii> <mode> <string_to_matlab_script>"
     echo
     echo "Examples:"
     echo "  make_cat_script /usr/bin/spm12 anat.nii brain /path/to/my/matlab_script.m"
+    echo "  make_cat_script /usr/bin/spm12 anat.nii brain /path/to/my/matlab_script.m custom_tpl.m"
+    echo
     print_line -
     echo
   else
 
+    local spm_path="${1}"
+    local input="${2}"
+    local mode="${3}"
+    local script_name="$4"
+    local tpl_file="${5}"
+
     # find cat directory
-    cat12_dir=$(
-      find -L "${1}" \
+    cat12_dir="$(
+      find -L "${spm_path}" \
       -type d \
       -name "*cat12*" \
       -print \
       -quit \
       2>/dev/null
-    )
+    )"
     if [[ -z "${cat12_dir}" ]]; then
-      echo "Could not find CAT12-directory in \"${1}\""
+      echo "Could not find CAT12-directory in \"${spm_path}\""
       exit 1
     fi
 
     # Check if we have compatible version; we're using 12.6!!
+    VER=$(
+      cat "${cat12_dir}/Contents.txt" | \
+      grep Version | \
+      cut -d" " -f3 \
+      2>/dev/null
+    )
 
-    VER=$(cat ${cat12_dir}/Contents.txt | grep Version | cut -d" " -f3 2>/dev/null)
     ACCEPTED_VERSIONS=("1113" "1450" "2043" "2170" "2556" "2557")
-    if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
+    if [[ ! -f "${REPO_DIR}/misc/cat_batch_custom.m" || ! -f "${tpl_file}" ]]; then
       if [[ " ${ACCEPTED_VERSIONS[*]} " =~ " ${VER} " ]]; then
-        batch_file=${REPO_DIR}/misc/cat_batch_r${VER}.m
+        batch_file="${REPO_DIR}/misc/cat_batch_r${VER}.m"
       else
         echo "CAT12 VERSION = ${VER}.. Accepted versions are: "
         for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
@@ -2093,26 +2171,42 @@ function make_cat_script {
         exit 1
       fi
     else
-      batch_file="${REPO_DIR}/misc/cat_batch_custom.m"
+      # custom file specified
+      if [[ -f "${tpl_file}" ]]; then
+        batch_file="${tpl_file}"
+      elif [[ -f "${REPO_DIR}/misc/cat_batch_custom.m" ]]; then
+        batch_file="${REPO_DIR}/misc/cat_batch_custom.m"
+      fi
+
+      # check if it exists
+      if [[ ! -f "${batch_file}" ]]; then
+        echo && print_line -
+        print_error_msg "$(basename ${0})" "batch_file" "Custom file ${BOLD_GREEN}${batch_file}${RESET} does not exist.. Specify one with '-c <file>' or save a file as '${REPO_DIR}misc/cat_batch_custom.m'"
+        exit 1
+      fi
       echo "Using custom batch-file: \"${batch_file}\""
     fi
 
+    # double check if file exists
     if [[ ! -f "${batch_file}" ]]; then
-      echo "ERROR: could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
+      echo && print_line -
+      print_error_msg "$(basename ${0})" "batch" "Could not find batch file for version=${VER}. Please create \"${batch_file}\" or use CAT-version:"
       for i in ${ACCEPTED_VERSIONS[@]}; do echo $i; done
       exit 1
     fi
 
-    tpm_dir=$(
-      find -L "${1}" \
+    # find tissue-prior folder
+    tpm_dir="$(
+      find -L "${spm_path}" \
       -type d \
       -name "*tpm*" \
       -print \
       -quit \
       2>/dev/null
-    )
+    )"
+
     if [[ -z "${tpm_dir}" ]]; then
-      echo "Could not find template-directory in \"${1}\""
+      echo "Could not find template-directory in \"${spm_path}\""
       exit 1
     fi
 
@@ -2123,15 +2217,15 @@ function make_cat_script {
     echo "clear;"
 
     # deal with MCR
-    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm*.sh"* ]]; then
       echo ""
     else
-      echo "addpath(genpath('${1}'));"
+      echo "addpath(genpath('${spm_path}'));"
     fi
     
-    ) >> ${4}
+    ) >> "${script_name}"
 
-    if [[ ${3} == 'brain' ]]; then
+    if [[ ${mode} == 'brain' ]]; then
       echo "Turning off bias/intensity correction & sanlm-filtering"
       bias_str=2.2204e-16 # ultralight
       bias_reg=0.01       # ultralight
@@ -2147,16 +2241,16 @@ function make_cat_script {
     fi
 
     # echo to file
-    cat "${batch_file}" >> "${4}"
+    cat "${batch_file}" >> "${script_name}"
 
     # # change parameters (perl is agnostic to MacOS/Linux)
-    call_replace CHANGE_THIS_SPM_PATH "${1}" "${4}"
-    call_replace CHANGE_THIS_INPUT "${2}" "${4}"
-    call_replace CHANGE_BIAS_STR "${bias_str}" "${4}"
-    call_replace CHANGE_BIAS_REG "${bias_reg}" "${4}"
-    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" "${4}"
-    call_replace CHANGE_THIS_APP_TERM "${app}" "${4}"
-    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" "${4}"
+    call_replace CHANGE_THIS_SPM_PATH "${1}" "${script_name}"
+    call_replace CHANGE_THIS_INPUT "${2}" "${script_name}"
+    call_replace CHANGE_BIAS_STR "${bias_str}" "${script_name}"
+    call_replace CHANGE_BIAS_REG "${bias_reg}" "${script_name}"
+    call_replace CHANGE_BIAS_FWHM "${bias_fhwm}" "${script_name}"
+    call_replace CHANGE_THIS_APP_TERM "${app}" "${script_name}"
+    call_replace CHANGE_THIS_SANLM_TERM "${sanlm}" "${script_name}"
 
     (
     echo ""
@@ -2165,11 +2259,11 @@ function make_cat_script {
     echo "spm('defaults','fMRI')"
     echo "spm_jobman('run', matlabbatch);"
     echo "exit"
-    ) >> "${4}"
+    ) >> "${script_name}"
 
     # also save the matlabbatch-only lines to a file that we can load in SPM/CAT12
-    rm "${4/.m/_batch.m}" 2>/dev/null
-    cat "${4}" | grep -A0 "matlabbatch{" >> "${4/.m/_batch.m}"
+    rm "${script_name/.m/_batch.m}" 2>/dev/null
+    cat "${script_name}" | grep -A0 "matlabbatch{" >> "${script_name/.m/_batch.m}"
   fi
 }
 
