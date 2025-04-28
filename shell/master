@@ -24,6 +24,7 @@ HEMI_FLAG=""              # spinoza_lineplanning
 IDENT_FLAG=""             # spinoza_lineplanning
 DEBUG=""                  # spinoza_linerecon
 NORDIC=""                 # spinoza_linerecon
+weight_flag=""            # spinoza_linerecon
 OW=""                     # multiple (overwrite mode)
 verb_flag=""              # multiple (turn on verboses)
 aparc_flag=""             # spinoza_bestvertex
@@ -157,6 +158,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         abd)
           MODEL_FLAG="--abd"
           ;;
+        avg)
+          weight_flag="--avg"
+          ;;            
         affine)
           REG_TYPE="--affine"
           ;;
@@ -187,6 +191,12 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         comb-only)
           COMB_ONLY="-c"
           ;;
+        cnr)
+          weight_flag="--cnr"
+          ;;    
+        cpl)
+          weight_flag="--cpl"
+          ;;                 
         ctx)
           OPEN_WITH_FLAG="--ctx"
           ;;
@@ -221,6 +231,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         fetch-func)
           fetch_func_flag="--fetch-func"
           ;;
+        fit)
+          weight_flag="--fit"
+          ;;          
         fix-hrf)
           FIX_FLAG="--fix-hrf"
           ;;
@@ -955,6 +968,7 @@ if [[ $? -eq 0 ]]; then
     "${RUNS}"
     "${N_COMPS}"
     "${FOLDS_FLAG}"
+    "${weight_flag}"
     -c "${NORDIC_COMPS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )

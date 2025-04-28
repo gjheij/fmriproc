@@ -69,13 +69,6 @@ if strcmp(weighting,'complex')
      gamma = 42.58*10^6; %Hz/T
      phase_rad = deltaB0map *gamma *TEfix; %phase is taken from the phase fit
      magn = sqrt(sum(abs(data),echo_dim).^2); %magnitude is the SoS of the values %    
-     
-%      echotimes = reshape(echotimes, [ones(1,length(size(data))-1), length(echotimes)]);    
-%      SNR=data_Tmean./data_Tstd;  
-%      den = sum(echotimes.*SNR, echo_dim);
-%      %w=exp(-i*(phase_data-Phi0map)).*echotimes.*SNR./den;
-%      w=exp(i*B0map).*echotimes.*SNR./den;
-%      w=echotimes.*SNR./den;
 
      output = magn.*exp(i*phase_rad);
 

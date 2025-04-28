@@ -226,6 +226,8 @@ Options:
                     - IS: inferior-to-superior  → 'k'
                     - SI: superior-to-inferior  → 'k-'
 
+--avg             Simply take the mean over echoes
+
 --bgfs            use L-BGFS minimization for both Gaussian and extended models.
 
 --bold            re-calculate the BOLD timecourses.
@@ -233,6 +235,16 @@ Options:
 --clean           remove the single-subject workflow folder completely.
 
 --comb-only       skip nighres, only combine segmentations.
+
+--cnr             Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's 
+                  timecourse is weighted by its tSNR (mean/SD over time), i.e. w_i = tSNR_i/∑_j 
+                  tSNR_j, before summing across echoes.
+
+--cpl             Combine multi-echo data into a complex signal by fitting B0-induced phase shifts 
+                  across echoes (ΔB0), computing voxelwise phase at the first TE, extracting 
+                  magnitude via sum-of-squares, and reconstructing S = mag·exp(i·phase). Unlike 
+                  the T2*-weighted methods, this preserves both amplitude and phase 
+                  information.
 
 --debug           run debug mode for extra input/output checks.
 
@@ -259,6 +271,10 @@ Options:
 --fetch-fsl       retrieve the MNI-transformed nifti-files.
 
 --fetch-func      retrieve the nifti-files in func-space.
+
+--fit             Estimate voxelwise T2* (in ms) via linear least-squares from multi-echo 
+                  data—returning the T2* map directly rather than computing and summing 
+                  T2*-weighted echo combinations as in the 'T2star' method.
 
 --fix-hrf         fit the HRF in iterative fitting.
 
