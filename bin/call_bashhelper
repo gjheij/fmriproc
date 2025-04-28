@@ -2253,7 +2253,7 @@ function make_cat_script {
 
     #-----------------------------------------------------------------------------
     # deal with MCR
-    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm*.sh"* ]]; then
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm"* ]]; then
       echo ""
     else
       echo "addpath(genpath('${spm_path}'));"

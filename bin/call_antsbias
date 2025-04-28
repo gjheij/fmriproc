@@ -97,14 +97,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 #-----------------------------------------------------------------------------
-# Run N4BiasFieldCorrection
-if [[ -z "$output" ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "find" "Please specify output folder"
-  exit 1
-fi
-
+# check dimensions
 dim=$(fslval "$input" dim0)
 if [[ -z "$dim" ]]; then
   echo
@@ -112,6 +105,8 @@ if [[ -z "$dim" ]]; then
   print_error_msg "$(basename ${0})" "fslval" "Unable to determine image dimensionality of ${BOLD_GREEN}${input}${RESET}"
 fi
 
+#-----------------------------------------------------------------------------
+# Run N4BiasFieldCorrection
 if [[ ${verbose} -eq 1 ]]; then
   echo "Running N4BiasFieldCorrection:"
   echo "  Input          = $(basename "${input}")"

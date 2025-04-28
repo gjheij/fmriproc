@@ -473,7 +473,7 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # overwrite mode
     if [[ ${OW} -eq 1 ]]; then
-      rm -r "${brainmask}"  2>/dev/null
+      rm -r "${brainmask}" "${duramask}" 2>/dev/null
       rm -r $(dirname "${corrected_t1w}")  2>/dev/null
     fi
     
@@ -783,7 +783,7 @@ for subID in ${search}; do
     #-----------------------------------------------------------------------------
     # the difference mask between the CAT12-mask and SPM-mask is already a pretty good dura mask.
     if [[ -f "${spm}" && -f "${brainmask}" ]]; then
-      if [[ ! -f "${duramask}" ]]; then
+      if [[ ! -f "${duramask}" || "${OW}" -eq 1 ]]; then
         cmd=(
           fslmaths
           "${spm}"
