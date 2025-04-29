@@ -475,7 +475,7 @@ for subID in ${search}; do
     )
 
     # print and run
-    if [[ ${SGE_FLAG} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       echo "${intro_txt}"
       print_cmd "${cmd[@]}"
       echo
