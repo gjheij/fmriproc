@@ -250,10 +250,10 @@ if [[ $DEBUG -eq 0 ]]; then
   echo "Initiating call to Matlab"
   
   call_matlab "${newrecon}" 
-  if [[ $? -ne 0 || ! -f "${OUT}" ]]; then
+  if [[ $? -ne 0 || ! -f "${OUT}.mat" ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "${recon_cmd}" "\"${BOLD_GREEN}${OUT}${RESET} not created\""
+    print_error_msg "$(basename ${0})" "${recon_cmd}" "File ${BOLD_GREEN}${OUT}.mat${RESET} was not created"
     exit 1
   fi
 else
