@@ -13,6 +13,7 @@ time_dim = length(size(data))-1;
 data_Tmean=mean(abs(data),time_dim); 
 data_Tstd=std(abs(data),[],time_dim);
 
+disp(['Weighting method = ' weighting]);
 if strcmp(weighting,'CNR')
     % CNR weighting, Poser MRM 2006
     % compute temporal SNR
