@@ -513,6 +513,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         try)
           CRASH_FLAG="--try"
           ;;
+        t2s)
+          weight_flag="--t2s"
+          ;;          
         ups)
           UPs="--ups"
           ;;
@@ -969,6 +972,7 @@ if [[ $? -eq 0 ]]; then
     "${N_COMPS}"
     "${FOLDS_FLAG}"
     "${weight_flag}"
+    "${TR_FLAG}"
     -c "${NORDIC_COMPS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )

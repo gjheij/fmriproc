@@ -108,7 +108,7 @@ Input arguments:
 
 -m <module>       always required, specifies which module to run.
 
--n <session>      session nr, used to create file structure according to BIDS.
+-n <session>      session ID (defaults to '-n 1' if empty).
 
 -o|--ow           turn on overwrite mode.
 
@@ -155,16 +155,24 @@ Input arguments:
 
 -q <sge queue>    send jobs to specific queue.
 
--r <value>        used for various modules to set label file, stage, or repetition time.
+-r <value>        used for:
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: limit reconstruction to a  run-
+                      identifier. Tasks with the same run identifier will be considered, unless 
+                      the '-t' flag is specified to limit the process to a specific task..
+                      Input can be comma-separated (e.g., '-r 1,2,5')
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: set RepetitionTime
                     - ${BOLD_BLUE}spinoza_bestvertex${RESET}: set label file
                     - ${BOLD_BLUE}spinoza_freesurfer${RESET}: set autorecon stage
 
--s <subject>      Subject ID (e.g., 01).
+-s <subject>      Subject ID (e.g., 01). Input can be comma-separated (e.g., '-s 01,03,24')
 
 -t <type|task>    used for:
                     - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: set RepetitionTime manually 
-                      (discouraged..)
+                      (hardcore..)
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: limit reconstruction to a 
+                      task-identifier. Runs with the same task identifier will be considered, 
+                      unless the '-r' flag is specified to limit the process to a specific run.
+                      Input can be comma-separated (e.g., '-t SRFa,SRFb')
                     - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: set threshold for R2* manually 
                       (default = 0.07)
                     - ${BOLD_BLUE}spinoza_fmriprep${RESET}: type of workflow (anat/func/task).

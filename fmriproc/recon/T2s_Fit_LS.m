@@ -1,40 +1,42 @@
 function [T2s_fit, S0_fit] = T2s_Fit_LS(data, echotimes)
-% T2s_Fit_LS  Fit mono-exponential decay S(TE)=S0·exp(-TE/T2*) by linear LS.
-%
-%   Inputs:
-%     data        [X × Time × Ne] array of magnitudes (e.g. abs(data))
-%     echotimes   [1 × Ne] or [Ne × 1] vector of echo times (same units)
-%
-%   Outputs:
-%     T2s_fit     [X × Time] map of estimated T2* values
-%     S0_fit      [X × Time] map of estimated S0 amplitudes
+    % T2s_Fit_LS - Fit mono-exponential decay model: S(TE) = S0 * exp(-TE/T2*)
+    % via log-linear least squares.
+    %
+    % Inputs:
+    %   data        [V × T × Ne] array of multi-echo magnitude data (e.g., abs(data))
+    %   echotimes   [1 × Ne] or [Ne × 1] vector of echo times (same unit as desired T2*)
+    %
+    % Outputs:
+    %   T2s_fit     [V × T] estimated T2* values (same units as echotimes)
+    %   S0_fit      [V × T] estimated S0 amplitudes
 
-% get sizes
-[ Nx, Nt, Ne ] = size(data);
+    % Dimensions
+    [V, T, Ne] = size(data);
+    TE = echotimes(:);               % ensure [Ne × 1]
 
-% vector of TE
-TE = echotimes(:);          % [Ne×1]
+    % Build design matrix for log-linear fit
+    A = [ones(Ne,1), -TE];           % [Ne × 2]
 
-% build design matrix log S = log S0 - TE*(1/T2*)
-A = [ ones(Ne,1),  -TE ];   % [Ne×2]
+    % Reshape data for fitting: [Ne × (V*T)]
+    D = reshape(data, V*T, Ne)';     % transpose to [Ne × (V*T)]
+    D(D <= 0) = eps;                 % avoid log(0)
 
-% reshape data to [Ne × (Nx*Nt)]
-D = reshape(data, Nx*Nt, Ne)';   % now [Ne × (Nx*Nt)]
+    % Log-transform
+    Y = log(D);                      % [Ne × (V*T)]
 
-% avoid log(0)
-D(D<=0) = eps;
+    % Solve least squares: A * B = Y
+    B = A \ Y;                       % [2 × (V*T)]
 
-% take logs
-Y = log(D);                % [Ne × (Nx*Nt)]
+    % Extract parameters
+    logS0 = B(1,:);                  % [1 × (V*T)]
+    invT2 = B(2,:);                  % [1 × (V*T)]
 
-% solve multi-response LS
-B = A \ Y;                  % [2 × (Nx*Nt)]
+    % Convert back
+    S0_fit = reshape(exp(logS0), V, T);           % [V × T]
+    T2s_fit = reshape(1 ./ invT2, V, T);          % [V × T]
 
-% unpack
-logS0 = B(1,:);             % [1 × (Nx*Nt)]
-invT2 = B(2,:);             % [1 × (Nx*Nt)]
+    % Clean invalid fits
+    T2s_fit(~isfinite(T2s_fit)) = 0;
+    S0_fit(~isfinite(S0_fit)) = 0;
 
-% reshape back to [Nx × Nt]
-S0_fit  = reshape(exp(logS0), Nx, Nt);
-T2s_fit = reshape(1./invT2, Nx, Nt);
-end
+    end
