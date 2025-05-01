@@ -45,10 +45,13 @@ Arguments:
                   information.
 
 Optional:
-  -m <nr_echoes>  number of echoes in a multi-echo acquisition. Leave empty if acquisition was 
-                  single-echo
-  -r <run>        When running multiple reconstructions in parallel, it can help to add a run ID 
-                  so that the script-naming doesn't get mixed up.
+  -m <n_echoes>   number of echoes in the acquisition (e.g., 5); by default we try to read it 
+                  from the PAR-file (field 'number of echoes')
+  -r <run>        limit reconstruction to a run-identifier. Tasks with the same run identifier will
+                  be considered, unless the '-t' flag is specified to limit the process to a speci-
+                  fic task. Input can be comma-separated (e.g., '-r 1,2,5')
+  -t <task>       limit reconstruction to a task-identifier. Runs with the same task identifier 
+                  will be considered, unless the '-r' flag is specified to limit the process to a specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
   -c <comps>      percentage of components to remove with NORDIC. The default is to remove compo-
                   nents based on the scree plot
 
@@ -73,7 +76,8 @@ DEBUG=0
 n_echos=1
 n_comps=0
 weighting="SoS"
-while getopts :-:dhnm:r:c: argument
+task_id=""
+while getopts :-:dhnm:r:c:t: argument
 do
   case ${argument} in
     -)
@@ -113,6 +117,8 @@ do
           ;;       
     r)  run_id=${OPTARG}
           ;;
+    t)  task_id=${OPTARG}
+          ;;          
     d)  DEBUG=1
           ;;          
     n)  do_nordic="off"
@@ -179,11 +185,11 @@ rm -r "${newrecon}" 2>/dev/null
 
 # make single-/multi-echo script
 echo "Inputs:"
-echo " bold   = ${RAW}"
-echo " LSD    = ${LSD}"
-echo " Out    = ${OUT}.mat"
-echo " Nordic = ${do_nordic} (comps=${n_comps} | 0=elbow-method)"
-echo " Echos  = ${n_echos}"
+echo -e " bold   = ${BOLD_GREEN}${RAW}${RESET}"
+echo -e " LSD    = ${BOLD_GREEN}${LSD}${RESET}"
+echo -e " Out    = ${BOLD_GREEN}${OUT}.mat${RESET}"
+echo -e " Nordic = ${BOLD_RED}${do_nordic}${RESET} (comps=${BOLD_RED}${n_comps}${RESET} | 0=elbow-method)"
+echo -e " Echos  = ${BOLD_RED}${n_echos}${RESET} (combination=${BOLD_RED}${weighting}${RESET})"
 
 # add stuff that's shared between single-/ and multi-echo
 (
