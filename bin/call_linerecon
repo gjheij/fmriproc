@@ -51,7 +51,8 @@ Optional:
                   be considered, unless the '-t' flag is specified to limit the process to a speci-
                   fic task. Input can be comma-separated (e.g., '-r 1,2,5')
   -t <task>       limit reconstruction to a task-identifier. Runs with the same task identifier 
-                  will be considered, unless the '-r' flag is specified to limit the process to a specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
+                  will be considered, unless the '-r' flag is specified to limit the process to a 
+                  specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
   -c <comps>      percentage of components to remove with NORDIC. The default is to remove compo-
                   nents based on the scree plot
 
