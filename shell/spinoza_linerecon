@@ -29,10 +29,14 @@ Arguments:
   -n <session>    session ID (e.g., 1, 2, or n)
   -m <n_echoes>   number of echoes in the acquisition (e.g., 5); by default we try to read it 
                   from the PAR-file (field 'number of echoes')
-  -r <runIDs>     specific runs to preproces; can be comma-separated list                      
+  -r <run>        limit reconstruction to a run-identifier. Tasks with the same run identifier will
+                  be considered, unless the '-t' flag is specified to limit the process to a speci-
+                  fic task. Input can be comma-separated (e.g., '-r 1,2,5')
+  -t <task>       limit reconstruction to a task-identifier. Runs with the same task identifier 
+                  will be considered, unless the '-r' flag is specified to limit the process to a specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
   -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   -c <comps>      percentage of components to remove using NORDIC (default is to use scree 
-                  plot to remove appropriate number of components)
+                  plot to remove appropriae number of components)
   -f <suffix>     add custom suffix; overwrites default of "bold"
 
 Options:
@@ -105,7 +109,8 @@ suffix="bold"
 verbose=1
 SGE_QUEUE=${SGE_QUEUE_SHORT}
 weight_flag=""
-while getopts :-:hos:n:c:m:q:r:f: argument
+tasks=""
+while getopts :-:hos:n:c:m:q:r:f:t: argument
 do
   case ${argument} in
     -)
@@ -164,6 +169,8 @@ do
           ;;
     r)  runs=${OPTARG}
           ;;
+    t)  tasks=${OPTARG}
+          ;;          
     f)  suffix=${OPTARG}
           ;;
 
@@ -203,6 +210,13 @@ if [[ ! -z "${runs}" ]]; then
   unset IFS
 fi
 
+# sort out runs
+if [[ ! -z "${tasks}" ]]; then
+  # read specified subjects into array
+  IFS=', ' read -r -a task_ids <<< "${tasks}"
+  unset IFS
+fi
+
 #-----------------------------------------------------------------------------
 #intro
 start_timer "Reconstruction of line-scanning data [Luisa's scripts]"
@@ -226,47 +240,59 @@ for subID in ${search}; do
     fi
 
     #-----------------------------------------------------------------------------
-    # find bold files with 'run-'
-    if [[ ! -z "${runs}" ]]; then
-      b_files=()
-      for r in "${n_runs[@]}"; do
-        run_f=$(
-          find -L "${lab_func}" \
-          -maxdepth 1 \
-          -type f \
-          -name "*bold_*" \
-          -and -name "*run-${r}*" \
-          -and -name "*.lab" \
-          2>/dev/null
-        )
+    # find BOLD files
+    bold_files=()
 
-        b_files+=("${run_f}")
+    # Base find command (common parts)
+    find_base=(find -L "${lab_func}" -maxdepth 1 -type f -name "*bold_*" -name "*.lab")
+
+    # Case 1: Both run and task specified
+    if [[ -n "${runs}" && -n "${tasks}" ]]; then
+      for r in "${n_runs[@]}"; do
+        for t in "${tasks[@]}"; do
+          this_cmd=("${find_base[@]}" -name "*run-${r}*" -iname "*task-${t}*")
+          results=$("${this_cmd[@]}" 2>/dev/null)
+          bold_files+=(${results})
+        done
       done
 
-      # sort array (https://stackoverflow.com/questions/7442417/how-to-sort-an-array-in-bash)
-      IFS=$'\n' bold_files=($(sort <<<"${b_files[*]}"))
-      unset IFS
+    # Case 2: Only run specified
+    elif [[ -n "${runs}" ]]; then
+      for r in "${n_runs[@]}"; do
+        this_cmd=("${find_base[@]}" -name "*run-${r}*")
+        results=$("${this_cmd[@]}" 2>/dev/null)
+        bold_files+=(${results})
+      done
 
+    # Case 3: Only task specified
+    elif [[ -n "${tasks}" ]]; then
+      for t in "${tasks[@]}"; do
+        this_cmd=("${find_base[@]}" -iname "*task-${t}*")
+        results=$("${this_cmd[@]}" 2>/dev/null)
+        bold_files+=(${results})
+      done
+
+    # Case 4: No filters specified — default
     else
-      #-----------------------------------------------------------------------------
-      # no run-identifier specified
       bold_files=(
         $(
-          find -L "${lab_func}" \
-          -maxdepth 1 \
-          -type f \
-          -name "*bold_*" \
-          -and -name "*.lab" | \
-          sort 2>/dev/null
+          "${find_base[@]}" | sort 2>/dev/null
         )
       )
     fi
+  
+    #-----------------------------------------------------------------------------
+    # Sort final list
+    IFS=$'\n' bold_files=($(sort <<<"${bold_files[*]}"))
+    unset IFS
 
     if [[ -z "${bold_files}" ]]; then
       print_file_not_in_dir "${sub_name}" "line-scanning data (*.lab)" "${lab_func}"
+      echo "  Command: ${this_cmd[@]}"
       continue
     fi
 
+    #-----------------------------------------------------------------------------
     # print header
     print_subject_header ${sub_name}
 
