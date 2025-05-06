@@ -134,7 +134,7 @@ else
     print_error_msg "$(basename ${0})" input "Could not find REF image \"${BOLD_GREEN}${REF}${RESET}\""
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 fi
 

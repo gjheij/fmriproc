@@ -96,7 +96,7 @@ if [[ ! -f "${in}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in}${RESET}\""
   exit 1
 else
-  in_file=$(readlink -f "${in}")
+  in_file="$(readlink -f "${in}")"
 fi
 
 #-----------------------------------------------------------------------------

@@ -114,7 +114,7 @@ if [[ ! -f "${tmp}" ]]; then
   print_error_msg "$(basename ${0})" "input" "Input file ${BOLD_GREEN}${tmp}${RESET} does not exist"
   exit 1
 else
-  epi_file=$(readlink -f "${tmp}")
+  epi_file="$(readlink -f "${tmp}")"
 fi
 
 # set output
@@ -270,7 +270,7 @@ if [[ ! -z "${initial}" ]]; then
     print_error_msg "$(basename ${0})" initial "Could not find initial transformation file \"${BOLD_GREEN}${initial}${RESET}\""
     exit 1
   else
-    initial=$(readlink -f "${initial}")
+    initial="$(readlink -f "${initial}")"
   fi
 
   cmd=(

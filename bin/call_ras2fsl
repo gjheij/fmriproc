@@ -74,7 +74,7 @@ fi
 
 # check reference image
 if [[ -f "${@:$OPTIND:1}" ]]; then
-  REF=$(readlink -f "${@:$OPTIND:1}")
+  REF="$(readlink -f "${@:$OPTIND:1}")"
 else
   echo
   print_line -
@@ -84,7 +84,7 @@ fi
 
 # check target image
 if [[ -f "${@:$OPTIND+1:1}" ]]; then
-  MOV=$(readlink -f "${@:$OPTIND+1:1}")
+  MOV="$(readlink -f "${@:$OPTIND+1:1}")"
 else
   echo
   print_line -
@@ -94,7 +94,7 @@ fi
 
 # check tfm file
 if [[ -f "${@:$OPTIND+2:1}" ]]; then
-  AFF=$(readlink -f "${@:$OPTIND+2:1}")
+  AFF="$(readlink -f "${@:$OPTIND+2:1}")"
 else
   echo
   print_line -

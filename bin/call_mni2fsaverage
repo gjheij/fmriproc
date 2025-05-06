@@ -101,7 +101,7 @@ if [[ ! -f "${input_file}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input_file}${RESET}\""
   exit 1
 else
-  input_file=$(readlink -f "${input_file}")
+  input_file="$(readlink -f "${input_file}")"
 fi
 
 # set output directory

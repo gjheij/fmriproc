@@ -400,7 +400,7 @@ if [[ ! -f "${REF}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 else
-  REF=$(readlink -f "${REF}")
+  REF="$(readlink -f "${REF}")"
 fi
 
 if [[ ! -f "${MOV}" ]]; then
@@ -409,7 +409,7 @@ if [[ ! -f "${MOV}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
-  MOV=$(readlink -f "${MOV}")
+  MOV="$(readlink -f "${MOV}")"
 fi  
 
 if [[ -z "${OUT}" ]]; then

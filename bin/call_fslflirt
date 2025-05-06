@@ -67,7 +67,7 @@ if [[ ! -f "${ref}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${ref}${RESET}\""
   exit 1
 else
-  ref=$(readlink -f "${ref}")
+  ref="$(readlink -f "${ref}")"
 fi
 
 if [[ ! -f "${in}" ]]; then
@@ -76,7 +76,7 @@ if [[ ! -f "${in}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${in}${RESET}\""
   exit 1
 else
-  in=$(readlink -f "${in}")
+  in="$(readlink -f "${in}")"
 fi
 
 if [[ ! -f "${omat}" ]]; then
@@ -85,7 +85,7 @@ if [[ ! -f "${omat}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find WARP file \"${BOLD_GREEN}${omat}${RESET}\""
   exit 1
 else
-  omat=$(readlink -f "${omat}")
+  omat="$(readlink -f "${omat}")"
 fi
 
 if [[ -z "${out}" ]]; then

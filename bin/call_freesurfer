@@ -433,7 +433,7 @@ validate_inputs(){
         print_error_msg "$(basename ${0})" T1w "Could not find T1w image \"${BOLD_GREEN}${T1}${RESET}\""
         exit 1
       else
-        T1=$(readlink -f "${T1}")
+        T1="$(readlink -f "${T1}")"
       fi
       T1_flag="-i ${T1}"
     fi

@@ -175,7 +175,7 @@ if [[ ! -f "${INPUT}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
   exit 1
 else
-  INPUT=$(readlink -f "${INPUT}")
+  INPUT="$(readlink -f "${INPUT}")"
 fi
 
 #-----------------------------------------------------------------------------
@@ -201,7 +201,7 @@ else
     print_error_msg "$(basename ${0})" input "Specified transformation file does not exist \"${BOLD_GREEN}${reg_file}${RESET}\""
     exit 1
   else
-    reg_file=$(readlink -f "${reg_file}")
+    reg_file="$(readlink -f "${reg_file}")"
   fi
   REG="--reg ${reg_file}"
 fi

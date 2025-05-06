@@ -1574,7 +1574,7 @@ function fetch_filepath {
 
   # if file specified is in current directory, add entire path
   if [[ $(echo ${1:0:1}) != "/" ]]; then
-    INPUT=$(readlink -f "${1}")
+    INPUT="$(readlink -f "${1}")"
   else
     INPUT="${1}"
   fi

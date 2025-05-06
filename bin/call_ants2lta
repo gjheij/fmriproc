@@ -66,7 +66,7 @@ if [[ ! -f "${in_file}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input file ${BOLD_GREEN}${in_file}${RESET}"
   exit 1
 else
-  in_file=$(readlink -f "${in_file}")
+  in_file="$(readlink -f "${in_file}")"
 fi
 
 # src file
@@ -76,7 +76,7 @@ if [[ ! -f "${src}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find SOURCE file ${BOLD_GREEN}${trg}${RESET}"
   exit 1
 else
-  src=$(readlink -f "${src}")
+  src="$(readlink -f "${src}")"
 fi
 
 # trg file
@@ -86,7 +86,7 @@ if [[ ! -f "${trg}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find TARGET file ${BOLD_GREEN}${trg}${RESET}"
   exit 1
 else
-  trg=$(readlink -f "${trg}")
+  trg="$(readlink -f "${trg}")"
 fi
 
 # output
@@ -99,13 +99,13 @@ fi
 
 #-----------------------------------------------------------------------------
 # convert if needed
-if [[ ${in_file} == *".mat"* ]]; then
+if [[ "${in_file}" == *".mat"* ]]; then
   in_file="${in_file/.mat/.txt}"
   cmd=(
     ConvertTransformFile
     3
-    ${in_file}
-    ${in_file}
+    "${in_file}"
+    "${in_file}"
   )
 
   print_cmd "${cmd[@]}" && eval "${cmd[@]}"

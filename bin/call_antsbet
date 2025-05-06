@@ -21,7 +21,7 @@ Options:
   -c <conv>       Convergence parameters (default: [100x70x50x20,1e-6,10]). Determines number
                   of iterations, convergence threshold, and window size.     
   -s <shrink>     Shrink factors per level (default: 4x3x2x1). Controls downsampling per stage.
-  -f <smoot>      Gaussian smoothing sigmas in voxels (default: 3x2x1x0). Applied at each level.
+  -f <smooth>     Gaussian smoothing sigmas in voxels (default: 3x2x1x0). Applied at each level.
   -x <kwargs>     Extra arguments that will be directly passed to 'dcm2niix'/'parrec2nii'. The
                   format should be as follows: different parameters comma-separated, and parame-
                   ter-value pair separated by '='):
@@ -113,7 +113,7 @@ if [[ ! -f "${input}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
-  input=$(readlink -f "${input}")
+  input="$(readlink -f "${input}")"
 fi
 
 if [[ -z "${output}" ]]; then

@@ -92,7 +92,7 @@ if [[ ! -f "${MOV}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
-  MOV=$(readlink -f "${MOV}")
+  MOV="$(readlink -f "${MOV}")"
 fi  
 
 if [[ -z "${OUT}" ]]; then

@@ -96,7 +96,7 @@ if [[ ! -f "${@:$OPTIND:1}" ]]; then
   print_error_msg "$(basename ${0})" "input" "File does not exist"
   exit 1
 else
-  input=$(readlink -f "${@:$OPTIND:1}")
+  input="$(readlink -f "${@:$OPTIND:1}")"
 fi
 
 # output

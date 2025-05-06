@@ -99,11 +99,11 @@ if [[ ! -f "${fname}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input file \"${BOLD_GREEN}${fname}${RESET}\""
   exit 1
 else
-  fname=$(readlink -f "${fname}")
+  fname="$(readlink -f "${fname}")"
 fi
 
 # get extension to derive file type
-ext=$(fetch_extension ${fname})
+ext="$(fetch_extension "${fname}")"
 
 # remove existing
 rm -r "${fname}" 2>/dev/null
@@ -117,7 +117,7 @@ if [[ ${FSL} -eq 1 ]]; then
   echo "0 1 0 0"
   echo "0 0 1 0"
   echo "0 0 0 1"
-  ) >> ${fname}
+  ) >> "${fname}"
 
 else
   #-----------------------------------------------------------------------------
@@ -130,12 +130,12 @@ else
     echo "Transform: MatrixOffsetTransformBase_double_3_3"
     echo "Parameters: 1 0 0 0 1 0 0 0 1 0 0 0"
     echo "FixedParameters: 0 0 0"
-    ) >> $(dirname ${fname})/$(basename ${fname} .mat).txt
+    ) >> "${fname/.mat/.txt}"
 
     cmd=(
       ConvertTransformFile
       3
-      "$(dirname ${fname})/$(basename ${fname} .mat).txt"
+      "${fname/.mat/.txt}"
       "${fname}"
       --convertToAffineType
     )
@@ -147,7 +147,7 @@ else
       print_error_msg "$(basename ${0})" "ConvertTransformFile"
       exit 1
     fi  
-    rm -r $(dirname ${fname})/$(basename ${fname} .mat).txt 2>/dev/null
+    rm -r "${fname/.mat/.txt}" 2>/dev/null
 
   #-----------------------------------------------------------------------------
   # ITK | MatrixOffsetTransformBase_double_3_3
@@ -159,7 +159,7 @@ else
     echo "Transform: MatrixOffsetTransformBase_double_3_3"
     echo "Parameters: 1 0 0 0 1 0 0 0 1 0 0 0"
     echo "FixedParameters: 0 0 0"
-    ) >> ${fname}
+    ) >> "${fname}"
 
   #-----------------------------------------------------------------------------
   # FreeSurfer
@@ -171,12 +171,12 @@ else
       exit 1
     fi
 
-    if [[ -z ${image} ]]; then
+    if [[ -z "${image}" ]]; then
       in_plane=1
       between_slice=1
     else
-      in_plane=$(fslval ${image} pixdim2)
-      between_slice=$(fslval ${image} pixdim3)
+      in_plane=$(fslval "${image}" pixdim2)
+      between_slice=$(fslval "${image}" pixdim3)
     fi
     
     # from https://surfer.nmr.mgh.harvard.edu/fswiki/RegisterDat
@@ -196,7 +196,7 @@ else
     echo "0 0 1 0"
     echo "0 0 0 1"
     echo "round"
-    ) >> ${fname}
+    ) >> "${fname}"
 
   #-----------------------------------------------------------------------------
   # FreeSurfer

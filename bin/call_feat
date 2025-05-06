@@ -96,15 +96,15 @@ if [[ ! -f "${fsf_file}" ]]; then
   print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${fsf_file}${RESET} does not exist"
   exit 1
 else
-  fsf_file=$(readlink -f "${tmp}")
+  fsf_file="$(readlink -f "${tmp}")"
 fi
 
 #-----------------------------------------------------------------------------
 # delete previously existing file
 base_name="${fsf_file%.fsf}"
 fsf_script=${base_name}.sh
-if [[ -f ${fsf_script} ]]; then
-  rm -r ${fsf_script}
+if [[ -f "${fsf_script}" ]]; then
+  rm -r "${fsf_script}"
 fi
 
 #-----------------------------------------------------------------------------

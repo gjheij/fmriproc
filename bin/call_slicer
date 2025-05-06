@@ -75,7 +75,7 @@ if [[ ! -f "${tmp}" ]]; then
   print_error_msg "$(basename ${0})" "input" "Specified input file ${BOLD_GREEN}${tmp}${RESET} does not exist"
   exit 1
 else
-  INPUT=$(readlink -f "${tmp}")
+  INPUT="$(readlink -f "${tmp}")"
 fi
 
 #-----------------------------------------------------------------------------
@@ -95,16 +95,16 @@ else
 fi
 
 if [ ! -z "${BASENAME}" ]; then
-  fname=${BASENAME}
+  fname="${BASENAME}"
 else
-  fname=$(basename "${INPUT}" .nii.gz).png
+  fname="$(basename "${INPUT}" .nii.gz).png"
 fi
 
 sliceropts="${edgeopts} -x 0.4 ${outdir}/grota.png -x 0.5 ${outdir}/grotb.png -x 0.6 ${outdir}/grotc.png -y 0.4 ${outdir}/grotd.png -y 0.5 ${outdir}/grote.png -y 0.6 ${outdir}/grotf.png -z 0.4 ${outdir}/grotg.png -z 0.5 ${outdir}/groth.png -z 0.6 ${outdir}/groti.png"
 convertopts="${outdir}/grota.png + ${outdir}/grotb.png + ${outdir}/grotc.png + ${outdir}/grotd.png + ${outdir}/grote.png + ${outdir}/grotf.png + ${outdir}/grotg.png + ${outdir}/groth.png + ${outdir}/groti.png"
 
-A=$(${FSLDIR}/bin/remove_ext ${INPUT})
-${FSLDIR}/bin/slicer ${A} ${B} -s 1 ${sliceropts}
+A="$(${FSLDIR}/bin/remove_ext "${INPUT}")"
+${FSLDIR}/bin/slicer "${A}" "${B}" -s 1 ${sliceropts}
 
-${FSLDIR}/bin/pngappend ${convertopts} ${outdir}/${fname}
+${FSLDIR}/bin/pngappend "${convertopts}" "${outdir}/${fname}"
 rm -f ${outdir}/grot?.png

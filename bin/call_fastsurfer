@@ -81,7 +81,7 @@ if [[ ! -f "${t1}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${t1}${RESET} does not exist"
   exit 1
 else
-  t1=$(readlink -f "${t1}")
+  t1="$(readlink -f "${t1}")"
 fi
 
 shift 2 || true  # Shift away input & output arguments if present
