@@ -57,7 +57,8 @@ Positional:
                       If that's the case, make sure to use 'call_antsmakechicken <coord> 
                       <filename> RAS'!
                     - You can also specify a comma-separated coordinate in any space (use --ras/
-                      --lpi), in which case a temporary chicken file is produced. The coordinate must be in the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO 
+                      --lpi), in which case a temporary chicken file is produced. The coordinate 
+                      must be in the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO 
                       AVOID THAT THE ARGUMENT HANDLES THINKS THE COORDINATE IS A FLAG !!
   <output csv>    file containing the coordinate in the new space
   <warp files>    all warp files in order of application; if multiple warp files
