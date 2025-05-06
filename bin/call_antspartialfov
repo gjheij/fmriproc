@@ -79,7 +79,7 @@ do
           ;;
         double)
           dtype="double"
-          ;;                    
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -91,11 +91,11 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     i)  INIT=${OPTARG}
           ;;
     c)  CONTRAST=${OPTARG}
-          ;;     
+          ;;
     f)  dtype="float"
           ;;
     u)  dtype="short"

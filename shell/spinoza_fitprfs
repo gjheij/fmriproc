@@ -198,46 +198,46 @@ do
       case "${OPTARG}" in
         multi-design)
           multi_design=1
-          ;;           
+          ;;
         no-hrf)
           fit_hrf="--no-hrf"
-          ;;  
+          ;;
         separate-hrf)
           fit_hrf="--separate-hrf"
-          ;;             
+          ;;
         gauss)
           model="gauss"
-          ;;  
+          ;;
         dog)
           model="dog"
-          ;;   
+          ;;
         css)
           model="css"
-          ;;  
+          ;;
         norm)
           model="norm"
-          ;;       
+          ;;
         abc)
           model="abc"
-          ;;     
+          ;;
         abd)
           model="abd"
-          ;;                                                        
+          ;;                            
         zscore)
           zscore_flag="--zscore"
-          ;;  
+          ;;
         raw)
           raw_flag="--raw"
-          ;;   
+          ;;
         verbose)
           verb_flag="--verbose"
           ;;
         no-clip)
           clip=0
-          ;;    
+          ;; 
         local)
           run_local=1
-          ;;       
+          ;;
         grid)
           grid_flag="--grid"
           ;;
@@ -246,44 +246,44 @@ do
           ;;
         nelder)
           use_constr="--nelder"
-          ;;          
+          ;; 
         bgfs)
           use_constr="--bgfs"
-          ;;    
+          ;; 
         no-fit)
           fit_flag="--no-fit"
-          ;;      
+          ;; 
         save-grid)
           save_grid="--save-grid"
-          ;;            
+          ;; 
         v1)
           lbl_flag="--v1"
           ;;
         v2)
           lbl_flag="--v2"
-          ;;      
+          ;; 
         no-bounds)
           bounds_flag="--no-bounds"
-          ;;     
+          ;;
         merge-ses)
           merge_flag="--merge-ses"
           ses_id="avg"
-          ;;        
+          ;; 
         fsaverage)
           use_space="fsaverage"
           ;; 
         fsnative)
           use_space="fsnative"
-          ;;                 
+          ;;
         refit)
           refit_data=1
-          ;;  
+          ;;
         bold)
           redo_bold="--bold"
-          ;;        
+          ;; 
         skip-settings)
           skip_flag="--skip-settings"
-          ;;     
+          ;;
         transpose)
           trans_flag="--transpose"
           ;; 
@@ -292,13 +292,13 @@ do
           ;;
         sge)
           run_local=0
-          ;;  
+          ;;
         ow)
           OW=1
-          ;;                    
+          ;;
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -315,28 +315,28 @@ do
     m)  model=${OPTARG}
           ;;
     t)  task_ID=${OPTARG}
-          ;;                                       
+          ;;           
     o)  OW=1
         OW_flag="--overwrite"
           ;;
     c)  clipper=${OPTARG}
           ;; 
     p)  n_pix=${OPTARG}
-          ;;          
+          ;; 
     j)  n_cpus=${OPTARG}
-          ;;               
+          ;;
     x)  use_constr="--constr [${OPTARG[@]}]"
           ;;
     v)  cut_vols="--cut-vols ${OPTARG[@]}"
-          ;;        
+          ;; 
     k)  kwargs_file="--kwargs ${OPTARG}"
-          ;;       
+          ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;  
+          ;;
     r)  tr_flag="--tr ${OPTARG}"
-          ;;       
+          ;;
     f)  folds_flag="--folds ${OPTARG}"
-          ;;                                    
+          ;;        
   esac
 done
 

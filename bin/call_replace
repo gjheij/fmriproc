@@ -80,23 +80,23 @@ while getopts :-:hr arg; do
           ;; 
         verbose)
           verbose=1
-          ;;           
+          ;;
         help)
           Usage && exit 0
-          ;;           
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;    
+      esac;; 
     r)  recursive=1
         ;;
     d)  max_depth=${OPTARG}
-        ;;        
+        ;; 
     h)  Usage && exit 0
-        ;;        
+        ;; 
   esac
 done
 

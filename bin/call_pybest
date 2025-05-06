@@ -111,7 +111,7 @@ while getopts :-:hs:n:o:f:c:v:r:t:p:x: arg; do
       case "${OPTARG}" in
         no-raw)
           raw=0
-          ;;  
+          ;;
         fsaverage)
           in_space="fsaverage"
           ;; 
@@ -126,17 +126,17 @@ while getopts :-:hs:n:o:f:c:v:r:t:p:x: arg; do
           ;;
         pyb-only)
           pyb_only=1
-          ;;        
+          ;; 
         help)
           Usage && exit 0
-          ;;                        
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
           ;;
-      esac;;   
+      esac;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -150,13 +150,13 @@ while getopts :-:hs:n:o:f:c:v:r:t:p:x: arg; do
     c)  n_slots=${OPTARG}
           ;;
     t)  task_ids=${OPTARG}
-          ;;  
+          ;;
     p)  n_comps=${OPTARG}
-          ;;              
+          ;; 
     x)  kwargs=${OPTARG}
-          ;;       
+          ;;
     h)  Usage && exit 0
-          ;;                       
+          ;; 
   esac
 done
 

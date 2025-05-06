@@ -95,13 +95,13 @@ do
           ;;
         mul)
           INT="--mul"
-          ;;         
+          ;;
         gau)
           INT="--gau"
-          ;;               
+          ;;
         bspl*)
           INT="--bspl[$(basename ${OPTARG} | cut -c 5)]"
-          ;;       
+          ;;
         cws)
           INT="--cws"
           ;;
@@ -113,7 +113,7 @@ do
           ;;
         lws)
           INT="--lws"
-          ;;    
+          ;; 
         gen)
           INT="--gen"
           ;;
@@ -124,10 +124,10 @@ do
         no-fsaverage)
           do_fsaverage=0
           exec_spaces=("fsnative")
-          ;;   
+          ;;
         help)
           Usage && exit 0
-          ;;                                      
+          ;;          
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -138,7 +138,7 @@ do
     r)  reg_file=${OPTARG}
           ;;
     x)  proj_frac=${OPTARG}
-          ;;          
+          ;; 
     o)  out_dir=${OPTARG}
           ;;
     p)  prefix=${OPTARG}
@@ -146,11 +146,11 @@ do
     t)  trafos=${OPTARG}
           ;; 
     f)  fs_dir=${OPTARG}
-          ;;                  
+          ;;
     i)  invert="-i ${OPTARG}"
-          ;;     
+          ;;
     h)  Usage && exit 0
-          ;;                    
+          ;;
   esac
 done
 

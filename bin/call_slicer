@@ -54,15 +54,15 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;    
+          ;; 
     o)  OVERLAY=${OPTARG}
             ;;
     d)  OUTDIR=${OPTARG}
             ;;
     b)  BASENAME=${OPTARG}
-            ;;            
+            ;; 
   esac
 done
 

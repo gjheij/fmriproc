@@ -71,40 +71,40 @@ do
       case "${OPTARG}" in     
         no-tapas)
           RUN_MATLAB=0
-          ;;   
+          ;;
         no-bids)
           RUN_PHYS=0
-          ;;  
+          ;;
         use_bids)
           USE_BIDS=True
-          ;;     
+          ;;
         no-plots)
           MAKE_PLOTS=""
           ;;
         help)
           Usage && exit 0
-          ;;          
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;     
+      ;;
     s)  SPM=${OPTARG}
             ;;
     d)  DUMMY_VOLS=${OPTARG}
-            ;;      
+            ;; 
     n)  N_SLICES=${OPTARG}
-            ;;                   
+            ;; 
     f)  FUNC=${OPTARG}
-            ;;            
+            ;; 
     t)  TR=${OPTARG}
             ;;
     v)  VOLS=${OPTARG}
             ;;
     h)  Usage && exit 0
-          ;;                           
+          ;; 
   esac
 done
 

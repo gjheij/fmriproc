@@ -49,7 +49,7 @@ while getopts ":dv:p:" arg; do
   case $arg in
     d) VIEWPORT=1 ;;
     v) point=$OPTARG ;;
-    p) prefix=$OPTARG ;;    
+    p) prefix=$OPTARG ;; 
     *) Usage ;;
   esac
 done

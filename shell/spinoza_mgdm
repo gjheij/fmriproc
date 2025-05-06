@@ -120,16 +120,16 @@ do
       case "${OPTARG}" in
         gdh)
           type="gdh"
-          ;;                  
+          ;;
         ow)
           OW=1
           ;;
         sge)
           run_local=0
-          ;;                                     
+          ;;         
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -146,15 +146,15 @@ do
     t)  type=${OPTARG}
           ;;
     o)  OW=1
-          ;;     
+          ;;
     j)  n_cpus=${OPTARG}
           ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;   
+          ;;
     x)  kwargs_flag="--kwargs ${OPTARG}"
-          ;;    
+          ;; 
     p)  priors_flag="--priors ${OPTARG}"
-          ;;                       
+          ;; 
   esac
 done
 

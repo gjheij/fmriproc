@@ -131,16 +131,16 @@ do
           ;;
         fs)
           use_fs=1
-          ;;          
+          ;; 
         fprep)
           use_fprep=1
-          ;;           
+          ;;
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -161,7 +161,7 @@ do
     u)  upper=${OPTARG}
           ;;
     c)  custom_file="${OPTARG}"
-          ;;          
+          ;; 
   esac
 done
 

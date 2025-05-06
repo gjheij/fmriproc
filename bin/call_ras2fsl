@@ -51,20 +51,20 @@ do
           ;; 
         fsl)
           to_fsl=1
-          ;;                             
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
     t)  interp=${OPTARG}
           ;;
     f)  to_fsl=1
-          ;;      
+          ;; 
     h)  Usage && exit 0
-          ;;                
+          ;; 
   esac
 done
 

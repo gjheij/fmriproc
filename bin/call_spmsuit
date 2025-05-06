@@ -62,20 +62,20 @@ do
           ;;
         keep)
           CLEAN_UP=0
-          ;;    
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;          
+      ;; 
     s)  SPM=${OPTARG}
           ;;
     k)  CLEAN_UP=0
             ;;
     h)  Usage
-          ;;              
+          ;; 
   esac
 done
 

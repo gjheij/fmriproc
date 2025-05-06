@@ -175,16 +175,16 @@ do
       case "${OPTARG}" in
         no-freeview)
           fv_flag="--no-freeview"
-          ;;     
+          ;;
         grid)
           stage="grid"
           ;;
         aparc)
           aparc_flag="--aparc"
-          ;;          
+          ;; 
         npy)
           prf_ext="npy"
-          ;;       
+          ;;
         v1)
           search_pars="roi-V1_"
           txt=" and \"${search_pars}\""
@@ -192,16 +192,16 @@ do
         v2)
           search_pars="roi-V2_"
           txt=" and \"${search_pars}\""          
-          ;;       
+          ;;
         gauss)
           model="gauss"
-          ;;  
+          ;;
         dog)
           model="dog"
-          ;;   
+          ;;
         css)
           model="css"
-          ;;  
+          ;;
         norm)
           model="norm"
           ;; 
@@ -210,25 +210,25 @@ do
           ;; 
         full)
           FULL_OW=1
-          ;;                           
+          ;; 
         no-srf)
           SRF=0
-          ;;  
+          ;;
         srf-file)
           srf_file=1
           ;; 
         gallery)
           gallery_flag="--gallery"
-          ;;      
+          ;; 
         manual)
           selection="--manual"
-          ;;     
+          ;;
         ctx)
           open_with="--ctx"
-          ;;     
+          ;;
         no-epi)
           epi=0
-          ;;     
+          ;;
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
           ;;
@@ -247,19 +247,19 @@ do
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
-          ;;          
+          ;; 
     l)  ls_ses=${OPTARG}
-          ;;            
+          ;; 
     v)  vert=${OPTARG}
-          ;;         
+          ;;
     o)  OW=1
           ;;
     m)  model=${OPTARG}
-          ;;           
+          ;;
     t)  task=${OPTARG}
-          ;;          
+          ;; 
     e)  epi_file=${OPTARG}
-          ;;                 
+          ;;
   esac
 done
 

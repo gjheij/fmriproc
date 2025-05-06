@@ -164,41 +164,41 @@ do
       case "${OPTARG}" in     
         freeview)
           FREEVIEW=1
-          ;;            
+          ;; 
         force-exec)
           FORCE_EXEC=1
-          ;;          
+          ;; 
         sge)
           run_local=0
-          ;;        
+          ;; 
         local)
           run_local=1
-          ;;   
+          ;;
         no-highres)
           highres_flag=""
           ;; 
         no-t2)
           reuse_t2=0
-          ;;            
+          ;; 
         xopts-use)
           XOPTS_="-xopts-use"
-          ;;             
+          ;;
         xopts-clean)
           XOPTS_="-xopts-clean"
-          ;;               
+          ;;
         xopts-overwrite)
           XOPTS_="-xopts-overwrite"
-          ;;              
+          ;; 
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
+      ;; 
     s)  subj_ID=${OPTARG}
           ;;
     t)  T1=${OPTARG}
@@ -212,15 +212,15 @@ do
     o)  option=${OPTARG}
           ;;
     x)  EXPERT_FILE=${OPTARG}
-          ;;    
+          ;; 
     q)  SGE_QUEUE=${OPTARG}
-          ;;  
+          ;;
     j)  n_cpus=${OPTARG}
           ;;
     k)  kwargs=${OPTARG}
-          ;;          
+          ;; 
     h)  Usage && exit 0
-          ;;                             
+          ;; 
   esac
 done
 

@@ -57,25 +57,25 @@ do
           ;;
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
+      ;; 
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
-          ;;    
+          ;; 
     b)  n_bins=${OPTARG}
-          ;;                
+          ;; 
     v)  VERBOSE="--verbose 1"
         VERB=1
-          ;;    
+          ;; 
     h)  Usage && exit 0
-          ;;                  
+          ;;
   esac
 done
 

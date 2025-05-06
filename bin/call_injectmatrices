@@ -46,16 +46,16 @@ do
       case "${OPTARG}" in
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;            
+          ;; 
     l)  L1_tag=${OPTARG}
           ;;
     f)  ft_dir=${OPTARG}

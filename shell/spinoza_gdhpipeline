@@ -114,11 +114,11 @@ do
       i)  inject=${OPTARG}
             ;;
       q)  fprep_wf=${OPTARG}
-            ;;       
+            ;;
       z)  run_postmgdm=${OPTARG}
             ;;
       y)  run_mgdm=${OPTARG}
-            ;;                               
+            ;;   
     esac
 done
 

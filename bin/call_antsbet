@@ -90,7 +90,7 @@ do
     c) convergence=${OPTARG}
           ;;
     s) shrink=${OPTARG}
-          ;;          
+          ;; 
     f) smoothing=${OPTARG}
           ;;
     d) dim=${OPTARG}

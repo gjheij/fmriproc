@@ -117,10 +117,10 @@ do
           ;;
         ow)
           OW=1
-          ;;          
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -129,15 +129,15 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
-          ;;    
+          ;; 
     t)  thresh=${OPTARG}
-          ;;                    
+          ;;
   esac
 done
 

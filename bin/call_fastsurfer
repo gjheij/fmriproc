@@ -65,9 +65,9 @@ do
     s)  sub=${OPTARG}
           ;;
     d)  dir=${OPTARG}
-          ;;          
+          ;; 
     j)  n_cpus=${OPTARG}
-          ;;                    
+          ;;
   esac
 done
 shift $((OPTIND-1))

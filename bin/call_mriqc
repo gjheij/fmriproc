@@ -64,23 +64,23 @@ do
       case "${OPTARG}" in     
         anat-only)
           mod_flag="--modalities T1w T2w"
-          ;;   
+          ;;
         func-only)
           mod_flag="--modalities bold"
-          ;;     
+          ;;
         fd)
           fd_only=1
-          ;;    
+          ;; 
         help)
           Usage && exit 0
-          ;;                                    
+          ;;        
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
+      ;; 
     s)  subj_ID=${OPTARG}
           ;;
     n)  ses_ID=${OPTARG}
@@ -94,11 +94,11 @@ do
     b)  BIND=${OPTARG}
           ;;
     w)  WORK=${OPTARG}
-          ;;  
+          ;;
     j)  n_cpus=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;                      
+          ;;
   esac
 done
 

@@ -88,13 +88,13 @@ do
       case "${OPTARG}" in
         no-manual)
           man_flag="--no-manual"
-          ;;         
+          ;;
         ow)
           OW=1
-          ;;                                                                                                  
+          ;;  
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -113,7 +113,7 @@ do
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
-          ;;          
+          ;; 
   esac
 done
 

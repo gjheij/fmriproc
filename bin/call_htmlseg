@@ -47,7 +47,7 @@ do
     d)  OUTDIR=${OPTARG}
             ;;
     b)  BASENAME=${OPTARG}
-            ;;            
+            ;; 
   esac
 done
 

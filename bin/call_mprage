@@ -90,16 +90,16 @@ do
       case "${OPTARG}" in     
         spm)
           RUN_WITH_ANTS=0
-          ;;          
+          ;; 
         no-sanlm)
           RUN_SANLM=0
           ;;
         no-reg)
           REG_T1=0
-          ;;       
+          ;;
         no-winsor)
           WINSORIZE_INTENSITIES=0
-          ;;                 
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -113,13 +113,13 @@ do
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
-          ;;          
+          ;; 
     s)  SPM=${OPTARG}
           ;;
     x)  kwargs=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;            
+          ;; 
   esac
 done
 

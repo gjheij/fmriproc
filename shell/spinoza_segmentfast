@@ -103,10 +103,10 @@ do
       case "${OPTARG}" in       
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -121,7 +121,7 @@ do
     o)  OW=1
           ;;
     x)  kwargs=${OPTARG}
-          ;;            
+          ;; 
   esac
 done
 

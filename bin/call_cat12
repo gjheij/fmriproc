@@ -79,7 +79,7 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
           ;;
     l)  LOG="${OPTARG}"
@@ -89,7 +89,7 @@ do
     m)  MODE=${OPTARG}
           ;;
     c)  custom_file="${OPTARG}"
-          ;;  
+          ;;
   esac
 done
 

@@ -83,39 +83,39 @@ do
       case "${OPTARG}" in     
         fsl)
           FSL=1
-          ;;   
+          ;;
         t1)
           contrast="--t1"
-          ;;   
+          ;;
         t2)
           contrast="--t2"
-          ;;   
+          ;;
         bold)
           contrast="--bold"
-          ;;   
+          ;;
         dti)
           contrast="--dti"
-          ;;                                                             
+          ;;                                 
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;     
+      ;;
     i)  init=${OPTARG}
           ;;
     c)  contrast="--${OPTARG}"
           ;;
     f)  FSL=1
-          ;;            
+          ;; 
     x)  kwargs=${OPTARG}
-          ;;              
+          ;; 
     h)  Usage && exit 0
-          ;;              
+          ;; 
   esac
 done
 

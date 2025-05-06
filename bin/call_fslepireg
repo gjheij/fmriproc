@@ -87,9 +87,9 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     q)  Usage && exit 0
-          ;;  
+          ;;
     s)  subject=${OPTARG}
         ;;
     t)  matrix_file=${OPTARG}
@@ -101,7 +101,7 @@ do
     i)  initial=${OPTARG}
         ;;					
     b)  t1brain=${OPTARG}
-        ;;                                                    
+        ;;                        
   esac
 done
 

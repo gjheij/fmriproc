@@ -56,31 +56,31 @@ do
           ;;
         help)
           Usage && exit 0
-          ;;            
+          ;; 
         freeview)
           open_fv=1
-          ;;           
+          ;;
         verbose)
           VERBOSE="--verbose"
           VERB=1
-          ;;                  
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
-          ;;  
+          ;;
       esac;;
     o)  out_dir=${OPTARG}
           ;;
     p)  prefix=${OPTARG}
           ;;
     s)  suffix=${OPTARG}
-          ;;               
+          ;;
     i)  interp=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;              
+          ;; 
   esac
 done
 

@@ -123,34 +123,34 @@ do
           ;;
         ow)
           OW=1
-          ;;      
+          ;; 
         full)
           FULL_OW=1
-          ;;                 
+          ;;
         sge)
           run_local=1
-          ;;     
+          ;;
         force-exec)
           force_exec=1
-          ;;                
+          ;; 
         fsaverage)
           PYBEST_SPACE="fsaverage"
           ;; 
         fsnative)
           PYBEST_SPACE="fsnative"
-          ;;  
+          ;;
         func)
           PYBEST_SPACE="func"
           ;;
         anat)
           PYBEST_SPACE="T1w"
-          ;;      
+          ;; 
         mni-fsl)
           PYBEST_SPACE="MNI152NLin6Asym_res-1"
-          ;;      
+          ;; 
         mni-2009)
           PYBEST_SPACE="MNI152NLin2009cAsym_res-1"
-          ;;                            
+          ;;
         post-only)
           post_flag="--post-only"
           ;;
@@ -159,10 +159,10 @@ do
           ;;
         pyb-only)
           pyb_flag="--pyb-only"
-          ;;                                   
+          ;;       
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -171,23 +171,23 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
     o)  OW=1
-          ;;         
+          ;;
     j)  n_cpus=${OPTARG}
           ;;
     t)  task_flag="-t ${OPTARG}"
           ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;       
+          ;;
     c)  PYBEST_N_COMPS=${OPTARG}
-          ;;          
+          ;; 
     x)  kwargs_flags="-x ${OPTARG}"
-          ;;                  
+          ;;
   esac
 done
 

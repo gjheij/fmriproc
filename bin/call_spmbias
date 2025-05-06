@@ -59,14 +59,14 @@ do
           ;;
         keep)
           RM=0
-          ;;        
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
     l)  LOG=${OPTARG}
             ;;
     s)  SPM=${OPTARG}
@@ -74,7 +74,7 @@ do
     h)  Usage && exit 0
           ;;
     k)  RM=0
-          ;;                      
+          ;;
   esac
 done
 

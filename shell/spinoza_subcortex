@@ -103,7 +103,7 @@ do
           ;;
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -112,19 +112,19 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
     q)  SGE_QUEUE=${OPTARG}
-          ;;    
+          ;; 
     j)  n_cpus=${OPTARG}
-          ;;    
+          ;; 
     x)  kws_ants="--kwargs ${OPTARG}"
-          ;;     
+          ;;
     p)  kws_massp="--mkwargs ${OPTARG}"
-          ;;                                          
+          ;;              
   esac
 done
 

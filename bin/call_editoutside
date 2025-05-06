@@ -68,15 +68,15 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
     a)  anat_depth=${OPTARG}
-          ;;          
+          ;; 
   esac
 done
 

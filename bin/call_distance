@@ -56,7 +56,7 @@ while getopts :-:hs:e:l: arg; do
       case "${OPTARG}" in
         lh)
           hemi="lh"
-          ;;      
+          ;; 
         rh)
           hemi="rh"
           ;;
@@ -68,21 +68,21 @@ while getopts :-:hs:e:l: arg; do
           ;;
         fiducial)
           fiducial=1
-          ;;          
+          ;; 
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     s)  start_v=${OPTARG}
         ;;
     l)  label=${OPTARG}
-        ;;      
+        ;; 
     e)  end_v=${OPTARG}
         ;;
     h)  Usage && exit 0

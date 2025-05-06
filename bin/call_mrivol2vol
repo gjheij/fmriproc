@@ -56,11 +56,11 @@ while getopts :-:ht: argument; do
           exit 1
           ;;
       esac
-      ;;    
+      ;; 
     t)  tname=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;             
+          ;;
   esac
 done
 

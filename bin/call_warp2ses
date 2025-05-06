@@ -56,14 +56,14 @@ while getopts :-:hs:f:t:d:w:i:o:r:a:q: arg; do
       case "${OPTARG}" in             
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
     s)  sub=${OPTARG}
           ;;
     f)  from_ses=${OPTARG}
@@ -85,7 +85,7 @@ while getopts :-:hs:f:t:d:w:i:o:r:a:q: arg; do
     q)  search=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;                     
+          ;; 
   esac
 done
 

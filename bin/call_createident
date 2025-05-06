@@ -78,11 +78,11 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
-          ;;   
+          ;;
     f)  FSL=1
-          ;;         
+          ;;
   esac
 done
 

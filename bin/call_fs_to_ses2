@@ -66,11 +66,11 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;      
+          ;; 
     n)  SESSION=${OPTARG}
-          ;;      
+          ;; 
   esac
 done
 

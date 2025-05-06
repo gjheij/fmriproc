@@ -74,9 +74,9 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;    
+          ;; 
     s)  SOFTWARE=${OPTARG}
           ;; 
   esac

@@ -110,13 +110,13 @@ do
       case "${OPTARG}" in     
         ow)
           OW=1
-          ;;  
+          ;;
         full)
           FULL_OW=1
-          ;;    
+          ;; 
         ups)
           UPs="--ups"
-          ;;     
+          ;;
         skip-bg)
           SKIP_BG="--skip-bg"
           ;;
@@ -125,7 +125,7 @@ do
           ;;
         sge)
           run_local=0
-          ;;  
+          ;;
         spm)
           spm_flag="--spm"
           ;; 
@@ -134,10 +134,10 @@ do
           ;;
         no-winsor)
           intensity_flag="--no-winsor"
-          ;;                                      
+          ;;          
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -146,19 +146,19 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;    
+          ;; 
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
-          ;;   
+          ;;
     l)  lower="--lower ${OPTARG}"
           ;;
     u)  upper="--upper ${OPTARG}"
           ;;
     o)  OW=1
-          ;;         
+          ;;
     f)  FULL_OW=1
-          ;;        
+          ;; 
     p)  PARS_FLAG="--pars ${OPTARG}"
           ;;
     j)  n_cpus=${OPTARG}

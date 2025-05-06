@@ -64,7 +64,7 @@ do
       case "${OPTARG}" in                  
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -73,17 +73,17 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;      
+          ;; 
     l)  lower=${OPTARG}
           ;;
     u)  upper=${OPTARG}
           ;; 
     b)  n_bins=${OPTARG}
-          ;;                    
+          ;;
     m)  max_value=${OPTARG}
-          ;;    
+          ;; 
     d)  dtype=${OPTARG}
-          ;;                
+          ;; 
   esac
 done
 

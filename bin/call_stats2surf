@@ -76,14 +76,14 @@ do
       case "${OPTARG}" in
         help)
           Usage && exit 0
-          ;;              
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
+      ;;
     s)  subj_ID=${OPTARG}
           ;;
     f)  fsdir=${OPTARG}
@@ -91,7 +91,7 @@ do
     o)  outdir=${OPTARG}
           ;;
     i)  input=${OPTARG}
-          ;;            
+          ;; 
     w)  warp=${OPTARG}
           ;;
     a)  search=${OPTARG}
@@ -103,7 +103,7 @@ do
     r)  reference=${OPTARG}
           ;;
     h)  Usage && exit 0
-          ;;            
+          ;; 
   esac
 done
 

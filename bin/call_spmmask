@@ -59,7 +59,7 @@ do
       case "${OPTARG}" in     
         keep)
           CLEAN_UP=0
-          ;;        
+          ;; 
         help)
           Usage && exit 0
           ;;
@@ -75,9 +75,9 @@ do
     s)  SPM=${OPTARG}
             ;;
     k)  CLEAN_UP=0
-            ;;          
+            ;; 
     h)  Usage && exit 0
-          ;;            
+          ;; 
   esac
 done
 

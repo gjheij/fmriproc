@@ -95,13 +95,13 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
 	  s)  subj_ID=${OPTARG}
 			    ;;
 	  r)  run_ID=${OPTARG}
 			    ;;
 	  n)  ses_ID=${OPTARG}
-			    ;;       
+			    ;;
 	  f)  featdir=${OPTARG}
 			    ;;
 	  g)  gfeatdir=${OPTARG}

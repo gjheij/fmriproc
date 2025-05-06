@@ -101,10 +101,10 @@ do
           ;;
         ow)
           OW=1
-          ;;         
+          ;;
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -113,19 +113,19 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
           ;;
     f)  fprep=${OPTARG}
-          ;;        
+          ;; 
     o)  OW=1
-          ;;         
+          ;;
     c)  COMB_ONLY=1
-          ;;  
+          ;;
     x)  kwargs_flag="--kwargs ${OPTARG}"
-          ;;                     
+          ;; 
   esac
 done
 

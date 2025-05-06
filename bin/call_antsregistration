@@ -217,10 +217,10 @@ do
           ;;
         pse)
           metric="PSE"
-          ;;      
+          ;; 
         jhct)
           metric="JHCT"
-          ;;   
+          ;;
         idgm)
           metric="IDGM"
           ;;
@@ -232,13 +232,13 @@ do
           ;;
         mul)
           INT="MultiLabel"
-          ;;         
+          ;;
         gau)
           INT="Gaussian"
-          ;;               
+          ;;
         bspl*)
           INT="BSpline[$(basename ${OPTARG} | cut -c 5)]"
-          ;;       
+          ;;
         cws)
           INT="CosineWindowedSinc"
           ;;
@@ -253,16 +253,16 @@ do
           ;;
         gen)
           INT="GenericLabel"
-          ;;          
+          ;; 
         rigid)
           TYPE="rigid"
-          ;;  
+          ;;
         affine)
           TYPE="affine"
-          ;;  
+          ;;
         syn)
           TYPE="syn"
-          ;;        
+          ;; 
         histo)
           use_hist=1
           ;;
@@ -272,27 +272,27 @@ do
           ;;
         no-collapse)
           collapse_output=0
-          ;;        
+          ;; 
         no-winsor)
           winsorize=0
           ;;
         fsl)
           fsl_fmt=1
-          ;;   
+          ;;
         itk)
           open_itk=1
-          ;;           
+          ;;
         as)
           as=1
           ras=0
-          ;;    
+          ;; 
         ras)
           ras=1
           as=0
-          ;;                           
+          ;; 
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -305,22 +305,22 @@ do
     x)  mask=${OPTARG}
           ;;
     n)  n_levels=${OPTARG}
-          ;;          
+          ;; 
     i)  initial=${OPTARG}
           ;;
     s)  smooth=${OPTARG}
         n_levels=$(count_elements "${smooth}")
-          ;;   
+          ;;
     c)  converg=${OPTARG}
         n_levels=$(count_elements "${converg}")
-          ;;   
+          ;;
     r)  shrink=${OPTARG}
         n_levels=$(count_elements "${shrink}")
-          ;;            
+          ;; 
     g)  gradient_step=${OPTARG}
-          ;;     
+          ;;
     j)  n_cpu=${OPTARG}
-          ;;                                              
+          ;;                  
     v)  VERBOSE="--verbose 1"
         VERB=1
           ;;

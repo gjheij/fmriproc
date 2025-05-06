@@ -1655,32 +1655,32 @@ do
         take-avg-tr)
           tr_prot_flag="--take-avg-tr"
           tr_prot="average"
-          ;;      
+          ;; 
         ap)
           pe_dir="AP"
-          ;;          
+          ;; 
         pa)
           pe_dir="PA"
-          ;;         
+          ;;
         lr)
           pe_dir="LR"
-          ;;         
+          ;;
         rl)
           pe_dir="RL"
           ;;
         no-lpi)
           reorient=0
-          ;;    
+          ;; 
         ow)
           OW=1
-          ;;            
+          ;; 
         phys)
           phys_only=1
           ses_type="lines"
           ;;
         skip-tr)
           skip_tr=1
-          ;;           
+          ;;
         skip-fmap)
           trim_fmap=0
           ;;
@@ -1696,43 +1696,43 @@ do
         no-compress)
           compress="-c n"
           compress_flag="--no-compress"
-          ;;     
+          ;;
         help)
           Usage && exit 0
-          ;;                         
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     i)  input_dir=${OPTARG}
           ;;
     o)  tmp_dir=${OPTARG}
           ;;
     d)  searchDepth=${OPTARG}
-          ;;            
+          ;; 
     b)  bids_dir=${OPTARG}
           ;;
     n)  base=${OPTARG}
-          ;;    
+          ;; 
     r)  runs=${OPTARG}
           ;; 
     t)  set_tr=${OPTARG}
-          ;;     
+          ;;
     v)  cut_vols=${OPTARG}
           ;; 
     p)  pattern_flag="-p ${OPTARG}"
           ;;
     a)  include_anatomicals="${OPTARG}"
-          ;;  
+          ;;
     c)  compress="-c ${OPTARG}"
-          ;;     
+          ;;
     x)  kwargs="-x ${OPTARG}"
-          ;;                        
+          ;;
     h)  Usage && exit 0
-          ;;                                                           
+          ;;                               
   esac
 done
 

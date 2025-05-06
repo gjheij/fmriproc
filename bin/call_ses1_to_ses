@@ -78,16 +78,16 @@ do
           if [[ ! -d ${DIR_LOGS} ]]; then
             mkdir -p ${DIR_LOGS} 2>/dev/null
           fi
-          ;;          
+          ;; 
         verbose)
           verbose="--verbose"
-          ;;        
+          ;; 
         clear)
           clear=1
-          ;;       
+          ;;
         debug)
           debug=1
-          ;;                         
+          ;; 
         help)
           Usage && exit 0
           ;;
@@ -97,21 +97,21 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;       
+          ;;
     s)  sub_id=${OPTARG}
-          ;;  
+          ;;
     n)  ses_id=${OPTARG}
-          ;;                          
+          ;;
     i)  invert=1
-          ;;   
+          ;;
     q)  SGE_QUEUE=${OPTARG}
           ;;
     j)  n_cpus=${OPTARG}
-          ;;       
+          ;;
     d)  search_depth=${OPTARG}
-          ;;               
+          ;;
   esac
 done
 
