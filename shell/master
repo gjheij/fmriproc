@@ -160,7 +160,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         avg)
           weight_flag="--avg"
-          ;;            
+          ;; 
         affine)
           REG_TYPE="--affine"
           ;;
@@ -169,7 +169,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         anat-only)
           mod_flag="--anat-only"
-          ;;        
+          ;; 
         ap)
           pe_dir_flag="--ap"
           ;;
@@ -193,10 +193,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         cnr)
           weight_flag="--cnr"
-          ;;    
+          ;; 
         cpl)
           weight_flag="--cpl"
-          ;;                 
+          ;;
         ctx)
           OPEN_WITH_FLAG="--ctx"
           ;;
@@ -212,7 +212,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         denoise)
           SANLM_METHOD="--denoise"
-          ;;          
+          ;; 
         dog)
           MODEL_FLAG="--dog"
           ;;
@@ -231,15 +231,12 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         fetch-func)
           fetch_func_flag="--fetch-func"
           ;;
-        fit)
-          weight_flag="--fit"
-          ;;          
         fix-hrf)
           FIX_FLAG="--fix-hrf"
           ;;
         fmriprep)
           fprep_input=1
-          ;;        
+          ;; 
         force-exec)
           FORCE_FLAG="--force-exec"
           ;;
@@ -255,14 +252,14 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         fast)
           FAST_LBLS=${DIR_DATA_DERIV}/fast
-          ;;          
+          ;; 
         fs)
           FS_FLAG="--fs"
           ;;
         fsl)
           DRAW_SAG="--fsl"
           FSL_FLAG="--fsl"
-          ;;                
+          ;; 
         fsaverage)
           space_flag="--fsaverage"
           ;;
@@ -293,7 +290,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         is)
           pe_dir_flag="--is"
-          ;;          
+          ;; 
         ident)
           IDENT_FLAG="--identity"
           ;;
@@ -317,7 +314,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         lr)
           pe_dir_flag="--lr"
-          ;;          
+          ;; 
         mag)
           mag_flag="--mag"
           ;;
@@ -344,13 +341,13 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         n4)
           BIAS_FLAG="--n4"
-          ;;          
+          ;; 
         nelder)
           use_constr="--nelder"
           ;;
         nighres)
           LAYER_FLAG="nighres"
-          ;;          
+          ;; 
         no-bbr)
           use_bbr="--no-bbr"
           ;;
@@ -365,7 +362,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-compress)
           COMPRESS_FLAG="--no-compress"
-          ;;              
+          ;; 
         no-epi)
           MAN_EPI="--no-epi"
           ;;
@@ -389,7 +386,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-mask)
           USE_MASK="--no-mask"
-          ;;          
+          ;; 
         no-nordic)
           NORDIC="--no-nordic"
           ;;
@@ -398,10 +395,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-reg)
           REG_T1="--no-reg"
-          ;;          
+          ;; 
         no-sanlm)
           SANLM_FLAG="--no-sanlm"
-          ;;          
+          ;; 
         no-srf)
           SRF_FLAG="--no-srf"
           ;;
@@ -413,10 +410,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-winsor)
           INTENSITY_FLAG="--no-winsor"
-          ;;          
+          ;; 
         norm)
           MODEL_FLAG="--norm"
-          ;;    
+          ;; 
         ow)
           OW="-o"
           ;;
@@ -443,43 +440,43 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         refit)
           REFIT_FLAG="--refit"
-          ;;          
+          ;; 
         remove-surf-wf)
           REMOVE_WF="--remove-surf-wf"
-          ;;  
+          ;;
         remove-wf)
           REMOVE_WF="--remove-wf"
-          ;;                    
+          ;;
         rh)
           HEMI_FLAG="--rh"
-          ;;          
+          ;; 
         rigid)
           REG_TYPE="--rigid"
-          ;;          
+          ;; 
         rl)
           pe_dir_flag="--rl"
           ;;
         si)
           pe_dir_flag="--si"
-          ;;                    
+          ;;
         save-grid)
           save_grid="--save-grid"
-          ;;          
+          ;; 
         sge)
           SGE="--sge"
           ;;
         separate-hrf)
           FIT_HRF="--separate-hrf"
-          ;;    
+          ;; 
         skip-bg)
           BG_FLAG="--skip-bg"
           ;;
         skip-combine)
           SKIP_COMB="--skip-combine"
-          ;;          
+          ;; 
         skip-fmap)
           TRIM_FMAP="--skip-fmap"
-          ;;          
+          ;; 
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
           ;;
@@ -497,10 +494,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         surface)
           LAYER_FLAG="surface"
-          ;;  
+          ;;
         syn)
           REG_TYPE="--syn"
-          ;;                  
+          ;;
         tc)
           use_constr="--tc"
           ;;
@@ -515,7 +512,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         t2s)
           weight_flag="--t2s"
-          ;;          
+          ;; 
         ups)
           UPs="--ups"
           ;;

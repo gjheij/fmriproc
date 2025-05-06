@@ -245,8 +245,11 @@ Options:
 --comb-only       skip nighres, only combine segmentations.
 
 --cnr             Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's 
-                  timecourse is weighted by its tSNR (mean/SD over time), i.e. w_i = tSNR_i/∑_j 
-                  tSNR_j, before summing across echoes.
+                  timecourse is weighted by its tSNR (mean/SD over time), i.e.:
+                  
+                    w_i = tSNR_i/∑_j tSNR_j,
+                    
+                  before summing across echoes.
 
 --cpl             Combine multi-echo data into a complex signal by fitting B0-induced phase shifts 
                   across echoes (ΔB0), computing voxelwise phase at the first TE, extracting 
@@ -279,10 +282,6 @@ Options:
 --fetch-fsl       retrieve the MNI-transformed nifti-files.
 
 --fetch-func      retrieve the nifti-files in func-space.
-
---fit             Estimate voxelwise T2* (in ms) via linear least-squares from multi-echo 
-                  data—returning the T2* map directly rather than computing and summing 
-                  T2*-weighted echo combinations as in the 'T2star' method.
 
 --fix-hrf         fit the HRF in iterative fitting.
 

@@ -18,8 +18,8 @@ can only run it on the spinoza cluster. It calls upon call_linerecon, which inte
 template for the reconstruction with MRecon based on scripts provided by Luisa Raimondo. By de-
 fault, we take the SoS method to combine multi-echo data. This boosts tSNR, but weighs the data 
 towards superficial surface because these signals disproportionally contribute to the signals due 
-to longer T2*. Because of this longer T2*, they contribute more at longer TEs. Other methods 
-include CNR, T2*, T2*-fit, averaging, or complex combination (see flags below).
+to longer T2*. Because of this longer T2*, they contribute more at longer TEs. Other methods in-
+clude CNR, T2*, T2*-fit, averaging, or complex combination (see flags below).
 
 Usage:
   spinoza_linerecon [arguments] [options] <project root directory> <sourcedata>
@@ -46,15 +46,15 @@ Options:
   --no-nordic     turn off NORDIC denoising during reconstruction
   --sge           submit job to cluster (SoGE/SLURM)
   --cnr           Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's 
-                  timecourse is weighted by its tSNR (mean/SD over time), i.e. w_i = tSNR_i/∑_j 
-                  tSNR_j, before summing across echoes.
+                  timecourse is weighted by its tSNR (mean/SD over time), i.e.:
+                  
+                    w_i = tSNR_i/∑_j tSNR_j,
+                    
+                  before summing across echoes.
   --t2s           Combine multi-echo data using Poser et al. (2006) T2*-weighting: fit T2* per 
                   voxel, compute weights wᵢ = TEᵢ·exp(-TEᵢ/T2*), normalize across echoes, and sum 
                   weighted magnitudes.
   --avg           Simply take the mean over echoes
-  --fit           Estimate voxelwise T2* (in ms) via linear least-squares from multi-echo 
-                  data—returning the T2* map directly rather than computing and summing 
-                  T2*-weighted echo combinations as in the 'T2star' method.
   --cpl           Combine multi-echo data into a complex signal by fitting B0-induced phase shifts 
                   across echoes (ΔB0), computing voxelwise phase at the first TE, extracting 
                   magnitude via sum-of-squares, and reconstructing S = mag·exp(i·phase). Unlike 
@@ -117,17 +117,17 @@ do
       case "${OPTARG}" in
         debug)
           DEBUG="--debug"
-          ;;   
+          ;;
         no-nordic)
           NORDIC="--no-nordic"
-          ;;         
+          ;;
         sge)
           run_local=0
           verbose=0
-          ;;               
+          ;;
         ow)
           OW=1
-          ;;                                                                    
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -136,13 +136,10 @@ do
           ;; 
         t2s)
           weight_flag="--t2s"
-          ;;       
-        fit)
-          weight_flag="--fit"
           ;;
         avg)
           weight_flag="--avg"
-          ;;       
+          ;;
         cpl)
           weight_flag="--cpl"
           ;;
@@ -154,7 +151,7 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;   
+          ;;
     s)  sub=${OPTARG}
           ;;
     n)  ses=${OPTARG}
@@ -164,13 +161,13 @@ do
     o)  OW=1
           ;;
     c)  comps_flag="-c ${OPTARG}"
-          ;;   
+          ;;
     q)  SGE_QUEUE=${OPTARG}
           ;;
     r)  runs=${OPTARG}
           ;;
     t)  tasks=${OPTARG}
-          ;;          
+          ;; 
     f)  suffix=${OPTARG}
           ;;
 
