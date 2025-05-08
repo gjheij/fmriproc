@@ -61,9 +61,9 @@ do
           ;;
       esac
       ;; 
-    l)  LOG=${OPTARG}
+    l)  LOG="${OPTARG}"
             ;;
-    s)  SPM=${OPTARG}
+    s)  SPM="${OPTARG}"
             ;;
     h)  Usage && exit 0
           ;; 
@@ -72,8 +72,8 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

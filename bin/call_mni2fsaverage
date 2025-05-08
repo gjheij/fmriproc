@@ -71,13 +71,13 @@ do
           fi
           ;;
       esac;;
-    o)  out_dir=${OPTARG}
+    o)  out_dir="${OPTARG}"
           ;;
-    p)  prefix=${OPTARG}
+    p)  prefix="${OPTARG}"
           ;;
-    s)  suffix=${OPTARG}
+    s)  suffix="${OPTARG}"
           ;;
-    i)  interp=${OPTARG}
+    i)  interp="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;; 
@@ -91,7 +91,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-input_file=${@:$OPTIND:1}
+input_file="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # define inputs

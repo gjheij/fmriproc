@@ -79,11 +79,11 @@ while getopts :-:hs:e:l: arg; do
           ;;
       esac
       ;;
-    s)  start_v=${OPTARG}
+    s)  start_v="${OPTARG}"
         ;;
-    l)  label=${OPTARG}
+    l)  label="${OPTARG}"
         ;; 
-    e)  end_v=${OPTARG}
+    e)  end_v="${OPTARG}"
         ;;
     h)  Usage && exit 0
           ;; 
@@ -97,8 +97,8 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-SUB=${@:$OPTIND:1}
-OUT=${@:$OPTIND+1:1}
+SUB="${@:$OPTIND:1}"
+OUT="${@:$OPTIND+1:1}"
 
 if [[ -z "${SUB}" ]]; then
   echo

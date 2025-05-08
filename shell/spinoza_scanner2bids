@@ -237,7 +237,7 @@ MRI_SYSTEM_FLAG=""
 SKIP_TR_FLAG=""
 CUT_VOLS=""
 TRIM_FMAP=""
-SGE_QUEUE=${SGE_QUEUE_SHORT}
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
 pattern_flag=""
 search_flag=""
 compress_flag=""
@@ -292,8 +292,8 @@ do
           ;;
         sge)
           run_local=0
-          if [[ ! -d ${DIR_LOGS} ]]; then
-            mkdir -p ${DIR_LOGS} 2>/dev/null
+          if [[ ! -d "${DIR_LOGS}" ]]; then
+            mkdir -p "${DIR_LOGS}" 2>/dev/null
           fi
           ;;
         debug)
@@ -317,17 +317,17 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    d)  SEARCH_DEPTH=${OPTARG}
+    d)  SEARCH_DEPTH="${OPTARG}"
           ;; 
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW="--ow"
           ;; 
     r)  RUNS="-r ${OPTARG}"                                 
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
     t)  TR_FLAG="-t ${OPTARG}"
           ;; 
@@ -344,8 +344,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-PROJECT_ROOT=${@:$OPTIND:1}
-SOURCEDATA=${@:$OPTIND+1:1}
+PROJECT_ROOT="${@:$OPTIND:1}"
+SOURCEDATA="${@:$OPTIND+1:1}"
 
 [[ -z "${PROJECT_ROOT}" || -z "${SOURCEDATA}" ]] && Usage
 

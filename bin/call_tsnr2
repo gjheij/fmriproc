@@ -100,7 +100,7 @@ else
 fi
 
 # output
-output=${@:$OPTIND+1:1}
+output="${@:$OPTIND+1:1}"
 
 # define output
 if [[ -z "${output}" ]]; then

@@ -69,11 +69,11 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    a)  anat_depth=${OPTARG}
+    a)  anat_depth="${OPTARG}"
           ;; 
   esac
 done
@@ -115,7 +115,7 @@ if [[ ! -z ${sub} ]]; then
 
   MAN="${mask_dir}/${base}_acq-${DATA_UPR}_desc-sagittalsinus.nii.gz"
 else
-  REF=${@:$OPTIND:1}
+  REF="${@:$OPTIND:1}"
 
   if [[ ! -f "${REF}" ]]; then
     echo
@@ -126,7 +126,7 @@ else
     REF="$(readlink -f "${REF}")"
   fi
 
-  MAN=${@:$OPTIND+1:1}
+  MAN="${@:$OPTIND+1:1}"
 fi
 
 #-----------------------------------------------------------------------------

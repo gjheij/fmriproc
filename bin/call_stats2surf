@@ -84,23 +84,23 @@ do
           ;;
       esac
       ;;
-    s)  subj_ID=${OPTARG}
+    s)  subj_ID="${OPTARG}"
           ;;
-    f)  fsdir=${OPTARG}
+    f)  fsdir="${OPTARG}"
           ;;
-    o)  outdir=${OPTARG}
+    o)  outdir="${OPTARG}"
           ;;
-    i)  input=${OPTARG}
+    i)  input="${OPTARG}"
           ;; 
-    w)  warp=${OPTARG}
+    w)  warp="${OPTARG}"
           ;;
-    a)  search=${OPTARG}
+    a)  search="${OPTARG}"
           ;;
-    t)  thresh=${OPTARG}
+    t)  thresh="${OPTARG}"
           ;;
-    q)  thresh=${OPTARG}
+    q)  thresh="${OPTARG}"
           ;;
-    r)  reference=${OPTARG}
+    r)  reference="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;; 

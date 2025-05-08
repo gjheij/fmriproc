@@ -107,7 +107,7 @@ runIDs=""
 comps_flag=""
 suffix="bold"
 verbose=1
-SGE_QUEUE=${SGE_QUEUE_SHORT}
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
 weight_flag=""
 tasks=""
 while getopts :-:hos:n:c:m:q:r:f:t: argument
@@ -152,30 +152,30 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    m)  n_echoes=${OPTARG}
+    m)  n_echoes="${OPTARG}"
           ;;
     o)  OW=1
           ;;
     c)  comps_flag="-c ${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
-    r)  runs=${OPTARG}
+    r)  runs="${OPTARG}"
           ;;
-    t)  tasks=${OPTARG}
+    t)  tasks="${OPTARG}"
           ;; 
-    f)  suffix=${OPTARG}
+    f)  suffix="${OPTARG}"
           ;;
 
   esac
 done
 
-OUTPUT=${@:$OPTIND:1}
-INPUT=${@:$OPTIND+1:1}
+OUTPUT="${@:$OPTIND:1}"
+INPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # Parse subjects/sessions

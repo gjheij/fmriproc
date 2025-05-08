@@ -90,17 +90,17 @@ do
       ;;
     q)  Usage && exit 0
           ;;
-    s)  subject=${OPTARG}
+    s)  subject="${OPTARG}"
         ;;
-    t)  matrix_file=${OPTARG}
+    t)  matrix_file="${OPTARG}"
         ;;
-    w)  wm_file=${OPTARG}
+    w)  wm_file="${OPTARG}"
         ;;
-    h)  t1head=${OPTARG}
+    h)  t1head="${OPTARG}"
         ;;
-    i)  initial=${OPTARG}
+    i)  initial="${OPTARG}"
         ;;					
-    b)  t1brain=${OPTARG}
+    b)  t1brain="${OPTARG}"
         ;;                        
   esac
 done
@@ -118,7 +118,7 @@ else
 fi
 
 # set output
-out_file=${@:$OPTIND+1:1}
+out_file="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # Check if we have FreeSurfer flag

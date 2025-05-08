@@ -54,7 +54,7 @@ while getopts ":dv:p:" arg; do
   esac
 done
 
-SUBJECT=${@:$OPTIND:1}
+SUBJECT="${@:$OPTIND:1}"
 TYPE=${@:$OPTIND+1:1:-surf}
 TYPE=${TYPE:-surf}
 

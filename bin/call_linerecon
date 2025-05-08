@@ -110,17 +110,17 @@ do
           ;;
       esac
       ;;
-    m)  n_echos=${OPTARG}
+    m)  n_echos="${OPTARG}"
           ;;
-    r)  run_id=${OPTARG}
+    r)  run_id="${OPTARG}"
           ;;
-    t)  task_id=${OPTARG}
+    t)  task_id="${OPTARG}"
           ;; 
     d)  DEBUG=1
           ;; 
     n)  do_nordic="off"
           ;;
-    c)  n_comps=${OPTARG}
+    c)  n_comps="${OPTARG}"
         if [[ ${n_comps} == "elbow" ]]; then
           n_comps=0
         fi
@@ -136,9 +136,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-RAW=${@:$OPTIND:1}
-LSD=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
+RAW="${@:$OPTIND:1}"
+LSD="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

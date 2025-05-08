@@ -92,9 +92,9 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    i)  INIT=${OPTARG}
+    i)  INIT="${OPTARG}"
           ;;
-    c)  CONTRAST=${OPTARG}
+    c)  CONTRAST="${OPTARG}"
           ;;
     f)  dtype="float"
           ;;
@@ -107,9 +107,9 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

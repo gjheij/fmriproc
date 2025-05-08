@@ -119,13 +119,13 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;;
-    l)  nr_layers=${OPTARG}
+    l)  nr_layers="${OPTARG}"
           ;; 
     x)  kwargs_flag="--kwargs ${OPTARG}"
           ;; 
@@ -136,8 +136,8 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-SOFTWARE=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+SOFTWARE="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

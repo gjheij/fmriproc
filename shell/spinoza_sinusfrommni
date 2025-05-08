@@ -130,9 +130,9 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;; 
     o)  OW=1
           ;;
@@ -143,9 +143,9 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-ANAT=${@:$OPTIND:1}
-MATRIX=${@:$OPTIND+1:1}
-OUTPUT=${@:$OPTIND+2:1}
+ANAT="${@:$OPTIND:1}"
+MATRIX="${@:$OPTIND+1:1}"
+OUTPUT="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

@@ -130,13 +130,13 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;; 
-    t)  thresh=${OPTARG}
+    t)  thresh="${OPTARG}"
           ;;
   esac
 done
@@ -145,8 +145,8 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-ANAT=${@:$OPTIND:1}
-MASKS=${@:$OPTIND+1:1}
+ANAT="${@:$OPTIND:1}"
+MASKS="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

@@ -302,24 +302,24 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    x)  mask=${OPTARG}
+    x)  mask="${OPTARG}"
           ;;
-    n)  n_levels=${OPTARG}
+    n)  n_levels="${OPTARG}"
           ;; 
-    i)  initial=${OPTARG}
+    i)  initial="${OPTARG}"
           ;;
-    s)  smooth=${OPTARG}
+    s)  smooth="${OPTARG}"
         n_levels=$(count_elements "${smooth}")
           ;;
-    c)  converg=${OPTARG}
+    c)  converg="${OPTARG}"
         n_levels=$(count_elements "${converg}")
           ;;
-    r)  shrink=${OPTARG}
+    r)  shrink="${OPTARG}"
         n_levels=$(count_elements "${shrink}")
           ;; 
-    g)  gradient_step=${OPTARG}
+    g)  gradient_step="${OPTARG}"
           ;;
-    j)  n_cpu=${OPTARG}
+    j)  n_cpu="${OPTARG}"
           ;;                  
     v)  VERBOSE="--verbose 1"
         VERB=1
@@ -388,9 +388,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

@@ -48,7 +48,7 @@ USAGE
 submit=0
 run_local=1
 n_cpus=1
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 job_name="feat"
 while getopts :-:hj:q:n: argument
 do
@@ -58,8 +58,8 @@ do
         sge)
           submit=1
           run_local=0
-          if [[ ! -d ${DIR_LOGS} ]]; then
-            mkdir -p ${DIR_LOGS} 2>/dev/null
+          if [[ ! -d "${DIR_LOGS}" ]]; then
+            mkdir -p "${DIR_LOGS}" 2>/dev/null
           fi
           ;;
         help)
@@ -74,11 +74,11 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;; 
-    n)  job_name=${OPTARG}
+    n)  job_name="${OPTARG}"
           ;;
   esac
 done

@@ -244,21 +244,21 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;; 
-    l)  ls_ses=${OPTARG}
+    l)  ls_ses="${OPTARG}"
           ;; 
-    v)  vert=${OPTARG}
+    v)  vert="${OPTARG}"
           ;;
     o)  OW=1
           ;;
-    m)  model=${OPTARG}
+    m)  model="${OPTARG}"
           ;;
-    t)  task=${OPTARG}
+    t)  task="${OPTARG}"
           ;; 
-    e)  epi_file=${OPTARG}
+    e)  epi_file="${OPTARG}"
           ;;
   esac
 done
@@ -269,9 +269,9 @@ fi
 
 
 # this deals with the fact that we might have flags before positional arguments
-BASE=${@:$OPTIND:1}
-DERIV=${@:$OPTIND+1:1}
-roi=${@:$OPTIND+2:1}
+BASE="${@:$OPTIND:1}"
+DERIV="${@:$OPTIND+1:1}"
+roi="${@:$OPTIND+2:1}"
 
 # check if we should loop through subjects or do it for 1 subject only
 if [[ -z ${sub} ]]; then

@@ -141,7 +141,7 @@ do
       ;;
     i)  INVERT=1
           ;;
-    d)  DIMENSION=${OPTARG}
+    d)  DIMENSION="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;; 

@@ -81,21 +81,21 @@ do
           ;;
       esac
       ;; 
-    s)  subj_ID=${OPTARG}
+    s)  subj_ID="${OPTARG}"
           ;;
-    n)  ses_ID=${OPTARG}
+    n)  ses_ID="${OPTARG}"
           ;;						
-    r)  ROOT=${OPTARG}
+    r)  ROOT="${OPTARG}"
           ;;
-    d)  DERIV=${OPTARG}
+    d)  DERIV="${OPTARG}"
           ;;
-    i)  IMG=${OPTARG}
+    i)  IMG="${OPTARG}"
           ;;
-    b)  BIND=${OPTARG}
+    b)  BIND="${OPTARG}"
           ;;
-    w)  WORK=${OPTARG}
+    w)  WORK="${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;;

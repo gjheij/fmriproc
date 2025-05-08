@@ -42,11 +42,11 @@ fi
 while getopts o:d:b: argument
 do
   case ${argument} in
-    o)  OVERLAY=${OPTARG}
+    o)  OVERLAY="${OPTARG}"
             ;;
-    d)  OUTDIR=${OPTARG}
+    d)  OUTDIR="${OPTARG}"
             ;;
-    b)  BASENAME=${OPTARG}
+    b)  BASENAME="${OPTARG}"
             ;; 
   esac
 done
@@ -57,9 +57,9 @@ done
 #   RM=1
 # fi
 
-SUB_ID=${@:$OPTIND:1}
-ANAT=${@:$OPTIND+1:1}
-MASK_DIR=${@:$OPTIND+2:1}
+SUB_ID="${@:$OPTIND:1}"
+ANAT="${@:$OPTIND+1:1}"
+MASK_DIR="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # Get bash helper functions

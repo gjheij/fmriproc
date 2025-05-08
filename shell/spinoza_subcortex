@@ -86,7 +86,7 @@ fi
 
 n_cpus=1
 run_local=1
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 kws_ants=""
 kws_massp=""
 # Check for subject & session flags
@@ -113,13 +113,13 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;; 
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;; 
     x)  kws_ants="--kwargs ${OPTARG}"
           ;;
@@ -132,9 +132,9 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-SKULL=${@:$OPTIND+1:1}
-OUTPUT=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+SKULL="${@:$OPTIND+1:1}"
+OUTPUT="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

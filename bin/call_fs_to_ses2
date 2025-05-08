@@ -69,7 +69,7 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    n)  SESSION=${OPTARG}
+    n)  SESSION="${OPTARG}"
           ;; 
   esac
 done
@@ -84,7 +84,7 @@ else
   SESSION=${SESSION}
 fi
 
-SUBJECT=${@:$OPTIND:1}
+SUBJECT="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # Check some directories/files

@@ -114,13 +114,13 @@ do
           ;;
       esac
       ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;;
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
           ;; 
   esac
 done
@@ -129,8 +129,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-SKULL=${@:$OPTIND:1}
-FSL=${@:$OPTIND+1:1}
+SKULL="${@:$OPTIND:1}"
+FSL="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

@@ -106,7 +106,7 @@ pre_only=0
 pyb_only=0
 force_exec=0
 kwargs_flags=""
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 
 # check if variable is set in setup file
 if [[ -z ${PYBEST_SPACE} ]]; then
@@ -172,19 +172,19 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
     t)  task_flag="-t ${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
-    c)  PYBEST_N_COMPS=${OPTARG}
+    c)  PYBEST_N_COMPS="${OPTARG}"
           ;; 
     x)  kwargs_flags="-x ${OPTARG}"
           ;;
@@ -211,8 +211,8 @@ if [[ ${run_local} -eq 0 ]]; then
     n_cpus=1
   fi
 
-  if [ ! -d ${DIR_LOGS} ]; then
-    mkdir -p ${DIR_LOGS}
+  if [ ! -d "${DIR_LOGS}" ]; then
+    mkdir -p "${DIR_LOGS}"
   fi
 else
   if [[ -z ${n_cpus} ]]; then
@@ -222,8 +222,8 @@ fi
 
 #-----------------------------------------------------------------------------
 # fetch positional arguments
-FPREP=${@:$OPTIND:1}
-DENOISE=${@:$OPTIND+1:1}
+FPREP="${@:$OPTIND:1}"
+DENOISE="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

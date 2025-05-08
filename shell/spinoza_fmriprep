@@ -351,7 +351,7 @@ crash_flag=""
 mask_flag=""
 mode="anat"
 workdir="${PATH_HOME}/fmriprep/${PROJECT}"
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 while getopts :-:hols:r:n:f:m:j:k:q:u:a:w: argument
 do
 case ${argument} in
@@ -417,25 +417,25 @@ case ${argument} in
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    f)  func_dir=${OPTARG}
+    f)  func_dir="${OPTARG}"
           ;;
-    m)  mode=${OPTARG}
+    m)  mode="${OPTARG}"
           ;;
-    u)  conf=${OPTARG}
+    u)  conf="${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;; 
     k)  kwargs_file="-k ${OPTARG}"
           ;;
-    r)  runs=${OPTARG}
+    r)  runs="${OPTARG}"
           ;; 
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;; 
-    w)  workdir=${OPTARG}
+    w)  workdir="${OPTARG}"
           ;; 
     o)  OW=1
           ;;
@@ -448,9 +448,9 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-T2=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+T2="${@:$OPTIND+2:1}"
 
 # check run
 if [[ ! -z ${runs} ]]; then

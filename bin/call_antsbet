@@ -87,23 +87,23 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    c) convergence=${OPTARG}
+    c) convergence="${OPTARG}"
           ;;
-    s) shrink=${OPTARG}
+    s) shrink="${OPTARG}"
           ;; 
-    f) smoothing=${OPTARG}
+    f) smoothing="${OPTARG}"
           ;;
-    d) dim=${OPTARG}
+    d) dim="${OPTARG}"
           ;;
-    x) kwargs=${OPTARG}
+    x) kwargs="${OPTARG}"
           ;;
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-input=${@:$OPTIND:1}
-output=${@:$OPTIND+1:1}
+input="${@:$OPTIND:1}"
+output="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

@@ -199,25 +199,25 @@ do
           ;;
       esac
       ;; 
-    s)  subj_ID=${OPTARG}
+    s)  subj_ID="${OPTARG}"
           ;;
-    t)  T1=${OPTARG}
+    t)  T1="${OPTARG}"
           ;;
-    p)  T2=${OPTARG}
+    p)  T2="${OPTARG}"
           ;;
-    r)  stage=${OPTARG}
+    r)  stage="${OPTARG}"
           ;;
-    e)  edit=${OPTARG}
+    e)  edit="${OPTARG}"
           ;;
-    o)  option=${OPTARG}
+    o)  option="${OPTARG}"
           ;;
-    x)  EXPERT_FILE=${OPTARG}
+    x)  EXPERT_FILE="${OPTARG}"
           ;; 
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
-    k)  kwargs=${OPTARG}
+    k)  kwargs="${OPTARG}"
           ;; 
     h)  Usage && exit 0
           ;; 

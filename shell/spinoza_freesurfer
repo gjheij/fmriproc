@@ -171,13 +171,13 @@ do
           ;;
       esac
       ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;; 
-    x)  EXPERT_FILE=${OPTARG}
+    x)  EXPERT_FILE="${OPTARG}"
           ;;
     k)  kwargs_flag="-k ${OPTARG}"
           ;; 
@@ -185,7 +185,7 @@ do
           ;;
     q)  SGE_QUEUE="-q ${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;   
   esac
 done
@@ -194,9 +194,9 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-T1=${@:$OPTIND:1}
-STAGE=${@:$OPTIND+1:1}
-T2=${@:$OPTIND+2:1}
+T1="${@:$OPTIND:1}"
+STAGE="${@:$OPTIND+1:1}"
+T2="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

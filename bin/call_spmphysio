@@ -91,17 +91,17 @@ do
           ;;
       esac
       ;;
-    s)  SPM=${OPTARG}
+    s)  SPM="${OPTARG}"
             ;;
-    d)  DUMMY_VOLS=${OPTARG}
+    d)  DUMMY_VOLS="${OPTARG}"
             ;; 
-    n)  N_SLICES=${OPTARG}
+    n)  N_SLICES="${OPTARG}"
             ;; 
-    f)  FUNC=${OPTARG}
+    f)  FUNC="${OPTARG}"
             ;; 
-    t)  TR=${OPTARG}
+    t)  TR="${OPTARG}"
             ;;
-    v)  VOLS=${OPTARG}
+    v)  VOLS="${OPTARG}"
             ;;
     h)  Usage && exit 0
           ;; 
@@ -110,8 +110,8 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

@@ -74,22 +74,22 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    l)  lower=${OPTARG}
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
+    u)  upper="${OPTARG}"
           ;; 
-    b)  n_bins=${OPTARG}
+    b)  n_bins="${OPTARG}"
           ;;
-    m)  max_value=${OPTARG}
+    m)  max_value="${OPTARG}"
           ;; 
-    d)  dtype=${OPTARG}
+    d)  dtype="${OPTARG}"
           ;; 
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-in_file=${@:$OPTIND:1}
+in_file="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

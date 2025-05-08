@@ -135,17 +135,17 @@ do
           ;;
       esac
       ;;
-    r)  reg_file=${OPTARG}
+    r)  reg_file="${OPTARG}"
           ;;
-    x)  proj_frac=${OPTARG}
+    x)  proj_frac="${OPTARG}"
           ;; 
-    o)  out_dir=${OPTARG}
+    o)  out_dir="${OPTARG}"
           ;;
-    p)  prefix=${OPTARG}
+    p)  prefix="${OPTARG}"
           ;;
-    t)  trafos=${OPTARG}
+    t)  trafos="${OPTARG}"
           ;; 
-    f)  fs_dir=${OPTARG}
+    f)  fs_dir="${OPTARG}"
           ;;
     i)  invert="-i ${OPTARG}"
           ;;
@@ -156,9 +156,9 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-SUBJECT=${@:$OPTIND:1}
-INPUT=${@:$OPTIND+1:1}
-SUFFIX=${@:$OPTIND+2:1}
+SUBJECT="${@:$OPTIND:1}"
+INPUT="${@:$OPTIND+1:1}"
+SUFFIX="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

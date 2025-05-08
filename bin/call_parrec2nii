@@ -94,11 +94,11 @@ do
           ;;
       esac
       ;; 
-    i)  pathInput=${OPTARG}
+    i)  pathInput="${OPTARG}"
           ;;
-    o)  pathOutput=${OPTARG}
+    o)  pathOutput="${OPTARG}"
           ;;
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
           ;; 
     h)  Usage && exit 0
           ;;

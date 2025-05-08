@@ -57,7 +57,7 @@ while getopts :-:ht: argument; do
           ;;
       esac
       ;; 
-    t)  tname=${OPTARG}
+    t)  tname="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;;
@@ -70,10 +70,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
-IN_TYPE=${@:$OPTIND+3:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
+IN_TYPE="${@:$OPTIND+3:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

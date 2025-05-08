@@ -118,7 +118,7 @@ do
           ;;
       esac
       ;;
-    i)  invert=${OPTARG}
+    i)  invert="${OPTARG}"
           ;;
     v)  VERBOSE="--verbose 1"
         VERB=1
@@ -134,10 +134,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
-TRAFOS=${@:$OPTIND+3:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
+TRAFOS="${@:$OPTIND+3:1}"
 
 #-----------------------------------------------------------------------------
 # check if input exists

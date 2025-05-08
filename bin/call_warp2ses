@@ -64,25 +64,25 @@ while getopts :-:hs:f:t:d:w:i:o:r:a:q: arg; do
           ;;
       esac
       ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    f)  from_ses=${OPTARG}
+    f)  from_ses="${OPTARG}"
           ;;
-    t)  to_ses=${OPTARG}
+    t)  to_ses="${OPTARG}"
           ;;
-    d)  in_dir=${OPTARG}
+    d)  in_dir="${OPTARG}"
           ;;
-    o)  out_dir=${OPTARG}
+    o)  out_dir="${OPTARG}"
           ;;
-    w)  warp_file=${OPTARG}
+    w)  warp_file="${OPTARG}"
           ;;
-    i)  invert_warp=${OPTARG}
+    i)  invert_warp="${OPTARG}"
           ;;
-    r)  ref_img=${OPTARG}
+    r)  ref_img="${OPTARG}"
           ;;
-    a)  add=${OPTARG}
+    a)  add="${OPTARG}"
           ;;
-    q)  search=${OPTARG}
+    q)  search="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;; 

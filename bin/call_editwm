@@ -66,9 +66,9 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
   esac
 done
@@ -84,8 +84,8 @@ if [[ ! -z ${sub} ]]; then
   FS_DIR="${SUBJECTS_DIR}/${sub}"
   MAN="${mask_dir}/${base}_acq-${DATA_UPR}_desc-manualsegwm.nii.gz"
 else
-  FS_DIR=${@:$OPTIND:1}
-  MAN=${@:$OPTIND+1:1}
+  FS_DIR="${@:$OPTIND:1}"
+  MAN="${@:$OPTIND+1:1}"
 fi
 
 #-----------------------------------------------------------------------------

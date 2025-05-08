@@ -110,9 +110,9 @@ while getopts :-:hmv:u:l: arg; do
       ;; 
     m)  mag_only=1
         ;;
-    l)  lower=${OPTARG}
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
+    u)  upper="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;;

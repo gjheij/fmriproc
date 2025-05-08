@@ -1707,21 +1707,21 @@ do
           ;;
       esac
       ;;
-    i)  input_dir=${OPTARG}
+    i)  input_dir="${OPTARG}"
           ;;
-    o)  tmp_dir=${OPTARG}
+    o)  tmp_dir="${OPTARG}"
           ;;
-    d)  searchDepth=${OPTARG}
+    d)  searchDepth="${OPTARG}"
           ;; 
-    b)  bids_dir=${OPTARG}
+    b)  bids_dir="${OPTARG}"
           ;;
-    n)  base=${OPTARG}
+    n)  base="${OPTARG}"
           ;; 
-    r)  runs=${OPTARG}
+    r)  runs="${OPTARG}"
           ;; 
-    t)  set_tr=${OPTARG}
+    t)  set_tr="${OPTARG}"
           ;;
-    v)  cut_vols=${OPTARG}
+    v)  cut_vols="${OPTARG}"
           ;; 
     p)  pattern_flag="-p ${OPTARG}"
           ;;

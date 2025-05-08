@@ -93,7 +93,7 @@ while getopts :-:hr arg; do
       esac;; 
     r)  recursive=1
         ;;
-    d)  max_depth=${OPTARG}
+    d)  max_depth="${OPTARG}"
         ;; 
     h)  Usage && exit 0
         ;; 
@@ -106,9 +106,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-search_for=${@:$OPTIND:1}
-replace_with=${@:$OPTIND+1:1}
-search_dir=${@:$OPTIND+2:1}
+search_for="${@:$OPTIND:1}"
+replace_with="${@:$OPTIND+1:1}"
+search_dir="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

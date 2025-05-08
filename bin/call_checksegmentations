@@ -54,9 +54,9 @@ fi
 while getopts s:n: argument
 do
   case ${argument} in
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
   esac
 done

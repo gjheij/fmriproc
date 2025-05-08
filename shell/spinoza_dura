@@ -73,11 +73,11 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    o)  OW=${OPTARG}
+    o)  OW="${OPTARG}"
           ;; 
   esac
 done
@@ -86,10 +86,10 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
-T1W=${@:$OPTIND:1}
-INV2=${@:$OPTIND+1:1}
-OUTPUT=${@:$OPTIND+2:1}
-MASKS=${@:$OPTIND+3:1}
+T1W="${@:$OPTIND:1}"
+INV2="${@:$OPTIND+1:1}"
+OUTPUT="${@:$OPTIND+2:1}"
+MASKS="${@:$OPTIND+3:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

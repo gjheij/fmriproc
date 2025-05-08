@@ -62,11 +62,11 @@ n_cpus=5
 while getopts s:d: argument
 do
   case ${argument} in
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    d)  dir=${OPTARG}
+    d)  dir="${OPTARG}"
           ;; 
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
   esac
 done

@@ -128,17 +128,17 @@ do
           ;;
       esac
       ;;
-    l)  lower=${OPTARG}
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
+    u)  upper="${OPTARG}"
           ;; 
-    s)  SPM=${OPTARG}
+    s)  SPM="${OPTARG}"
           ;;
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
           ;;
-    y)  b1_kwargs=${OPTARG}
+    y)  b1_kwargs="${OPTARG}"
           ;;          
-    b)  b1_file=${OPTARG}
+    b)  b1_file="${OPTARG}"
           ;;          
     h)  Usage && exit 0
           ;; 

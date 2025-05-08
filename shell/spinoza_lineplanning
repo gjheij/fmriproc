@@ -187,13 +187,13 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  subject=${OPTARG}
+    s)  subject="${OPTARG}"
           ;;
-    n)  session=${OPTARG}
+    n)  session="${OPTARG}"
           ;; 
-    i)  nifti=${OPTARG}
+    i)  nifti="${OPTARG}"
           ;;
-    p)  coord_file=${OPTARG}
+    p)  coord_file="${OPTARG}"
           ;;
   esac
 done

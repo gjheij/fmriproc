@@ -106,13 +106,13 @@ do
           ;;
       esac
       ;;
-    i)  init=${OPTARG}
+    i)  init="${OPTARG}"
           ;;
     c)  contrast="--${OPTARG}"
           ;;
     f)  FSL=1
           ;; 
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
           ;; 
     h)  Usage && exit 0
           ;; 
@@ -125,9 +125,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-SUBJECT=${@:$OPTIND:1}
-MOVING=${@:$OPTIND+1:1}
-OUTPUT=${@:$OPTIND+2:1}
+SUBJECT="${@:$OPTIND:1}"
+MOVING="${@:$OPTIND+1:1}"
+OUTPUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # Check if FreeSurfer ran

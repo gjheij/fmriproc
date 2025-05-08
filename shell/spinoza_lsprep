@@ -79,7 +79,7 @@ fi
 # Check for subject & session flags
 OW=0
 run_local=1
-SGE_QUEUE=${SGE_QUEUE_SHORT}
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
 while getopts :-:hcs:n:q:x:j: argument
 do
   case ${argument} in
@@ -103,23 +103,23 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     c)  SGE=1
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;; 
-    x)  LSPREP_KWARGS=${OPTARG}
+    x)  LSPREP_KWARGS="${OPTARG}"
           ;;   
   esac
 done
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # sort subjects

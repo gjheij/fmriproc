@@ -57,11 +57,11 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    o)  OVERLAY=${OPTARG}
+    o)  OVERLAY="${OPTARG}"
             ;;
-    d)  OUTDIR=${OPTARG}
+    d)  OUTDIR="${OPTARG}"
             ;;
-    b)  BASENAME=${OPTARG}
+    b)  BASENAME="${OPTARG}"
             ;; 
   esac
 done

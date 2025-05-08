@@ -86,7 +86,7 @@ do
           ;;
     s)  SPM="${OPTARG}"
           ;;
-    m)  MODE=${OPTARG}
+    m)  MODE="${OPTARG}"
           ;;
     c)  custom_file="${OPTARG}"
           ;;
@@ -95,8 +95,8 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-in_file=${@:$OPTIND:1}
-out_dir=${@:$OPTIND+1:1}
+in_file="${@:$OPTIND:1}"
+out_dir="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs

@@ -127,19 +127,19 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    i)  pathInput=${OPTARG}
+    i)  pathInput="${OPTARG}"
           ;;
-    d)  searchDepth=${OPTARG}
+    d)  searchDepth="${OPTARG}"
           ;; 
-    o)  pathOutput=${OPTARG}
+    o)  pathOutput="${OPTARG}"
           ;;
-    v)  version=${OPTARG}
+    v)  version="${OPTARG}"
           ;;
-    p)  pattern=${OPTARG}
+    p)  pattern="${OPTARG}"
           ;;
-    c)  compress=${OPTARG}
+    c)  compress="${OPTARG}"
           ;; 
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
         kwargs_flag="-x ${kwargs}"
           ;; 
   esac

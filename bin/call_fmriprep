@@ -165,31 +165,31 @@ do
           ;;
       esac
       ;;
-    s)  subj_ID=${OPTARG}
+    s)  subj_ID="${OPTARG}"
           ;;
-    m)  MODE=${OPTARG}
+    m)  MODE="${OPTARG}"
           ;;
-    r)  ROOT=${OPTARG}
+    r)  ROOT="${OPTARG}"
           ;;
-    d)  DERIV=${OPTARG}
+    d)  DERIV="${OPTARG}"
           ;;
-    i)  IMG=${OPTARG}
+    i)  IMG="${OPTARG}"
           ;;
-    b)  BIND=${OPTARG}
+    b)  BIND="${OPTARG}"
           ;;
-    w)  WORK=${OPTARG}
+    w)  WORK="${OPTARG}"
           ;;
-    l)  LIC=${OPTARG}
+    l)  LIC="${OPTARG}"
           ;;
-    x)  CONFIG=${OPTARG}
+    x)  CONFIG="${OPTARG}"
           ;;
-    t)  TASK_ID=${OPTARG}
+    t)  TASK_ID="${OPTARG}"
           ;;
-    k)  KWARGS_FILE=${OPTARG}
+    k)  KWARGS_FILE="${OPTARG}"
           ;;
-    c)  n_threads=${OPTARG}
+    c)  n_threads="${OPTARG}"
           ;; 
-    a)  keep_runs=${OPTARG}
+    a)  keep_runs="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;;

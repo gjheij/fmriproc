@@ -137,23 +137,23 @@ while getopts :-:hs:n:o:f:c:v:r:t:p:x: arg; do
           fi
           ;;
       esac;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    o)  outputdir=${OPTARG}
+    o)  outputdir="${OPTARG}"
           ;;
-    r)  in_space=${OPTARG}
+    r)  in_space="${OPTARG}"
           ;;
-    f)  fprepdir=${OPTARG}
+    f)  fprepdir="${OPTARG}"
           ;;
-    c)  n_slots=${OPTARG}
+    c)  n_slots="${OPTARG}"
           ;;
-    t)  task_ids=${OPTARG}
+    t)  task_ids="${OPTARG}"
           ;;
-    p)  n_comps=${OPTARG}
+    p)  n_comps="${OPTARG}"
           ;; 
-    x)  kwargs=${OPTARG}
+    x)  kwargs="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;; 
