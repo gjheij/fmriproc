@@ -173,7 +173,7 @@ if [[ -z "${filter_img}" ]]; then
 
   #-----------------------------------------------------------------------------
   # call_matlab = in call_bashhelper
-  call_matlab ${new_script}
+  call_matlab "${new_script}"
   if [[ $? -ne 0 || ! -f "${filter_img}" ]]; then
     echo
     print_line -

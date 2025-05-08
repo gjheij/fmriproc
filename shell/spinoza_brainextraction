@@ -591,7 +591,6 @@ for subID in ${search}; do
             cmd=(
               call_cat12
               "${mode}"
-              -s "${SPM_PATH}"
               "${input}"
               "${BET}"
             )
@@ -767,10 +766,10 @@ for subID in ${search}; do
 
     IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
     unset IFS 
-    count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
+    count=0; for ii in "${spm_sorted[@]}"; do ((count++)); done
     if [[ ${count} -gt 1 ]]; then
       echo "Found more than 1 files with \"spm_mask\" and \".nii.gz\" (${count})"
-      for ii in ${spm_sorted[@]}; do
+      for ii in "${spm_sorted[@]}"; do
         echo " ${ii}"
       done
       continue
