@@ -77,13 +77,25 @@ Arguments:
   -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_SHORT in spinoza_setup
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize  
-  -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be 
-                  comma-separated flags as follows: 
+  -y <kwargs>     Additional commands to be passed to 'call_b1correct'. Format should be colon-
+                  separated flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
                     - if you specify a flag only | <flag>
 
                   combine as:
-                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                    "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                  e.g.,
+                    "-y --smooth:--sigma=1.5"
+
+                  This allows bash commands to be translated to 'N4BiasFieldCorrection' commands 
+  -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be 
+                  colon-separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
                   This allows bash commands to be translated to 'N4BiasFieldCorrection' commands
 
@@ -145,8 +157,9 @@ bias_flag=""
 intensity_flag=""
 upper=""
 lower=""
-SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:hofs:n:p:q:j:x:l:u: argument
+b1_kwargs=""
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
+while getopts :-:hofs:n:p:q:j:x:l:u:y: argument
 do
   case ${argument} in
     -)
@@ -193,9 +206,9 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
     l)  lower="--lower ${OPTARG}"
           ;;
@@ -207,12 +220,14 @@ do
           ;; 
     p)  PARS_FLAG="--pars ${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
     x)  kwargs="-x ${OPTARG}"
           ;; 
+    y)  b1_kwargs="-y ${OPTARG}"
+          ;;           
   esac
 done
 
@@ -220,8 +235,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -426,6 +441,7 @@ for subID in ${search}; do
               "${lower}"
               "${upper}"
               "${b1_flag}"
+              "${b1_kwargs}"
               "${bias_flag}"
               "${output_dir}/${output_base}"
             )
@@ -452,16 +468,16 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # copy extra anatomical files
-  for f in ${SEARCH_ANATOMICALS[@]}; do
+  for f in "${SEARCH_ANATOMICALS[@]}"; do
 
     # copy T2w-file to pymp2rage folder for later convenience
     if [[ "${f}" != "T1w" ]]; then
-      f_files=$(
+      f_files="$(
         find -L "${input_dir}" \
         -type f \
         -name "*${f}.nii.gz" \
         2>/dev/null
-      )
+      )"
       if [ ! -z "${f_files}" ]; then
         ct=0; for ii in ${f_files[@]}; do ((ct++)); done
         ix=0

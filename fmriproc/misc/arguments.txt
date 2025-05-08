@@ -215,6 +215,17 @@ Input arguments:
                       - spinoza_mgdm (args for mgdm_segmentation):
                           '-x regularization_weight=0.05,max_iterations=1000'
 
+-y <kwargs>       Additional commands to be passed to 'call_b1correct'. Format should be colon-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                  e.g.,
+                    "-y --smooth:--sigma=1.5"
+
 Options:
 
 --affine          use 'affine'-registration (${BOLD_BLUE}spinoza_registration${RESET}).

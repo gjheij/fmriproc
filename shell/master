@@ -19,6 +19,7 @@ fi
 # Allocate input arguments to variables
 #
 KWARGS_FLAG=""
+B1_KWARGS=""
 HELP=0
 HEMI_FLAG=""              # spinoza_lineplanning
 IDENT_FLAG=""             # spinoza_lineplanning
@@ -118,6 +119,7 @@ REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
 PARS_FILE=""              # spinoza_qmrimaps
 INTENSITY_FLAG=""         # spinoza_qmrimaps
+Y_KWARGS=""               # spinoza_qmrimaps
 BIAS_FLAG=""              # spinoza_biassanlm
 SANLM_FLAG=""             # spinoza_biassanlm
 SANLM_METHOD=""           # spinoza_biassanlm
@@ -148,7 +150,7 @@ done < "$opts_file"
 IFS=$'\n' opts=($(sort <<<"${array[*]}"))
 unset IFS
 
-while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
+while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
   case ${arg} in
     -)
       case "${OPTARG}" in
@@ -555,67 +557,70 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       esac
       ;;
     m)
-      MOD=${OPTARG}
+      MOD="${OPTARG}"
       ;;
     d)
       SEARCH_DEPTH="-d ${OPTARG}"
-      ANAT_DEPTH=${OPTARG}
+      ANAT_DEPTH="${OPTARG}"
       ;;
     s)
-      SUB=${OPTARG}
+      SUB="${OPTARG}"
       ;;
     h)
-      HEMI=${OPTARG}
+      HEMI="${OPTARG}"
       ;;
     n)
-      SES=${OPTARG}
+      SES="${OPTARG}"
       ;;
     o)
       OW="-o"
       ;;
     t)
-      TYPE=${OPTARG}
+      TYPE="${OPTARG}"
       t_specified=1
       TR_FLAG="-t ${OPTARG}"
       ;;
     l)
-      WHICH_MOD=${OPTARG}
+      WHICH_MOD="${OPTARG}"
       NR_LAYERS="-l ${OPTARG}"
       LS_SES="-l ${OPTARG}"
       INT_LOWER="-l ${OPTARG}"
       ;;
     v)
-      VERTICES=${OPTARG}
+      VERTICES="${OPTARG}"
       ;;
     p)
-      P_KWARGS=${OPTARG}
+      P_KWARGS="${OPTARG}"
       PARS_FILE="-p $(readlink -f \"${OPTARG}\")"
       ;;
     c)
-      C_FLAG=${OPTARG}
+      C_FLAG="${OPTARG}"
       CUSTOM_TPL="-c ${OPTARG}"
       ;;
     x)
-      X_KWARGS=${OPTARG}
+      X_KWARGS="${OPTARG}"
       ;;
+    y)
+      Y_KWARGS="${OPTARG}"
+      ;;      
     u)
-      CONF=${OPTARG}
+      CONF="${OPTARG}"
       INT_UPPER="-u ${OPTARG}"
       ;;
     r)
-      ROI=${OPTARG}
-      FS_stage=${OPTARG}
+      ROI="${OPTARG}"
+      FS_stage="${OPTARG}"
       RUNS="-r ${OPTARG}"
       SET_TR="-r ${OPTARG}"
       ;;
     e)
-      n_echoes=${OPTARG}
-      START_STAGE=${OPTARG}
+      n_echoes="${OPTARG}"
+      START_STAGE="${OPTARG}"
       EPI_FILE="-e ${OPTARG}"
       PIXEL_FLAG="-p ${OPTARG}"
       ;;
     i)
-      images=${OPTARG}
+      images="${OPTARG}"
       ;;
     w)
       WORK_FLAG="-w ${OPTARG}"
@@ -1054,9 +1059,14 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Multiparametric mapping using pymp2rage"
 
   # check for kwargs
-  if [[ ! -z ${X_KWARGS} ]]; then
+  if [[ ! -z "${X_KWARGS}" ]]; then
     KWARGS_FLAG="-x ${X_KWARGS}"
   fi
+
+  # check for B1 kwargs
+  if [[ ! -z "${Y_KWARGS}" ]]; then
+    B1_KWARGS="-y ${Y_KWARGS}"
+  fi  
   
   cmd=(
     spinoza_qmrimaps
@@ -1077,6 +1087,7 @@ if [[ $? -eq 0 ]]; then
     "${INTENSITY_FLAG}"
     "${INT_LOWER}"
     "${INT_UPPER}"
+    "${B1_KWARGS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/pymp2rage"
   )
 
