@@ -9,3 +9,4 @@ nipype
 scikit-learn
 nbsphinx
 sphinx-rtd-theme
+PyStemmer
