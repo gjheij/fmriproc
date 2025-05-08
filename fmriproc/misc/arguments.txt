@@ -335,6 +335,8 @@ Options:
 
 --no-bbr          force no-BBR in fMRIPrep.
 
+--no-bias         skip bias correction for MPRAGE (e.g., is B1-correction is enough)
+
 --no-bounds       disable grid bounds in fitting.
 
 --no-clip         prevent design matrix clipping.

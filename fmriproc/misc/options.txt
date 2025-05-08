@@ -64,6 +64,7 @@
 --nelder
 --nighres
 --no-bbr
+--no-bias
 --no-boldref
 --no-bounds
 --no-clip

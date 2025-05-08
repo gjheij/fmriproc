@@ -351,6 +351,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         no-bbr)
           use_bbr="--no-bbr"
           ;;
+        no-bias)
+          BIAS_FLAG="--no-bias"
+          ;;          
         no-bounds)
           bounds_flag="--no-bounds"
           ;;

@@ -1,0 +1,141 @@
+#!/usr/bin/env python
+
+import sys
+import getopt
+import numpy as np
+import nibabel as nb
+from nilearn import image
+from scipy.ndimage import gaussian_filter
+from lazyfmri import utils
+
+@utils.validate_cli_inputs(required_keys=["mprage", "b1map"])
+def main(context):
+    r"""
+---------------------------------------------------------------------------------------------------
+call_b1correct
+
+This script corrects an MPRAGE image for B1 inhomogeneity using a B1 fieldmap. It computes a
+voxel-wise correction factor = 1.0 / (optionally smoothed) B1 map, thresholds low values to avoid
+extreme corrections, applies the correction to the MPRAGE data, and saves the result.
+
+Usage:
+  call_b1correct [options]
+
+Mandatory options:
+  -i|--mprage   Path to the MPRAGE NIfTI file to be corrected.
+  -b|--b1map    Path to the B1 fieldmap NIfTI file (relative flip-angle scale).
+
+Optional options:
+  -o|--output   Path for the corrected output file. If omitted, the input MPRAGE will be 
+                overwritten.
+  --smooth      Enable Gaussian smoothing of the B1 map before correction.
+  --sigma <σ>   Sigma value for Gaussian smoothing (default = 2.0).
+
+Options:
+  -h|--help     Show this help message and exit.
+
+Outputs:
+  Saves a new NIfTI file with the same header/affine as the original MPRAGE and corrected image data.
+
+Examples:
+  call_b1correct -i T1w.nii.gz -b B1map.nii.gz
+  call_b1correct -i T1w.nii.gz -b B1map.nii.gz -o T1w_corr.nii.gz --smooth --sigma 1.5
+
+Note:
+  - Ensure both input images have the same dimensions and orientation.
+  - Install dependencies: nibabel, nilearn, scipy.
+
+---------------------------------------------------------------------------------------------------
+    """
+
+    #-----------------------------------------------------------------------------
+    # Extract context variables
+    mprage_file = context.get("mprage")
+    b1_file = context.get("b1map")
+    out_file = context.get("output") or mprage_file
+    do_smooth = context.get("smooth", False)
+    sigma = context.get("sigma", 2.0)
+
+    #-----------------------------------------------------------------------------
+    # Load images
+    mprage_img = nb.load(mprage_file)
+    b1_img = nb.load(b1_file)
+
+    #-----------------------------------------------------------------------------
+    # Resample B1 map to MPRAGE if shapes differ
+    if b1_img.shape != mprage_img.shape:
+        b1_img = image.resample_to_img(b1_img, mprage_img)
+
+    #-----------------------------------------------------------------------------
+    # Scale check: ensure B1 in [0,2]
+    b1_data_med = np.median(b1_img.get_fdata())
+    if b1_data_med > 10:
+        print("WARNING: B1 median >10, assuming percentage and dividing by 100...")
+        b1_img = image.math_img('b1 / 100.', b1=b1_img)
+
+    if np.median(b1_img.get_fdata()) > 2:
+        raise ValueError("Median of B1 is far from 1. The scale of this B1 map is most likely wrong.")
+
+    #-----------------------------------------------------------------------------
+    # Get data arrays
+    mprage_data = mprage_img.get_fdata()
+    b1_data = b1_img.get_fdata()
+
+    #-----------------------------------------------------------------------------
+    # Optional smoothing
+    if do_smooth:
+        b1_data = gaussian_filter(b1_data, sigma=sigma)
+
+    #-----------------------------------------------------------------------------
+    # Threshold low B1 values
+    b1_data[b1_data < 0.1] = np.nan
+
+    #-----------------------------------------------------------------------------
+    # Apply correction
+    correction_factor = 1.0 / b1_data
+    corrected_data = mprage_data * correction_factor
+
+    #-----------------------------------------------------------------------------
+    # Save corrected image
+    nb.Nifti1Image(
+        corrected_data,
+        mprage_img.affine,
+        mprage_img.header
+    ).to_filename(out_file)
+
+if __name__ == "__main__":
+    # Default context
+    context = {
+        "mprage": None,
+        "b1map": None,
+        "output": None,
+        "smooth": False,
+        "sigma": 2.0
+    }
+
+    try:
+        opts, args = getopt.getopt(
+            sys.argv[1:],
+            "hi:b:o:",
+            ["help", "mprage=", "b1map=", "output=", "smooth", "sigma="]
+        )
+    except getopt.GetoptError:
+        print(main.__doc__)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(main.__doc__)
+            sys.exit()
+        elif opt in ("-i", "--mprage"):
+            context["mprage"] = arg
+        elif opt in ("-b", "--b1map"):
+            context["b1map"] = arg
+        elif opt in ("-o", "--output"):
+            context["output"] = arg
+        elif opt == "--smooth":
+            context["smooth"] = True
+        elif opt == "--sigma":
+            context["sigma"] = float(arg)
+
+    main(context=context)
