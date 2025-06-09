@@ -350,7 +350,7 @@ if __name__ == "__main__":
         opts = getopt.getopt(
             sys.argv[1:],
             "hp:f:i:o:b:j:r:n:t:",
-            ["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="]
+            ["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl_sub=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__, flush=True)
@@ -448,7 +448,7 @@ if __name__ == "__main__":
             if isinstance(rois, list):
                 rois = [os.path.abspath(i) for i in rois]
 
-        elif opt in ("-i", "--incl"):
+        elif opt in ("-i", "--incl_sub"):
             incl_subjs = arg
 
             # parse into list
@@ -464,7 +464,7 @@ if __name__ == "__main__":
         elif opt in ("--order"):
             order = arg         
         elif opt in ("--tr"):
-            tr = arg                     
+            tr = float(arg)
         elif opt in ("--colors"):
             colors = arg      
 
