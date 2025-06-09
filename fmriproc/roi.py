@@ -746,6 +746,10 @@ class FullExtractionPipeline(ExtractSubjects):
         self.pos_neg = pos_neg
         self.do_fit = do_fit
 
+        self.roi_list = None
+        if "rois" in list(kwargs.keys()):
+            self.roi_list = kwargs["rois"]
+
         if not isinstance(self.proj_dir, str):
             self.proj_dir = os.environ.get("DIR_DATA_HOME")
 
@@ -1268,7 +1272,6 @@ class FullExtractionPipeline(ExtractSubjects):
     def write_settings(self):
 
         utils.verbose(f"Generating settings file", self.verbose)
-
         if self.do_fit:
             settings = {
                 "date": datetime.datetime.now(),
@@ -1290,8 +1293,8 @@ class FullExtractionPipeline(ExtractSubjects):
                 "subject": self.subjects,
                 "rois": self.roi_list,
                 "fit": self.do_fit,
-                "TR": self.TR,
-                "unit": "seconds",
+                # "TR": self.TR,
+                # "unit": "seconds",
                 "project_dir": self.proj_dir,
                 "input_dir": self.ft_dir,
                 "output_dir": self.output_dir,
