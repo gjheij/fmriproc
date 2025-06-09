@@ -56,7 +56,7 @@ if [[ ! -f ${1} ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find input image ${BOLD_GREEN}${1}${RESET}"
   exit 1
 else
-  input=$(readlink -f "${1}")
+  input="$(readlink -f "${1}")"
 fi
 
 #-----------------------------------------------------------------------------

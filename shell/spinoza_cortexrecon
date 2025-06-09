@@ -93,10 +93,10 @@ do
       case "${OPTARG}" in       
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -105,15 +105,15 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;   
-    s)  sub=${OPTARG}
           ;;
-    n)  ses=${OPTARG}
+    s)  sub="${OPTARG}"
+          ;;
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
-          ;;    
+          ;; 
     x)  kwargs_flag="--kwargs ${OPTARG}"
-          ;;        
+          ;; 
   esac
 done
 
@@ -121,9 +121,9 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-REGION=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+REGION="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

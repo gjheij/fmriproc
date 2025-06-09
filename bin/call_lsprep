@@ -31,7 +31,7 @@ Mandatory (required input):
 Optional (flags with defaults):
   -r|--run        limit processing to a certain run ID; default is to do all runs
   -b|--bids       project root folder; defaults to DIR_DATA_HOME + <subject>/<session>
-  -o|--output_dir output directory; defaults to DIR_DATA_DERIV/lsprep + <subject>/<session>
+  -o|--output-dir output directory; defaults to DIR_DATA_DERIV/lsprep + <subject>/<session>
   -c|--comps      number of components for ICA/PCA
   --coil <value>  maps onto 'voxel_cutoff', which dictates which voxels are considered in the
                   lazyfmri.preproc.Segmentations-class. Default = 300.
@@ -60,18 +60,29 @@ Options (extra):
   --no-button     do not add button responses to onset dataframe (default is to do so)
   --lp            do low-pass filtering ontop of any other filtering
 
+Outputs:
+  h5-file derived from the following inputs:
+    - output_dir (defaults to 'DIR_DATA_DERIV/lsprep + <subject>) [--output-dir]
+    - base_name <subject>/<session>
+    - suffix (defaults to 'desc-preproc_bold') [--suff]
+
+    final file: <output_dir>/<subject>_<session>_<suffix>.h5
+
+    which generally results in:
+    'DIR_DATA_DERIV/lsprep/sub-01/sub-01_ses-2_desc-preproc_bold.h5'
+
 Examples:
   # simple call
-  call_lsprep -s sub-001 -n 1 --verbose
+  call_lsprep -s sub-01 -n 2 --verbose
 
   # acompcor
   call_lsprep \
-      -s sub-001 \
-      -n 1 \
-      --verbose \
-      --filter-pca 0.18 \ # filter components at 0.18 Hz
-      --first 150 \       # remove first 150 volumes
-      --last 150          # remove last 150 volumes
+    --sub sub-01 \
+    --ses 2 \
+    --verbose \
+    --filter-pca 0.18 \ # filter components at 0.18 Hz
+    --first 150 \       # remove first 150 volumes
+    --last 150          # remove last 150 volumes
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -105,7 +116,7 @@ Examples:
     coil_cutoff    = context.get("coil_cutoff")
 
     #---------------------------------------------------------------------------------------
-    # get some defaults 
+    # derive basename
     base_path = subject
     base_name = subject
 
@@ -113,16 +124,38 @@ Examples:
         base_path = opj(base_path, f"ses-{ses}")
         base_name += f"_ses-{ses}"
 
+    #---------------------------------------------------------------------------------------
+    # define BIDS directory
     if not isinstance(bids_dir, str):
       bids_dir = opj(os.environ.get("DIR_DATA_HOME"), base_path)
 
+    #---------------------------------------------------------------------------------------
+    # define output dir
     if not isinstance(output_dir, str):
         output_dir = opj(
             os.environ.get("DIR_DATA_DERIV"), 
             "lsprep", 
-            base_path
+            subject
         )
 
+    #---------------------------------------------------------------------------------------
+    # make output dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+
+    # directory for figures
+    save_as = opj(output_dir, "figures")
+    if make_report:
+        if not os.path.exists(save_as):
+            os.makedirs(save_as, exist_ok=True)
+    else:
+        save_as = None
+
+    #---------------------------------------------------------------------------------------
+    # define output hdf
+    output_h5 = opj(output_dir, f"{base_name}_{suff}.h5")
+
+    #---------------------------------------------------------------------------------------s
     # get layout
     layout = BIDSLayout(bids_dir, validate=False)
     anats = layout.get(datatype="anat", return_type="file")
@@ -142,11 +175,14 @@ Examples:
         tsv_search  = ["task-", ".tsv"]
         anat_search = ["acq-1slice", ".nii.gz"]
 
+    #---------------------------------------------------------------------------------------
+    # add custom filters
     if isinstance(filters, list):
       final_filters = func_search+filters
     else:
       final_filters = func_search
 
+    #---------------------------------------------------------------------------------------
     # funcs
     func_files = utils.get_file_from_substring(
         final_filters,
@@ -155,6 +191,7 @@ Examples:
         return_msg=None
     )
 
+    #---------------------------------------------------------------------------------------
     # eye-tracking
     eye_files = utils.get_file_from_substring(
         eye_search,
@@ -162,6 +199,12 @@ Examples:
         return_msg=None
     )
 
+    if eye_files is not None:
+        eye_h5 = opj(output_dir, f"{base_name}_desc-preproc_eye.h5")
+    else:
+        eye_h5 = None
+
+    #---------------------------------------------------------------------------------------
     # ExpTools2 files
     tsv_files = utils.get_file_from_substring(
         tsv_search,
@@ -170,6 +213,7 @@ Examples:
         return_msg=None
     )
 
+    #---------------------------------------------------------------------------------------
     # anat slices
     ref_slices = utils.get_file_from_substring(
         anat_search,
@@ -178,9 +222,12 @@ Examples:
         return_msg=None
     )
 
+    #---------------------------------------------------------------------------------------
+    # error handling
     if not isinstance(func_files, (str,list)):
         raise ValueError(f"Could not find functional files (*.mat) in '{opj(bids_dir, 'func')}'; run 'master -m 03a -s {subject.split('-')[-1]} -n {ses} --sge'")
     
+    #---------------------------------------------------------------------------------------
     # check which inputs are available, set to None otherwise
     collect_dict = {}
     for tag,val in zip(
@@ -197,6 +244,7 @@ Examples:
             if len(val) > 0:
                 collect_dict[tag] = val
 
+    #---------------------------------------------------------------------------------------
     # match lists to exlude 3DEPI stuff
     for ii in ["eye", "tsv"]:
         if isinstance(collect_dict[ii], list):
@@ -206,6 +254,7 @@ Examples:
                 matcher=["task","run"]
             )
     
+    #---------------------------------------------------------------------------------------
     # set acompcor to false if ica
     if do_ica:
         do_acompcor = False
@@ -246,14 +295,12 @@ Examples:
         if isinstance(ses_trafo, list):
             raise ValueError(f"Found mulitple instances for 'ses{ses}_rec-motion1' in '{trafo_dir}': {ses_trafo}")
 
+    #---------------------------------------------------------------------------------------
     # check if we have tsv_files
     if not isinstance(collect_dict["tsv"], list):
         button_press = False
 
-    # make output dir
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-            
+    #---------------------------------------------------------------------------------------     
     # initialize object
     obj_ = dataset.Dataset(
         collect_dict["func"],
@@ -277,13 +324,15 @@ Examples:
         deleted_last_timepoints=del_last,
         baseline=bsl_length,
         phase_onset=phase_onset,
-        voxel_cutoff=coil_cutoff
+        voxel_cutoff=coil_cutoff,
+        save_as=save_as,
+        eye_h5=eye_h5
     )
 
     # save h5 if needed; filename will be derived from inputs
     obj_.to_hdf(
         overwrite=overwrite,
-        suffix=suff
+        h5_file=output_h5
     )
 
 if __name__ == "__main__":
@@ -321,7 +370,7 @@ if __name__ == "__main__":
         opts = getopt.getopt(
             sys.argv[1:],
             "hgvh:b:d:n:r:o:f:l:i:s:c:",
-            ["help", "sub=", "bids=", "ses=", "tfm=", "output_dir=", "filter-pca=", "run=", "no-report", "verbose", "no-acompcor", "tr=", "overwrite", "ow", "lp", "no-button", "comps=", "coil=", "window=", "poly-order=", "ica", "first=", "last=", "bsl", "phase-onset=", "filters=","suff=","suffix="]
+            ["help", "sub=", "bids=", "ses=", "tfm=", "output-dir=", "filter-pca=", "run=", "no-report", "verbose", "no-acompcor", "tr=", "overwrite", "ow", "lp", "no-button", "comps=", "coil=", "window=", "poly-order=", "ica", "first=", "last=", "bsl", "phase-onset=", "filters=","suff=","suffix="]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__)
@@ -338,7 +387,7 @@ if __name__ == "__main__":
             ses = arg                         
         elif opt in ("-b", "--bids"):
             bids_dir = arg
-        elif opt in ("-o", "--output_dir"):
+        elif opt in ("-o", "--output-dir"):
             output_dir = arg
         elif opt in ("-r", "--run"):
             run_id = arg

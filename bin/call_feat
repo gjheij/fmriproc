@@ -48,7 +48,7 @@ USAGE
 submit=0
 run_local=1
 n_cpus=1
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 job_name="feat"
 while getopts :-:hj:q:n: argument
 do
@@ -58,13 +58,13 @@ do
         sge)
           submit=1
           run_local=0
-          if [[ ! -d ${DIR_LOGS} ]]; then
-            mkdir -p ${DIR_LOGS} 2>/dev/null
+          if [[ ! -d "${DIR_LOGS}" ]]; then
+            mkdir -p "${DIR_LOGS}" 2>/dev/null
           fi
           ;;
         help)
           Usage && exit 0
-          ;;                  
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -74,12 +74,12 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    q)  SGE_QUEUE=${OPTARG}
-          ;;  
-    j)  n_cpus=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
+          ;;
+    j)  n_cpus="${OPTARG}"
           ;; 
-    n)  job_name=${OPTARG}
-          ;;     
+    n)  job_name="${OPTARG}"
+          ;;
   esac
 done
 
@@ -96,15 +96,15 @@ if [[ ! -f "${fsf_file}" ]]; then
   print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${fsf_file}${RESET} does not exist"
   exit 1
 else
-  fsf_file=$(readlink -f "${tmp}")
+  fsf_file="$(readlink -f "${tmp}")"
 fi
 
 #-----------------------------------------------------------------------------
 # delete previously existing file
 base_name="${fsf_file%.fsf}"
 fsf_script=${base_name}.sh
-if [[ -f ${fsf_script} ]]; then
-  rm -r ${fsf_script}
+if [[ -f "${fsf_script}" ]]; then
+  rm -r "${fsf_script}"
 fi
 
 #-----------------------------------------------------------------------------

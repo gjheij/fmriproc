@@ -79,13 +79,13 @@ do
           ;;
         mul)
           INT="MultiLabel"
-          ;;         
+          ;;
         gau)
           INT="Gaussian"
-          ;;               
+          ;;
         bspl*)
           INT="BSpline[$(basename ${OPTARG} | cut -c 5)]"
-          ;;       
+          ;;
         cws)
           INT="CosineWindowedSinc"
           ;;
@@ -97,20 +97,20 @@ do
           ;;
         lws)
           INT="LanczosWindowedSinc"
-          ;;    
+          ;; 
         gen)
           INT="GenericLabel"
           ;;
         mul)
           INT="MultiLabel"
-          ;;                  
+          ;;
         verbose)
           VERBOSE="--verbose 1"
           VERB=1
           ;;
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -118,13 +118,13 @@ do
           ;;
       esac
       ;;
-    i)  invert=${OPTARG}
+    i)  invert="${OPTARG}"
           ;;
     v)  VERBOSE="--verbose 1"
         VERB=1
           ;; 
     h)  Usage && exit 0
-          ;;                 
+          ;;
   esac
 done
 
@@ -134,10 +134,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
-TRAFOS=${@:$OPTIND+3:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
+TRAFOS="${@:$OPTIND+3:1}"
 
 #-----------------------------------------------------------------------------
 # check if input exists
@@ -147,7 +147,7 @@ if [[ ! -f "${REF}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 else
-  REF=$(readlink -f "${REF}")
+  REF="$(readlink -f "${REF}")"
 fi
 
 if [[ ! -f "${MOV}" ]]; then
@@ -156,7 +156,7 @@ if [[ ! -f "${MOV}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
-  MOV=$(readlink -f "${MOV}")
+  MOV="$(readlink -f "${MOV}")"
 fi
 
 if [[ -z "${OUT}" ]]; then

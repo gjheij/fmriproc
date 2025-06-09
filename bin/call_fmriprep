@@ -124,75 +124,75 @@ do
           ;;
         warp-only)
           WARP_ONLY=1
-          ;;  
+          ;;
         docker)
           USE_DOCKER=1
-          ;;            
+          ;; 
         no-boldref)
           BOLDREF=0
           ;;
         clean)
           clean_wd=1
-          ;;            
+          ;; 
         fetch-fsl)
           fetch_fsl=1
-          ;;  
+          ;;
         fetch-func)
           fetch_func=1
-          ;;           
+          ;;
         fetch-anat)
           fetch_anat=1
-          ;;  
+          ;;
         masks)
           fetch_masks=1
-          ;;      
+          ;; 
         mask)
           fetch_masks=1
-          ;;                                 
+          ;;     
         fd)
           FD_ONLY=1
-          ;;     
+          ;;
         try)
           crash_flag=""
-          ;;                         
+          ;; 
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;     
-    s)  subj_ID=${OPTARG}
+      ;;
+    s)  subj_ID="${OPTARG}"
           ;;
-    m)  MODE=${OPTARG}
+    m)  MODE="${OPTARG}"
           ;;
-    r)  ROOT=${OPTARG}
+    r)  ROOT="${OPTARG}"
           ;;
-    d)  DERIV=${OPTARG}
+    d)  DERIV="${OPTARG}"
           ;;
-    i)  IMG=${OPTARG}
+    i)  IMG="${OPTARG}"
           ;;
-    b)  BIND=${OPTARG}
+    b)  BIND="${OPTARG}"
           ;;
-    w)  WORK=${OPTARG}
+    w)  WORK="${OPTARG}"
           ;;
-    l)  LIC=${OPTARG}
+    l)  LIC="${OPTARG}"
           ;;
-    x)  CONFIG=${OPTARG}
+    x)  CONFIG="${OPTARG}"
           ;;
-    t)  TASK_ID=${OPTARG}
+    t)  TASK_ID="${OPTARG}"
           ;;
-    k)  KWARGS_FILE=${OPTARG}
+    k)  KWARGS_FILE="${OPTARG}"
           ;;
-    c)  n_threads=${OPTARG}
+    c)  n_threads="${OPTARG}"
           ;; 
-    a)  keep_runs=${OPTARG}
-          ;;       
+    a)  keep_runs="${OPTARG}"
+          ;;
     h)  Usage && exit 0
-          ;;                      
+          ;;
   esac
 done
 

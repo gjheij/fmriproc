@@ -57,25 +57,25 @@ do
           ;;
         help)
           Usage && exit 0
-          ;;                   
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
-    l)  lower=${OPTARG}
+      ;; 
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
-          ;;    
-    b)  n_bins=${OPTARG}
-          ;;                
+    u)  upper="${OPTARG}"
+          ;; 
+    b)  n_bins="${OPTARG}"
+          ;; 
     v)  VERBOSE="--verbose 1"
         VERB=1
-          ;;    
+          ;; 
     h)  Usage && exit 0
-          ;;                  
+          ;;
   esac
 done
 
@@ -85,8 +85,8 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-in=${@:$OPTIND:1}
-out=${@:$OPTIND+1:1}
+in="${@:$OPTIND:1}"
+out="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -96,7 +96,7 @@ if [[ ! -f "${in}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in}${RESET}\""
   exit 1
 else
-  in_file=$(readlink -f "${in}")
+  in_file="$(readlink -f "${in}")"
 fi
 
 #-----------------------------------------------------------------------------

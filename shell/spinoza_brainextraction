@@ -131,16 +131,16 @@ do
           ;;
         fs)
           use_fs=1
-          ;;          
+          ;; 
         fprep)
           use_fprep=1
-          ;;           
+          ;;
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -150,18 +150,18 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;; 
     o)  OW=1
           ;;
-    l)  lower=${OPTARG}
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
+    u)  upper="${OPTARG}"
           ;;
     c)  custom_file="${OPTARG}"
-          ;;          
+          ;; 
   esac
 done
 
@@ -169,10 +169,10 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-SKULL=${@:$OPTIND+2:1}
-SOFTWARE=${@:$OPTIND+3:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+SKULL="${@:$OPTIND+2:1}"
+SOFTWARE="${@:$OPTIND+3:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -591,7 +591,6 @@ for subID in ${search}; do
             cmd=(
               call_cat12
               "${mode}"
-              -s "${SPM_PATH}"
               "${input}"
               "${BET}"
             )
@@ -767,10 +766,10 @@ for subID in ${search}; do
 
     IFS=$'\n' spm_sorted=($(sort <<<"${spm_mask[*]}"))
     unset IFS 
-    count=0; for ii in ${spm_sorted[@]}; do ((count++)); done
+    count=0; for ii in "${spm_sorted[@]}"; do ((count++)); done
     if [[ ${count} -gt 1 ]]; then
       echo "Found more than 1 files with \"spm_mask\" and \".nii.gz\" (${count})"
-      for ii in ${spm_sorted[@]}; do
+      for ii in "${spm_sorted[@]}"; do
         echo " ${ii}"
       done
       continue

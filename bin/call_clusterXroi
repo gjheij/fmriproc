@@ -95,22 +95,22 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
-	  s)  subj_ID=${OPTARG}
+          ;;
+	  s)  subj_ID="${OPTARG}"
 			    ;;
-	  r)  run_ID=${OPTARG}
+	  r)  run_ID="${OPTARG}"
 			    ;;
-	  n)  ses_ID=${OPTARG}
-			    ;;       
-	  f)  featdir=${OPTARG}
+	  n)  ses_ID="${OPTARG}"
 			    ;;
-	  g)  gfeatdir=${OPTARG}
+	  f)  featdir="${OPTARG}"
 			    ;;
-	  m)  maskdir=${OPTARG}
+	  g)  gfeatdir="${OPTARG}"
 			    ;;
-	  c)  copes=${OPTARG}
+	  m)  maskdir="${OPTARG}"
 			    ;;
-	  z)  nr_zstat=${OPTARG}
+	  c)  copes="${OPTARG}"
+			    ;;
+	  z)  nr_zstat="${OPTARG}"
 			    ;;
 	esac
 

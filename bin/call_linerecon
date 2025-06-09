@@ -15,7 +15,10 @@ call_linerecon
 wrapper for the reconstruction of line-data using a matlab template. For now, we can only run it
 on the Spinoza server, maybe we can port it to local processing as well some day. For now we also
 need to submit it to the minerva server by specifying -q recon.q@minerva, because that's the only
-place MRecon seems to work.
+place MRecon seems to work. By default, we take the SoS method to combine multi-echo data. This
+boosts tSNR, but weighs the data towards superficial surface because these signals disproportional-
+ly contribute to the signals due to longer T2*. Because of this longer T2*, they contribute more
+at longer TEs. Other methods include CNR, T2*, averaging, or complex combination (see flags below).
 
 Usage:
   call_linerecon [options] <raw data> <lsd image> <output file>
@@ -24,10 +27,31 @@ Arguments:
   -h|--help       print this help text
   -n|--no-nordic  skip NORDIC during reconstruction
   -d|--debug      don't submit job, just print inputs/outputs
-  -m <nr_echoes>  number of echoes in a multi-echo acquisition. Leave empty if acquisition was 
-                  single-echo
-  -r <run>        When running multiple reconstructions in parallel, it can help to add a run ID 
-                  so that the script-naming doesn't get mixed up.
+  --cnr           Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's 
+                  timecourse is weighted by its tSNR (mean/SD over time), i.e.:
+                  
+                    w_i = tSNR_i/∑_j tSNR_j,
+                    
+                  before summing across echoes.
+  --t2s           Combine multi-echo data using Poser et al. (2006) T2*-weighting: fit T2* per 
+                  voxel, compute weights wᵢ = TEᵢ·exp(-TEᵢ/T2*), normalize across echoes, and sum 
+                  weighted magnitudes.
+  --avg           Simply take the mean over echoes
+  --cpl           Combine multi-echo data into a complex signal by fitting B0-induced phase shifts 
+                  across echoes (ΔB0), computing voxelwise phase at the first TE, extracting 
+                  magnitude via sum-of-squares, and reconstructing S = mag·exp(i·phase). Unlike 
+                  the T2*-weighted methods, this preserves both amplitude and phase 
+                  information.
+
+Optional:
+  -m <n_echoes>   number of echoes in the acquisition (e.g., 5); by default we try to read it 
+                  from the PAR-file (field 'number of echoes')
+  -r <run>        limit reconstruction to a run-identifier. Tasks with the same run identifier will
+                  be considered, unless the '-t' flag is specified to limit the process to a speci-
+                  fic task. Input can be comma-separated (e.g., '-r 1,2,5')
+  -t <task>       limit reconstruction to a task-identifier. Runs with the same task identifier 
+                  will be considered, unless the '-r' flag is specified to limit the process to a 
+                  specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
   -c <comps>      percentage of components to remove with NORDIC. The default is to remove compo-
                   nents based on the scree plot
 
@@ -51,7 +75,9 @@ do_nordic="on"
 DEBUG=0
 n_echos=1
 n_comps=0
-while getopts :-:dhnm:r:c: argument
+weighting="SoS"
+task_id=""
+while getopts :-:dhnm:r:c:t: argument
 do
   case ${argument} in
     -)
@@ -61,32 +87,46 @@ do
           ;;
         no-nordic)
           do_nordic="off"
-          ;;                                                                      
+          ;;
         help)
           Usage && exit 0
-          ;;         
+          ;; 
+        cnr)
+          weighting="CNR"
+          ;; 
+        t2s)
+          weighting="T2star"
+          ;;
+        avg)
+          weighting="average"
+          ;;
+        cpl)
+          weighting="complex"
+          ;;                      
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
-    m)  n_echos=${OPTARG}
-          ;;       
-    r)  run_id=${OPTARG}
+      ;;
+    m)  n_echos="${OPTARG}"
           ;;
+    r)  run_id="${OPTARG}"
+          ;;
+    t)  task_id="${OPTARG}"
+          ;; 
     d)  DEBUG=1
-          ;;          
+          ;; 
     n)  do_nordic="off"
           ;;
-    c)  n_comps=${OPTARG}
+    c)  n_comps="${OPTARG}"
         if [[ ${n_comps} == "elbow" ]]; then
           n_comps=0
         fi
           ;;
     h)  Usage && exit 0
-          ;;             
+          ;;
   esac
 done
 
@@ -96,9 +136,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-RAW=${@:$OPTIND:1}
-LSD=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
+RAW="${@:$OPTIND:1}"
+LSD="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -108,7 +148,7 @@ if [[ ! -f "${RAW}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find RAW file \"${BOLD_GREEN}${RAW}${RESET}\""
   exit 1
 else
-  RAW=$(readlink -f "${RAW}")
+  RAW="$(readlink -f "${RAW}")"
 fi
 
 if [[ ! -f "${LSD}" ]]; then
@@ -117,7 +157,7 @@ if [[ ! -f "${LSD}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find LSD file \"${BOLD_GREEN}${LSD}${RESET}\""
   exit 1
 else
-  LSD=$(readlink -f "${LSD}")
+  LSD="$(readlink -f "${LSD}")"
 fi
 
 if [[ -z "${OUT}" ]]; then
@@ -142,11 +182,11 @@ rm -r "${newrecon}" 2>/dev/null
 
 # make single-/multi-echo script
 echo "Inputs:"
-echo " bold   = ${RAW}"
-echo " LSD    = ${LSD}"
-echo " Out    = ${OUT}.mat"
-echo " Nordic = ${do_nordic} (comps=${n_comps} | 0=elbow-method)"
-echo " Echos  = ${n_echos}"
+echo -e " bold   = ${BOLD_GREEN}${RAW}${RESET}"
+echo -e " LSD    = ${BOLD_GREEN}${LSD}${RESET}"
+echo -e " Out    = ${BOLD_GREEN}${OUT}.mat${RESET}"
+echo -e " Nordic = ${BOLD_RED}${do_nordic}${RESET} (comps=${BOLD_RED}${n_comps}${RESET} | 0=elbow-method)"
+echo -e " Echos  = ${BOLD_RED}${n_echos}${RESET} (combination=${BOLD_RED}${weighting}${RESET})"
 
 # add stuff that's shared between single-/ and multi-echo
 (
@@ -172,7 +212,7 @@ echo " Echos  = ${n_echos}"
   echo "csm4ls_sm_cplx = coil_sens_MELS(abs(Data_pc), gausskernel);"
   echo "nord_tresh     = ${n_comps}; % if 0, use scree-plot"
   echo "varargin_par   = {'before', nord_tresh};"    
-) >> ${newrecon}
+) >> "${newrecon}"
 
 # make output directory
 if [[ ! -d "$(dirname ${OUT})" ]]; then
@@ -187,7 +227,7 @@ if [[ ${multiecho} -eq 0 ]]; then
     echo ""
     echo "save('${OUT}','Data_wcsmtSNR');"
     echo "disp(\"Done\")"
-  ) >> ${newrecon}
+  ) >> "${newrecon}"
 
 elif [[ ${multiecho} -eq 1 ]]; then
   ## MULTI-ECHO w/ NORDIC
@@ -203,20 +243,20 @@ elif [[ ${multiecho} -eq 1 ]]; then
     echo "TE1 = 6.*10^(-3);"
     echo "deltaTE= 8.*10^(-3);"
     echo "echotimes = TE1(1):deltaTE(1):(TE1(1)+deltaTE(1)*(Nechos(1)-1));"
-    echo "Data_comb = CombineEchoes_nofor_LS(Data, echotimes, 'SoS');"
+    echo "Data_comb = CombineEchoes_nofor_LS(Data, echotimes, '${weighting}');"
     echo "save('${OUT}','Data_comb');"
     echo "disp(\"Done\")"
-  ) >> ${newrecon}
+  ) >> "${newrecon}"
 fi
 
 if [[ $DEBUG -eq 0 ]]; then
   echo "Initiating call to Matlab"
-  call_matlab ${newrecon} 
-
-  if [[ $? -ne 0 || ! -f "${OUT}" ]]; then
+  
+  call_matlab "${newrecon}" 
+  if [[ $? -ne 0 || ! -f "${OUT}.mat" ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "${recon_cmd}" "\"${BOLD_GREEN}${OUT}${RESET} not created\""
+    print_error_msg "$(basename ${0})" "${recon_cmd}" "File ${BOLD_GREEN}${OUT}.mat${RESET} was not created"
     exit 1
   fi
 else

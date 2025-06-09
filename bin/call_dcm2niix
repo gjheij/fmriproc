@@ -111,10 +111,10 @@ do
         no-compress)
           compress="n"
           compress_flag="--no-compress"
-          ;;             
+          ;;
         force-exec)
           force_flag="--force-exec"
-          ;;                       
+          ;; 
         help)
           Usage && exit 0
           ;;
@@ -127,21 +127,21 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    i)  pathInput=${OPTARG}
+    i)  pathInput="${OPTARG}"
           ;;
-    d)  searchDepth=${OPTARG}
-          ;;          
-    o)  pathOutput=${OPTARG}
+    d)  searchDepth="${OPTARG}"
+          ;; 
+    o)  pathOutput="${OPTARG}"
           ;;
-    v)  version=${OPTARG}
+    v)  version="${OPTARG}"
           ;;
-    p)  pattern=${OPTARG}
-          ;;     
-    c)  compress=${OPTARG}
-          ;;    
-    x)  kwargs=${OPTARG}
+    p)  pattern="${OPTARG}"
+          ;;
+    c)  compress="${OPTARG}"
+          ;; 
+    x)  kwargs="${OPTARG}"
         kwargs_flag="-x ${kwargs}"
-          ;;              
+          ;; 
   esac
 done
 

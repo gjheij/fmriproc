@@ -72,7 +72,7 @@ remove_wf=0
 mod_flag=""
 n_cpus=1
 fd_flag=""
-SGE_QUEUE=${SGE_QUEUE_SHORT}
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
 while getopts :-:hls:r:n:f:m:c:k:q:j: argument
 do
   case ${argument} in
@@ -80,28 +80,28 @@ do
       case "${OPTARG}" in
         local)
           run_local=1
-          ;;   
+          ;;
         sge)
           run_local=0
-          ;;             
+          ;;
         anat-only)
           mod_flag="--anat-only"
-          ;;   
+          ;;
         func-only)
           mod_flag="--func-only"
-          ;;        
+          ;; 
         remove-wf)
           remove_wf=1
-          ;;    
+          ;; 
         fd)
           fd_flag="--fd"
           ;;
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -111,14 +111,14 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
-          ;;      
-    j)  n_cpus=${OPTARG}
-          ;;                            
+    q)  SGE_QUEUE="${OPTARG}"
+          ;; 
+    j)  n_cpus="${OPTARG}"
+          ;;
   esac
 done
 
@@ -126,8 +126,8 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

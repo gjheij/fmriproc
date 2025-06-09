@@ -64,7 +64,7 @@ do
       case "${OPTARG}" in                  
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -73,23 +73,23 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;      
-    l)  lower=${OPTARG}
-          ;;
-    u)  upper=${OPTARG}
           ;; 
-    b)  n_bins=${OPTARG}
-          ;;                    
-    m)  max_value=${OPTARG}
-          ;;    
-    d)  dtype=${OPTARG}
-          ;;                
+    l)  lower="${OPTARG}"
+          ;;
+    u)  upper="${OPTARG}"
+          ;; 
+    b)  n_bins="${OPTARG}"
+          ;;
+    m)  max_value="${OPTARG}"
+          ;; 
+    d)  dtype="${OPTARG}"
+          ;; 
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-in_file=${@:$OPTIND:1}
+in_file="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -99,7 +99,7 @@ if [[ ! -f "${in_file}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in_file}${RESET}\""
   exit 1
 else
-  in_file=$(readlink -f "${in_file}")
+  in_file="$(readlink -f "${in_file}")"
 fi
 
 #-----------------------------------------------------------------------------

@@ -51,20 +51,20 @@ do
           ;; 
         fsl)
           to_fsl=1
-          ;;                             
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;  
-    t)  interp=${OPTARG}
+      ;;
+    t)  interp="${OPTARG}"
           ;;
     f)  to_fsl=1
-          ;;      
+          ;; 
     h)  Usage && exit 0
-          ;;                
+          ;; 
   esac
 done
 
@@ -74,7 +74,7 @@ fi
 
 # check reference image
 if [[ -f "${@:$OPTIND:1}" ]]; then
-  REF=$(readlink -f "${@:$OPTIND:1}")
+  REF="$(readlink -f "${@:$OPTIND:1}")"
 else
   echo
   print_line -
@@ -84,7 +84,7 @@ fi
 
 # check target image
 if [[ -f "${@:$OPTIND+1:1}" ]]; then
-  MOV=$(readlink -f "${@:$OPTIND+1:1}")
+  MOV="$(readlink -f "${@:$OPTIND+1:1}")"
 else
   echo
   print_line -
@@ -94,7 +94,7 @@ fi
 
 # check tfm file
 if [[ -f "${@:$OPTIND+2:1}" ]]; then
-  AFF=$(readlink -f "${@:$OPTIND+2:1}")
+  AFF="$(readlink -f "${@:$OPTIND+2:1}")"
 else
   echo
   print_line -
@@ -103,7 +103,7 @@ else
 fi
 
 # output
-OUT=${@:$OPTIND+3:1}
+OUT="${@:$OPTIND+3:1}"
 if [[ -z "${OUT}" ]]; then
   echo
   print_line -

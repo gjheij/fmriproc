@@ -66,10 +66,10 @@ do
       case "${OPTARG}" in
         keep)
           clean_up=0
-          ;;   
+          ;;
         help)
           Usage && exit 0
-          ;;              
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -78,9 +78,9 @@ do
       esac
       ;;
     k)  clean_up=0
-          ;;   
+          ;;
     h)  Usage && exit 0
-          ;;                                
+          ;;    
   esac
 done
 
@@ -96,11 +96,11 @@ if [[ ! -f "${@:$OPTIND:1}" ]]; then
   print_error_msg "$(basename ${0})" "input" "File does not exist"
   exit 1
 else
-  input=$(readlink -f "${@:$OPTIND:1}")
+  input="$(readlink -f "${@:$OPTIND:1}")"
 fi
 
 # output
-output=${@:$OPTIND+1:1}
+output="${@:$OPTIND+1:1}"
 
 # define output
 if [[ -z "${output}" ]]; then

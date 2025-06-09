@@ -56,31 +56,31 @@ do
           ;;
         help)
           Usage && exit 0
-          ;;            
+          ;; 
         freeview)
           open_fv=1
-          ;;           
+          ;;
         verbose)
           VERBOSE="--verbose"
           VERB=1
-          ;;                  
+          ;;
         *)
           if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
             echo "Unknown option --${OPTARG}"
             exit 1
           fi
-          ;;  
+          ;;
       esac;;
-    o)  out_dir=${OPTARG}
+    o)  out_dir="${OPTARG}"
           ;;
-    p)  prefix=${OPTARG}
+    p)  prefix="${OPTARG}"
           ;;
-    s)  suffix=${OPTARG}
-          ;;               
-    i)  interp=${OPTARG}
+    s)  suffix="${OPTARG}"
+          ;;
+    i)  interp="${OPTARG}"
           ;;
     h)  Usage && exit 0
-          ;;              
+          ;; 
   esac
 done
 
@@ -91,7 +91,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-input_file=${@:$OPTIND:1}
+input_file="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # define inputs
@@ -101,7 +101,7 @@ if [[ ! -f "${input_file}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input_file}${RESET}\""
   exit 1
 else
-  input_file=$(readlink -f "${input_file}")
+  input_file="$(readlink -f "${input_file}")"
 fi
 
 # set output directory

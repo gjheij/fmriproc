@@ -79,24 +79,24 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
           ;;
     l)  LOG="${OPTARG}"
           ;;
     s)  SPM="${OPTARG}"
           ;;
-    m)  MODE=${OPTARG}
+    m)  MODE="${OPTARG}"
           ;;
     c)  custom_file="${OPTARG}"
-          ;;  
+          ;;
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-in_file=${@:$OPTIND:1}
-out_dir=${@:$OPTIND+1:1}
+in_file="${@:$OPTIND:1}"
+out_dir="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -106,7 +106,7 @@ if [[ ! -f "${in_file}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${in_file}${RESET}\""
   exit 1
 else
-  in_file=$(readlink -f "${in_file}")
+  in_file="$(readlink -f "${in_file}")"
 fi
 
 # set input dir

@@ -57,7 +57,8 @@ Positional:
                       If that's the case, make sure to use 'call_antsmakechicken <coord> 
                       <filename> RAS'!
                     - You can also specify a comma-separated coordinate in any space (use --ras/
-                      --lpi), in which case a temporary chicken file is produced. The coordinate must be in the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO 
+                      --lpi), in which case a temporary chicken file is produced. The coordinate 
+                      must be in the format \"-8.38654,-93.1835,-39.7082\" WITH THESE SLASHES TO 
                       AVOID THAT THE ARGUMENT HANDLES THINKS THE COORDINATE IS A FLAG !!
   <output csv>    file containing the coordinate in the new space
   <warp files>    all warp files in order of application; if multiple warp files
@@ -115,19 +116,19 @@ do
           ;;
         lps)
           trafo_type="lps"
-          ;;         
+          ;;
         coord)
           return_coord=1
-          ;;            
+          ;; 
         verbose)
           verb=1
-          ;;          
+          ;; 
         keep)
           keep_tmp=1
-          ;;           
+          ;;
         invert)
           INVERT=1
-          ;;                  
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -140,8 +141,8 @@ do
       ;;
     i)  INVERT=1
           ;;
-    d)  DIMENSION=${OPTARG}
-          ;;     
+    d)  DIMENSION="${OPTARG}"
+          ;;
     h)  Usage && exit 0
           ;; 
   esac
@@ -172,15 +173,15 @@ if [[ -z "${WARP}" ]]; then
   print_error_msg "$(basename ${0})" input "Please specify transformation file"
   exit 1
 else
-  WARP=$(readlink -f "${WARP}")
+  WARP="$(readlink -f "${WARP}")"
 fi
 
 #-----------------------------------------------------------------------------
 # check if we have to invert our matrix
 APPLY="[${WARP},${INVERT}]"
 
-if [ ! -z ${DIMENSION} ]; then
-  DIMS=${DIMENSION}
+if [ ! -z "${DIMENSION}" ]; then
+  DIMS="${DIMENSION}"
 else
   DIMS=3
 fi
@@ -213,7 +214,7 @@ else
   input_csv="${tmp_chicken}"
 
   rm_file=1
-  if [[ ${keep_tmp} -eq 1 ]]; then
+  if [[ "${keep_tmp}" -eq 1 ]]; then
     rm_file=0
   fi
 fi
@@ -241,11 +242,11 @@ if [[ $? -ne 0 ]]; then
 fi
 
 # return command
-if [[ ${return_coord} -eq 1 ]]; then
+if [[ "${return_coord}" -eq 1 ]]; then
   coord=$(
     call_antsreadchicken \
     "${OUT_CSV}" \
     "${trafo_type}"
   )
-  echo ${coord}
+  echo "${coord}"
 fi

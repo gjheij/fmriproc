@@ -6,6 +6,47 @@ source "${SETUP_FILE}"
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
+# function to search for B1
+function find_b1_file {
+  
+  local in_file="$1"
+  local input_folder
+  input_folder="$(dirname "$in_file")"
+
+  # Collect all *B1.nii.gz files in the same folder
+  local IFS=$'\n'       # split only on newlines
+  local b1_files=( $(find "$input_folder" -maxdepth 1 -type f -name "*B1.nii.gz") )
+  unset IFS
+
+  # No matches?
+  if [ "${#b1_files[@]}" -eq 0 ]; then
+    echo ""
+    return
+  fi
+
+  # Only one match
+  if [ "${#b1_files[@]}" -eq 1 ]; then
+    echo "${b1_files[0]}"
+    return
+  fi
+
+  # Multiple matches: try to find same run-<id>
+  local run_id
+  run_id="$(get_id "$in_file")"
+
+  for b1 in "${b1_files[@]}"; do
+    if [[ "$b1" == *"run-${run_id}"* ]]; then
+      echo "$b1"
+      return
+    fi
+  done
+
+  # Fallback: just return the first one
+  echo "${b1_files[0]}"
+}
+
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -36,13 +77,25 @@ Arguments:
   -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_SHORT in spinoza_setup
   -l <lower>      lower percentile (default = 0.01) for call_winsorize
   -u <upper>      upper percentile (default = 0.99) for call_winsorize  
-  -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be 
-                  comma-separated flags as follows: 
+  -y <kwargs>     Additional commands to be passed to 'call_b1correct'. Format should be colon-
+                  separated flags as follows: 
                     - if you specify a flag and values | <flag>=<value>
                     - if you specify a flag only | <flag>
 
                   combine as:
-                    "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                    "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                  e.g.,
+                    "-y --smooth:--sigma=1.5"
+
+                  This allows bash commands to be translated to 'N4BiasFieldCorrection' commands 
+  -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be 
+                  colon-separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
 
                   This allows bash commands to be translated to 'N4BiasFieldCorrection' commands
 
@@ -53,6 +106,7 @@ Options:
   --verbose       echo command to terminal
   --ups           use settings for universal pulse (UP) [parameters are hardcoded]
   --no-reg        do not register separate T1map in case you have MPRAGE image
+  --no-bias       skip bias correction (e.g., is B1-correction is enough)
   --no-winsor     do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally 
                   recommend doing so, though..
   --spm           use SPM for bias correction instead of ANTs [call_mprage]
@@ -99,24 +153,26 @@ n_cpus=1
 kwargs=""
 spm_flag=""
 reg_flag=""
+bias_flag=""
 intensity_flag=""
 upper=""
 lower=""
-SGE_QUEUE=${SGE_QUEUE_SHORT}
-while getopts :-:hofs:n:p:q:j:x:l:u: argument
+b1_kwargs=""
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
+while getopts :-:hofs:n:p:q:j:x:l:u:y: argument
 do
   case ${argument} in
     -)
       case "${OPTARG}" in     
         ow)
           OW=1
-          ;;  
+          ;;
         full)
           FULL_OW=1
-          ;;    
+          ;; 
         ups)
           UPs="--ups"
-          ;;     
+          ;;
         skip-bg)
           SKIP_BG="--skip-bg"
           ;;
@@ -125,19 +181,22 @@ do
           ;;
         sge)
           run_local=0
-          ;;  
+          ;;
         spm)
           spm_flag="--spm"
           ;; 
         no-reg)
           reg_flag="--no-reg"
           ;;
+        no-bias)
+          bias_flag="--no-bias"
+          ;;          
         no-winsor)
           intensity_flag="--no-winsor"
-          ;;                                      
+          ;;          
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -146,27 +205,29 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;    
-    s)  sub=${OPTARG}
+          ;; 
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
-          ;;   
+    n)  ses="${OPTARG}"
+          ;;
     l)  lower="--lower ${OPTARG}"
           ;;
     u)  upper="--upper ${OPTARG}"
           ;;
     o)  OW=1
-          ;;         
+          ;;
     f)  FULL_OW=1
-          ;;        
+          ;; 
     p)  PARS_FLAG="--pars ${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
+    j)  n_cpus="${OPTARG}"
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
     x)  kwargs="-x ${OPTARG}"
           ;; 
+    y)  b1_kwargs="-y ${OPTARG}"
+          ;;           
   esac
 done
 
@@ -174,8 +235,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects
@@ -341,12 +402,20 @@ for subID in ${search}; do
         #-----------------------------------------------------------------------------
         # mprage job
         else
-          for file in ${in_files[@]}; do
+          for file in "${in_files[@]}"; do
             # set output name based on acquisition strategy
             add_run=""
             run=$(get_id "${file}" run)
             if [[ ! -z "${run}" ]]; then
               add_run="_run-${run}"
+            fi
+
+            # try to find b1 file
+            b1_file=$(find_b1_file "${file}")
+            if [[ -f "${b1_file}" ]]; then
+              b1_flag="-b ${b1_file}"
+            else
+              b1_flag=""
             fi
 
             # decide job execution
@@ -371,6 +440,9 @@ for subID in ${search}; do
               "${file}"
               "${lower}"
               "${upper}"
+              "${b1_flag}"
+              "${b1_kwargs}"
+              "${bias_flag}"
               "${output_dir}/${output_base}"
             )
 
@@ -396,16 +468,16 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # copy extra anatomical files
-  for f in ${SEARCH_ANATOMICALS[@]}; do
+  for f in "${SEARCH_ANATOMICALS[@]}"; do
 
     # copy T2w-file to pymp2rage folder for later convenience
     if [[ "${f}" != "T1w" ]]; then
-      f_files=$(
+      f_files="$(
         find -L "${input_dir}" \
         -type f \
         -name "*${f}.nii.gz" \
         2>/dev/null
-      )
+      )"
       if [ ! -z "${f_files}" ]; then
         ct=0; for ii in ${f_files[@]}; do ((ct++)); done
         ix=0

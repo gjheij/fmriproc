@@ -94,25 +94,25 @@ while getopts :-:hmv:u:l: arg; do
       case "${OPTARG}" in
         mag)
           mag_only=1
-          ;;  
+          ;;
         tsnr)
           make_tsnr=1
           ;;
         help)
           Usage && exit 0
-          ;;           
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
+      ;; 
     m)  mag_only=1
         ;;
-    l)  lower=${OPTARG}
+    l)  lower="${OPTARG}"
           ;;
-    u)  upper=${OPTARG}
+    u)  upper="${OPTARG}"
           ;;
     h)  Usage && exit 0
           ;;

@@ -65,15 +65,15 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;    
-    s)  sub=${OPTARG}
+          ;; 
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    a)  anat_depth=${OPTARG}
-          ;;          
+    a)  anat_depth="${OPTARG}"
+          ;; 
   esac
 done
 
@@ -124,9 +124,9 @@ if [[ ! -z ${sub} ]]; then
   MAN=${mask_dir}/${base}_acq-${DATA}_desc-manualseggm.nii.gz
 
 else
-  REF=${@:$OPTIND:1}
-  SEG=${@:$OPTIND+1:1}
-  MAN=${@:$OPTIND+2:1}
+  REF="${@:$OPTIND:1}"
+  SEG="${@:$OPTIND+1:1}"
+  MAN="${@:$OPTIND+2:1}"
 
   if [[ ! -f "${REF}" ]]; then
     echo
@@ -134,7 +134,7 @@ else
     print_error_msg "$(basename ${0})" input "Could not find REF image \"${BOLD_GREEN}${REF}${RESET}\""
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 fi
 

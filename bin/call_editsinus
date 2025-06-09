@@ -66,15 +66,15 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;    
-    s)  sub=${OPTARG}
+          ;; 
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    a)  anat_depth=${OPTARG}
-          ;;          
+    a)  anat_depth="${OPTARG}"
+          ;; 
   esac
 done
 
@@ -110,12 +110,12 @@ if [[ ! -z ${sub} ]]; then
     print_error_msg "$(basename ${0})" "find" "No file with ${BOLD_RED}${sub}*${RESET} and ${BOLD_RED}*T1w.nii.gz${RESET} in ${BOLD_GREEN}${ANAT_DIR}${RESET}"
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 
   MAN="${mask_dir}/${base}_acq-${DATA_UPR}_desc-sagittalsinus.nii.gz"
 else
-  REF=${@:$OPTIND:1}
+  REF="${@:$OPTIND:1}"
 
   if [[ ! -f "${REF}" ]]; then
     echo
@@ -123,15 +123,15 @@ else
     print_error_msg "$(basename ${0})" "find" "Anatomical file ${BOLD_GREEN}${REF}${RESET} does not exist"
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 
-  MAN=${@:$OPTIND+1:1}
+  MAN="${@:$OPTIND+1:1}"
 fi
 
 #-----------------------------------------------------------------------------
 # create empty
-if [[ ! -f ${MAN} ]]; then
+if [[ ! -f "${MAN}" ]]; then
   if [[ ! -d "$(dirname ${MAN})" ]]; then
     mkdir -p "$(dirname ${MAN})"
   fi

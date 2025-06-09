@@ -58,9 +58,9 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-input=${@:$OPTIND:1}
-new_matrix=${@:$OPTIND+1:1}
-output=${@:$OPTIND+2:1}
+input="${@:$OPTIND:1}"
+new_matrix="${@:$OPTIND+1:1}"
+output="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -70,7 +70,7 @@ if [[ ! -f "${input}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
-  input=$(readlink -f "${input}")
+  input="$(readlink -f "${input}")"
 fi
 
 if [[ -z "${new_matrix}" ]]; then

@@ -73,7 +73,7 @@ if [[ -d "${fprep_dir}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input directory ${BOLD_GREEN}${fprep_dir}${RESET}"
   exit 1
 else
-  fprep_dir=$(readlink -f "${fprep_dir}")
+  fprep_dir="$(readlink -f "${fprep_dir}")"
 fi
 
 #-----------------------------------------------------------------------------

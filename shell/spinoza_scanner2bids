@@ -237,7 +237,7 @@ MRI_SYSTEM_FLAG=""
 SKIP_TR_FLAG=""
 CUT_VOLS=""
 TRIM_FMAP=""
-SGE_QUEUE=${SGE_QUEUE_SHORT}
+SGE_QUEUE="${SGE_QUEUE_SHORT}"
 pattern_flag=""
 search_flag=""
 compress_flag=""
@@ -255,59 +255,59 @@ do
           ;;
         take-avg-tr)
           PROT_FLAG="--take-avg-tr"
-          ;;         
+          ;;
         ap)
           PE_FLAG="--ap"
-          ;;          
+          ;; 
         pa)
           PE_FLAG="--pa"
-          ;;         
+          ;;
         lr)
           PE_FLAG="--lr"
-          ;;         
+          ;;
         rl)
           PE_FLAG="--rl"
-          ;;  
+          ;;
         si)
           PE_FLAG="--si"
           ;;
         is)
           PE_FLAG="--is"
-          ;;                       
+          ;; 
         no-lpi)
           ORIENT_FLAG="--no-lpi"
-          ;;       
+          ;;
         ow)
           OW="--ow"
-          ;;  
+          ;;
         phys)
           PHYS_FLAG="--phys"
           SES_TYPE="lines"
-          ;;           
+          ;;
         full)
           FULL_OW=1
-          ;;  
+          ;;
         skip-fmap)
           TRIM_FMAP="--skip-fmap"
-          ;;           
+          ;;
         sge)
           run_local=0
-          if [[ ! -d ${DIR_LOGS} ]]; then
-            mkdir -p ${DIR_LOGS} 2>/dev/null
+          if [[ ! -d "${DIR_LOGS}" ]]; then
+            mkdir -p "${DIR_LOGS}" 2>/dev/null
           fi
-          ;;     
+          ;;
         debug)
           DEBUG_MODE=1
-          ;;       
+          ;;
         skip-tr)
           SKIP_TR="--skip-tr"
-          ;;                       
+          ;; 
         help)
           Usage && exit 0
           ;;
         no-compress)
           compress_flag="--no-compress"
-          ;;    
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -316,27 +316,27 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;   
-    s)  sub=${OPTARG}
           ;;
-    d)  SEARCH_DEPTH=${OPTARG}
-          ;;          
-    n)  ses=${OPTARG}
-          ;;     
+    s)  sub="${OPTARG}"
+          ;;
+    d)  SEARCH_DEPTH="${OPTARG}"
+          ;; 
+    n)  ses="${OPTARG}"
+          ;;
     o)  OW="--ow"
-          ;;    
+          ;; 
     r)  RUNS="-r ${OPTARG}"                                 
           ;;
-    q)  SGE_QUEUE=${OPTARG}
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
     t)  TR_FLAG="-t ${OPTARG}"
-          ;;        
+          ;; 
     v)  CUT_VOLS="-v ${OPTARG}"
           ;;
     p)  pattern_flag="-p ${OPTARG}"
-          ;;   
+          ;;
     a)  search_flag="-a ${OPTARG}"
-          ;;                                                
+          ;;                    
   esac
 done
 
@@ -344,8 +344,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-PROJECT_ROOT=${@:$OPTIND:1}
-SOURCEDATA=${@:$OPTIND+1:1}
+PROJECT_ROOT="${@:$OPTIND:1}"
+SOURCEDATA="${@:$OPTIND+1:1}"
 
 [[ -z "${PROJECT_ROOT}" || -z "${SOURCEDATA}" ]] && Usage
 
@@ -475,7 +475,7 @@ for subID in ${search}; do
     )
 
     # print and run
-    if [[ ${SGE_FLAG} -eq 0 ]]; then
+    if [[ ${run_local} -eq 1 ]]; then
       echo "${intro_txt}"
       print_cmd "${cmd[@]}"
       echo

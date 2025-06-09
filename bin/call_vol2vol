@@ -47,7 +47,7 @@ out="${3}"
 #-----------------------------------------------------------------------------
 # check moving image
 if [[ -f "${mov}" ]]; then
-  mov=$(readlink -f "${mov}")
+  mov="$(readlink -f "${mov}")"
 else
   echo
   print_line -
@@ -57,7 +57,7 @@ fi
 
 # check ref image
 if [[ -f "${targ}" ]]; then
-  targ=$(readlink -f "${targ}")
+  targ="$(readlink -f "${targ}")"
 else
   echo
   print_line -

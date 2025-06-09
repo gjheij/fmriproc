@@ -1,5 +1,6 @@
 --abc
 --abd
+--avg
 --affine
 --anat
 --anat-only
@@ -9,6 +10,8 @@
 --bold
 --clean
 --cmd
+--cnr
+--cpl
 --comb-only
 --ctx
 --css
@@ -22,6 +25,7 @@
 --fetch-anat
 --fetch-fsl
 --fetch-func
+--fit
 --fix-hrf
 --fmriprep
 --force-exec
@@ -60,6 +64,7 @@
 --nelder
 --nighres
 --no-bbr
+--no-bias
 --no-boldref
 --no-bounds
 --no-clip
@@ -110,6 +115,7 @@
 --take-avg-tr
 --tc
 --try
+--t2s
 --ups
 --v1
 --v2

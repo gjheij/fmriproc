@@ -62,7 +62,7 @@ verbose=""
 run_local=1
 n_cpus=1
 search_depth=3
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 clear=0
 debug=0
 while getopts :-:vh:s:n:q:j:d: argument
@@ -75,19 +75,19 @@ do
           ;;
         sge)
           run_local=0
-          if [[ ! -d ${DIR_LOGS} ]]; then
-            mkdir -p ${DIR_LOGS} 2>/dev/null
+          if [[ ! -d "${DIR_LOGS}" ]]; then
+            mkdir -p "${DIR_LOGS}" 2>/dev/null
           fi
-          ;;          
+          ;; 
         verbose)
           verbose="--verbose"
-          ;;        
+          ;; 
         clear)
           clear=1
-          ;;       
+          ;;
         debug)
           debug=1
-          ;;                         
+          ;; 
         help)
           Usage && exit 0
           ;;
@@ -97,21 +97,21 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;       
-    s)  sub_id=${OPTARG}
-          ;;  
-    n)  ses_id=${OPTARG}
-          ;;                          
-    i)  invert=1
-          ;;   
-    q)  SGE_QUEUE=${OPTARG}
           ;;
-    j)  n_cpus=${OPTARG}
-          ;;       
-    d)  search_depth=${OPTARG}
-          ;;               
+    s)  sub_id="${OPTARG}"
+          ;;
+    n)  ses_id="${OPTARG}"
+          ;;
+    i)  invert=1
+          ;;
+    q)  SGE_QUEUE="${OPTARG}"
+          ;;
+    j)  n_cpus="${OPTARG}"
+          ;;
+    d)  search_depth="${OPTARG}"
+          ;;
   esac
 done
 

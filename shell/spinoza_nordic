@@ -92,7 +92,7 @@ n_cpus=1
 run_local=1
 mag_only=0
 tsnr_flag="--tsnr"
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 while getopts :-:hos:n:r:q:j: argument
 do
   case ${argument} in
@@ -100,19 +100,19 @@ do
       case "${OPTARG}" in
         sge)
           run_local=0
-          ;;   
+          ;;
         no-tsnr)
           tsnr_flag=""
-          ;;  
+          ;;
         mag)
           mag_only=1
-          ;;    
+          ;; 
         ow)
           OW=1
           ;;
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -121,19 +121,19 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;          
-    s)  sub=${OPTARG}
+          ;; 
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
-          ;;     
+    n)  ses="${OPTARG}"
+          ;;
     o)  OW=1
           ;;
-    r)  runs=${OPTARG}
-          ;;      
-    q)  SGE_QUEUE=${OPTARG}
-          ;;        
-    j)  n_cpus=${OPTARG}
-          ;;                     
+    r)  runs="${OPTARG}"
+          ;; 
+    q)  SGE_QUEUE="${OPTARG}"
+          ;; 
+    j)  n_cpus="${OPTARG}"
+          ;; 
   esac
 done
 
@@ -141,7 +141,7 @@ if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
+INPUT="${@:$OPTIND:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

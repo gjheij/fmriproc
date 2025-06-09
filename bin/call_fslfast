@@ -55,13 +55,13 @@ fi
 #-----------------------------------------------------------------------------
 # check if input exists
 input="${1}"
-if [[ ! -f ${input} ]]; then
+if [[ ! -f "${input}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
   exit 1
 else
-  input=$(readlink -f ${input})
+  input="$(readlink -f "${input}")"
 fi
 
 # set output

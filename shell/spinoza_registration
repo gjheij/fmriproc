@@ -182,21 +182,21 @@ do
           ;;
         affine)
           reg_type="--affine"
-          ;;     
+          ;;
         verbose)
           verb_flag="--verbose"
           verb=1
-          ;;    
+          ;; 
         fsl)
           FSL_FMT=1
           fsl_flag="--fsl"
-          ;;                            
+          ;;
         ow)
           OW=1
-          ;;            
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -205,15 +205,15 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;             
-    s)  sub=${OPTARG}
           ;;
-    n)  ses=${OPTARG}
+    s)  sub="${OPTARG}"
+          ;;
+    n)  ses="${OPTARG}"
           ;;
     o)  OW=1
           ;;
-    j)  n_cpus=${OPTARG}
-          ;;           
+    j)  n_cpus="${OPTARG}"
+          ;;
   esac
 done
 
@@ -221,9 +221,9 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-TYPE=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+TYPE="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

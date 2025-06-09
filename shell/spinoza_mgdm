@@ -111,7 +111,7 @@ OW=0
 type=""
 run_local=1
 n_cpus=1
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 kwargs_flag=""
 while getopts :-:hos:n:t:q:j:x:p: argument
 do
@@ -120,16 +120,16 @@ do
       case "${OPTARG}" in
         gdh)
           type="gdh"
-          ;;                  
+          ;;
         ow)
           OW=1
           ;;
         sge)
           run_local=0
-          ;;                                     
+          ;;         
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -139,22 +139,22 @@ do
       ;;
     h)  Usage && exit 0
           ;; 
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    t)  type=${OPTARG}
+    t)  type="${OPTARG}"
           ;;
     o)  OW=1
-          ;;     
-    j)  n_cpus=${OPTARG}
           ;;
-    q)  SGE_QUEUE=${OPTARG}
-          ;;   
+    j)  n_cpus="${OPTARG}"
+          ;;
+    q)  SGE_QUEUE="${OPTARG}"
+          ;;
     x)  kwargs_flag="--kwargs ${OPTARG}"
-          ;;    
+          ;; 
     p)  priors_flag="--priors ${OPTARG}"
-          ;;                       
+          ;; 
   esac
 done
 
@@ -162,9 +162,9 @@ if [[ $# -lt 4 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-MASKS=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+MASKS="${@:$OPTIND+2:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

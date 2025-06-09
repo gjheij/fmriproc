@@ -77,31 +77,31 @@ do
       case "${OPTARG}" in     
         take-avg-tr)
           use_case="average"
-          ;;    
+          ;; 
         no-compress)
           compress=""
-          ;;   
+          ;;
         force-exec)
           force=1
-          ;;                       
+          ;; 
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;      
-    i)  pathInput=${OPTARG}
+      ;; 
+    i)  pathInput="${OPTARG}"
           ;;
-    o)  pathOutput=${OPTARG}
+    o)  pathOutput="${OPTARG}"
           ;;
-    x)  kwargs=${OPTARG}
-          ;;          
+    x)  kwargs="${OPTARG}"
+          ;; 
     h)  Usage && exit 0
-          ;;       
+          ;;
   esac
 done
 

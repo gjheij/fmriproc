@@ -157,11 +157,18 @@ handle_json_metadata() {
 # get relative path for IntendedFor
 rel_path() {
   local input="${1}"
+  local add_basename="${2}"
+
   local base_path=""
   if [[ "$(basename "${input}")" == *"ses"* ]]; then
     base_path="$(basename "${input}" | cut -d"_" -f2)/"
   fi
-  echo "${base_path}"
+
+  if [[ -z "${add_basename}" ]]; then
+    echo "${base_path}"
+  else
+    echo "${base_path}${add_basename}/$(basename ${input})"
+  fi
 }
 
 #-----------------------------------------------------------------------------
@@ -449,6 +456,9 @@ process_lowres_mp2rage() {
 
   if [[ -n "${anat_lowres}" ]]; then
 
+    echo && print_line -
+    echo "Found \"low-res anatomy\" file(s):"
+    echo -e "${BOLD_MAGENTA}${anat_lowres}${RESET}"
     [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
 
     if [[ -f "${anat_t1map}" ]]; then
@@ -476,8 +486,9 @@ process_lowres_mp2rage() {
     [[ -z "${acq}" ]] && acq="MP2RAGE"
     acq_flag="_acq-${acq}"
 
-    echo "Relocating lowres MP2RAGE-file as ${base}${acq_flag}_T1w.nii.gz"
-    cp "${anat_lowres}" "${bids_dir}/anat/${base}${acq_flag}_T1w.nii.gz" 2>/dev/null
+    low_out="${bids_dir}/anat/${base}${acq_flag}_T1w.nii.gz"
+    echo -e "Renaming → ${BOLD_GREEN}$(rel_path "${low_out}" "anat")${RESET}"
+    cp "${anat_lowres}" "${low_out}" 2>/dev/null
 
     local json_file
     json_file="${anat_lowres/.nii.gz/.json}"
@@ -539,7 +550,7 @@ process_anatomical_inversions() {
 
       out_fn="${bids_dir}/anat/${base}_acq-${DATA}_${inv_tag}_${rec_tag}.${ext}"
       if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
-        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
         cp "${ff}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -568,7 +579,7 @@ process_anatomical_inversions() {
       for ff in "${parts[@]}"; do
         out_fn="${bids_dir}/anat/$(basename ${ff})"
         if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
-          echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+          echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
           cp "${ff}" "${out_fn}" 2>/dev/null
 
           # reorient to LPI
@@ -613,7 +624,7 @@ process_search_anatomicals() {
 
       out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
       if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
-        echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}${out_fn}${RESET}"
+        echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
         cp "${img}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -660,7 +671,7 @@ process_motion_images() {
       fname="${bids_dir}/anat/${base}_acq-MP2RAGE_rec-motion${run}.nii.gz"
       if [[ ! -f "${fname}" || ${OW} -eq 1 ]]; then
         if [[ -f "${i}" ]]; then
-          echo -e " Renaming → ${BOLD_GREEN}$(basename "${fname}")${RESET}"
+          echo -e " Renaming → ${BOLD_GREEN}$(rel_path "${fname}" "anat")${RESET}"
           cp "${i}" "${fname}" 2>/dev/null
 
           json_src="${i/.nii.gz/.json}"
@@ -674,7 +685,7 @@ process_motion_images() {
           echo " WARNING: Could not locate motion file: ${i}"
         fi
       else
-        echo -e " File ${BOLD_GREEN}${fname}${RESET} exists"
+        echo -e " File ${BOLD_GREEN}$(rel_path ${fname} "anat")${RESET} exists"
       fi
     done
   else
@@ -720,7 +731,7 @@ process_single_slice_anatomicals() {
       bids_slice="${bids_dir}/anat/${base}${task_flag}_run-${run}_acq-1slice_T1w.nii.gz"
       if [[ ! -f "${bids_slice}" || ${OW} -eq 1 ]]; then
         if [[ -f "${slice}" ]]; then
-          echo -e " Renaming → ${BOLD_GREEN}${bids_slice}${RESET}"
+          echo -e " Renaming → ${BOLD_GREEN}$(rel_path ${bids_slice} "anat")${RESET}"
           cp "${slice}" "${bids_slice}" 2>/dev/null
 
           json_src="${slice/.nii.gz/.json}"
@@ -732,7 +743,7 @@ process_single_slice_anatomicals() {
           fi
         fi
       else
-        echo -e " File ${BOLD_GREEN}${bids_slice}${RESET} exists"
+        echo -e " File ${BOLD_GREEN}$(rel_path ${bids_slice} "anat")${RESET} exists"
       fi
     done
 
@@ -787,7 +798,7 @@ process_linescanning_bold_lab() {
   # Find 1slice template for run-1
   local slice_img=()
   while IFS= read -r f; do slice_img+=("$f"); done < <(
-    find -L "${bids_dir}/anat" ]
+    find -L "${bids_dir}/anat" \
     -type f \
     -name "${base}*" \
     -and -name "*1slice*" \
@@ -800,7 +811,11 @@ process_linescanning_bold_lab() {
   local ct=0
   for ii in "${slice_img[@]}"; do ((ct++)); done
   if [[ ${ct} -gt 1 ]]; then
-    echo " WARNING: multiple matching [\"acq-1slice\" and \"run-1\"] files found — using first"
+    echo " WARNING: multiple matching [\"acq-1slice\" and \"run-1\"] files (${#slice_img[@]}) found — using first"
+    for i in "${slice_img[@]}"; do
+      echo -e "  → ${BOLD_MAGENTA}${i}${RESET}"
+    done
+    echo
   fi
   local slice_template="${slice_img[0]}"
 
@@ -853,9 +868,9 @@ process_linescanning_bold_lab() {
           exit 1
         fi
 
-        echo -e " Wrote ${BOLD_GREEN}${line_img}${RESET}"
+        echo -e " Wrote ${BOLD_GREEN}$(rel_path ${line_img} "func")${RESET}"
       else
-        echo -e " File ${BOLD_GREEN}${line_img}${RESET} exists"
+        echo -e " File ${BOLD_GREEN}$(rel_path ${line_img} "func")${RESET} exists"
       fi
     else
       echo " WARNING: could not find slice template (1slice, run-1) in ${bids_dir}/anat"
@@ -993,7 +1008,7 @@ fix_final_intendedfor() {
         echo -e " ${BOLD_MAGENTA}${fmaps[0]}${RESET}:"
 
         for i in "${intended_for_list[@]}"; do
-          echo -e "  → ${BOLD_GREEN}${i}${RESET}"
+          echo -e "  → ${BOLD_GREEN}$(rel_path ${i} "fmap")${RESET}"
         done
 
         #-----------------------------------------------------------------------------
@@ -1080,7 +1095,7 @@ fix_final_intendedfor() {
           echo -e " ${BOLD_MAGENTA}${fmap}${RESET}:"
 
           for i in "${intended_for_list[@]}"; do
-            echo -e "  → ${BOLD_GREEN}${i}${RESET}"
+            echo -e "  → ${BOLD_GREEN}$(rel_path ${i} "func")${RESET}"
           done
 
           #-----------------------------------------------------------------------------
@@ -1301,7 +1316,7 @@ scrape_and_link_fieldmaps() {
       # Move if not already in fmap_dir
       if [[ "${fmap_file}" != "${target_nii}" ]]; then
         echo -e "#${idx}: ${BOLD_MAGENTA}${fmap_file}${RESET}"
-        echo -e " BIDS fmap-file → ${BOLD_GREEN}${target_nii}${RESET}"
+        echo -e " BIDS fmap-file → ${BOLD_GREEN}$(rel_path ${target_nii} "fmap")${RESET}"
         cp "${fmap_file}" "${target_nii}" 2>/dev/null
         [[ -f "${fmap_json}" ]] && cp "${fmap_json}" "${target_json}" 2>/dev/null
       fi
@@ -1405,7 +1420,7 @@ scrape_and_link_fieldmaps() {
 
         # define bids file
         out_fn="${bids_dir}/fmap/$(basename "${ff}")"
-        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}${out_fn}${RESET}"
+        echo -e " Renaming $(basename "${ff}") → ${BOLD_GREEN}$(rel_path ${out_fn} "fmap")${RESET}"
         cp "${ff}" "${out_fn}" 2>/dev/null
 
         # reorient to LPI
@@ -1640,32 +1655,32 @@ do
         take-avg-tr)
           tr_prot_flag="--take-avg-tr"
           tr_prot="average"
-          ;;      
+          ;; 
         ap)
           pe_dir="AP"
-          ;;          
+          ;; 
         pa)
           pe_dir="PA"
-          ;;         
+          ;;
         lr)
           pe_dir="LR"
-          ;;         
+          ;;
         rl)
           pe_dir="RL"
           ;;
         no-lpi)
           reorient=0
-          ;;    
+          ;; 
         ow)
           OW=1
-          ;;            
+          ;; 
         phys)
           phys_only=1
           ses_type="lines"
           ;;
         skip-tr)
           skip_tr=1
-          ;;           
+          ;;
         skip-fmap)
           trim_fmap=0
           ;;
@@ -1681,43 +1696,43 @@ do
         no-compress)
           compress="-c n"
           compress_flag="--no-compress"
-          ;;     
+          ;;
         help)
           Usage && exit 0
-          ;;                         
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;   
-    i)  input_dir=${OPTARG}
+      ;;
+    i)  input_dir="${OPTARG}"
           ;;
-    o)  tmp_dir=${OPTARG}
+    o)  tmp_dir="${OPTARG}"
           ;;
-    d)  searchDepth=${OPTARG}
-          ;;            
-    b)  bids_dir=${OPTARG}
-          ;;
-    n)  base=${OPTARG}
-          ;;    
-    r)  runs=${OPTARG}
+    d)  searchDepth="${OPTARG}"
           ;; 
-    t)  set_tr=${OPTARG}
-          ;;     
-    v)  cut_vols=${OPTARG}
+    b)  bids_dir="${OPTARG}"
+          ;;
+    n)  base="${OPTARG}"
+          ;; 
+    r)  runs="${OPTARG}"
+          ;; 
+    t)  set_tr="${OPTARG}"
+          ;;
+    v)  cut_vols="${OPTARG}"
           ;; 
     p)  pattern_flag="-p ${OPTARG}"
           ;;
     a)  include_anatomicals="${OPTARG}"
-          ;;  
+          ;;
     c)  compress="-c ${OPTARG}"
-          ;;     
+          ;;
     x)  kwargs="-x ${OPTARG}"
-          ;;                        
+          ;;
     h)  Usage && exit 0
-          ;;                                                           
+          ;;                               
   esac
 done
 
@@ -1996,7 +2011,7 @@ if [[ ${phys_only} -eq 0 ]]; then
               mkdir -p "$(dirname "${ff}")"
             fi
 
-            echo -e " BIDS ${image}-file → ${BOLD_GREEN}${ff}${RESET}"
+            echo -e " BIDS ${image}-file → ${BOLD_GREEN}$(rel_path ${ff} "${image}")${RESET}"
             cp "${orig}" "${ff}"
 
             # cut volumes
@@ -2023,7 +2038,7 @@ if [[ ${phys_only} -eq 0 ]]; then
               "${use_fmap}"
           fi
         else
-          echo -e " File ${BOLD_GREEN}${ff}${RESET} exists"
+          echo -e " File ${BOLD_GREEN}$(rel_path ${ff} "${image}")${RESET} exists"
         fi
       done
 
@@ -2117,7 +2132,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       bids_tsv="${bids_dir}/func/${base}_task-${task}_run-${run}${add_acq}_events.tsv"
       if [[ ! -f "${bids_tsv}" || ${OW} -eq 1 ]]; then
-        echo -e " TSV-file → ${BOLD_GREEN}$(basename ${bids_tsv})${RESET}"
+        echo -e " TSV-file → ${BOLD_GREEN}$(rel_path ${bids_tsv} "func")${RESET}"
         cp "${file}" "${bids_tsv}" 2>/dev/null
       fi
     done
@@ -2189,7 +2204,7 @@ if [[ ${phys_only} -eq 0 ]]; then
 
       bids_edf="${bids_dir}/func/${base}_task-${task}_run-${run}_eye.edf"
       if [[ ! -f "${bids_edf}" || ${OW} -eq 1 ]]; then
-        echo -e " EDF-file → ${BOLD_GREEN}$(basename ${bids_edf})${RESET}"
+        echo -e " EDF-file → ${BOLD_GREEN}$(rel_path ${bids_edf} "func")${RESET}"
         cp "${file}" "${bids_edf}" 2>/dev/null
       fi              
     done
@@ -2274,7 +2289,7 @@ if [[ -n "${phys}" ]]; then
 
       bids_phys="${bids_dir}/physio/${phys_base}"
       if [[ ! -f "${bids_phys}" ]]; then
-        echo -e " Physio-file → ${BOLD_GREEN}$(basename ${bids_phys})${RESET}"
+        echo -e " PHYS-file → ${BOLD_GREEN}$(rel_path ${bids_phys} "func")${RESET}"
         cp "${file}" "${bids_phys}" 2>/dev/null
       fi
 

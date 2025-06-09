@@ -95,13 +95,13 @@ do
           ;;
         mul)
           INT="--mul"
-          ;;         
+          ;;
         gau)
           INT="--gau"
-          ;;               
+          ;;
         bspl*)
           INT="--bspl[$(basename ${OPTARG} | cut -c 5)]"
-          ;;       
+          ;;
         cws)
           INT="--cws"
           ;;
@@ -113,7 +113,7 @@ do
           ;;
         lws)
           INT="--lws"
-          ;;    
+          ;; 
         gen)
           INT="--gen"
           ;;
@@ -124,10 +124,10 @@ do
         no-fsaverage)
           do_fsaverage=0
           exec_spaces=("fsnative")
-          ;;   
+          ;;
         help)
           Usage && exit 0
-          ;;                                      
+          ;;          
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -135,30 +135,30 @@ do
           ;;
       esac
       ;;
-    r)  reg_file=${OPTARG}
+    r)  reg_file="${OPTARG}"
           ;;
-    x)  proj_frac=${OPTARG}
-          ;;          
-    o)  out_dir=${OPTARG}
-          ;;
-    p)  prefix=${OPTARG}
-          ;;
-    t)  trafos=${OPTARG}
+    x)  proj_frac="${OPTARG}"
           ;; 
-    f)  fs_dir=${OPTARG}
-          ;;                  
+    o)  out_dir="${OPTARG}"
+          ;;
+    p)  prefix="${OPTARG}"
+          ;;
+    t)  trafos="${OPTARG}"
+          ;; 
+    f)  fs_dir="${OPTARG}"
+          ;;
     i)  invert="-i ${OPTARG}"
-          ;;     
+          ;;
     h)  Usage && exit 0
-          ;;                    
+          ;;
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-SUBJECT=${@:$OPTIND:1}
-INPUT=${@:$OPTIND+1:1}
-SUFFIX=${@:$OPTIND+2:1}
+SUBJECT="${@:$OPTIND:1}"
+INPUT="${@:$OPTIND+1:1}"
+SUFFIX="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -175,7 +175,7 @@ if [[ ! -f "${INPUT}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
   exit 1
 else
-  INPUT=$(readlink -f "${INPUT}")
+  INPUT="$(readlink -f "${INPUT}")"
 fi
 
 #-----------------------------------------------------------------------------
@@ -201,7 +201,7 @@ else
     print_error_msg "$(basename ${0})" input "Specified transformation file does not exist \"${BOLD_GREEN}${reg_file}${RESET}\""
     exit 1
   else
-    reg_file=$(readlink -f "${reg_file}")
+    reg_file="$(readlink -f "${reg_file}")"
   fi
   REG="--reg ${reg_file}"
 fi

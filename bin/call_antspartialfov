@@ -79,7 +79,7 @@ do
           ;;
         double)
           dtype="double"
-          ;;                    
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -91,11 +91,11 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;  
-    i)  INIT=${OPTARG}
           ;;
-    c)  CONTRAST=${OPTARG}
-          ;;     
+    i)  INIT="${OPTARG}"
+          ;;
+    c)  CONTRAST="${OPTARG}"
+          ;;
     f)  dtype="float"
           ;;
     u)  dtype="short"
@@ -107,9 +107,9 @@ done
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -119,7 +119,7 @@ if [[ ! -f "${REF}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find FIXED image \"${BOLD_GREEN}${REF}${RESET}\""
   exit 1
 else
-  REF=$(readlink "${REF}")
+  REF="$(readlink "${REF}")"
 fi
 
 if [[ ! -f "${MOV}" ]]; then
@@ -128,7 +128,7 @@ if [[ ! -f "${MOV}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
-  MOV=$(readlink -f "${MOV}")
+  MOV="$(readlink -f "${MOV}")"
 fi  
 
 if [[ -z "${OUT}" ]]; then

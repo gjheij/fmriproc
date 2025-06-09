@@ -87,21 +87,21 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     q)  Usage && exit 0
-          ;;  
-    s)  subject=${OPTARG}
+          ;;
+    s)  subject="${OPTARG}"
         ;;
-    t)  matrix_file=${OPTARG}
+    t)  matrix_file="${OPTARG}"
         ;;
-    w)  wm_file=${OPTARG}
+    w)  wm_file="${OPTARG}"
         ;;
-    h)  t1head=${OPTARG}
+    h)  t1head="${OPTARG}"
         ;;
-    i)  initial=${OPTARG}
+    i)  initial="${OPTARG}"
         ;;					
-    b)  t1brain=${OPTARG}
-        ;;                                                    
+    b)  t1brain="${OPTARG}"
+        ;;                        
   esac
 done
 
@@ -114,11 +114,11 @@ if [[ ! -f "${tmp}" ]]; then
   print_error_msg "$(basename ${0})" "input" "Input file ${BOLD_GREEN}${tmp}${RESET} does not exist"
   exit 1
 else
-  epi_file=$(readlink -f "${tmp}")
+  epi_file="$(readlink -f "${tmp}")"
 fi
 
 # set output
-out_file=${@:$OPTIND+1:1}
+out_file="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # Check if we have FreeSurfer flag
@@ -270,7 +270,7 @@ if [[ ! -z "${initial}" ]]; then
     print_error_msg "$(basename ${0})" initial "Could not find initial transformation file \"${BOLD_GREEN}${initial}${RESET}\""
     exit 1
   else
-    initial=$(readlink -f "${initial}")
+    initial="$(readlink -f "${initial}")"
   fi
 
   cmd=(

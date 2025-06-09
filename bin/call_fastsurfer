@@ -62,12 +62,12 @@ n_cpus=5
 while getopts s:d: argument
 do
   case ${argument} in
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    d)  dir=${OPTARG}
-          ;;          
-    j)  n_cpus=${OPTARG}
-          ;;                    
+    d)  dir="${OPTARG}"
+          ;; 
+    j)  n_cpus="${OPTARG}"
+          ;;
   esac
 done
 shift $((OPTIND-1))
@@ -81,7 +81,7 @@ if [[ ! -f "${t1}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Input file ${BOLD_GREEN}${t1}${RESET} does not exist"
   exit 1
 else
-  t1=$(readlink -f "${t1}")
+  t1="$(readlink -f "${t1}")"
 fi
 
 shift 2 || true  # Shift away input & output arguments if present

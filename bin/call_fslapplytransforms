@@ -61,7 +61,7 @@ if [[ ! -f "${ref}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find REF image \"${BOLD_GREEN}${ref}${RESET}\""
   exit 1
 else
-  ref=$(readlink -f "${ref}")
+  ref="$(readlink -f "${ref}")"
 fi
 
 if [[ ! -f "${moving}" ]]; then
@@ -70,7 +70,7 @@ if [[ ! -f "${moving}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${moving}${RESET}\""
   exit 1
 else
-  moving=$(readlink -f "${moving}")
+  moving="$(readlink -f "${moving}")"
 fi
 
 if [[ ! -f "${matrix}" ]]; then
@@ -79,7 +79,7 @@ if [[ ! -f "${matrix}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find MATRIX file \"${BOLD_GREEN}${matrix}${RESET}\""
   exit 1
 else
-  matrix=$(readlink -f "${matrix}")
+  matrix="$(readlink -f "${matrix}")"
 fi
 
 if [[ -z "${output}" ]]; then

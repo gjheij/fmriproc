@@ -351,7 +351,7 @@ crash_flag=""
 mask_flag=""
 mode="anat"
 workdir="${PATH_HOME}/fmriprep/${PROJECT}"
-SGE_QUEUE=${SGE_QUEUE_LONG}
+SGE_QUEUE="${SGE_QUEUE_LONG}"
 while getopts :-:hols:r:n:f:m:j:k:q:u:a:w: argument
 do
 case ${argument} in
@@ -359,55 +359,55 @@ case ${argument} in
       case "${OPTARG}" in
         no-bbr)
           bbr_flag="--no-bbr"
-          ;;        
+          ;; 
         docker)
           docker_flag="--docker"
-          ;;            
+          ;; 
         warp-only)
           warp_only="--warp-only"
-          ;;   
+          ;;
         sge)
           run_local=0
-          ;;   
+          ;;
         no-boldref)
           boldref_flag="--no-boldref"
-          ;;   
+          ;;
         remove-wf)
           remove_wf=1
-          ;;                
+          ;; 
         remove-surf-wf)
           remove_surf_wf=1
-          ;;            
+          ;; 
         func)
           remove_surf_wf=1
-          ;;      
+          ;; 
         ow)
           OW=1
-          ;;       
+          ;;
         clean)
           clean_wd="--clean"
-          ;;          
+          ;; 
         fetch-fsl)
           fsl_flag="--fetch-fsl"
-          ;;          
+          ;; 
         fetch-func)
           func_flag="--fetch-func"
           ;; 
         fetch-anat)
           anat_flag="--fetch-anat"
-          ;;          
+          ;; 
         masks)
           mask_flag="--masks"
-          ;;                     
+          ;; 
         fd)
           fd_flag="--fd"
-          ;;       
+          ;;
         try)
           crash_flag="--try"
-          ;;                                                                        
+          ;; 
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -416,31 +416,31 @@ case ${argument} in
       esac
       ;;
     h)  Usage && exit 0
-          ;;   
-    s)  sub=${OPTARG}
           ;;
-    n)  ses=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    f)  func_dir=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
-    m)  mode=${OPTARG}
+    f)  func_dir="${OPTARG}"
           ;;
-    u)  conf=${OPTARG}
+    m)  mode="${OPTARG}"
           ;;
-    j)  n_cpus=${OPTARG}
-          ;;          
+    u)  conf="${OPTARG}"
+          ;;
+    j)  n_cpus="${OPTARG}"
+          ;; 
     k)  kwargs_file="-k ${OPTARG}"
-          ;;       
-    r)  runs=${OPTARG}
-          ;;      
-    q)  SGE_QUEUE=${OPTARG}
-          ;;                   
-    w)  workdir=${OPTARG}
-          ;;                             
+          ;;
+    r)  runs="${OPTARG}"
+          ;; 
+    q)  SGE_QUEUE="${OPTARG}"
+          ;; 
+    w)  workdir="${OPTARG}"
+          ;; 
     o)  OW=1
           ;;
     a)  keep_runs="-a ${OPTARG}"
-          ;;          
+          ;; 
   esac
 done
 
@@ -448,9 +448,9 @@ if [[ $# -lt 3 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
-T2=${@:$OPTIND+2:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
+T2="${@:$OPTIND+2:1}"
 
 # check run
 if [[ ! -z ${runs} ]]; then

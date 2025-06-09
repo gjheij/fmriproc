@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# Get bash helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_mip
+
+Wrapper for maximum-intensity projection (MIP) of a 3D NIfTI image. Splits the volume along the
+specified axis, treats the split slices as a pseudo-4D time series, and computes the voxel-wise
+maximum across that dimension, producing a 3D MIP volume.
+
+Usage:
+  call_mip [options] <input_file> <output_file>
+
+Options:
+  -o              Overwrite existing output file
+  -v              Verbose: echo commands before running
+  -a <axis>       Axis along which to project: axial (default), coronal, or sagittal
+
+Example:
+  call_mip -a coronal T1map.nii.gz T1map_MIP_coronal.nii.gz
+
+Notes:
+  - Requires FSL tools: fslchfiletype, fslsplit, fslmerge, fslmaths
+  - Axis mapping: axial -> split on Z (-z); coronal -> Y (-y); sagittal -> X (-x)
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+#-----------------------------------------------------------------------------
+# Defaults
+ow=0
+verbose=0
+axis="axial"
+
+#-----------------------------------------------------------------------------
+# Parse options
+while getopts "voa:" opt; do
+  case $opt in
+    o) ow=1 ;; 
+    v) verbose=1 ;;
+    a) axis="$OPTARG" ;; 
+    *) Usage && exit 0 ;;
+  esac
+done
+shift $((OPTIND-1))
+
+#-----------------------------------------------------------------------------
+# Required arguments
+if [[ $# -lt 2 ]]; then
+  Usage && exit 0
+fi
+
+#-----------------------------------------------------------------------------
+# Read args
+input="$1"
+output="$2"
+
+#-----------------------------------------------------------------------------
+# check inputs
+if [[ ! -f "${input}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${input}${RESET}\""
+  exit 1
+else
+  input="$(readlink -f "${input}")"
+fi
+
+if [[ -z "${output}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" input "Please specify output file"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Determine split axis flag
+case "$axis" in
+  axial)     split_flag=-z ;;
+  coronal)   split_flag=-y ;;
+  sagittal)  split_flag=-x ;;
+  *)
+    print_line -
+    print_error_msg "$(basename $0)" axis "Invalid axis '$axis'. Choose axial, coronal, or sagittal."
+    exit 1
+    ;;
+esac
+
+#-----------------------------------------------------------------------------
+# Prepare temp files
+tmpdir=$(mktemp -d)
+tmp4D="$tmpdir/tmp4D.nii.gz"
+ts4D="$tmpdir/ts4D.nii.gz"
+slice_prefix="$tmpdir/slice_"
+
+#-----------------------------------------------------------------------------
+# Perform split->merge->MIP
+cmd=(
+  fslchfiletype
+  NIFTI_T1
+  "$input"
+  "$tmp4D"
+)
+(( verbose )) && print_cmd "${cmd[@]}"
+eval "${cmd[@]}"
+
+cmd=(
+  fslsplit
+  "$tmp4D"
+  "${slice_prefix}"
+  $split_flag
+)
+(( verbose )) && print_cmd "${cmd[@]}"
+eval "${cmd[@]}"
+
+cmd=(
+  fslmerge
+  -t "$ts4D"
+  "${slice_prefix}"*.nii.gz
+)
+(( verbose )) && print_cmd "${cmd[@]}"
+eval "${cmd[@]}" 2>/dev/null
+
+cmd=(
+  fslmaths
+  "$ts4D"
+  -Tmax
+  "$output"
+)
+(( verbose )) && print_cmd "${cmd[@]}"
+eval "${cmd[@]}"
+rc=$?
+
+#-----------------------------------------------------------------------------
+# Cleanup
+rm -rf "$tmpdir"
+
+if [[ $rc -ne 0 ]]; then
+  echo && print_line -
+  print_error_msg "$(basename $0)" "fslmaths" "Failed to compute MIP"
+  exit 1
+fi
+
+(( verbose )) && echo "MIP generated at '$output'"

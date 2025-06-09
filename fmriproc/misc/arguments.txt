@@ -108,7 +108,7 @@ Input arguments:
 
 -m <module>       always required, specifies which module to run.
 
--n <session>      session nr, used to create file structure according to BIDS.
+-n <session>      session ID (defaults to '-n 1' if empty).
 
 -o|--ow           turn on overwrite mode.
 
@@ -155,16 +155,24 @@ Input arguments:
 
 -q <sge queue>    send jobs to specific queue.
 
--r <value>        used for various modules to set label file, stage, or repetition time.
+-r <value>        used for:
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: limit reconstruction to a  run-
+                      identifier. Tasks with the same run identifier will be considered, unless 
+                      the '-t' flag is specified to limit the process to a specific task..
+                      Input can be comma-separated (e.g., '-r 1,2,5')
                     - ${BOLD_BLUE}spinoza_fitprfs${RESET}: set RepetitionTime
                     - ${BOLD_BLUE}spinoza_bestvertex${RESET}: set label file
                     - ${BOLD_BLUE}spinoza_freesurfer${RESET}: set autorecon stage
 
--s <subject>      Subject ID (e.g., 01).
+-s <subject>      Subject ID (e.g., 01). Input can be comma-separated (e.g., '-s 01,03,24')
 
 -t <type|task>    used for:
                     - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: set RepetitionTime manually 
-                      (discouraged..)
+                      (hardcore..)
+                    - ${BOLD_BLUE}spinoza_linerecon${RESET}: limit reconstruction to a 
+                      task-identifier. Runs with the same task identifier will be considered, 
+                      unless the '-r' flag is specified to limit the process to a specific run.
+                      Input can be comma-separated (e.g., '-t SRFa,SRFb')
                     - ${BOLD_BLUE}spinoza_sagittalsinus${RESET}: set threshold for R2* manually 
                       (default = 0.07)
                     - ${BOLD_BLUE}spinoza_fmriprep${RESET}: type of workflow (anat/func/task).
@@ -207,6 +215,17 @@ Input arguments:
                       - spinoza_mgdm (args for mgdm_segmentation):
                           '-x regularization_weight=0.05,max_iterations=1000'
 
+-y <kwargs>       Additional commands to be passed to 'call_b1correct'. Format should be colon-
+                  separated flags as follows: 
+                    - if you specify a flag and values | <flag>=<value>
+                    - if you specify a flag only | <flag>
+
+                  combine as:
+                    "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+
+                  e.g.,
+                    "-y --smooth:--sigma=1.5"
+
 Options:
 
 --affine          use 'affine'-registration (${BOLD_BLUE}spinoza_registration${RESET}).
@@ -226,6 +245,8 @@ Options:
                     - IS: inferior-to-superior  → 'k'
                     - SI: superior-to-inferior  → 'k-'
 
+--avg             Simply take the mean over echoes
+
 --bgfs            use L-BGFS minimization for both Gaussian and extended models.
 
 --bold            re-calculate the BOLD timecourses.
@@ -233,6 +254,19 @@ Options:
 --clean           remove the single-subject workflow folder completely.
 
 --comb-only       skip nighres, only combine segmentations.
+
+--cnr             Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's 
+                  timecourse is weighted by its tSNR (mean/SD over time), i.e.:
+                  
+                    w_i = tSNR_i/∑_j tSNR_j,
+                    
+                  before summing across echoes.
+
+--cpl             Combine multi-echo data into a complex signal by fitting B0-induced phase shifts 
+                  across echoes (ΔB0), computing voxelwise phase at the first TE, extracting 
+                  magnitude via sum-of-squares, and reconstructing S = mag·exp(i·phase). Unlike 
+                  the T2*-weighted methods, this preserves both amplitude and phase 
+                  information.
 
 --debug           run debug mode for extra input/output checks.
 
@@ -311,6 +345,8 @@ Options:
 --nighres         use nighres software for reconstruction/layering.
 
 --no-bbr          force no-BBR in fMRIPrep.
+
+--no-bias         skip bias correction for MPRAGE (e.g., is B1-correction is enough)
 
 --no-bounds       disable grid bounds in fitting.
 

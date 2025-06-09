@@ -56,11 +56,11 @@ while getopts :-:ht: argument; do
           exit 1
           ;;
       esac
-      ;;    
-    t)  tname=${OPTARG}
+      ;; 
+    t)  tname="${OPTARG}"
           ;;
     h)  Usage && exit 0
-          ;;             
+          ;;
   esac
 done
 
@@ -70,10 +70,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # read args
-REF=${@:$OPTIND:1}
-MOV=${@:$OPTIND+1:1}
-OUT=${@:$OPTIND+2:1}
-IN_TYPE=${@:$OPTIND+3:1}
+REF="${@:$OPTIND:1}"
+MOV="${@:$OPTIND+1:1}"
+OUT="${@:$OPTIND+2:1}"
+IN_TYPE="${@:$OPTIND+3:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -92,7 +92,7 @@ if [[ ! -f "${MOV}" ]]; then
   print_error_msg "$(basename ${0})" "find" "Could not find MOVING image \"${BOLD_GREEN}${MOV}${RESET}\""
   exit 1
 else
-  MOV=$(readlink -f "${MOV}")
+  MOV="$(readlink -f "${MOV}")"
 fi  
 
 if [[ -z "${OUT}" ]]; then

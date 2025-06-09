@@ -68,15 +68,15 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;  
-    s)  sub=${OPTARG}
           ;;
-    n)  ses=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    a)  anat_depth=${OPTARG}
-          ;;          
+    n)  ses="${OPTARG}"
+          ;;
+    a)  anat_depth="${OPTARG}"
+          ;; 
   esac
 done
 
@@ -112,13 +112,13 @@ if [[ ! -z ${sub} ]]; then
     print_error_msg "$(basename ${0})" "find" "No file with ${BOLD_RED}${sub}*${RESET} and ${BOLD_RED}*T1w.nii.gz${RESET} in ${BOLD_GREEN}${ANAT_DIR}${RESET}"
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 
   MAN="${mask_dir}/${base}_acq-${DATA_UPR}_desc-outside.nii.gz"
 else
   # reference is positional input
-  REF=${@:$OPTIND:1}
+  REF="${@:$OPTIND:1}"
 
   if [[ ! -f "${REF}" ]]; then
     echo
@@ -126,10 +126,10 @@ else
     print_error_msg "$(basename ${0})" "find" "Anatomical file ${BOLD_GREEN}${REF}${RESET} does not exist"
     exit 1
   else
-    REF=$(readlink -f "${REF}")
+    REF="$(readlink -f "${REF}")"
   fi
 
-  MAN=${@:$OPTIND+1:1}
+  MAN="${@:$OPTIND+1:1}"
 fi
 
 #-----------------------------------------------------------------------------

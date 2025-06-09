@@ -60,7 +60,7 @@ do
       case "${OPTARG}" in
         ow)
           OW=1
-          ;;  
+          ;;
         help)
           Usage && exit 0
           ;;
@@ -73,9 +73,9 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
+    n)  ses="${OPTARG}"
           ;;
   esac
 done
@@ -84,8 +84,8 @@ if [[ $# -lt 2 ]] ; then
   Usage && exit 0
 fi
 
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 if [[ -z ${sub} ]]; then
   # loop through subjects

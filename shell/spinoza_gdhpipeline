@@ -91,34 +91,34 @@ fi
 while getopts s:a:n:c:t:f:r:w:m:p:i:q:z: argument
 do
     case ${argument} in
-      s)  subject=${OPTARG}
+      s)  subject="${OPTARG}"
             ;;
-      a)  anats=${OPTARG}
+      a)  anats="${OPTARG}"
             ;;
-      n)  session=${OPTARG}
+      n)  session="${OPTARG}"
             ;;
-      c)  nighres=${OPTARG}
+      c)  nighres="${OPTARG}"
             ;;
-      t)  level=${OPTARG}
+      t)  level="${OPTARG}"
             ;;
-      f)  fprep=${OPTARG}
+      f)  fprep="${OPTARG}"
             ;;
-      r)  fs=${OPTARG}
+      r)  fs="${OPTARG}"
             ;;
-      m)  masks=${OPTARG}
+      m)  masks="${OPTARG}"
             ;;
-      w)  work=${OPTARG}
+      w)  work="${OPTARG}"
             ;;
-      p)  stage=${OPTARG}
+      p)  stage="${OPTARG}"
             ;;
-      i)  inject=${OPTARG}
+      i)  inject="${OPTARG}"
             ;;
-      q)  fprep_wf=${OPTARG}
-            ;;       
-      z)  run_postmgdm=${OPTARG}
+      q)  fprep_wf="${OPTARG}"
             ;;
-      y)  run_mgdm=${OPTARG}
-            ;;                               
+      z)  run_postmgdm="${OPTARG}"
+            ;;
+      y)  run_mgdm="${OPTARG}"
+            ;;   
     esac
 done
 
@@ -485,8 +485,8 @@ if [[ ${RUN_POSTMGDM} != "n" ]]; then
   # spinoza_extractregions and spinoza_cortexreconstruction
   if [[ ${PLACE} == "SGE" ]]; then
     echo "Re-running post-edit Nighres segmentations and pRF-analyses"
-    qsub -q ${SGE_QUEUE_SHORT} -N post_gdh_nighres -wd ${DIR_LOGS} ${DIR_SCRIPTS}/shell/master -m ${region},${cruise} -s $(basename ${subject} | cut -d'-' -f2) # overwrite is default for nighres modules
-    qsub -q ${SGE_QUEUE_SHORT} -N post_gdh_prf -wd ${DIR_LOGS} ${DIR_SCRIPTS}/shell/master -m ${denoise},${prf} -s $(basename ${subject} | cut -d'-' -f2) -o y # explicitly set to overwrite for denoising/prf-fitting
+    qsub -q ${SGE_QUEUE_SHORT} -N post_gdh_nighres -wd "${DIR_LOGS}" ${DIR_SCRIPTS}/shell/master -m ${region},${cruise} -s $(basename ${subject} | cut -d'-' -f2) # overwrite is default for nighres modules
+    qsub -q ${SGE_QUEUE_SHORT} -N post_gdh_prf -wd "${DIR_LOGS}" ${DIR_SCRIPTS}/shell/master -m ${denoise},${prf} -s $(basename ${subject} | cut -d'-' -f2) -o y # explicitly set to overwrite for denoising/prf-fitting
   else
     master -m ${region},${cruise},${denoise},${prf}
   fi

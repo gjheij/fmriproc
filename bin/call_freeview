@@ -49,12 +49,12 @@ while getopts ":dv:p:" arg; do
   case $arg in
     d) VIEWPORT=1 ;;
     v) point=$OPTARG ;;
-    p) prefix=$OPTARG ;;    
+    p) prefix=$OPTARG ;; 
     *) Usage ;;
   esac
 done
 
-SUBJECT=${@:$OPTIND:1}
+SUBJECT="${@:$OPTIND:1}"
 TYPE=${@:$OPTIND+1:1:-surf}
 TYPE=${TYPE:-surf}
 

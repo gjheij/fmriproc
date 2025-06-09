@@ -19,11 +19,13 @@ fi
 # Allocate input arguments to variables
 #
 KWARGS_FLAG=""
+B1_KWARGS=""
 HELP=0
 HEMI_FLAG=""              # spinoza_lineplanning
 IDENT_FLAG=""             # spinoza_lineplanning
 DEBUG=""                  # spinoza_linerecon
 NORDIC=""                 # spinoza_linerecon
+weight_flag=""            # spinoza_linerecon
 OW=""                     # multiple (overwrite mode)
 verb_flag=""              # multiple (turn on verboses)
 aparc_flag=""             # spinoza_bestvertex
@@ -117,6 +119,7 @@ REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
 PARS_FILE=""              # spinoza_qmrimaps
 INTENSITY_FLAG=""         # spinoza_qmrimaps
+Y_KWARGS=""               # spinoza_qmrimaps
 BIAS_FLAG=""              # spinoza_biassanlm
 SANLM_FLAG=""             # spinoza_biassanlm
 SANLM_METHOD=""           # spinoza_biassanlm
@@ -147,7 +150,7 @@ done < "$opts_file"
 IFS=$'\n' opts=($(sort <<<"${array[*]}"))
 unset IFS
 
-while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
+while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
   case ${arg} in
     -)
       case "${OPTARG}" in
@@ -157,6 +160,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         abd)
           MODEL_FLAG="--abd"
           ;;
+        avg)
+          weight_flag="--avg"
+          ;; 
         affine)
           REG_TYPE="--affine"
           ;;
@@ -165,7 +171,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         anat-only)
           mod_flag="--anat-only"
-          ;;        
+          ;; 
         ap)
           pe_dir_flag="--ap"
           ;;
@@ -187,6 +193,12 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         comb-only)
           COMB_ONLY="-c"
           ;;
+        cnr)
+          weight_flag="--cnr"
+          ;; 
+        cpl)
+          weight_flag="--cpl"
+          ;;
         ctx)
           OPEN_WITH_FLAG="--ctx"
           ;;
@@ -202,7 +214,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         denoise)
           SANLM_METHOD="--denoise"
-          ;;          
+          ;; 
         dog)
           MODEL_FLAG="--dog"
           ;;
@@ -226,7 +238,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         fmriprep)
           fprep_input=1
-          ;;        
+          ;; 
         force-exec)
           FORCE_FLAG="--force-exec"
           ;;
@@ -242,14 +254,14 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         fast)
           FAST_LBLS=${DIR_DATA_DERIV}/fast
-          ;;          
+          ;; 
         fs)
           FS_FLAG="--fs"
           ;;
         fsl)
           DRAW_SAG="--fsl"
           FSL_FLAG="--fsl"
-          ;;                
+          ;; 
         fsaverage)
           space_flag="--fsaverage"
           ;;
@@ -280,7 +292,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         is)
           pe_dir_flag="--is"
-          ;;          
+          ;; 
         ident)
           IDENT_FLAG="--identity"
           ;;
@@ -304,7 +316,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         lr)
           pe_dir_flag="--lr"
-          ;;          
+          ;; 
         mag)
           mag_flag="--mag"
           ;;
@@ -331,16 +343,19 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         n4)
           BIAS_FLAG="--n4"
-          ;;          
+          ;; 
         nelder)
           use_constr="--nelder"
           ;;
         nighres)
           LAYER_FLAG="nighres"
-          ;;          
+          ;; 
         no-bbr)
           use_bbr="--no-bbr"
           ;;
+        no-bias)
+          BIAS_FLAG="--no-bias"
+          ;;          
         no-bounds)
           bounds_flag="--no-bounds"
           ;;
@@ -352,7 +367,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-compress)
           COMPRESS_FLAG="--no-compress"
-          ;;              
+          ;; 
         no-epi)
           MAN_EPI="--no-epi"
           ;;
@@ -376,7 +391,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-mask)
           USE_MASK="--no-mask"
-          ;;          
+          ;; 
         no-nordic)
           NORDIC="--no-nordic"
           ;;
@@ -385,10 +400,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-reg)
           REG_T1="--no-reg"
-          ;;          
+          ;; 
         no-sanlm)
           SANLM_FLAG="--no-sanlm"
-          ;;          
+          ;; 
         no-srf)
           SRF_FLAG="--no-srf"
           ;;
@@ -400,10 +415,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         no-winsor)
           INTENSITY_FLAG="--no-winsor"
-          ;;          
+          ;; 
         norm)
           MODEL_FLAG="--norm"
-          ;;    
+          ;; 
         ow)
           OW="-o"
           ;;
@@ -430,43 +445,43 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         refit)
           REFIT_FLAG="--refit"
-          ;;          
+          ;; 
         remove-surf-wf)
           REMOVE_WF="--remove-surf-wf"
-          ;;  
+          ;;
         remove-wf)
           REMOVE_WF="--remove-wf"
-          ;;                    
+          ;;
         rh)
           HEMI_FLAG="--rh"
-          ;;          
+          ;; 
         rigid)
           REG_TYPE="--rigid"
-          ;;          
+          ;; 
         rl)
           pe_dir_flag="--rl"
           ;;
         si)
           pe_dir_flag="--si"
-          ;;                    
+          ;;
         save-grid)
           save_grid="--save-grid"
-          ;;          
+          ;; 
         sge)
           SGE="--sge"
           ;;
         separate-hrf)
           FIT_HRF="--separate-hrf"
-          ;;    
+          ;; 
         skip-bg)
           BG_FLAG="--skip-bg"
           ;;
         skip-combine)
           SKIP_COMB="--skip-combine"
-          ;;          
+          ;; 
         skip-fmap)
           TRIM_FMAP="--skip-fmap"
-          ;;          
+          ;; 
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
           ;;
@@ -484,10 +499,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
           ;;
         surface)
           LAYER_FLAG="surface"
-          ;;  
+          ;;
         syn)
           REG_TYPE="--syn"
-          ;;                  
+          ;;
         tc)
           use_constr="--tc"
           ;;
@@ -500,6 +515,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
         try)
           CRASH_FLAG="--try"
           ;;
+        t2s)
+          weight_flag="--t2s"
+          ;; 
         ups)
           UPs="--ups"
           ;;
@@ -539,67 +557,70 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:" arg; do
       esac
       ;;
     m)
-      MOD=${OPTARG}
+      MOD="${OPTARG}"
       ;;
     d)
       SEARCH_DEPTH="-d ${OPTARG}"
-      ANAT_DEPTH=${OPTARG}
+      ANAT_DEPTH="${OPTARG}"
       ;;
     s)
-      SUB=${OPTARG}
+      SUB="${OPTARG}"
       ;;
     h)
-      HEMI=${OPTARG}
+      HEMI="${OPTARG}"
       ;;
     n)
-      SES=${OPTARG}
+      SES="${OPTARG}"
       ;;
     o)
       OW="-o"
       ;;
     t)
-      TYPE=${OPTARG}
+      TYPE="${OPTARG}"
       t_specified=1
       TR_FLAG="-t ${OPTARG}"
       ;;
     l)
-      WHICH_MOD=${OPTARG}
+      WHICH_MOD="${OPTARG}"
       NR_LAYERS="-l ${OPTARG}"
       LS_SES="-l ${OPTARG}"
       INT_LOWER="-l ${OPTARG}"
       ;;
     v)
-      VERTICES=${OPTARG}
+      VERTICES="${OPTARG}"
       ;;
     p)
-      P_KWARGS=${OPTARG}
+      P_KWARGS="${OPTARG}"
       PARS_FILE="-p $(readlink -f \"${OPTARG}\")"
       ;;
     c)
-      C_FLAG=${OPTARG}
+      C_FLAG="${OPTARG}"
       CUSTOM_TPL="-c ${OPTARG}"
       ;;
     x)
-      X_KWARGS=${OPTARG}
+      X_KWARGS="${OPTARG}"
       ;;
+    y)
+      Y_KWARGS="${OPTARG}"
+      ;;      
     u)
-      CONF=${OPTARG}
+      CONF="${OPTARG}"
       INT_UPPER="-u ${OPTARG}"
       ;;
     r)
-      ROI=${OPTARG}
-      FS_stage=${OPTARG}
+      ROI="${OPTARG}"
+      FS_stage="${OPTARG}"
       RUNS="-r ${OPTARG}"
       SET_TR="-r ${OPTARG}"
       ;;
     e)
-      n_echoes=${OPTARG}
-      START_STAGE=${OPTARG}
+      n_echoes="${OPTARG}"
+      START_STAGE="${OPTARG}"
       EPI_FILE="-e ${OPTARG}"
       PIXEL_FLAG="-p ${OPTARG}"
       ;;
     i)
-      images=${OPTARG}
+      images="${OPTARG}"
       ;;
     w)
       WORK_FLAG="-w ${OPTARG}"
@@ -955,6 +976,8 @@ if [[ $? -eq 0 ]]; then
     "${RUNS}"
     "${N_COMPS}"
     "${FOLDS_FLAG}"
+    "${weight_flag}"
+    "${TR_FLAG}"
     -c "${NORDIC_COMPS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
@@ -1036,9 +1059,14 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Multiparametric mapping using pymp2rage"
 
   # check for kwargs
-  if [[ ! -z ${X_KWARGS} ]]; then
+  if [[ ! -z "${X_KWARGS}" ]]; then
     KWARGS_FLAG="-x ${X_KWARGS}"
   fi
+
+  # check for B1 kwargs
+  if [[ ! -z "${Y_KWARGS}" ]]; then
+    B1_KWARGS="-y ${Y_KWARGS}"
+  fi  
   
   cmd=(
     spinoza_qmrimaps
@@ -1059,6 +1087,7 @@ if [[ $? -eq 0 ]]; then
     "${INTENSITY_FLAG}"
     "${INT_LOWER}"
     "${INT_UPPER}"
+    "${B1_KWARGS}"
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/pymp2rage"
   )
 

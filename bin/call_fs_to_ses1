@@ -74,10 +74,10 @@ do
           exit 1
           ;;
       esac
-      ;;   
+      ;;
     h)  Usage && exit 0
-          ;;    
-    s)  SOFTWARE=${OPTARG}
+          ;; 
+    s)  SOFTWARE="${OPTARG}"
           ;; 
   esac
 done
@@ -92,7 +92,7 @@ else
   SOFTWARE=${SOFTWARE}
 fi
 
-SUBJECT=${@:$OPTIND:1}
+SUBJECT="${@:$OPTIND:1}"
 
 #-----------------------------------------------------------------------------
 # Check some directories/files

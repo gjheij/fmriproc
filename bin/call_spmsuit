@@ -62,27 +62,27 @@ do
           ;;
         keep)
           CLEAN_UP=0
-          ;;    
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;          
-    s)  SPM=${OPTARG}
+      ;; 
+    s)  SPM="${OPTARG}"
           ;;
     k)  CLEAN_UP=0
             ;;
     h)  Usage
-          ;;              
+          ;; 
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -92,7 +92,7 @@ if [[ ! -f "${INPUT}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
   exit 1
 else
-  INPUT=$(readlink -f "${INPUT}")
+  INPUT="$(readlink -f "${INPUT}")"
 fi
 
 if [[ -z "${OUTPUT}" ]]; then

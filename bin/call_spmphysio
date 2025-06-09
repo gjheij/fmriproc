@@ -71,47 +71,47 @@ do
       case "${OPTARG}" in     
         no-tapas)
           RUN_MATLAB=0
-          ;;   
+          ;;
         no-bids)
           RUN_PHYS=0
-          ;;  
+          ;;
         use_bids)
           USE_BIDS=True
-          ;;     
+          ;;
         no-plots)
           MAKE_PLOTS=""
           ;;
         help)
           Usage && exit 0
-          ;;          
+          ;; 
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;     
-    s)  SPM=${OPTARG}
+      ;;
+    s)  SPM="${OPTARG}"
             ;;
-    d)  DUMMY_VOLS=${OPTARG}
-            ;;      
-    n)  N_SLICES=${OPTARG}
-            ;;                   
-    f)  FUNC=${OPTARG}
-            ;;            
-    t)  TR=${OPTARG}
+    d)  DUMMY_VOLS="${OPTARG}"
+            ;; 
+    n)  N_SLICES="${OPTARG}"
+            ;; 
+    f)  FUNC="${OPTARG}"
+            ;; 
+    t)  TR="${OPTARG}"
             ;;
-    v)  VOLS=${OPTARG}
+    v)  VOLS="${OPTARG}"
             ;;
     h)  Usage && exit 0
-          ;;                           
+          ;; 
   esac
 done
 
 #-----------------------------------------------------------------------------
 # read args
-INPUT=${@:$OPTIND:1}
-OUTPUT=${@:$OPTIND+1:1}
+INPUT="${@:$OPTIND:1}"
+OUTPUT="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
 # check inputs
@@ -121,7 +121,7 @@ if [[ ! -f "${INPUT}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find input image \"${BOLD_GREEN}${INPUT}${RESET}\""
   exit 1
 else
-  INPUT=$(readlink -f "${INPUT}")
+  INPUT="$(readlink -f "${INPUT}")"
 fi
 
 if [[ -z "${OUTPUT}" ]]; then

@@ -74,7 +74,7 @@ if [[ ! -f "${ref}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find FIXED image \"${BOLD_GREEN}${ref}${RESET}\""
   exit 1
 else
-  ref=$(readlink -f "${ref}")
+  ref="$(readlink -f "${ref}")"
 fi
 
 if [[ ! -f "${in}" ]]; then
@@ -83,7 +83,7 @@ if [[ ! -f "${in}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find MOVING image \"${BOLD_GREEN}${in}${RESET}\""
   exit 1
 else
-  in=$(readlink -f "${in}")
+  in="$(readlink -f "${in}")"
 fi
 
 if [[ -z "${warp}" ]]; then

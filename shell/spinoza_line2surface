@@ -77,7 +77,7 @@ do
       case "${OPTARG}" in                  
         help)
           Usage && exit 0
-          ;;                      
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
@@ -86,14 +86,14 @@ do
       esac
       ;;
     h)  Usage && exit 0
-          ;;        
-    s)  SUB=${OPTARG}
+          ;; 
+    s)  SUB="${OPTARG}"
           ;;
-    y)  ANAT2=${OPTARG}
+    y)  ANAT2="${OPTARG}"
           ;;
-    o)  OUTPUTDIR=${OPTARG}
+    o)  OUTPUTDIR="${OPTARG}"
           ;;
-    i)  INPUTDIR=${OPTARG}
+    i)  INPUTDIR="${OPTARG}"
           ;;
   esac
 done

@@ -76,7 +76,7 @@ if [[ ! -f "${real}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find REAL image \"${BOLD_GREEN}${real}${RESET}\""
   exit 1
 else
-  real=$(readlink -f "${real}")
+  real="$(readlink -f "${real}")"
 fi
 
 if [[ ! -f "${imag}" ]]; then
@@ -85,7 +85,7 @@ if [[ ! -f "${imag}" ]]; then
   print_error_msg "$(basename ${0})" input "Could not find IMAGINARY image \"${BOLD_GREEN}${imag}${RESET}\""
   exit 1
 else
-  imag=$(readlink -f "${imag}")
+  imag="$(readlink -f "${imag}")"
 fi
 
 if [[ -z "${out}" ]]; then

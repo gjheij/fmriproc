@@ -164,63 +164,63 @@ do
       case "${OPTARG}" in     
         freeview)
           FREEVIEW=1
-          ;;            
+          ;; 
         force-exec)
           FORCE_EXEC=1
-          ;;          
+          ;; 
         sge)
           run_local=0
-          ;;        
+          ;; 
         local)
           run_local=1
-          ;;   
+          ;;
         no-highres)
           highres_flag=""
           ;; 
         no-t2)
           reuse_t2=0
-          ;;            
+          ;; 
         xopts-use)
           XOPTS_="-xopts-use"
-          ;;             
+          ;;
         xopts-clean)
           XOPTS_="-xopts-clean"
-          ;;               
+          ;;
         xopts-overwrite)
           XOPTS_="-xopts-overwrite"
-          ;;              
+          ;; 
         help)
           Usage && exit 0
-          ;;         
+          ;;
         *)
           Usage
           print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
           exit 1
           ;;
       esac
-      ;;    
-    s)  subj_ID=${OPTARG}
+      ;; 
+    s)  subj_ID="${OPTARG}"
           ;;
-    t)  T1=${OPTARG}
+    t)  T1="${OPTARG}"
           ;;
-    p)  T2=${OPTARG}
+    p)  T2="${OPTARG}"
           ;;
-    r)  stage=${OPTARG}
+    r)  stage="${OPTARG}"
           ;;
-    e)  edit=${OPTARG}
+    e)  edit="${OPTARG}"
           ;;
-    o)  option=${OPTARG}
+    o)  option="${OPTARG}"
           ;;
-    x)  EXPERT_FILE=${OPTARG}
-          ;;    
-    q)  SGE_QUEUE=${OPTARG}
-          ;;  
-    j)  n_cpus=${OPTARG}
+    x)  EXPERT_FILE="${OPTARG}"
+          ;; 
+    q)  SGE_QUEUE="${OPTARG}"
           ;;
-    k)  kwargs=${OPTARG}
-          ;;          
+    j)  n_cpus="${OPTARG}"
+          ;;
+    k)  kwargs="${OPTARG}"
+          ;; 
     h)  Usage && exit 0
-          ;;                             
+          ;; 
   esac
 done
 
@@ -433,7 +433,7 @@ validate_inputs(){
         print_error_msg "$(basename ${0})" T1w "Could not find T1w image \"${BOLD_GREEN}${T1}${RESET}\""
         exit 1
       else
-        T1=$(readlink -f "${T1}")
+        T1="$(readlink -f "${T1}")"
       fi
       T1_flag="-i ${T1}"
     fi

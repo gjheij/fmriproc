@@ -175,16 +175,16 @@ do
       case "${OPTARG}" in
         no-freeview)
           fv_flag="--no-freeview"
-          ;;     
+          ;;
         grid)
           stage="grid"
           ;;
         aparc)
           aparc_flag="--aparc"
-          ;;          
+          ;; 
         npy)
           prf_ext="npy"
-          ;;       
+          ;;
         v1)
           search_pars="roi-V1_"
           txt=" and \"${search_pars}\""
@@ -192,16 +192,16 @@ do
         v2)
           search_pars="roi-V2_"
           txt=" and \"${search_pars}\""          
-          ;;       
+          ;;
         gauss)
           model="gauss"
-          ;;  
+          ;;
         dog)
           model="dog"
-          ;;   
+          ;;
         css)
           model="css"
-          ;;  
+          ;;
         norm)
           model="norm"
           ;; 
@@ -210,25 +210,25 @@ do
           ;; 
         full)
           FULL_OW=1
-          ;;                           
+          ;; 
         no-srf)
           SRF=0
-          ;;  
+          ;;
         srf-file)
           srf_file=1
           ;; 
         gallery)
           gallery_flag="--gallery"
-          ;;      
+          ;; 
         manual)
           selection="--manual"
-          ;;     
+          ;;
         ctx)
           open_with="--ctx"
-          ;;     
+          ;;
         no-epi)
           epi=0
-          ;;     
+          ;;
         skip-prf-info)
           skip_prf_info="--skip-prf-info"
           ;;
@@ -244,22 +244,22 @@ do
       ;;
     h)  Usage && exit 0
           ;;
-    s)  sub=${OPTARG}
+    s)  sub="${OPTARG}"
           ;;
-    n)  ses=${OPTARG}
-          ;;          
-    l)  ls_ses=${OPTARG}
-          ;;            
-    v)  vert=${OPTARG}
-          ;;         
+    n)  ses="${OPTARG}"
+          ;; 
+    l)  ls_ses="${OPTARG}"
+          ;; 
+    v)  vert="${OPTARG}"
+          ;;
     o)  OW=1
           ;;
-    m)  model=${OPTARG}
-          ;;           
-    t)  task=${OPTARG}
-          ;;          
-    e)  epi_file=${OPTARG}
-          ;;                 
+    m)  model="${OPTARG}"
+          ;;
+    t)  task="${OPTARG}"
+          ;; 
+    e)  epi_file="${OPTARG}"
+          ;;
   esac
 done
 
@@ -269,9 +269,9 @@ fi
 
 
 # this deals with the fact that we might have flags before positional arguments
-BASE=${@:$OPTIND:1}
-DERIV=${@:$OPTIND+1:1}
-roi=${@:$OPTIND+2:1}
+BASE="${@:$OPTIND:1}"
+DERIV="${@:$OPTIND+1:1}"
+roi="${@:$OPTIND+2:1}"
 
 # check if we should loop through subjects or do it for 1 subject only
 if [[ -z ${sub} ]]; then
