@@ -180,37 +180,50 @@ class ExtractFromROIs():
 
             # load functional file
             data = self.load_file(func)
+            T = data.shape[-1]
+            V = np.prod(data.shape[:-1])           # total # of voxels
+            flat_func = data.reshape(V, T)              # shape: (V, T)
 
-            # loop through ROIs
-            roi_df = []
+            # pre-allocate storage
+            n_rois  = len(self.roi_list)
+            all_data = np.empty((T, n_rois), dtype=float)
+            colnames = [None] * n_rois
+
+            # --- fill the array ---
             for ix, roi in enumerate(self.roi_list):
-                
-                # use specified ROI names
-                roi_name = self.extract_run_identifier(
-                    roi,
-                    ix,
-                    sep=sep
-                )
+                # 1) name
+                colnames[ix] = self.extract_run_identifier(roi, ix, sep=sep)
 
-                # load file and extract
-                roi_data = self.load_file(roi)
-                extr_data = self.extract_data(
-                    data,
-                    roi_data,
+                # 2) load & extract
+                roi_dat = self.load_file(roi)
+                flat_roi = roi_dat.ravel()
+                extr_dat = self.extract_data(
+                    flat_func,
+                    flat_roi,
                     **kwargs
                 )
 
-                tmp_df = pd.DataFrame(extr_data, columns=[roi_name])
-                roi_df.append(tmp_df)
+                # 3) stick into the big array
+                all_data[:, ix] = extr_dat.squeeze()
 
-            roi_df = pd.concat(roi_df, axis=1)
-            roi_df["subject"], roi_df["run"], roi_df["t"] = subject, self.run, list(np.arange(0,roi_df.shape[0], dtype=float)*self.TR)
+            # --- build the DataFrame just once ---
+            roi_df = pd.DataFrame(all_data, columns=colnames)
 
-            for k in ["ses", "task"]:
-                if hasattr(self, k):
-                    el = getattr(self, k)
-                    if el is not None:
-                        roi_df[k] = el
+            # --- prepare all of the columns you want to assign ---
+            assign_kwargs = {
+                "subject": subject,
+                "run":     self.run,
+                "t":       np.arange(T, dtype=float) * self.TR
+            }
+
+            # add ses and task only if they exist and are not None
+            for k in ("ses", "task"):
+                val = getattr(self, k, None)
+                if val is not None:
+                    assign_kwargs[k] = val
+
+            # --- one-shot assign of everything ---
+            roi_df = roi_df.assign(**assign_kwargs)
 
             df.append(roi_df)
 
@@ -275,9 +288,9 @@ class ExtractFromROIs():
         Parameters
         ----------
         func: np.ndarray
-            4D timeseries representing the functional data
+            2D timeseries representing the functional data (voxels, time)
         roi: np.ndarray
-            int/float np.ndarray representing the ROI data
+            int/float np.ndarray representing the ROI data  (voxels,)
         nr: int, optional
             number of voxels to extract from data in case the input is float, by default 15.
             if the input is binary, we will take the entire ROI.
@@ -295,25 +308,22 @@ class ExtractFromROIs():
         np.ndarray
             extracted data (either normalized or not) 
 
-        """
-        # deal with binary data
+        """        
+        # build mask
         if 0 <= roi.max() <= 1:
-            tm = func[roi>0]
-            tc = tm.mean(axis=0)
+            # binary‐mask case
+            mask = roi > 0
         else:
-            # find max values in 
-            max_val = np.sort(roi.ravel())
-
+            # pick top-n or bottom-n without full sort
             if highest:
-                search_vals = max_val[-nr:]
+                idx = np.argpartition(-roi, nr - 1)[:nr]
             else:
-                search_vals = max_val[:nr]
+                idx = np.argpartition(roi, nr - 1)[:nr]
+            mask = np.zeros_like(roi, dtype=bool)
+            mask[idx] = True
 
-            vox = []
-            for i in search_vals:
-                vox.append(func[np.where(roi == i)])
-
-            tc = np.concatenate(vox, axis=0).mean(axis=0)[...,np.newaxis]            
+        # 3) extract & average timecourses
+        tc = func[mask].mean(axis=0) # shape (T,)      
 
         if zscore:
             psc = False
@@ -337,6 +347,7 @@ class ExtractFromROIs():
     @staticmethod
     def load_file(file):
         """Load file based on whether it is a string, numpy array, or nibabel.Nifti1Image object"""
+
         if isinstance(file, str):
             if file.endswith(".nii.gz"):
                 data = nb.load(file).get_fdata()
