@@ -174,10 +174,19 @@ if [[ -z "${filter_img}" ]]; then
   #-----------------------------------------------------------------------------
   # call_matlab = in call_bashhelper
   call_matlab "${new_script}"
-  if [[ $? -ne 0 || ! -f "${filter_img}" ]]; then
+  matlab_pid=$?
+
+  filter_img=$(
+    find "$(dirname "${in_file}")" \
+    -type f \
+    -name "sanlm_$(basename "${in_file}")"* \
+    2>/dev/null
+  )
+
+  if [[ ${matlab_pid} -ne 0 || ! -f "${filter_img}" ]]; then
     echo
     print_line -
-    print_error_msg "$(basename ${0})" "make_sanlm_script"
+    print_error_msg "$(basename ${0})" "call_matlab"
     exit 1
   fi
 fi
@@ -205,7 +214,7 @@ fi
 # copy header
 cmd=(
   call_copyheader
-  "${in_file}"
+  "${INPUT}"
   "${OUTPUT}"
 )
 

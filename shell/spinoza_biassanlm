@@ -313,8 +313,8 @@ for subID in ${search}; do
         )
 
         print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-        if [[ $? -ne 0 || ! -f ${output_from_sanlm} ]]; then
-          print_error_msg "$(basename ${0})" "${sanlm_}"
+        if [[ $? -ne 0 || ! -f "${output_from_sanlm}" ]]; then
+          print_error_msg "$(basename ${0})" "${cmd[0]}"
           exit 1
         fi
 

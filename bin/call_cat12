@@ -349,6 +349,7 @@ img_for_mask=$(
 ) 2>/dev/null
 
 if [ ! -z "${img_for_mask}" ]; then
+  echo && print_line -
   echo "Create mask from brain extracted segmentation image \"p0\""
   cmd=(
     fslmaths
