@@ -1688,7 +1688,7 @@ function make_sanlm_script {
     echo "clear;"
 
     # deal with MCR
-    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]  || [[ "${MATLAB_CMD}" == *"run_spm25.sh"* ]]; then
       echo ""
     else
       echo "addpath(genpath('${1}'));"
@@ -1934,11 +1934,12 @@ function make_bias_script {
     echo "clear;"
 
     # deal with MCR
-    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]; then
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]  || [[ "${MATLAB_CMD}" == *"run_spm25.sh"* ]]; then
       echo ""
     else
       echo "addpath(genpath('${1}'));"
     fi
+
     ) >> "${3}"
 
     batch_file="${REPO_DIR}/misc/spm_batch_bias.m"
@@ -2083,7 +2084,13 @@ function make_mask_script {
     echo "% Created on $(date). Running with ${VER}"
     echo ""
     echo "clear;"
-    echo ""
+
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]  || [[ "${MATLAB_CMD}" == *"run_spm25.sh"* ]]; then
+      echo ""
+    else
+      echo "addpath(genpath('${spm_path}'));"
+    fi
+
     ) >> "${script_file}"
 
     # echo to file
@@ -2259,7 +2266,7 @@ function make_cat_script {
 
     #-----------------------------------------------------------------------------
     # deal with MCR
-    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm"* ]]; then
+    if [[ "${MATLAB_CMD}" == *"spm_mcr"* ]] || [[ "${MATLAB_CMD}" == *"run_spm12.sh"* ]]  || [[ "${MATLAB_CMD}" == *"run_spm25.sh"* ]]; then
       echo ""
     else
       echo "addpath(genpath('${spm_path}'));"
