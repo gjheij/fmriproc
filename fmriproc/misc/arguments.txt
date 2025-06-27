@@ -1,4 +1,4 @@
-Input arguments:
+fmriproc/misc/arguments.txtInput arguments:
 
 -a <keep runs>    used for:
                     - ${BOLD_BLUE}spinoza_scanner2bids${RESET}: use suffixes to store other 
@@ -297,6 +297,8 @@ Options:
 --fix-hrf         fit the HRF in iterative fitting.
 
 --f(mri)prep      use fMRIPrep output for pRF-fitting.
+
+--force-dcm       Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
 
 --force-exec      force the execution of FreeSurfer/Pybest.
 

@@ -114,6 +114,7 @@ SEARCH_DEPTH=""           # spinoza_scanner2bids
 TR_FLAG=""                # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
 COMPRESS_FLAG=""          # spinoza_scanner2bids
+DCM_FORCE=""              # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
 REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
@@ -239,6 +240,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         fmriprep)
           fprep_input=1
           ;; 
+        force-dcm)
+          DCM_FORCE="--force-dcm"
+          ;;            
         force-exec)
           FORCE_FLAG="--force-exec"
           ;;
@@ -879,6 +883,7 @@ if [[ $? -eq 0 ]]; then
     "${PATTERN_FLAG}"
     "${KEEP_RUNS}"
     "${COMPRESS_FLAG}"
+    "${DCM_FORCE}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 

@@ -28,6 +28,7 @@
 --fit
 --fix-hrf
 --fmriprep
+--force-dcm
 --force-exec
 --fprep
 --freeview

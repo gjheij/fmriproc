@@ -113,6 +113,7 @@ maybe_reorient() {
       echo
       print_line -
       print_error_msg "$(basename ${0})" "${cmd[0]}"
+      exit 1
     fi
   fi
 }
@@ -523,6 +524,19 @@ process_anatomical_inversions() {
     sort
   )
   unset IFS
+
+  if [[ -z ${invs} ]]; then
+    invs=(
+      $(
+        find -L \
+        "${tmp_dir}" \
+        -type f \
+        \( -name "*.nii.gz" -and -name "*T1w_*" -and -name "*_t10*" -and -not -name "*WIP*" -or -name "*.nii.gz" -and -name "*_t29*" -and -not -name "*WIP*" -or -name "*.nii.gz" -and  -name "*_t30*" -and -not -name "*WIP*" \) \
+        2>/dev/null | \
+        sort
+      )
+    )
+  fi
 
   if [[ ${#invs[@]} -gt 0 ]]; then
     [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
@@ -1535,7 +1549,8 @@ Options:
   --force-exec    Force execution even though converted nifti already exists (passed to parrec2nii)
   --fmap-gre      Use phasediff from GRE-sequence as FMAP, also if you have Reversed-PE EPI images
   --fmap-b0       Use direct fieldmap from GE systems, also if you have other fieldmaps
-
+  --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
+  
 Example:
   # simple call
   call_bids
@@ -1640,6 +1655,7 @@ include_anatomicals=""
 kwargs=""
 force_flag=""
 use_fmap="epi"
+force_dcm=""
 while getopts :-:hi:o:b:n:r:d:t:v:p:a:c:x: argument
 do
   case ${argument} in
@@ -1697,6 +1713,9 @@ do
           compress="-c n"
           compress_flag="--no-compress"
           ;;
+        force-dcm)
+          force_dcm="--force-dcm"
+          ;;           
         help)
           Usage && exit 0
           ;; 
@@ -1781,6 +1800,7 @@ else
     "${tr_prot_flag}"
     "${compress}"
     "${compress_flag}"
+    "${force_dcm}"
     "${kwargs}"
     -i "${input_dir}"
     -o "${tmp_dir}"

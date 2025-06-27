@@ -149,6 +149,7 @@ Options:
                   mended, but exists for debugging purposes.
   --skip-fmap     do not trim the time series from FMAPs. By default, it is assumed that all your
                   functional files have dummy-saving turned on.
+  --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
 
 Positional:
   <project root>  directory to output BIDSified data to
@@ -241,6 +242,7 @@ SGE_QUEUE="${SGE_QUEUE_SHORT}"
 pattern_flag=""
 search_flag=""
 compress_flag=""
+force_dcm=""
 while getopts :-:hos:n:r:q:d:t:v:p:a: argument
 do
   case ${argument} in
@@ -290,6 +292,9 @@ do
         skip-fmap)
           TRIM_FMAP="--skip-fmap"
           ;;
+        force-dcm)
+          force_dcm="--force-dcm"
+          ;;          
         sge)
           run_local=0
           if [[ ! -d "${DIR_LOGS}" ]]; then
@@ -467,6 +472,7 @@ for subID in ${search}; do
       "${compress_flag}"
       "${RUNS}"
       "${pattern_flag}"
+      "${force_dcm}"
       -i "${input_dir}"
       -o "${output_dir}"
       -b "${bids_dir}"

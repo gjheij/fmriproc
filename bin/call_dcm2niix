@@ -78,6 +78,7 @@ Options:
   --no-compress   create nii's instead of nii.gz's (default). Passes on '--no-compress' to call-
                   parrec2nii, and '-c n' to dcm2niix
   --force-exec    Force execution even though converted nifti already exists
+  --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
 
 Examples:
   call_dcm2niix -i /path/to/PARRECs                     # most basic call
@@ -100,6 +101,7 @@ compress_flag=""
 kwargs=""
 kwargs_flag=""
 force_flag=""
+force_dcm=0
 while getopts :-:i:o:c:v:d:x: argument
 do
   case ${argument} in
@@ -115,6 +117,9 @@ do
         force-exec)
           force_flag="--force-exec"
           ;; 
+        force-dcm)
+          force_dcm=1
+          ;;           
         help)
           Usage && exit 0
           ;;
@@ -236,7 +241,7 @@ n_par_files=(
 
 #-----------------------------------------------------------------------------
 # if PAR-files, use parrec2nii
-if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
+if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 && ${force_dcm} -eq 0 ]]; then
 
   echo && print_line -
   echo -e "Found ${#n_par_files[@]} PAR-files, using '${BOLD_BLUE}call_parrec2nii${RESET}'"
@@ -271,8 +276,14 @@ if [[ ! -z ${n_par_files[@]} && ${#n_par_files[@]} -gt 0 ]]; then
 else
   #-----------------------------------------------------------------------------
   # otherwise, use dcm2niix
+  if [[ ${force_dcm} -eq 1 ]]; then
+    txt="Found ${#n_par_files[@]} PAR-files, but '--force-dcm' was specified, using 'dcm2niix'"
+  else
+    txt="Assuming DICOM format, using 'dcm2niix'"
+  fi
+
   echo && print_line -
-  echo "Assuming DICOM format, using 'dcm2niix'"
+  echo "${txt}"
   
   # Turn kwargs into space-separated array
   if [[ -n "${kwargs}" ]]; then
