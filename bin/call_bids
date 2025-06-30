@@ -531,7 +531,7 @@ process_anatomical_inversions() {
         find -L \
         "${tmp_dir}" \
         -type f \
-        \( -name "*.nii.gz" -and -name "*T1w_*" -and -name "*_t10*" -and -not -name "*WIP*" -or -name "*.nii.gz" -and -name "*_t29*" -and -not -name "*WIP*" -or -name "*.nii.gz" -and  -name "*_t30*" -and -not -name "*WIP*" \) \
+        \( -name "*.nii.gz" -and -name "*T1w_*" -and -name "*_t10*" -and -not -name "*WIP*" -and -name "*acq-MP*" -or -name "*.nii.gz" -and -name "*_t29*" -and -name "*acq-MP*" -and -not -name "*WIP*" -or -name "*.nii.gz" -and  -name "*_t30*" -and -name "*acq-MP*" -and -not -name "*WIP*" \) \
         2>/dev/null | \
         sort
       )
@@ -613,41 +613,83 @@ process_search_anatomicals() {
   local OW="$4"
   local reorient="$5"
 
+  if [[ "${#SEARCH_ANATOMICALS[@]}" -gt 0 ]]; then
+    echo && print_line -
+    echo "Processing additional anatomical files (${SEARCH_ANATOMICALS[@]})..."
+  fi
+
   for qq in "${SEARCH_ANATOMICALS[@]}"; do
-    local img
-    img=$(
-      find -L "${tmp_dir}" \
-      -type f \
-      -name "*${qq}.nii.gz" \
-      2>/dev/null
-    )
 
-    if [[ -n "${img}" ]]; then
-      local acq run acq_tag run_tag out_fn json_fn
+    # IRT1 also has a bunch of files
+    if [[ "${qq}" == "IRT1" ]]; then
+      irt1_files=(
+        $(
+          find -L \
+          "${tmp_dir}" \
+          -type f \
+          -name "*IRT1*" -and -name "*.nii.gz" \
+          2>/dev/null | \
+          sort
+        )
+      )
 
-      echo && print_line -
-      echo "Processing additional anatomical files (${SEARCH_ANATOMICALS[@]})..."
-    
-      acq="$(get_id "${img}" acq)"
-      [[ -n "${acq}" ]] && acq_tag="_acq-${acq}" || acq_tag=""
+      # 1st = 'mag', 2nd = 'real' (https://neurostars.org/t/bids-naming-for-the-psir-sequence/16592/3)
+      ix=0
+      tag=("mag" "real")
+      for img in "${irt1_files[@]}"; do
 
-      run="$(get_id "${img}" run)"
-      [[ -n "${run}" ]] && run_tag="_run-${run}" || run_tag=""
+        out_fn="${bids_dir}/anat/${base}_acq-PSIR_part-${tag[ix]}_IRT1.nii.gz"
+        if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+          
+          [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
 
-      [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
+          echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
+          cp "${img}" "${out_fn}" 2>/dev/null
 
-      out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
-      if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
-        echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
-        cp "${img}" "${out_fn}" 2>/dev/null
+          # reorient to LPI
+          maybe_reorient "${out_fn}" "${reorient}"
+        fi
 
-        # reorient to LPI
-        maybe_reorient "${out_fn}" "${reorient}"
-      fi
+        json_fn="${img/.nii.gz/.json}"
+        if [[ -f "${json_fn}" ]]; then
+          cp "${json_fn}" "${out_fn/.nii.gz/.json}" 2>/dev/null
+        fi
 
-      json_fn="${img/.nii.gz/.json}"
-      if [[ -f "${json_fn}" ]]; then
-        cp "${json_fn}" "$(dirname "${out_fn}")/$(basename "${out_fn}" .nii.gz).json" 2>/dev/null
+        ((ix++))
+      done
+    else
+      local img
+      img=$(
+        find -L "${tmp_dir}" \
+        -type f \
+        -name "*${qq}.nii.gz" \
+        2>/dev/null
+      )
+
+      if [[ -n "${img}" ]]; then
+        local acq run acq_tag run_tag out_fn json_fn
+      
+        acq="$(get_id "${img}" acq)"
+        [[ -n "${acq}" ]] && acq_tag="_acq-${acq}" || acq_tag=""
+
+        run="$(get_id "${img}" run)"
+        [[ -n "${run}" ]] && run_tag="_run-${run}" || run_tag=""
+
+        [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
+
+        out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
+        if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+          echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
+          cp "${img}" "${out_fn}" 2>/dev/null
+
+          # reorient to LPI
+          maybe_reorient "${out_fn}" "${reorient}"
+        fi
+
+        json_fn="${img/.nii.gz/.json}"
+        if [[ -f "${json_fn}" ]]; then
+          cp "${json_fn}" "${out_fn/.nii.gz/.json}" 2>/dev/null
+        fi
       fi
     fi
   done
@@ -1060,7 +1102,7 @@ fix_final_intendedfor() {
 
       #-----------------------------------------------------------------------------
       # 1 FMAP FOR EVERY 2 BOLD      
-      elif [[ $((num_funcs / num_fmaps)) -eq 2 ]]; then
+      elif (( num_funcs / num_fmaps == 2 && num_funcs % num_fmaps == 0 )); then
         echo -e "${BOLD_RED}1${RESET} FMAP per ${BOLD_RED}2${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
 
         local fm_ct=0
@@ -1216,11 +1258,74 @@ fix_final_intendedfor() {
           fi
         done
 
+      #-----------------------------------------------------------------------------
+      # 2 FMAPs for ALL BOLDs (beginning/end-type of situation)   
+      elif [[ "${num_fmaps}" -eq 2 && "${num_funcs}" -gt 2 ]]; then
+        echo -e "${BOLD_RED}2${RESET} FMAP for ${BOLD_RED}all${RESET} BOLDs — assuming beginning & end FMAPs"
+
+        local fm_ct=0
+        local id=1
+
+        # Calculate base count per fmap
+        local base=$((num_funcs / num_fmaps))          # 2
+        local remainder=$((num_funcs % num_fmaps))     # 1
+
+        for ((i = 0; i < num_fmaps; i++)); do
+          local fmap="${fmaps[$i]}"
+          local field_id="${fmap_type}$(printf "%02d" ${id})"
+          local tmp_list=""
+          local count=$base
+
+          # Distribute remainder across the first few fmaps
+          if (( i < remainder )); then
+            count=$((base + 1))
+          fi
+
+          for ((j = 0; j < count; j++)); do
+            local func_idx=$((fm_ct + j))
+            local func_file="${funcs[$func_idx]}"
+            local base_path="$(rel_path "${func_file}")"
+            local rel_path="${base_path}func/$(basename "${func_file}")"
+
+            tmp_list+="${rel_path}"
+            [[ $j -lt $((count - 1)) ]] && tmp_list+=","
+
+            local json_func="${func_file/.nii.gz/.json}"
+            if [[ -f "${json_func}" ]]; then
+              call_json "${json_func}" "B0FieldSource" "${field_id}" || {
+                print_error_msg "$(basename ${0})" "call_json" "Failed B0FieldSource on ${json_func}"
+                exit 1
+              }
+            fi
+          done
+
+          IFS=',' read -r -a intended_for_list <<< "$tmp_list"
+          unset IFS
+
+          echo -e " ${BOLD_MAGENTA}${fmap}${RESET}:"
+          for path in "${intended_for_list[@]}"; do
+            echo -e "  → ${BOLD_GREEN}${path}${RESET}"
+          done
+
+          call_json "${fmap}" "IntendedFor" "${tmp_list}" || {
+            print_error_msg "$(basename ${0})" "call_json" "Failed IntendedFor on ${fmap}"
+            exit 1
+          }
+
+          call_json "${fmap}" "B0FieldIdentifier" "${field_id}" || {
+            print_error_msg "$(basename ${0})" "call_json" "Failed B0FieldIdentifier on ${fmap}"
+            exit 1
+          }
+
+          fm_ct=$((fm_ct + count))
+          id=$((id + 1))
+        done
       else
         local ratio=$((num_funcs / num_fmaps))
         echo -e "WARNING: got ${BOLD_RED}${num_funcs}${RESET} BOLD files and ${BOLD_RED}${num_fmaps}${RESET} FMAP files."
         echo "I can only handle:"
         echo " - 1 FMAP for all BOLDs"
+        echo " - 2 FMAPs for all BOLDs"
         echo " - 1 FMAP per BOLD"
         echo " - 1 FMAP for every ${ratio} BOLDs"
       fi
@@ -1549,8 +1654,7 @@ Options:
   --force-exec    Force execution even though converted nifti already exists (passed to parrec2nii)
   --fmap-gre      Use phasediff from GRE-sequence as FMAP, also if you have Reversed-PE EPI images
   --fmap-b0       Use direct fieldmap from GE systems, also if you have other fieldmaps
-  --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
-  
+
 Example:
   # simple call
   call_bids
@@ -1655,7 +1759,6 @@ include_anatomicals=""
 kwargs=""
 force_flag=""
 use_fmap="epi"
-force_dcm=""
 while getopts :-:hi:o:b:n:r:d:t:v:p:a:c:x: argument
 do
   case ${argument} in
@@ -1713,9 +1816,6 @@ do
           compress="-c n"
           compress_flag="--no-compress"
           ;;
-        force-dcm)
-          force_dcm="--force-dcm"
-          ;;           
         help)
           Usage && exit 0
           ;; 
@@ -1800,7 +1900,6 @@ else
     "${tr_prot_flag}"
     "${compress}"
     "${compress_flag}"
-    "${force_dcm}"
     "${kwargs}"
     -i "${input_dir}"
     -o "${tmp_dir}"
