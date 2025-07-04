@@ -199,6 +199,27 @@ ensure_intended_for() {
       print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
       exit 1
     fi
+
+    # add B0FieldSource to func-json
+    func_path="${json_bids/fmap/func}"
+    func_path="${func_path/_epi.json/_bold.json}"
+
+    if [ -f "${func_path}" ]; then
+      cmd=(
+        call_json
+        "${func_path}"
+        "B0FieldSource"
+        "${b0_id}"
+      )
+
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+        exit 1
+      fi
+    fi
   fi
 }
 
