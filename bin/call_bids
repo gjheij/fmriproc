@@ -1240,7 +1240,7 @@ fix_final_intendedfor() {
 
           # Set B0FieldSource on BOLD JSON
           local json_func="${funcs[$i]/.nii.gz/.json}"
-          if [[ -f"${json_func}" ]]; then
+          if [[ -f "${json_func}" ]]; then
             cmd=(
               call_json
               "${json_func}"
