@@ -170,3 +170,11 @@ if __name__ == "__main__":
             slice_view = arg
         elif opt in ("-o","--ow"):
             overwrite = True
+
+    main(context={
+        "subject": subject,
+        "slice_range": slice_range,
+        "fsdir": fsdir,
+        "slice_view": slice_view,
+        "overwrite": overwrite,
+    })
