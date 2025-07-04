@@ -1654,6 +1654,7 @@ Options:
   --force-exec    Force execution even though converted nifti already exists (passed to parrec2nii)
   --fmap-gre      Use phasediff from GRE-sequence as FMAP, also if you have Reversed-PE EPI images
   --fmap-b0       Use direct fieldmap from GE systems, also if you have other fieldmaps
+  --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
 
 Example:
   # simple call
@@ -1759,6 +1760,7 @@ include_anatomicals=""
 kwargs=""
 force_flag=""
 use_fmap="epi"
+force_dcm=""
 while getopts :-:hi:o:b:n:r:d:t:v:p:a:c:x: argument
 do
   case ${argument} in
@@ -1812,6 +1814,9 @@ do
         fmap-b0)
           use_fmap="direct_b0"
           ;;
+        force-dcm)
+          force_dcm="--force-dcm"
+          ;;               
         no-compress)
           compress="-c n"
           compress_flag="--no-compress"
@@ -1900,6 +1905,7 @@ else
     "${tr_prot_flag}"
     "${compress}"
     "${compress_flag}"
+    "${force_dcm}"
     "${kwargs}"
     -i "${input_dir}"
     -o "${tmp_dir}"
