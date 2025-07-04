@@ -1030,12 +1030,12 @@ fix_final_intendedfor() {
           
           # add B0FieldSource to FUNC's JSON
           local json_func="${funcs[$i]/.nii.gz/.json}"
-          if [[ -f "${json_func}" && "${json_func}" == *.json ]]; then
+          if [[ -f "${json_func}" ]]; then
             cmd=(
               call_json
               "${json_func}"
               "B0FieldSource"
-              "${fmap_type}01"
+              "${fmap_tag}01"
             )
 
             eval "${cmd[@]}"
@@ -1089,7 +1089,7 @@ fix_final_intendedfor() {
           call_json
           "${fmaps[0]}"
           "B0FieldIdentifier"
-          "${fmap_type}01"
+          "${fmap_tag}01"
         )
 
         eval "${cmd[@]}"
@@ -1111,7 +1111,7 @@ fix_final_intendedfor() {
 
         for fmap in "${fmaps[@]}"; do
           local tmp_list=""
-          local field_id="${fmap_type}$(printf "%02d" ${id})"
+          local field_id="${fmap_tag}$(printf "%02d" ${id})"
 
           for ((j = 0; j < fc; j++)); do
             local idx=$((fm_ct + j))
@@ -1122,7 +1122,7 @@ fix_final_intendedfor() {
 
             # Set B0FieldSource on each BOLD JSON
             local json_func="${funcs[$idx]/.nii.gz/.json}"
-            if [[ -f"${json_func}" ]]; then
+            if [[ -f "${json_func}" ]]; then
               cmd=(
                 call_json
                 "${json_func}"
@@ -1199,7 +1199,7 @@ fix_final_intendedfor() {
         for i in "${!fmaps[@]}"; do
           local base_path="$(rel_path "${funcs[$i]}")"
           local rel_path="${base_path}func/$(basename ${funcs[$i]})"
-          local field_id="${fmap_type}$(printf "%02d" $((i + 1)))"
+          local field_id="${fmap_tag}$(printf "%02d" $((i + 1)))"
 
           #-----------------------------------------------------------------------------
           # print situation
@@ -1272,7 +1272,7 @@ fix_final_intendedfor() {
 
         for ((i = 0; i < num_fmaps; i++)); do
           local fmap="${fmaps[$i]}"
-          local field_id="${fmap_type}$(printf "%02d" ${id})"
+          local field_id="${fmap_tag}$(printf "%02d" ${id})"
           local tmp_list=""
           local count=$base
 
