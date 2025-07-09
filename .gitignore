@@ -7,3 +7,4 @@ lazyplot/__pycache__/
 .DS_Store
 fmriproc/version.py
 build/*
+.vscode*

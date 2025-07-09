@@ -468,7 +468,7 @@ END
       #-----------------------------------------------------------------------------
       # add the regular parameters to FMAP json
       echo "Adding basic information to $(basename ${epi_json})"
-      pars_for_json --merge $"{par}" "${epi_json}"
+      pars_for_json --merge "${par}" "${epi_json}"
 
       # add IntendedFor field
       cmd=(
