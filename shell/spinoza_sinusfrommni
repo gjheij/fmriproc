@@ -202,7 +202,7 @@ for subID in ${search}; do
   # collect subject name
   sub_name=$(collect_subject_name "$sub" "$subID" "$SUBJECT_PREFIX")
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
-
+  base_dir="${sub_name}/ses-${ses}"
   # set paths
   pn_anat="${ANAT}/${base_dir}"
   pn_matrix="${MATRIX}/${base_dir}"
@@ -241,8 +241,7 @@ for subID in ${search}; do
       t1=$(
         find "${pn_anat}" \
         -type f \
-        -name "${base}*" \
-        -and -name "*T1w.nii.gz" \
+        -name "*T1w.nii.gz" \
         2>/dev/null
       )
 
