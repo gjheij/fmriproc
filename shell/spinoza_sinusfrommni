@@ -260,7 +260,8 @@ for subID in ${search}; do
       mask=$(
         find "${pn_anat}" \
         -type f \
-        -name "*spm_mask.nii.gz" \
+        -name "${base}*" \
+        -and -name "*spm_mask.nii.gz" \
         2>/dev/null
       )
 
