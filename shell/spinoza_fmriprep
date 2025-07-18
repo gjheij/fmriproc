@@ -459,8 +459,16 @@ if [[ ! -z ${runs} ]]; then
 fi
 
 # get subjects
-search=$(determine_subjects "$INPUT" "$SUBJECT_PREFIX" "$sub")
-
+# If no subjects specified, process all found in sourcedata
+if [[ -z ${sub} ]]; then
+  # loop through subjects
+  search="${SOURCEDATA}/${SUBJECT_PREFIX}*"
+else
+  # read specified subjects into array
+  IFS=', ' read -r -a search <<< "${sub}"
+  search=${search[@]}
+  unset IFS
+fi
 # Check if ${mode} represents a task ID instead of "anat" or "func"
 task_id=""
 if [[ -n ${mode} && ${mode} != "anat" && ${mode} != "func" ]]; then
