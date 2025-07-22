@@ -585,7 +585,7 @@ for subID in ${search}; do
     -s "${sub_id}"
     -m "${mode}"
     -b "${FPREP_BINDING}"
-    -r "${INPUT}"
+    -r "${DIR_DATA_HOME}" #"${INPUT}"
     -d "${OUTPUT}"
     -w "${workdir}"
     -c "${n_cpus}"
