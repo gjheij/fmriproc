@@ -216,7 +216,7 @@ if [[ ${fd_only} -eq 0 ]]; then
     "${proc_level}"
     "${ses_flag}"
     "${mod_flag}"
-    --workdir "${work}"
+    -w "${work}"
     --nprocs "${n_cpus}"
     --omp-nthreads 1
     --verbose-reports
