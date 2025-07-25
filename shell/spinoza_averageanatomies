@@ -155,7 +155,7 @@ for subID in ${search}; do
           find "${input_dir}" \
           -type f \
           -name "*space-*" \
-          -and -name "*${i}.nii.gz" \ | 
+          -and -name "*${i}.nii.gz" | \
           sort \
           2>/dev/null
         )
@@ -163,7 +163,7 @@ for subID in ${search}; do
 
       if [[ ! -z "${in_files}" ]]; then
         # MP2RAGE+MP2RAGEME if number of "space-" files is 1
-        if [[ ${#in_files[@]} -eq 1 ]]; then
+        if [[ ${#in_files[@]} -eq 1 && ${#ACQ[@]} -gt 1 ]]; then
 
           #-----------------------------------------------------------------------------
           # reference image (MP2RAGE)

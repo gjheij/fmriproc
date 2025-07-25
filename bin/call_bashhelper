@@ -40,6 +40,25 @@ generate_submission_command() {
   echo "$command"
 }
 
+determine_subjects() {
+  local input_dir="$1"
+  local subject_prefix="$2"
+  local sub="$3"
+  local search=()
+
+  if [[ -z ${sub} ]]; then
+    # If no specific subjects are provided, search for all subjects
+    search=("${input_dir}/${subject_prefix}*")
+  else
+    # Read the specified subjects into an array
+    IFS=', ' read -r -a search <<< "${sub}"
+    unset IFS
+  fi
+
+  # Print the array as space-separated values
+  echo "${search[@]}"
+}
+
 decide_job_type() {
   local script_name="$1"
   local job_name="$2"

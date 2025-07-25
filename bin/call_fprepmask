@@ -67,7 +67,7 @@ else
   fi
 fi
 
-if [[ -d "${fprep_dir}" ]]; then
+if [[ ! -d "${fprep_dir}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" input "Could not find input directory ${BOLD_GREEN}${fprep_dir}${RESET}"
@@ -81,7 +81,7 @@ fi
 funcs=(
   $(
     find "${fprep_dir}" \
-    -type f -name "*preproc_bold.nii.gz" | 
+    -type f -name "*preproc_bold.nii.gz" | \
     sort
   )
 )

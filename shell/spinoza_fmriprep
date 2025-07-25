@@ -99,38 +99,65 @@ manage_fmriprep_workdir() {
 
   # Locate workflow folder
   local wf_folder
-  wf_folder=$(find "${workdir}" -maxdepth 1 -type d -name "fmriprep*" -and -name "*wf" 2>/dev/null)
+  wf_folder=$(
+    find "${workdir}" \
+    -maxdepth 1 \
+    -type d \
+    -name "fmriprep*" -and -name "*wf" \
+    2>/dev/null
+  )
 
   # Remove surface reconstruction workflow if specified
-  if [[ "${remove_surf_wf}" -eq 1 ]]; then
-    surf_wf="${wf_folder}/single_subject_${sub_id}_wf/anat_preproc_wf/surface_recon_wf"
-    echo "Removing \"${surf_wf}\""
-    rm -r "${surf_wf}" 2>/dev/null
-  elif [[ "${remove_wf}" -eq 1 ]]; then
-    subj_wf="${wf_folder}/single_subject_${sub_id}_wf"
-    echo "Removing \"${subj_wf}\""
-    rm -r "${subj_wf}" 2>/dev/null
-  elif [[ "${overwrite}" -eq 1 ]]; then
-    # Remove workflow folders for specific runs or all runs
-    if [[ ${#runs[@]} -gt 0 ]]; then
-      for r in "${runs[@]}"; do
-        echo "Removing workflow folders with \"run-${r}\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
-        rm -r "${wf_folder}/single_subject_${sub_id}_wf/"*run_"${r}"* 2>/dev/null
-      done
+  if [[ -d "${wf_folder}" ]]; then
+
+    # find subject wf folder
+    subj_wf=$(
+      find "${wf_folder}" \
+      -maxdepth 1 \
+      -name "*_${sub_id}_wf"
+    )
+
+    if [[ -d "${subj_wf}" ]]; then
+      # remove FreeSurfer recon workflow
+      if [[ "${remove_surf_wf}" -eq 1 ]]; then
+        surf_wf=$(find "${subj_wf}" -type d -name "surface_recon_wf")
+        if [[ -d "${surf_wf}" ]]; then
+          echo -e "Removing ${BOLD_MAGENTA}${surf_wf}${RESET}"
+          rm -r "${surf_wf}" 2>/dev/null
+        else
+          echo -e "Could not find ${BOLD_RED}surface_recon_wf${RESET} folder in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+        fi
+      # remove full workflow (BOLD, FMAP, & ANAT)
+      elif [[ "${remove_wf}" -eq 1 ]]; then
+        echo -e "Removing ${BOLD_MAGENTA}${subj_wf}${RESET}"
+        rm -r "${subj_wf}" 2>/dev/null
+      # Remove workflow folders for specific runs or all runs
+      elif [[ "${overwrite}" -eq 1 ]]; then
+        if [[ ${#runs[@]} -gt 0 ]]; then
+          for r in "${runs[@]}"; do
+            echo -e "Removing workflow folders with ${BOLD_RED}run-${r}${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+            rm -r "${subj_wf}/"*run_"${r}"* 2>/dev/null
+          done
+        else
+          echo -e "Removing workflow folders with ${BOLD_RED}run-*${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+          local ddir
+          ddir=(
+            $(
+              find "${subj_wf}" \
+              -maxdepth 1 \
+              -type d \
+              -name "*run*" -and -name "*_wf" | \
+              sort
+            )
+          )
+          for d in "${ddir[@]}"; do echo -e " ${BOLD_GREEN}${d}${RESET}"; rm -r "${d}" 2>/dev/null; done
+        fi
+      fi
     else
-      echo "Removing workflow folders with \"run-*\" in \"${wf_folder}/single_subject_${sub_id}_wf\""
-      local ddir
-      ddir=(
-        $(
-          find "${wf_folder}/single_subject_${sub_id}_wf" \
-          -type d \
-          -name "*run-" | \
-          sort
-        )
-      )
-      for d in "${ddir[@]}"; do echo " ${d}"; done
-      rm -r "${wf_folder}/single_subject_${sub_id}_wf/"*run_* 2>/dev/null
+      echo -e "No folder with ${BOLD_RED}*_${sub_id}_wf${RESET} in ${BOLD_MAGENTA}${wf_folder}${RESET}"
     fi
+  else
+    echo -e "No folder with ${BOLD_RED}-name "fmriprep*" -and -name "*wf"${RESET} in ${BOLD_MAGENTA}${workdir}${RESET}"
   fi
 }
 
@@ -141,12 +168,12 @@ generate_config_file() {
   local runs=("${@:2}")  # Capture remaining arguments as an array
   local confFile=""
 
-  if [[ -z ${conf} ]]; then
+  if [[ -z "${conf}" ]]; then
     # If no config file is provided, check for run-specific files
     if [[ ${#runs[@]} -gt 0 ]]; then
       local run_="["
       local r_ct=0
-      local workdir="${WORKDIR:-.}"  # Default to current dir if WORKDIR is not set
+      local workdir="${WORKDIR:-$DIR_DATA_HOME}"
 
       for r in "${runs[@]}"; do
         if [[ ${r_ct} -lt $((${#runs[@]} - 1)) ]]; then
@@ -172,7 +199,6 @@ generate_config_file() {
 }
 EOF
 
-      echo "Using run-specific config file (runs = [${runs[*]}]): ${confFile}"
       confFile="-x ${confFile}"
     fi
   else
@@ -189,7 +215,6 @@ EOF
         esac
       done
     fi
-    echo "Using config file: ${conf}"
     confFile="-x ${conf}"
   fi
 
@@ -241,11 +266,10 @@ Arguments:
   -k <kwargs>     specify a file with additional arguments, similar to FreeSurfer's expert options.
                   See fmriproc/misc/fprep_options for an example. Please make sure you have a 
                   final empty white space at the end of the file, otherwise the parser gets confu-
-                  sed. For VSCode: https://stackoverflow.com/a/44704969. If you run with master, 
-                  the  '-u' flag maps onto this
+                  sed. For VSCode: https://stackoverflow.com/a/44704969.
   -n <session>    session ID (e.g., 1, 2, or none); used to check for T1w-image. fMRIprep will do 
                   all sessions it finds in the project root regardless of this argument. Use the 
-                  bids filter file ('-k' flag) if you want fMRIPrep to to specific sessions/tasks/
+                  bids filter file ('-u' flag) if you want fMRIPrep to to specific sessions/tasks/
                   acquisitions.
   -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
   -r <runs>       re-)run specific runs by removing existing single_subject_<subj_id>_wf/

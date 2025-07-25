@@ -115,6 +115,7 @@ TR_FLAG=""                # spinoza_scanner2bids
 SKIP_TR=""                # spinoza_scanner2bids
 COMPRESS_FLAG=""          # spinoza_scanner2bids
 DCM_FORCE=""              # spinoza_scanner2bids
+FMAP_FLAG=""              # spinoza_scanner2bids
 UPs=""                    # spinoza_qmrimaps
 REG_T1=""                 # spinoza_qmrimaps
 BG_FLAG=""                # spinoza_qmrimaps
@@ -216,6 +217,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         denoise)
           SANLM_METHOD="--denoise"
           ;; 
+        direct)
+          FMAP_FLAG="--fmap-direct"
+          ;;            
         dog)
           MODEL_FLAG="--dog"
           ;;
@@ -291,6 +295,12 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         grid)
           GRID="--grid"
           ;;
+        gre)
+          FMAP_FLAG="--fmap-gre"
+          ;;          
+        gre2)
+          FMAP_FLAG="--fmap-gre2"
+          ;;                
         help)
           HELP=1
           ;;
@@ -642,10 +652,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
       FOLDS_FLAG="-f ${OPTARG}"
       ;;
     k)
-      if [[ -f "${OPTARG}" ]]; then
-        kwargs_file="-k $(readlink -f \"${OPTARG}\")"
-      fi
-      fs_kwargs="-k ${OPTARG}"
+      kwargs_file="-k ${OPTARG}"
       ;;
   esac
 done
@@ -884,6 +891,7 @@ if [[ $? -eq 0 ]]; then
     "${KEEP_RUNS}"
     "${COMPRESS_FLAG}"
     "${DCM_FORCE}"
+    "${FMAP_FLAG}"
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 
@@ -1647,7 +1655,7 @@ if [[ $? -eq 0 ]]; then
     "${use_t2_flag}"
     "${SGE_QUEUE}"
     "${jobs_flag}"
-    "${fs_kwargs}"
+    "${kwargs_file}"
     "${INPUT_DIR}" "${FS_stage}" "${DIR_DATA_HOME}"
   )
 

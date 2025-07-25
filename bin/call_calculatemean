@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
+# source setup and helper functions
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -76,7 +80,7 @@ tmp_file="${output%/*}/tmp_${output##*/}"
 if [[ ! -f "${tmp_file}" ]]; then
 
   echo "Merging the following files:"
-  for i in ${inputs[@]}; do echo "  $(basename "${i}")"; done
+  for i in ${inputs[@]}; do echo -e "  ${BOLD_GREEN}${i}${RESET}"; done
 
   cmd=(
     merge_files

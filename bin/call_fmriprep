@@ -42,10 +42,7 @@ Optional (flags with defaults):
   -x <config>     specify config file to guide fMRIprep
   -t <task ID>    limit the preprocessing to a certain task; instead of this flag you can also 
                   use a configuration file to make the criteria more explicit
-  -k <kwargs>     use a file containing additional arguments for fMRIprep. Make sure file has
-                  has trailing new line. For VSCode: https://stackoverflow.com/a/44704969.
-                  See '\$REPO_DIR/misc/fprep_options' for an example.
- -a <keep runs>   if you're running fMRIprep with MNI152* as output space, you're creating massive
+  -a <keep runs>  if you're running fMRIprep with MNI152* as output space, you're creating massive
                   files; oftentimes, you're mostly interested in the registration matrices, so by
                   default I'll remove the output nifti's so that the folder is not clogged. With 
                   this argument you can specify which runs to keep. Again, if not specified, all
@@ -315,12 +312,6 @@ if [[ ${DO_SYN} -eq 1 ]]; then
 fi
 
 #-----------------------------------------------------------------------------
-# Check how to initialize bold-to-T1w registration
-if [[ ${BOLD_T1W_INIT} == "register" ]] || [[ ${BOLD_T1W_INIT} == "header" ]]; then
-  init_flag="--bold2t1w-init ${BOLD_T1W_INIT}"
-fi
-
-#-----------------------------------------------------------------------------
 # Set default container if none specified
 if [[ ! -z "${IMG}" ]]; then
   fprep_container="${IMG}"
@@ -340,7 +331,7 @@ if [[ ${USE_DOCKER} -eq 1 ]]; then
 else
   if [[ -f "${fprep_container}" ]]; then
 
-    echo "Singularity image: \"${fprep_container}\""
+    echo -e "Singularity image: ${BOLD_GREEN}${fprep_container}${RESET}"
     if [[ ! -f "${fprep_container}" ]]; then
       echo
       print_line -
@@ -418,15 +409,38 @@ if [[ ${execute_cmd} -eq 1 ]]; then
   # output directory structure has changed after v21: https://github.com/nipreps/fmriprep/releases/tag/21.0.0
   echo "Checking fMRIPrep's version.."
   version_string=$(eval ${run_cmd} --version)
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" eval "Could not derive version:"
+    echo "${version}"
+    exit 1
+  fi
+
   major_version=$(echo "$version_string" | grep -oP 'fMRIPrep v\K\d+' | cut -d"." -f1)
   if [[ "${major_version}" -lt 21 ]]; then
     output_dir="${derivatives}"
     single_subj_wf="single_subject_${subj_ID}_wf"
     func_wf="func_preproc"
+
+    #-----------------------------------------------------------------------------
+    # Check how to initialize bold-to-T1w registration
+    if [[ ${BOLD_T1W_INIT} == "register" ]] || [[ ${BOLD_T1W_INIT} == "header" ]]; then
+      init_flag="--bold2t1w-init ${BOLD_T1W_INIT}"
+    fi    
   else
     output_dir="${derivatives}/fmriprep"
     single_subj_wf="sub_${subj_ID}_wf"
     func_wf="bold"
+
+    #-----------------------------------------------------------------------------
+    # Check how to initialize bold-to-T1w registration
+    if [[ ${BOLD_T1W_INIT} == "register" ]] || [[ ${BOLD_T1W_INIT} == "header" ]]; then
+      if [[ ${BOLD_T1W_INIT} == "register" ]]; then
+        export BOLD_T1W_INIT="auto"
+      fi
+      init_flag="--bold2anat-init ${BOLD_T1W_INIT}"
+    fi    
   fi
 
   # execute the fMRIPrep command

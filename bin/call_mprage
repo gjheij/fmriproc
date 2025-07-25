@@ -326,7 +326,7 @@ fi
 
 #-----------------------------------------------------------------------------
 # set dtype to uint16
-echo "Set dtype to UINT16"
+echo " Set dtype to UINT16"
 cmd="call_setdtype ${final_file}"
 
 eval "${cmd}"

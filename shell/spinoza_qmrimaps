@@ -315,7 +315,7 @@ for subID in ${search}; do
 
     #-----------------------------------------------------------------------------
     # check input type
-    if [[ ${DATA_UPR} == "MPRAGE" ]]; then
+    if [[ ${DATA_UPR} == "MPRAGE" || ${DATA_UPR} == "AVERAGE" ]]; then
       in_files=(
         $(
           find -L "${input_dir}" \

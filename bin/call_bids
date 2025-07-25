@@ -199,27 +199,6 @@ ensure_intended_for() {
       print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
       exit 1
     fi
-
-    # add B0FieldSource to func-json
-    func_path="${json_bids/fmap/func}"
-    func_path="${func_path/_epi.json/_bold.json}"
-
-    if [ -f "${func_path}" ]; then
-      cmd=(
-        call_json
-        "${func_path}"
-        "B0FieldSource"
-        "${b0_id}"
-      )
-
-      eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-        exit 1
-      fi
-    fi
   fi
 }
 
@@ -258,7 +237,7 @@ enrich_with_par_data() {
   # TR correction
   if [[ "${skip_tr}" -eq 0 ]]; then
     if (( $(echo "${tr_hd} == 0.0" | bc -l) )); then
-      echo -e " WARNING: TR is zero — correcting to ${BOLD_RED}${tr}${RESET}"
+      echo -e " WARNING: TR in header is zero — correcting to ${BOLD_RED}${tr}${RESET}"
       call_settr "${ff}" "${tr}" || exit 1
     elif (( $(echo "${tr_hd} != ${tr}" | bc -l) )); then
       echo -e " WARNING: TR mismatch (file=${BOLD_RED}${tr_hd}${RESET}, json=${BOLD_RED}${tr}${RESET}) — correcting"
@@ -289,6 +268,35 @@ enrich_with_par_data() {
     echo -e " WARNING: Defaulting to multiband factor ${BOLD_RED}3${RESET} — override with 'export MB_FACTOR=...'"
   fi
 
+  # check slicetiming variables in config fiel
+  slc_flag=""
+  check_interleaved=1
+  if [[ -z "${SLC_ORDER}" ]]; then
+    # default to ascending
+    SLC_ORDER="ascending"
+    echo -e " WARNING: Defaulting to ${BOLD_RED}${SLC_ORDER}${RESET} slice ordering — override with 'export SLC_ORDER=...'"
+  else
+    # can also be a file with values (txt)
+    if [[ -f "${SLC_ORDER}" ]]; then
+      slc_flag="--file ${SLC_ORDER}"
+      echo -e " Using file ${BOLD_RED}${SLC_ORDER}${RESET} for slice timings"
+      check_interleaved=0
+    fi
+  fi
+
+  # check interleaved
+  if [[ "${check_interleaved}" -eq 1 ]]; then
+    if [[ -z "${SLC_INTERLEAVED}" ]]; then
+      SLC_INTERLEAVED=0
+      echo -e " WARNING: Defaulting to ${BOLD_RED}non-interleaved${RESET} slice ordering — override with 'export SLC_INTERLEAVED=1'"
+    fi
+
+    # set flag
+    if [[ "${SLC_INTERLEAVED}" -eq 1 ]]; then
+      slc_flag="--interleaved"
+    fi
+  fi
+
   # get TR
   tr="$(read_json "${json_bids}" RepetitionTime)"
 
@@ -302,10 +310,12 @@ enrich_with_par_data() {
   # add to json
   cmd=(
     call_slicetiming
-    "${json_bids}"
-    "${tr}"
-    "${n_slices}"
-    "${mb_factor}"
+    --json "${json_bids}"
+    --tr "${tr}"
+    --slices "${n_slices}"
+    --mb "${mb_factor}"
+    --order "${SLC_ORDER}"
+    "${slc_flag}"
   )
 
   eval "${cmd[@]}"
@@ -679,38 +689,42 @@ process_search_anatomicals() {
         ((ix++))
       done
     else
-      local img
-      img=$(
-        find -L "${tmp_dir}" \
-        -type f \
-        -name "*${qq}.nii.gz" \
-        2>/dev/null
+      local imgs
+      imgs=(
+        $(
+          find -L "${tmp_dir}" \
+          -type f \
+          -name "*${qq}.nii.gz" \
+          2>/dev/null
+        )
       )
 
-      if [[ -n "${img}" ]]; then
-        local acq run acq_tag run_tag out_fn json_fn
-      
-        acq="$(get_id "${img}" acq)"
-        [[ -n "${acq}" ]] && acq_tag="_acq-${acq}" || acq_tag=""
+      if [[ -n "${imgs}" ]]; then
+        for img in "${imgs[@]}"; do
+          local acq run acq_tag run_tag out_fn json_fn
+        
+          acq="$(get_id "${img}" acq)"
+          [[ -n "${acq}" ]] && acq_tag="_acq-${acq}" || acq_tag=""
 
-        run="$(get_id "${img}" run)"
-        [[ -n "${run}" ]] && run_tag="_run-${run}" || run_tag=""
+          run="$(get_id "${img}" run)"
+          [[ -n "${run}" ]] && run_tag="_run-${run}" || run_tag=""
 
-        [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
+          [[ ! -d "${bids_dir}/anat" ]] && mkdir -p "${bids_dir}/anat"
 
-        out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
-        if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
-          echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
-          cp "${img}" "${out_fn}" 2>/dev/null
+          out_fn="${bids_dir}/anat/${base}${acq_tag}${run_tag}_${qq}.nii.gz"
+          if [[ ! -f "${out_fn}" || "${OW}" -eq 1 ]]; then
+            echo -e " Renaming $(basename "${img}") → ${BOLD_GREEN}$(rel_path ${out_fn} "anat")${RESET}"
+            cp "${img}" "${out_fn}" 2>/dev/null
 
-          # reorient to LPI
-          maybe_reorient "${out_fn}" "${reorient}"
-        fi
+            # reorient to LPI
+            maybe_reorient "${out_fn}" "${reorient}"
+          fi
 
-        json_fn="${img/.nii.gz/.json}"
-        if [[ -f "${json_fn}" ]]; then
-          cp "${json_fn}" "${out_fn/.nii.gz/.json}" 2>/dev/null
-        fi
+          json_fn="${img/.nii.gz/.json}"
+          if [[ -f "${json_fn}" ]]; then
+            cp "${json_fn}" "${out_fn/.nii.gz/.json}" 2>/dev/null
+          fi
+        done
       fi
     fi
   done
@@ -1010,6 +1024,16 @@ fix_final_intendedfor() {
       sort
     )
     unset IFS
+  elif [[ "${fmap_type}" == "gre2" ]]; then
+    # direct fieldmaps
+    fmap_tag="phases_fmap0"
+    while IFS= read -r line; do fmap_files+=("$line"); done < <(
+      find -L "${bids_dir}/fmap" \
+      -type f \
+      -name "*.json" | \
+      sort
+    )
+    unset IFS    
   else
     echo && print_line -
     print_error_msg "$(basename ${0})" "FMAP" "Unrecognized FMAP type ${BOLD_RED}${fmap_type}${RESET}. Allowed types are \"epi\" (Reversed-PE), \"gre\" (phasediff), or \"direct\" (direct B0 mapping)"
@@ -1032,6 +1056,12 @@ fix_final_intendedfor() {
   local num_funcs="${#funcs[@]}"
   local num_fmaps="${#fmaps[@]}"
   
+  dyn_tag=1
+  if [[ "${fmap_type}" == "gre2" ]]; then
+    num_fmaps=1
+    dyn_tag=0
+  fi
+
   if [[ -n "${fmaps}" ]]; then
     if [[ "${num_funcs}" -ne "${num_fmaps}" ]]; then
 
@@ -1039,6 +1069,12 @@ fix_final_intendedfor() {
       # N_FMAPS == N_FUNCS
       if [[ "${num_fmaps}" -eq 1 && "${num_funcs}" -gt 1 ]]; then
         echo -e "${BOLD_RED}1${RESET} FMAP for ${BOLD_RED}all${RESET} BOLDs — applying IntendedFor and B0FieldIdentifier"
+
+        if [[ "${dyn_tag}" -eq 1 ]]; then
+          use_tag="${fmap_tag}01"
+        else
+          use_tag="${fmap_tag}"
+        fi
 
         #-----------------------------------------------------------------------------
         # parse all funcs in list and add B0FieldSource to json
@@ -1048,15 +1084,15 @@ fix_final_intendedfor() {
           local rel_path="${base_path}func/$(basename "${funcs[$i]}")"
           func_list+="${rel_path}"
           [[ $i -lt $((num_funcs - 1)) ]] && func_list+=","
-          
+
           # add B0FieldSource to FUNC's JSON
           local json_func="${funcs[$i]/.nii.gz/.json}"
-          if [[ -f "${json_func}" ]]; then
+          if [[ -f "${json_func}" && "${json_func}" == *.json ]]; then
             cmd=(
               call_json
               "${json_func}"
               "B0FieldSource"
-              "${fmap_tag}01"
+              "${use_tag}"
             )
 
             eval "${cmd[@]}"
@@ -1082,6 +1118,10 @@ fix_final_intendedfor() {
         unset IFS
 
         # print situation
+        if [[ "${fmap_type}" == "gre2" ]]; then
+          echo " Multiple magnitude/phase images, so adding to all json-files"
+        fi
+
         echo -e " ${BOLD_MAGENTA}${fmaps[0]}${RESET}:"
 
         for i in "${intended_for_list[@]}"; do
@@ -1090,36 +1130,38 @@ fix_final_intendedfor() {
 
         #-----------------------------------------------------------------------------
         # add IntendedFor
-        cmd=(
-          call_json
-          "${fmaps[0]}"
-          "IntendedFor"
-          "${func_list}"
-        )
+        for fm in "${fmaps[@]}"; do
+          cmd=(
+            call_json
+            "${fm}"
+            "IntendedFor"
+            "${func_list}"
+          )
 
-        eval "${cmd[@]}"
-        if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-          exit 1
-        fi    
-        
-        # add B0FieldIdentifier
-        cmd=(
-          call_json
-          "${fmaps[0]}"
-          "B0FieldIdentifier"
-          "${fmap_tag}01"
-        )
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi    
+          
+          # add B0FieldIdentifier
+          cmd=(
+            call_json
+            "${fm}"
+            "B0FieldIdentifier"
+            "${use_tag}"
+          )
 
-        eval "${cmd[@]}"
-        if [[ $? -ne 0 ]]; then
-          echo
-          print_line -
-          print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
-          exit 1
-        fi          
+          eval "${cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${cmd[0]}" "Cmd: ${cmd[@]}"
+            exit 1
+          fi
+        done
 
       #-----------------------------------------------------------------------------
       # 1 FMAP FOR EVERY 2 BOLD      
@@ -1132,7 +1174,7 @@ fix_final_intendedfor() {
 
         for fmap in "${fmaps[@]}"; do
           local tmp_list=""
-          local field_id="${fmap_tag}$(printf "%02d" ${id})"
+          local field_id="${fmap_type}$(printf "%02d" ${id})"
 
           for ((j = 0; j < fc; j++)); do
             local idx=$((fm_ct + j))
@@ -1143,7 +1185,7 @@ fix_final_intendedfor() {
 
             # Set B0FieldSource on each BOLD JSON
             local json_func="${funcs[$idx]/.nii.gz/.json}"
-            if [[ -f "${json_func}" ]]; then
+            if [[ -f"${json_func}" ]]; then
               cmd=(
                 call_json
                 "${json_func}"
@@ -1220,7 +1262,7 @@ fix_final_intendedfor() {
         for i in "${!fmaps[@]}"; do
           local base_path="$(rel_path "${funcs[$i]}")"
           local rel_path="${base_path}func/$(basename ${funcs[$i]})"
-          local field_id="${fmap_tag}$(printf "%02d" $((i + 1)))"
+          local field_id="${fmap_type}$(printf "%02d" $((i + 1)))"
 
           #-----------------------------------------------------------------------------
           # print situation
@@ -1293,7 +1335,7 @@ fix_final_intendedfor() {
 
         for ((i = 0; i < num_fmaps; i++)); do
           local fmap="${fmaps[$i]}"
-          local field_id="${fmap_tag}$(printf "%02d" ${id})"
+          local field_id="${fmap_type}$(printf "%02d" ${id})"
           local tmp_list=""
           local count=$base
 
@@ -1392,6 +1434,8 @@ scrape_and_link_fieldmaps() {
   suff="PePolar (EPI)"
   add_txt=" [make sure PE-dir aligns with BOLD files!]"
   search_mag=0
+  dynamic_type=1
+  add_mag_suffixes=0
   fmaps=(
     $(
       find "${tmp_dir}" \
@@ -1419,6 +1463,15 @@ scrape_and_link_fieldmaps() {
     add_txt=""
     search_mag=1
   fi
+
+  if [[ "${use_fmap}" == "gre2" || "${#fmaps[@]}" -eq 0 ]]; then
+    fmaps=( "$tmp_dir"/*_e[12].nii.gz "$tmp_dir"/*_e[12]_ph.nii.gz )
+    fmap_type="phases_fmap0"
+    suff="multiple mag/ph (GRE)"
+    add_txt=""
+    add_mag_suffixes=1
+    dynamic_type=0
+  fi  
 
   #-----------------------------------------------------------------------------
   # check for B0Field 
@@ -1450,7 +1503,27 @@ scrape_and_link_fieldmaps() {
       local fname="$(basename "${fmap_file}")"
       local fmap_json="${fmap_file/.nii.gz/.json}"
       local target_nii="${fmap_dir}/${fname}"
-      local target_json="${fmap_dir}/$(basename "${fmap_json}")"
+
+      # add magnitude{1|2} and phase{1|2} tags
+      if [[ ${add_mag_suffixes} -eq 1 ]]; then
+        if [[ $fname =~ _e([12]) ]]; then
+          echo_nr=${BASH_REMATCH[1]}   # "1" or "2"
+        fi
+
+        # pick magnitude vs phase
+        if [[ "$fname" == *"_ph.nii.gz" ]]; then
+          fmap_suff="phase${echo_nr}"
+          rm_suff="_e${echo_nr}_ph.nii.gz"
+        else
+          fmap_suff="magnitude${echo_nr}"
+          rm_suff="_e${echo_nr}.nii.gz"
+        fi
+
+        target_nii="${fmap_dir}/$(basename "${fname}" "${rm_suff}")_${fmap_suff}.nii.gz"
+      fi
+
+      # define json
+      target_json="${target_nii/.nii.gz/.json}"
 
       #-----------------------------------------------------------------------------
       # Move if not already in fmap_dir
@@ -1522,7 +1595,13 @@ scrape_and_link_fieldmaps() {
       # Add unique B0FieldIdentifier if not present
       if ! grep -q "B0FieldIdentifier" "${target_json}"; then
         ((fmap_count++))
-        local identifier="${fmap_type}$(printf "%02d" ${fmap_count})"
+
+        if [[ ${dynamic_type} -eq 1 ]]; then
+          local identifier="${fmap_type}$(printf "%02d" ${fmap_count})"
+        else
+          identifier=${fmap_type}
+        fi
+
         echo " Adding B0FieldIdentifier=${identifier}"
         cmd=(
           call_json
@@ -1565,10 +1644,10 @@ scrape_and_link_fieldmaps() {
 
         # reorient to LPI
         maybe_reorient \
-          "${ff}" \
+          "${out_fn}" \
           "${reorient}"
 
-      done
+      done   
     fi
 
     echo " Done"
@@ -1674,6 +1753,8 @@ Options:
                   parrec2nii, and '-c n' to dcm2niix
   --force-exec    Force execution even though converted nifti already exists (passed to parrec2nii)
   --fmap-gre      Use phasediff from GRE-sequence as FMAP, also if you have Reversed-PE EPI images
+  --fmap-gre2     Use 2 magnitude/phase images from GRE-sequence as FMAP, also if you have Reversed-PE EPI
+                  images
   --fmap-b0       Use direct fieldmap from GE systems, also if you have other fieldmaps
   --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
 
@@ -1832,6 +1913,9 @@ do
         fmap-gre)
           use_fmap="gre"
           ;;
+        fmap-gre2)
+          use_fmap="gre2"
+          ;;          
         fmap-b0)
           use_fmap="direct_b0"
           ;;

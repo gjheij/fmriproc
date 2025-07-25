@@ -18,6 +18,7 @@
 --dcm-fix
 --debug
 --denoise
+--direct
 --docker
 --dog
 --fast
@@ -41,6 +42,8 @@
 --gallery
 --gauss
 --gdh
+--gre
+--gre2
 --grid
 --help
 --hrf

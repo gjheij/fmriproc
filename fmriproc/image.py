@@ -302,9 +302,8 @@ def write_pymp2rage_nifti(
 
 def slice_timings_to_json(
     json_file,
-    nr_slices=None,
-    tr=None,
-    mb_factor=1):
+    **kwargs
+    ):
 
     """slice_timings_to_json
 
@@ -313,13 +312,7 @@ def slice_timings_to_json(
     Parameters
     ----------
     json_file: str, dict
-        Path to the JSON file containing metadata or a dictionary.
-    nr_slices: int, optional
-        Number of slices in the acquisition. Defaults to None.
-    tr: float, optional
-        Repetition time (TR) of the sequence. Defaults to None.
-    mb_factor: int, optional
-        Multi-band acceleration factor. Defaults to 1.
+        Path to the JSON file containing metadata or a dictionary
 
     Returns
     ----------
@@ -357,20 +350,25 @@ def slice_timings_to_json(
 
     # TR from json file is usually more reliable
     if "RepetitionTime" in list(data.keys()):
-        if data["RepetitionTime"] != tr:
-            utils.verbose(
-                f"WARNING: specified TR ({tr}) does not match TR in json file ({data['RepetitionTime']}). Taking TR from json file!",
-                True
-            )
+        if "tr" in list(kwargs.keys()):
+            tr = float(kwargs["tr"])
+            if data["RepetitionTime"] != tr:
+                utils.verbose(
+                    f" WARNING: specified TR ({tr}) does not match TR in json file ({data['RepetitionTime']}). Taking TR from json file!",
+                    True
+                )
+                tr = data["RepetitionTime"]
 
-            tr = data["RepetitionTime"]
+                # update kwargs
+                kwargs = utils.update_kwargs(
+                    kwargs,
+                    "tr",
+                    tr,
+                    force=True
+                )
 
     # get the list of slice timings
-    st = slice_timings(
-        nr_slices=nr_slices,
-        tr=tr,
-        mb_factor=mb_factor
-    )
+    st = slice_timings(**kwargs)
 
     # add slicetiming key
     st_dict = {"SliceTiming": st}
@@ -384,12 +382,14 @@ def slice_timings_to_json(
         return data
 
 def slice_timings(
-    nr_slices=None,
-    tr=None,
-    mb_factor=1):
-
-    """slice_timings
-
+    nr_slices: int,
+    tr: float,
+    mb_factor: int = 1,
+    order: str = "ascending",
+    interleaved: bool = False,
+    file: str = None
+) -> list:
+    """
     Compute slice timing values for an fMRI acquisition sequence.
 
     Parameters
@@ -400,38 +400,72 @@ def slice_timings(
         Repetition time (TR) of the sequence in seconds.
     mb_factor: int, optional
         Multi-band acceleration factor. Defaults to 1.
-
+    order: str, optional
+        Order of slice acquisitions: 'ascending' or 'descending'.
+    interleaved: bool, optional
+        If True, use interleaved ordering within each band.
+    file: str, optional
+        Use slice timings in a specified txt file. Must match number of slices!
+        
     Returns
-    ----------
-    list: A list of slice timing values in seconds.
+    -------
+    list
+        A list of length `nr_slices` giving the acquisition time (in seconds)
+        for each slice index.
 
     Raises
-    ----------
-    ValueError: If `nr_slices` or `tr` is not provided.
-
-    Notes
-    ----------
-    - Uses `np.linspace` to generate evenly spaced slice timing values.
-    - Tiles the slice timing values to account for multi-band acquisition.
-    - The number of slice timings generated is `nr_slices / mb_factor`, repeated `mb_factor` times.
-
-    Example
-    ----------
-    >>> slice_timing_values = slice_timings(nr_slices=32, tr=2.0, mb_factor=2)
-    >>> print(slice_timing_values)
+    ------
+    ValueError
+        If `nr_slices` or `tr` is not provided, or if `order` is invalid.
     """
 
-    return list(
-        np.tile(
-            np.linspace(
-                0,
-                tr,
-                int(nr_slices/mb_factor),
-                endpoint=False
-            ),
-            mb_factor
-        )
-    )
+    if file:
+        if not os.path.isfile(file):
+            raise FileNotFoundError(f"Input timing file '{file}' not found.")
+        data = np.loadtxt(file)
+        return data.tolist()
+
+    # Validate inputs
+    if nr_slices is None or tr is None:
+        raise ValueError("Both `nr_slices` and `tr` must be provided.")
+    if order not in ("ascending", "descending"):
+        raise ValueError("`order` must be 'ascending' or 'descending'.")
+    if nr_slices % mb_factor != 0:
+        raise ValueError("`nr_slices` must be divisible by `mb_factor`.")
+
+    # Number of acquisitions per band
+    per_band = nr_slices // mb_factor
+    # Base acquisition times within one band
+    base_times = np.linspace(0, tr, per_band, endpoint=False)
+
+    # Determine within-band index order
+    if interleaved:
+        # Interleave step size = round(sqrt(per_band))
+        step_size = int(round(np.sqrt(per_band)))
+        band_order = []
+        for offset in range(step_size):
+            band_order.extend(range(offset, per_band, step_size))
+    else:
+        band_order = list(range(per_band))
+
+    band_order = np.asarray(band_order, dtype=int)
+
+    # Reverse if descending
+    if order == "descending":
+        band_order = band_order[::-1]
+
+    # Full slice indices
+    full_order = np.concatenate([
+        band_order + b * per_band
+        for b in range(mb_factor)
+    ])
+
+    tiled_times = np.tile(base_times, mb_factor)
+    slice_times = np.zeros(nr_slices)
+    slice_times[full_order] = tiled_times
+
+    return slice_times.tolist()
+
 
 def bin_fov(img, thresh=0,out=None, fsl=False):
     """bin_fov

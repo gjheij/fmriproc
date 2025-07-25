@@ -204,9 +204,9 @@ for subID in ${search}; do
   read base_path base <<< "$(collect_session_info "$ses" "$sub_name")"
 
   # set paths
-  pn_anat="${ANAT}/${base_dir}"
-  pn_matrix="${MATRIX}/${base_dir}"
-  pn_masks="${OUTPUT}/${base_dir}"
+  pn_anat="${ANAT}/${base_path}"
+  pn_matrix="${MATRIX}/${base_path}"
+  pn_masks="${OUTPUT}/${base_path}"
 
   if [[ ! -d "${pn_masks}" ]]; then
     mkdir -p "${pn_masks}"
@@ -260,6 +260,7 @@ for subID in ${search}; do
       mask=$(
         find "${pn_anat}" \
         -type f \
+        -name "${base}*" \
         -name "*spm_mask.nii.gz" \
         2>/dev/null
       )
