@@ -261,7 +261,7 @@ for subID in ${search}; do
         find "${pn_anat}" \
         -type f \
         -name "${base}*" \
-        -name "*spm_mask.nii.gz" \
+        -and -name "*spm_mask.nii.gz" \
         2>/dev/null
       )
 

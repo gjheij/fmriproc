@@ -253,7 +253,7 @@ for subID in ${search}; do
       nr=$(echo ${ses} | sed -e 's/^[[:space:]]*//')
       if [[ ${ses} != "all" ]]; then
         base_path="${sub_name}/ses-${nr}"
-        base"=${sub_name}_ses-${nr}"
+        base="${sub_name}_ses-${nr}"
       else
         nr="all"
         base_path="${sub_name}"
@@ -357,7 +357,7 @@ for subID in ${search}; do
         # full path is needed for qsub
         cmd=(
           "${job}"
-          -s "${sub_id}"
+          -s "${sub}"
           "${ses_flag}"
           -o "${DENOISE}"
           -r "${PYBEST_SPACE}"

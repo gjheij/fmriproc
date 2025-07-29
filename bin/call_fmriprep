@@ -355,7 +355,7 @@ else
       exit 1
     fi
 
-    # define SGE command
+    # define SGE command |  -B /mnt/d/fMRI/HRA/nipype.cfg:/home/fmriprep/.nipype/nipype.cfg:ro
     run_cmd="singularity run --cleanenv -B ${binding}:${binding} ${fprep_container}"
 
   else
@@ -432,6 +432,10 @@ if [[ ${execute_cmd} -eq 1 ]]; then
     output_dir="${derivatives}/fmriprep"
     single_subj_wf="sub_${subj_ID}_wf"
     func_wf="bold"
+
+    # boldref & warps are fine with newer versions
+    BOLDREF=0
+    WARP_ONLY=0
 
     #-----------------------------------------------------------------------------
     # Check how to initialize bold-to-T1w registration
