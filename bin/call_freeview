@@ -55,7 +55,7 @@ while getopts ":dv:p:" arg; do
 done
 
 SUBJECT="${@:$OPTIND:1}"
-TYPE=${@:$OPTIND+1:1:-surf}
+TYPE=${@:$OPTIND+1:1}
 TYPE=${TYPE:-surf}
 
 [[ -z "$SUBJECT" ]] && Usage && exit 0
