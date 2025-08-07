@@ -436,19 +436,6 @@ for subID in ${search}; do
         fi
 
         #-----------------------------------------------------------------------------
-        # check stage input
-        if [[ ${STAGE} != "all" ]]; then
-          if [[ -z ${start_flag} ]]; then
-            echo 
-            print_line -            
-            print_error_msg "$(basename ${0})" "stage-flag"
-            echo "  recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon."
-            echo "  Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
-            exit 1
-          fi
-        fi
-
-        #-----------------------------------------------------------------------------
         # define cmd
         cmd=(
           call_freesurfer
