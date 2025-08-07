@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import nibabel as nib
+from lazyfmri import utils  # optional if utils is needed elsewhere
+opj = os.path.join
+
+
+def main(argv):
+    """
+---------------------------------------------------------------------------------------------------
+call_hdr2nifti
+
+This script converts Analyze format image pairs (.hdr + .img) into compressed NIfTI files (.nii.gz).
+It wraps nibabel functionality to batch convert files or convert a single image pair, ensuring
+compatibility with modern NIfTI workflows.
+
+Usage:
+  call_hdr2nifti <input file|directory> <output directory> [--canonical]
+
+Mandatory:
+  <input>         Path to a .hdr file or directory containing .hdr/.img pairs.
+  <output dir>    Path to directory where converted .nii.gz files will be saved.
+
+Optional:
+  --canonical     If specified, reorient images to closest canonical (RAS+) orientation before saving.
+
+Outputs:
+  .nii.gz files   For each .hdr/.img pair, a corresponding .nii.gz file is created in the output
+                  directory.
+
+Examples:
+  call_hdr2nifti subject01.hdr ./nifti/
+  call_hdr2nifti ./analyze_dir/ ./nifti_outputs/ --canonical
+
+Notes:
+  - This assumes .hdr and .img files are named identically (except extensions) and live in the
+    same folder.
+  - Files will be overwritten if they already exist in the output directory.
+---------------------------------------------------------------------------------------------------
+    """
+
+    if len(argv) < 2:
+        print(main.__doc__)
+        sys.exit()
+
+    # Parse positional arguments
+    input_path = argv[0]
+    output_dir = argv[1]
+    reorient = '--canonical' in argv
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Collect input .hdr files
+    if os.path.isfile(input_path) and input_path.endswith('.hdr'):
+        hdr_files = [input_path]
+    elif os.path.isdir(input_path):
+        hdr_files = [
+            opj(input_path, f) for f in os.listdir(input_path)
+            if f.lower().endswith('.hdr')
+        ]
+    else:
+        raise ValueError(f"Input path '{input_path}' is neither a .hdr file nor a directory.")
+
+    if not hdr_files:
+        print("No .hdr files found.")
+        sys.exit()
+
+    print(f"Found {len(hdr_files)} .hdr files. Converting to NIfTI...")
+    if reorient:
+        print("  Reorienting to closest canonical (RAS+)...")
+
+    for hdr in hdr_files:
+        try:
+            img = nib.load(hdr)  # auto-loads matching .img
+            if reorient:
+                img = nib.as_closest_canonical(img)
+            base = os.path.basename(hdr).replace('.hdr', '')
+            out_fname = f"{base}.nii.gz"
+            out_path = opj(output_dir, out_fname)
+            nib.save(img, out_path)
+            print(f"  Saved: {out_path}")
+        except Exception as e:
+            print(f"  Failed to convert {hdr}: {e}")
+
+    print("Conversion complete.")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
