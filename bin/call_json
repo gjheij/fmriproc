@@ -99,7 +99,9 @@ Examples:
             add_msg[ix] = int(msg)
         elif msg.replace('.', '', 1).isdigit() and msg.count('.') < 2:
             add_msg[ix] = float(msg)
-
+        elif add_msg[ix].lower() in ["true", "false"]:
+            add_msg[ix] = bool(add_msg[ix])
+            
     if os.path.exists(json_file):
         with open(json_file) as f:
             data = json.load(f)
