@@ -221,10 +221,10 @@ fmriproc/misc/arguments.txtInput arguments:
                     - if you specify a flag only | <flag>
 
                   combine as:
-                    "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+                    '-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>'
 
                   e.g.,
-                    "-y --smooth:--sigma=1.5"
+                    '-y --smooth:--sigma=1.5'
 
 Options:
 
