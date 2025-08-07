@@ -46,6 +46,8 @@ Options:
                   '-r'. By default, we'll re-use the T2 if present. Same flag should be 
                   used for not re-using FLAIR images  
   --sge           Submit the script to a cluster using a template script
+  --segment       run the 'segment_subregions'-function with 'call_fssegment'. To pass other
+                  arguments, use the '-k' flag.
   --xopts-use     maps to '-xopts-use' for existing expert option file; use existing file
   --xopts-clean   maps to '-xopts-clean' for existing expert option file; delete existing file
   --xopts-overwrite maps to '-xopts-overwrite' for existing expert option file; use new file
@@ -103,7 +105,16 @@ Call with master:
   master -m $(get_module_nr $(basename ${0})) -s 01 --no-t2
 
   # turn off highres-mode
-  master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --no-highres
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 15 --sge --no-highres
+
+  # segment amygdala [default is --segment is passed]
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment
+
+  # segment thalamus
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment -k thalamus
+
+  # pass custom args
+  master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment -k thalamus,--out-dir=thal,--relative-path
 
 Notes:
   When an expert options is passed, it will be copied to scripts/expert-options. Future calls to 
@@ -129,6 +140,7 @@ allowed_edits=("cp" "wm" "pial" "aseg")
 SGE_QUEUE=""
 n_cpus=2
 kwargs_flag=""
+run_subregions=0
 while getopts :-:os:n:x:e:q:j:k: argument
 do
   case ${argument} in
@@ -152,6 +164,9 @@ do
         no-highres)
           highres_flag="--no-highres"
           ;;
+        segment)
+          run_subregions=1
+          ;;          
         no-t2)
           use_t2_flag="--no-t2"
           ;; 
@@ -180,6 +195,7 @@ do
     x)  EXPERT_FILE="${OPTARG}"
           ;;
     k)  kwargs_flag="-k ${OPTARG}"
+        kwargs=${OPTARG}
           ;; 
     e)  start_flag="-e ${OPTARG}"
           ;;
@@ -239,169 +255,232 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # check number of T1w-files
-  T1_DIR="${T1}/${base_path}"
-  input_t1w=$(
-    find "${T1_DIR}" \
-    -type f \
-    -name "${sub_name}*" \
-    -and -name "*${DATA_UPR}*" \
-    -and -name "*T1w.nii.gz" \
-    2>/dev/null
-  )
+  if [[ "${run_subregions}" -eq 1 ]]; then
+    if [[ -d "${SUBJECTS_DIR}/${sub_name}" ]]; then
 
-  ct=0; for ii in "${input_t1w[@]}"; do ((ct++)); done
-  if [ ${ct} -gt 1 ]; then
-    echo 
-    print_line -
-    print_error_msg "$(basename ${0})" "find" "Found multiple T1w-files (${ct})"
-    for ii in "${input_t1w[@]}"; do echo " ${ii}"; done
-    echo "Rename or delete one and rerun"
-    echo 
-    exit 1
-  fi
-  #-----------------------------------------------------------------------------
-  # overwrite
-  if [[ ${OW} -eq 1 ]]; then
-    rm -r "${SUBJECTS_DIR}/${sub_name}" 2>/dev/null
-  fi
-
-  #-----------------------------------------------------------------------------
-  # run if input exists
-  if [[ ! -z "${input_t1w}" ]]; then
-
-    #-----------------------------------------------------------------------------
-    # set execution rules
-    execute=0
-
-    # 1) if stage != all
-    if [[ ${STAGE} != "all" ]]; then
-      execute=1
-    else
-      # 2) if subject-dir exists
-      if [[ -d "${SUBJECTS_DIR}/${sub_name}" ]]; then
-        # 2a) check if 'surf'-folder exists
-        if [[ ! -d "${SUBJECTS_DIR}/${sub_name}/surf" ]]; then
-          execute=1
-        else
-          # 2b) check if 'surf'-folder has files
-          nr_files=$(
-            ls -l ${SUBJECTS_DIR}/${sub_name}/surf | \
-            grep "total" | \
-            cut -d' ' -f2
-          )
-          if [ "${nr_files}" -eq 0 ]; then
-            execute=1
-          fi
-        fi
-
-        # 3) force-flag is specified
-        if [ ! -z ${force_flag} ]; then
-          execute=1
-        fi        
+      # Turn kwargs into space-separated array
+      if [[ -n "${kwargs}" ]]; then
+        IFS=' ' read -r -a user_args <<< "$(echo "$kwargs" | tr ',' ' ' | tr '=' ' ')"
       else
-        # 4) subject does not exist in SUBJECTS_DIR
-        execute=1
+        user_args=()
       fi
-    fi
 
-    #-----------------------------------------------------------------------------
-    # execute
-    if [[ ${execute} -eq 1 ]]; then
-
+      # add n_cpus
+      arg_str="${user_args[*]}"
+      if [[ ! "${arg_str}" =~ "--threads" ]]; then
+        user_args=(--threads "${n_cpus}" "${user_args[@]}")
+      fi
+      
       # print header
-      print_subject_header ${sub_name}
-      echo -e "Running FreeSurfer on ${BOLD_GREEN}${input_t1w}${RESET} with autorecon \"${STAGE}\""
-
-      #-----------------------------------------------------------------------------
-      # look for T2
-      if [ ! -z "${T2}" ]; then
-        if [[ -d "${T2}/${base_path}" ]]; then
-
-          input_t2w=$(
-            find "${T2}/${base_path}" \
-            -type f \
-            -name "*FLAIR*" \
-            -and -name "*.nii.gz" \
-            -or -name "*T2w*" \
-            -and -name "*.nii.gz" \
-            2>/dev/null
-          )
-
-          #-----------------------------------------------------------------------------
-          # check if exists
-          if [[ ! -z "${input_t2w}" ]]; then
-
-            # throw error if multiple files are found
-            ct=0; for ii in "${input_t2w[@]}"; do ((ct++)); done
-            if [ ${ct} -gt 1 ]; then
-              echo 
-              print_line -
-              print_error_msg "$(basename ${0})" "find" "Found multiple T2w-files (${ct})"
-              for ii in "${input_t2w[@]}"; do echo " ${ii}"; done
-              echo "Rename or delete one and rerun"
-              echo 
-              exit 1
-            elif [ ${ct} -eq 1 ]; then
-              echo -e "Including ${BOLD_RED}T2w${RESET}: ${BOLD_GREEN}${input_t2w}${RESET}"
-              T2_flag="-p ${input_t2w}"
-            fi
-          else
-            T2_flag=""
-          fi
-        else
-          echo 
-          print_line -        
-          print_error_msg "$(basename ${0})" "path" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
-        fi
-      else
-        T2_flag=""
-      fi
-
-      #-----------------------------------------------------------------------------
-      # check stage input
-      if [[ ${STAGE} != "all" ]]; then
-        if [[ -z ${start_flag} ]]; then
-          echo 
-          print_line -            
-          print_error_msg "$(basename ${0})" "stage-flag"
-          echo "  recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon."
-          echo "  Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
-          exit 1
+      run_local=1
+      if [[ ! -z "${sge_flag}" ]]; then
+        run_local=0
+        if [[ ! -z "${SGE_QUEUE}" ]]; then
+          SGE_QUEUE=$(echo "${SGE_QUEUE}" | cut -d" " -f2)
         fi
       fi
 
       #-----------------------------------------------------------------------------
-      # define cmd
-      cmd=(
-        call_freesurfer
-        -s "${sub_name}"
-        -t "${input_t1w}"
-        -r "${STAGE}"
-        -j "${n_cpus}"
-        "${kwargs_flag}"
+      # decide the job type
+      job="$(
+        decide_job_type \
+        "call_fssegment" \
+        "${base}_desc-fssegment" \
+        "${run_local}" \
+        "${DIR_LOGS}" \
+        "${n_cpus}" \
         "${SGE_QUEUE}"
-        "${start_flag}"
-        "${T2_flag}"
-        "${highres_flag}"
-        "${expert_flag}"
-        "${XOPTS_}"
-        "${sge_flag}"
-        "${use_t2_flag}"
-        "${force_flag}"
+      )"
+
+      # define command
+      cmd=(
+        "${job}"
+        "${sub_name}"
+        "${user_args[@]}"
       )
 
-      # print and run
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      # echo command
+      if [[ ${run_local} -eq 1 ]]; then
+        print_subject_header ${sub_name}
+        echo -e "Running ${BOLD_BLUE}segment_subregions${RESET} on ${BOLD_GREEN}${SUBJECTS_DIR}/${sub_name}${RESET}"      
+        print_cmd "${cmd[@]}"
+      fi
+
+      # run
+      eval "${cmd[@]}"
       if [[ $? -ne 0 ]]; then
-        print_error_msg "$(basename ${0})" "call_freesurfer"
+        print_error_msg "$(basename ${0})" "${cmd[0]}"
         exit 1
       fi
     else
-      print_output_exists "${sub_name}" "subject already in FreeSurfer's SUBJECTS_DIR"
+      print_error_msg "find" "${BOLD_BLUE}${sub_name}${RESET} not in ${BOLD_GREEN}${SUBJECTS_DIR}${RESET}"
+      exit 1
     fi
   else
-    print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${T1_DIR}"
-    continue
+    T1_DIR="${T1}/${base_path}"
+    input_t1w=$(
+      find "${T1_DIR}" \
+      -type f \
+      -name "${sub_name}*" \
+      -and -name "*${DATA_UPR}*" \
+      -and -name "*T1w.nii.gz" \
+      2>/dev/null
+    )
+
+    ct=0; for ii in "${input_t1w[@]}"; do ((ct++)); done
+    if [ ${ct} -gt 1 ]; then
+      echo 
+      print_line -
+      print_error_msg "$(basename ${0})" "find" "Found multiple T1w-files (${ct})"
+      for ii in "${input_t1w[@]}"; do echo " ${ii}"; done
+      echo "Rename or delete one and rerun"
+      echo 
+      exit 1
+    fi
+    #-----------------------------------------------------------------------------
+    # overwrite
+    if [[ ${OW} -eq 1 ]]; then
+      rm -r "${SUBJECTS_DIR}/${sub_name}" 2>/dev/null
+    fi
+
+    #-----------------------------------------------------------------------------
+    # run if input exists
+    if [[ ! -z "${input_t1w}" ]]; then
+
+      #-----------------------------------------------------------------------------
+      # set execution rules
+      execute=0
+
+      # 1) if stage != all
+      if [[ ${STAGE} != "all" ]]; then
+        execute=1
+      else
+        # 2) if subject-dir exists
+        if [[ -d "${SUBJECTS_DIR}/${sub_name}" ]]; then
+          # 2a) check if 'surf'-folder exists
+          if [[ ! -d "${SUBJECTS_DIR}/${sub_name}/surf" ]]; then
+            execute=1
+          else
+            # 2b) check if 'surf'-folder has files
+            nr_files=$(
+              ls -l ${SUBJECTS_DIR}/${sub_name}/surf | \
+              grep "total" | \
+              cut -d' ' -f2
+            )
+            if [ "${nr_files}" -eq 0 ]; then
+              execute=1
+            fi
+          fi
+
+          # 3) force-flag is specified
+          if [ ! -z ${force_flag} ]; then
+            execute=1
+          fi        
+        else
+          # 4) subject does not exist in SUBJECTS_DIR
+          execute=1
+        fi
+      fi
+
+      #-----------------------------------------------------------------------------
+      # execute
+      if [[ ${execute} -eq 1 ]]; then
+
+        # print header
+        print_subject_header ${sub_name}
+        echo -e "Running FreeSurfer on ${BOLD_GREEN}${input_t1w}${RESET} with autorecon \"${STAGE}\""
+
+        #-----------------------------------------------------------------------------
+        # look for T2
+        if [ ! -z "${T2}" ]; then
+          if [[ -d "${T2}/${base_path}" ]]; then
+
+            input_t2w=$(
+              find "${T2}/${base_path}" \
+              -type f \
+              -name "*FLAIR*" \
+              -and -name "*.nii.gz" \
+              -or -name "*T2w*" \
+              -and -name "*.nii.gz" \
+              2>/dev/null
+            )
+
+            #-----------------------------------------------------------------------------
+            # check if exists
+            if [[ ! -z "${input_t2w}" ]]; then
+
+              # throw error if multiple files are found
+              ct=0; for ii in "${input_t2w[@]}"; do ((ct++)); done
+              if [ ${ct} -gt 1 ]; then
+                echo 
+                print_line -
+                print_error_msg "$(basename ${0})" "find" "Found multiple T2w-files (${ct})"
+                for ii in "${input_t2w[@]}"; do echo " ${ii}"; done
+                echo "Rename or delete one and rerun"
+                echo 
+                exit 1
+              elif [ ${ct} -eq 1 ]; then
+                echo -e "Including ${BOLD_RED}T2w${RESET}: ${BOLD_GREEN}${input_t2w}${RESET}"
+                T2_flag="-p ${input_t2w}"
+              fi
+            else
+              T2_flag=""
+            fi
+          else
+            echo 
+            print_line -        
+            print_error_msg "$(basename ${0})" "path" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
+          fi
+        else
+          T2_flag=""
+        fi
+
+        #-----------------------------------------------------------------------------
+        # check stage input
+        if [[ ${STAGE} != "all" ]]; then
+          if [[ -z ${start_flag} ]]; then
+            echo 
+            print_line -            
+            print_error_msg "$(basename ${0})" "stage-flag"
+            echo "  recon-all stages \"${STAGE}\" is/are requested, but it's not specified as of which stage to start autorecon."
+            echo "  Please specify the \"-e\" flag with one of \"${allowed_edits[@]}\" as input"
+            exit 1
+          fi
+        fi
+
+        #-----------------------------------------------------------------------------
+        # define cmd
+        cmd=(
+          call_freesurfer
+          -s "${sub_name}"
+          -t "${input_t1w}"
+          -r "${STAGE}"
+          -j "${n_cpus}"
+          "${kwargs_flag}"
+          "${SGE_QUEUE}"
+          "${start_flag}"
+          "${T2_flag}"
+          "${highres_flag}"
+          "${expert_flag}"
+          "${XOPTS_}"
+          "${sge_flag}"
+          "${use_t2_flag}"
+          "${force_flag}"
+        )
+
+        # print and run
+        print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          print_error_msg "$(basename ${0})" "call_freesurfer"
+          exit 1
+        fi
+      else
+        print_output_exists "${sub_name}" "subject already in FreeSurfer's SUBJECTS_DIR"
+      fi
+    else
+      print_file_not_in_dir "${sub_name}" "*T1w.nii.gz" "${T1_DIR}"
+      continue
+    fi
   fi
 done
 

@@ -24,6 +24,11 @@ Arguments:
   [structure]           Optional: segmentation target (default: hippo-amygdala)
                         Options: hippo-amygdala, thalamus, brainstem
 
+Optional:
+  --relative-path       specified directory in --out-dir is considered relative to 
+                        \$SUBJECTS_DIR/<subject_id>. E.g., if '--out-dir amyg', then the output
+                        folder will be '\$SUBJECTS_DIR/<subject_id>/amyg'
+
 Optional (passed to segment_subregions):
   --threads N           Number of threads to use
   --suffix SUFFIX       Add custom suffix to output files
@@ -45,6 +50,9 @@ USAGE
 if [[ $# -lt 1 ]]; then
   Usage && exit 0
 fi
+
+out_dir=""
+use_relative_path=false
 
 # -----------------------------------------------------------------------------
 # Required input
@@ -83,10 +91,31 @@ if [[ ! "${arg_str}" =~ "--cross" ]] && [[ ! "${arg_str}" =~ "--long-base" ]]; t
   extra_args=(--cross "${subject_id}" "${extra_args[@]}")
 fi
 
-# Add default --out-dir if not specified
-if [[ ! "${arg_str}" =~ "--out-dir" ]]; then
-  default_outdir="${subj_dir}/${structure}"
-  extra_args+=(--out-dir "${default_outdir}")
+# Extract --out-dir and check if --relative-path was specified
+for (( i=0; i<${#extra_args[@]}; i++ )); do
+  if [[ "${extra_args[$i]}" == "--out-dir" ]]; then
+    out_dir="${extra_args[$((i+1))]}"
+  elif [[ "${extra_args[$i]}" == "--relative-path" ]]; then
+    use_relative_path=true
+    unset 'extra_args[i]'  # remove --relative-path
+  fi
+done
+
+# Default --out-dir if not provided
+if [[ -z "${out_dir}" ]]; then
+  out_dir="${subj_dir}/${structure}"
+  extra_args+=(--out-dir "${out_dir}")
+else
+  # Rewrite out_dir if relative path requested
+  if [[ "$use_relative_path" == true ]]; then
+    out_dir="${subj_dir}/${out_dir}"
+    # Replace existing --out-dir with updated path
+    for (( i=0; i<${#extra_args[@]}; i++ )); do
+      if [[ "${extra_args[$i]}" == "--out-dir" ]]; then
+        extra_args[$((i+1))]="${out_dir}"
+      fi
+    done
+  fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -100,9 +129,10 @@ cmd=(
 # -----------------------------------------------------------------------------
 # Print and run
 echo
+print_line -
 echo "Running segment_subregions for subject: ${subject_id}"
 echo "Structure: ${structure}"
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+print_cmd "${cmd[@]}" # && eval "${cmd[@]}"
 
 # -----------------------------------------------------------------------------
 # Check result
@@ -114,4 +144,4 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo
-echo "Done. Output saved to: ${subj_dir}/${structure}"
+echo "Done"

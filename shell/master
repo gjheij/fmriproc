@@ -80,6 +80,7 @@ highres_flag=""           # spinoza_freesurfer
 XOPTS_=""                 # spinoza_freesurfer
 expert_flag=""            # spinoza_freesurfer
 fs_kwargs=""              # spinoza_freesurfer
+seg_flag=""               # spinoza_freesurfer
 TSNR_FLAG=""              # spinoza_nordic
 mag_flag=""               # spinoza_nordic
 RUNS=""                   # spinoza_nordic
@@ -487,6 +488,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         separate-hrf)
           FIT_HRF="--separate-hrf"
           ;; 
+        segment)
+          seg_flag="--segment"
+          ;;           
         skip-bg)
           BG_FLAG="--skip-bg"
           ;;
@@ -1656,6 +1660,7 @@ if [[ $? -eq 0 ]]; then
     "${SGE_QUEUE}"
     "${jobs_flag}"
     "${kwargs_file}"
+    "${seg_flag}"
     "${INPUT_DIR}" "${FS_stage}" "${DIR_DATA_HOME}"
   )
 

@@ -107,6 +107,7 @@
 --save-grid
 --sge
 --separate-hrf
+--segment
 --skip-bg
 --skip-combine
 --skip-fmap

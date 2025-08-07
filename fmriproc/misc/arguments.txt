@@ -412,6 +412,8 @@ Options:
 
 --separate-hrf    fit HRF in two stages.
 
+--segment         run the 'segment_subregions'-module from FreeSurfer
+
 --sge             submit jobs to cluster.
 
 --skip-bg         leave the background alone after combining INV1/INV2 images of the MP2RAGE
