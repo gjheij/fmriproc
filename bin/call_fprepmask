@@ -26,6 +26,7 @@ Positional:
   <fprep_dir>     Directory containing fMRIPrep outputs. This can be:
                     - A full fMRIPrep derivatives folder (default: \$DIR_DATA_DERIV/fmriprep)
                     - A single subject folder (e.g., .../fmriprep/sub-01)
+  <overwrite>     If set to '1', 'ow', or 'overwrite', existing outputs will be overwritten
 
 Options:
   help|--help     print this help text
@@ -67,6 +68,7 @@ else
   fi
 fi
 
+overwrite="${2}"
 if [[ ! -d "${fprep_dir}" ]]; then
   echo
   print_line -
@@ -95,35 +97,61 @@ fi
 
 #-----------------------------------------------------------------------------
 # loop through funcs
-echo "Input directory = \"${fprep_dir}\" (${#funcs[@]} files)"
+echo -e "Input directory = ${BOLD_MAGENTA}${fprep_dir}${RESET} (${#funcs[@]} files)"
 ct=1
 for f in ${funcs[@]}; do
   base_name="${f%preproc_bold.nii.gz}"
   mask_file="${base_name}brain_mask.nii.gz"
   if [[ -f "${mask_file}" ]]; then
-    echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
     
     # define output
     out="${base_name}masked_bold.nii.gz"
     
-    # define command
-    cmd=(
-      "fslmaths"
-      "${f}"
-      -mas "${mask_file}"
-      "${out}"
-    )
+    if [[ ! -f "${out}" || ${overwrite} -eq 1 ]]; then
+      # define command
+      echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
+      cmd=(
+        "fslmaths"
+        "${f}"
+        -mas "${mask_file}"
+        "${out}"
+      )
 
-    # run
-    eval "${cmd[@]}"
-    if [[ $? -ne 0 ]]; then
-      echo
-      print_line -
-      print_error_msg "$(basename ${0})" "fslmaths" 
-      exit 1
+      # run
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "fslmaths" 
+        exit 1
+      fi
     else
-      ((ct++))
+      echo -e "(${ct}/${#funcs[@]}): ${BOLD_GREEN}${out}${RESET} exists"
     fi
+    
+    # copy json
+    new_json="${out/.nii.gz/.json}"
+    cp "${f/.nii.gz/.json}" "${new_json}" 2>/dev/null
+
+    if [[ -f "${new_json}" ]]; then
+      # set SkullStripped to True
+      cmd=(
+        call_json
+        "${out/.nii.gz/.json}"
+        "SkullStripped"
+        True
+      )
+
+      eval "${cmd[@]}"
+      if [[ $? -ne 0 ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename ${0})" "${cmd[0]}" 
+        exit 1
+      fi
+    fi
+
+    ((ct++))
   else
     echo "mask file (\"${mask_file}\") does not exist" "Failed with command: \"${cmd[@]}\""
   fi
