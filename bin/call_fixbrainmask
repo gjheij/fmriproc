@@ -2,6 +2,7 @@
 
 import os
 import sys
+import shutil
 import numpy as np
 import nibabel as nb
 from nilearn import image
@@ -23,19 +24,23 @@ The result is written back into the FreeSurfer subject directory as a replacemen
 brainmask and additionally stored as 'brain.finalsurfs.manedit.mgz'.
 
 Usage:
-  call_fixbrainmask <freesurfer_subject_dir> <mask_dir_or_file>
+  call_fixbrainmask <subject id> <mask_dir_or_file>
 
 Positional Arguments:
-  <FreeSurfer>    path to subject's FreeSurfer directory (i.e., SUBJECTS_DIR/<subject>)
+  <subject id>    FreeSurfer subject ID directory (i.e., SUBJECTS_DIR/<subject>)
   <Man seg>       path to directory containing the manual segmentation mask, or directly to 
-                  a binary mask file to be applied
+                  a binary mask file to be applied. If input is a directory the following files will
+                  be prioritized:
+                    - *cat_mask.nii.gz (output from master -m 09)
+                    - *spm_mask.nii.gz (output from master -m 04)
 
 Outputs:
-  brainmask.mgz and brain.finalsurfs.manedit.mgz with cleaned up masks
+  - $SUBJECTS_DIR/<subject id>/mri/brainmask.mgz
+  - $SUBJECTS_DIR/<subject id>/mri/brain.finalsurfs.manedit.mgz
 
 Example:
-  call_fixbrainmask /path/to/FreeSurfer/sub-01 /path/to/manual_masks/sub-01/ses-1
-  call_fixbrainmask /path/to/FreeSurfer/sub-01 /path/to/manual_masks/spm_mask_eye_trimmed.nii.gz
+  call_fixbrainmask sub-01 /path/to/manual_masks/sub-01/ses-1
+  call_fixbrainmask sub-01 mask.nii.gz
 
 Notes:
   - The mask will be resampled to match the FreeSurfer brainmask
@@ -45,36 +50,43 @@ Notes:
 ---------------------------------------------------------------------------------------------------
     """
 
-    fsdir   = None
-    manseg  = None
+    fs_subject = None
+    manseg = None
 
     if len(argv) < 2:
         print("\nNEED AT LEAST A SUBJECT ID")
         print(main.__doc__)
         sys.exit()
 
-    fsdir   = argv[0]
-    manseg  = argv[1]
+    fs_subject = argv[0]
+    manseg = argv[1]
+
+    subjects_dir = os.environ.get("SUBJECTS_DIR")
+    fsdir = opj(
+        subjects_dir,
+        fs_subject
+    )
 
     if not os.path.exists(fsdir):
-        raise ValueError(f"Could not find FreeSurfer folder; specify SUBJECTS_DIR/<subject>")
+        raise ValueError(f"Could not find '{fs_subject}' in '{subjects_dir}'. Make sure SUBJECTS_DIR is set correctly")
     
-    # if we got a directory, look for file with 'spm_mask'
-    spm_mask = None
-    if not os.path.isfile(manseg):
-        for ii in os.listdir(manseg):
-            if "spm_mask" in ii:
-                spm_mask = opj(manseg, ii)
-        
-        if not spm_mask:
-            raise ValueError(f"Could find file with 'spm_mask' in '{manseg}'")
-    else:
+    # Determine the appropriate mask file
+    if os.path.isfile(manseg):
         spm_mask = manseg
+    else:
+        mask_files = [f for f in os.listdir(manseg) if "cat_mask" in f or "spm_mask" in f]
+        if not mask_files:
+            raise ValueError(f"Could not find file with 'spm_mask' or 'cat_mask' in '{manseg}'")
+        # Prioritize 'cat_mask' if present
+        mask_files.sort(key=lambda f: ("cat_mask" not in f, f))
+        spm_mask = opj(manseg, mask_files[0])
             
     brainmask = opj(fsdir, 'mri', 'brainmask.mgz')
     mask_img = image.resample_to_img(
         spm_mask,
         brainmask,
+        force_resample=True,
+        copy_header=True,
         interpolation='nearest'
     )
 
@@ -89,8 +101,13 @@ Notes:
         mask=mask_img
     )
 
-    new_brainmask.to_filename(opj(fsdir, 'mri', 'brainmask.mgz'))
-    new_brainmask.to_filename(opj(fsdir, 'mri', 'brain.finalsurfs.manedit.mgz'))
+    # make backup
+    fs_backup = opj(fsdir, 'mri', "brainmask.backup.mgz")
+    shutil.copyfile(brainmask, fs_backup)
+
+    for f in ["brainmask", "brain.finalsurfs", "brainmask.auto", "brain.finalsurfs.manedit"]:
+        new_filename = opj(fsdir, 'mri', f'{f}.mgz')
+        new_brainmask.to_filename(new_filename)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
