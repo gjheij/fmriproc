@@ -760,6 +760,7 @@ for subID in ${search}; do
       find -L "${INPUTDIR}" \
       -type f \
       -name "*spm_mask*" \
+      -and -name "*acq-${DATA_UPR}*" \
       -and -name "*.nii.gz" \
       2>/dev/null
     )"
