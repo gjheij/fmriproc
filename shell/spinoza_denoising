@@ -6,6 +6,38 @@ source "${SETUP_FILE}"
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
+# generate description so that it's accessible with BIDSLayout
+function GenerateDescription {
+
+  local output_dir="${1}"
+  local pybest_version=$(python -c "from pybest import version; print(version.__version__)")
+  local bids_version=$(python -c "import bids; print(bids.__version__)")
+  local pybest_url="https://github.com/gjheij/pybest"
+  local description_file="${DIR_DATA_DERIV}/pybest/dataset_description.json"
+
+  if [[ ! -f "${description_file}" ]]; then
+    cat <<EOF > "${description_file}"
+{
+  "Name": "PyBEST - Beta ESTimation for single-trial data and denoising",
+  "BIDSVersion": "${bids_version}",
+  "DatasetType": "derivative",
+  "GeneratedBy": [
+    {
+      "Name": "PyBEST",
+      "Version": "${pybest_version}",
+      "CodeURL": "${pybest_url}"
+    }
+  ],
+  "DatasetLinks": {
+    "raw": "${DIR_DATA_HOME}",
+    "fmriprep": "${DIR_DATA_HOME}/fmriprep"
+  }
+}
+EOF
+  fi
+}
+
+#-----------------------------------------------------------------------------
 # Create help text
 function Usage {
     cat <<USAGE
@@ -391,6 +423,10 @@ for subID in ${search}; do
     fi
   fi
 done
+
+#-----------------------------------------------------------------------------
+# generate description
+GenerateDescription
 
 #-----------------------------------------------------------------------------
 # outro

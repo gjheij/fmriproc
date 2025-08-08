@@ -242,7 +242,10 @@ fi
 
 #-----------------------------------------------------------------------------
 # define base command
-cmd_args=(pybest)
+cmd_args=(
+  pybest
+  "${user_args[@]}"
+)
 
 # Add defaults only if not already specified
 [[ ! "$arg_str" =~ "--subject" ]] && cmd_args+=(${sub_input})
@@ -478,44 +481,45 @@ for task_id in ${task_ids[@]}; do
         # dir is different depending on unzcoring or not.
         if [[ ${raw} -eq 1 ]]; then
           ddir="unzscored"
+          suff="${ddir}"
         else
           ddir="denoising"
+          suff="denoised"
         fi
 
-        # search for bold files
-        if [[ ${in_space} == "func" ]]; then
-          bold_files=(
-            $(
-              find -L "${out_dir}/${ddir}" \
-              -type f \
-              -name "*task-${task_id}*" \
-              -and -name "*desc-denoised_bold.nii.gz" \
-              -and -not -name "*space-*" \
-              2>/dev/null
-            )
-          )
-        else
-          bold_files=(
-            $(
-              find -L "${out_dir}/${ddir}" \
-              -type f \
-              -name "*task-${task_id}*" \
-              -and -name "*space-${in_space}*" \
-              -and -name "*desc-denoised_bold.nii.gz" \
-              2>/dev/null
-            )
-          )
+        # Construct the optional space filter
+        space_filter=()
+        if [[ "${in_space}" != "func" ]]; then
+          space_filter=(-name "*space-${in_space}*")
         fi
+
+        # Find matching denoised BOLD files
+        bold_files=(
+          $(
+            find -L "${out_dir}/${ddir}" \
+              -type f \
+              -name "*task-${task_id}*" \
+              "${space_filter[@]}" \
+              -name "*desc-${suff}_bold.nii.gz" | \
+              sort \
+              2>/dev/null
+          )
+        )
 
         # apply masks
         echo "Applying \"${mask}\" to ${#bold_files[@]} nifti-files"
         if [[ ${#bold_files[@]} -gt 0 ]]; then
 
           for bold in ${bold_files[@]}; do
-            masked_bold="${bold%/*/*}/masked/${bold##*/}"
-            if [[ ! -d "$(dirname ${masked_bold})" ]]; then
-              mkdir -p "$(dirname ${masked_bold})"
-            fi
+
+            # more stable than before in case 'ses' is omitted
+            bold_dir=$(dirname "$bold")
+            bold_base=$(basename "$bold")
+            parent_dir=$(dirname "$bold_dir")
+
+            # give unique 'desc' to make accessible with BIDSLayout
+            masked_bold="${parent_dir}/masked/${bold_base/${suff}/pybest}"
+            mkdir -p "$(dirname ${masked_bold})" 2>/dev/null
 
             # define and run cmd
             echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
@@ -525,9 +529,9 @@ for task_id in ${task_ids[@]}; do
               -mas "${mask}"
               "${masked_bold}"
             )
-            eval "${cmd[@]}"
 
             # check if execution was ok
+            eval "${cmd[@]}"
             if [[ $? -ne 0 ]]; then
               echo
               print_line -
@@ -535,6 +539,26 @@ for task_id in ${task_ids[@]}; do
               exit 1
             fi  
 
+            # copy json file
+            src_json=${bold/.nii.gz/.json}
+            trg_json=${masked_bold/.nii.gz/.json}
+            cp "${src_json}" "${trg_json}" 2>/dev/null
+            if [[ -f "${trg_json}" ]]; then
+              json_cmd=(
+                call_json
+                "${trg_json}"
+                "SkullStripped"
+                True
+              )
+
+              eval "${json_cmd[@]}"
+              if [[ $? -ne 0 ]]; then
+                echo
+                print_line -
+                print_error_msg "$(basename ${0})" "${json_cmd[0]}"
+                exit 1
+              fi
+            fi
           done
           echo "Done"
         else

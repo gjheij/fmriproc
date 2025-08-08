@@ -5,6 +5,7 @@ from lazyfmri import (
 )
 import os
 import sys
+import json
 import pickle
 import getopt
 import numpy as np
@@ -280,7 +281,7 @@ Example:
 
                     for func in ses_funcs:
                         
-                        utils.verbose(f" {func}", True)
+                        utils.verbose(f" {gb}{func}{end}", True)
                         # construct output basename and base output dir
                         final_output, base_dir = fetch_filepath(func, skip_run_id=skip_run_id)
 
@@ -305,7 +306,7 @@ Example:
 
                 for func in funcs:
                     
-                    utils.verbose(f" {func}", True)
+                    utils.verbose(f" {gb}{func}{end}", True)
                     # construct output basename and base output dir
                     final_output, base_dir = fetch_filepath(func, skip_run_id=skip_run_id)
 
@@ -356,7 +357,7 @@ Example:
 
                             for func in ses_funcs:
                                 
-                                utils.verbose(f" {func}", True)
+                                utils.verbose(f" {gb}{func}{end}", True)
                                 # construct output basename and base output dir
                                 final_output, base_dir = fetch_filepath(func, skip_run_id=skip_run_id)
 
@@ -382,7 +383,7 @@ Example:
                         for func in funcs:
                             
                             # print
-                            utils.verbose(f" {func}", True)
+                            utils.verbose(f" {gb}{func}{end}", True)
 
                             # construct output basename and base output dir
                             final_output, base_dir = fetch_filepath(func, skip_run_id=skip_run_id)
@@ -464,12 +465,24 @@ Example:
                     unzscored = unzscore(raw,data)
 
                     # sort nifti dimensions
-                    fname = opj(output_dir, os.path.basename(func))
+                    fname = opj(output_dir, os.path.basename(func).replace("denoised", "unzscored"))
                     utils.verbose(f" Writing {gb}{fname}{end}", True)
                     if extension == "nii.gz":
                         unzscored.to_filename(fname)
                     else:
                         np.save(fname, unzscored.T)
+
+                    # check json file
+                    json_file = func.replace(extension, "json")
+                    if os.path.exists(json_file):
+                        with open(json_file, "r+") as f:
+                            data = json.load(f)
+
+                        data["Unzscored"] = True
+                        data["SkullStripped"] = False
+                        new_json = fname.replace(extension, "json")
+                        with open(new_json, "w") as f:
+                            json.dump(data, f, indent=4)
         else:   
 
             # get run ids
@@ -503,13 +516,25 @@ Example:
                 unzscored = unzscore(raw,data)
 
                 # sort nifti dimensions
-                fname = opj(output_dir, os.path.basename(func))
+                fname = opj(output_dir, os.path.basename(func).replace("denoised", "unzscored"))
                 utils.verbose(f" Writing {gb}{fname}{end}", True)
                 if extension == "nii.gz":
                     unzscored.to_filename(fname)
                 else:
                     np.save(fname, unzscored.T)
-                        
+
+                # check json file
+                json_file = func.replace(extension, "json")
+                if os.path.exists(json_file):
+                    with open(json_file, "r+") as f:
+                        data = json.load(f)
+
+                    data["Unzscored"] = True
+                    data["SkullStripped"] = False
+                    new_json = fname.replace(extension, "json")
+                    with open(new_json, "w") as f:
+                        json.dump(data, f, indent=4)
+
 if __name__ == "__main__":
 
     # set defaults
