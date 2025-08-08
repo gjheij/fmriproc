@@ -9,11 +9,10 @@ source call_bashhelper
 # generate description so that it's accessible with BIDSLayout
 function GenerateDescription {
 
-  local output_dir="${1}"
+  local description_file="${1}"
   local pybest_version=$(python -c "from pybest import version; print(version.__version__)")
   local bids_version=$(python -c "import bids; print(bids.__version__)")
   local pybest_url="https://github.com/gjheij/pybest"
-  local description_file="${DIR_DATA_DERIV}/pybest/dataset_description.json"
 
   if [[ ! -f "${description_file}" ]]; then
     cat <<EOF > "${description_file}"
@@ -98,9 +97,9 @@ Positional:
   <derivatives>   path to the derivatives folder
 
 Eample:
-  spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV
-  spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV
-  spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV
+  spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
+  spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
+  spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
 
 Call with master:
   # vanilla
@@ -426,7 +425,10 @@ done
 
 #-----------------------------------------------------------------------------
 # generate description
-GenerateDescription
+description_file="${DENOISE}/dataset_description.json"
+if [[ ! -f "${description_file}" ]]; then
+  GenerateDescription "${description_file}"
+fi
 
 #-----------------------------------------------------------------------------
 # outro
