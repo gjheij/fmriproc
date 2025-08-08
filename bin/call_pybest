@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 #-----------------------------------------------------------------------------
-# Get bash helper functions
+# source setup and helper functions
+source "${SETUP_FILE}"
 source call_bashhelper
 
 #-----------------------------------------------------------------------------
@@ -400,7 +401,7 @@ for task_id in ${task_ids[@]}; do
       )
 
       # run
-      print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+      print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
       if [[ $? -ne 0 ]]; then
         echo
         print_line -
