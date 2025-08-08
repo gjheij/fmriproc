@@ -128,7 +128,7 @@ do
           FULL_OW=1
           ;;
         sge)
-          run_local=1
+          run_local=0
           ;;
         force-exec)
           force_exec=1
@@ -350,7 +350,7 @@ for subID in ${search}; do
           "${SGE_QUEUE}"
         )"
 
-        if [[ ${run_local} -eq 0 ]]; then
+        if [[ ${run_local} -eq 1 ]]; then
           print_subject_header ${sub_name}
         fi
 
