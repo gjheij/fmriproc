@@ -397,13 +397,17 @@ class ExtractSubjects(ExtractFromROIs):
         Number of jobs to use for the extraction, by default set to the number of subjects present
     verbose: bool, optional
         Make some noise, by default False
+    in_file: str, optional
+        Directly specify a 4D file to extract timecourses from, rather than looking in
+        predefined folders such as fMRIPrep, FEAT, or Pybest..
     **kwargs: dict
         Same as :func:`fmriproc.roi.ExtractFromROIs.extract_data`
     """
 
     def __init__(
         self, 
-        ft_dir, 
+        ft_dir=None,
+        in_file=None,
         func=None,
         space=None,
         task=None,
@@ -413,6 +417,8 @@ class ExtractSubjects(ExtractFromROIs):
         verbose=False,
         **kwargs
         ):
+
+        self.in_file = in_file
         self.ft_dir = ft_dir
         self.excl_subjs = excl_subjs
         self.incl_subjs = incl_subjs
@@ -442,17 +448,25 @@ class ExtractSubjects(ExtractFromROIs):
     def search_for_files(self):
 
         # check if input if fmriprep
-        utils.verbose(f"Looking for files in '{self.ft_dir}'", self.verbose)
-        if os.path.basename(self.ft_dir) == "fmriprep":
-            self.all_files = self.find_fmriprep_files(self.ft_dir, space=self.space, task=self.task)
-        elif os.path.basename(self.ft_dir) == "pybest":
-            self.all_files = self.find_pybest_files(self.ft_dir, space=self.space, task=self.task)
-        else:
-            self.all_files = self.find_feat_files(self.ft_dir)
+        if not isinstance(self.in_file, str):
 
-        if isinstance(self.all_files, str):
-            self.all_files = [self.all_files]
+            utils.verbose(f"Looking for files in '{self.ft_dir}'", self.verbose)
+            if os.path.basename(self.ft_dir) == "fmriprep":
+                self.all_files = self.find_fmriprep_files(self.ft_dir, space=self.space, task=self.task)
+            elif os.path.basename(self.ft_dir) == "pybest":
+                self.all_files = self.find_pybest_files(self.ft_dir, space=self.space, task=self.task)
+            else:
+                self.all_files = self.find_feat_files(self.ft_dir)
+
+            if isinstance(self.all_files, str):
+                self.all_files = [self.all_files]
+        else:
+            if not os.path.exists(self.in_file):
+                raise FileNotFoundError(f"Could not find specified file: {self.in_file}")
             
+            utils.verbose(f"Using file: {self.in_file}", self.verbose)
+            self.all_files = [self.in_file]
+
         utils.verbose(f"Found {len(self.all_files)} file(s)", self.verbose)
 
     def read_tcs_file(self):
@@ -468,7 +482,11 @@ class ExtractSubjects(ExtractFromROIs):
     def set_subjects(self):
         if not isinstance(self.incl_subjs, (str,list)):
 
-            self.subjects = utils.get_file_from_substring(["sub-"], os.listdir(self.ft_dir))
+            self.subjects = utils.get_file_from_substring(
+                ["sub-"],
+                os.listdir(self.ft_dir)
+            )
+
             if isinstance(self.subjects, str):
                 self.subjects = [self.subjects]
 
@@ -545,7 +563,7 @@ class ExtractSubjects(ExtractFromROIs):
                     pyb_files
                 )
             else:
-                ext = "desc-denoised_bold.nii.gz"
+                ext = "desc-pybest_bold.nii.gz"
                 all_files = utils.FindFiles(
                     input_dir,
                     extension=ext,
@@ -746,6 +764,7 @@ class FullExtractionPipeline(ExtractSubjects):
         do_fit=True,
         **kwargs
         ):
+
         self.proj_dir = proj_dir
         self.dec_kws = dec_kws
         self.plot_kws = plot_kws
@@ -765,7 +784,12 @@ class FullExtractionPipeline(ExtractSubjects):
             self.proj_dir = os.environ.get("DIR_DATA_HOME")
 
         if not isinstance(self.output_dir, str):
-            self.output_dir = opj(self.proj_dir, "derivatives", "roi_extract", self.output_base)
+            self.output_dir = opj(
+                self.proj_dir,
+                "derivatives",
+                "roi_extract",
+                self.output_base
+            )
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
@@ -968,9 +992,9 @@ class FullExtractionPipeline(ExtractSubjects):
             else:
                 sf = sfs[f_ix]
 
-            axs[f"ax{f_ix}"] = sf.subplots(ncols=4, sharey=True)
+            axs[f"ax{f_ix}"] = sf.subplots(ncols=len(self.order), sharey=True)
 
-        for e,ev in enumerate(self.order):
+        for e, ev in enumerate(self.order):
 
             utils.verbose(f" ev-{e} | {ev}", self.verbose)
             expr = f"event_type = {ev}"
@@ -1049,7 +1073,7 @@ class FullExtractionPipeline(ExtractSubjects):
             if e == 0:
                 y_lbl = "magnitude (%)"
 
-            bs = plotting.LazyPlot(
+            bs = plotting.LazyLine(
                 list(ev_regr.T.values),
                 xx=utils.get_unique_ids(ev_regr, id=time_col),
                 axs=ax,
@@ -1118,6 +1142,7 @@ class FullExtractionPipeline(ExtractSubjects):
                     _ = plotting.LazyBar(
                         ev_pars,
                         x="roi",
+                        hue="roi",
                         y=par,
                         axs=b_ax,
                         y_label=bar_lbl,
@@ -1264,13 +1289,14 @@ class FullExtractionPipeline(ExtractSubjects):
         utils.verbose(f"Writing csv-files to {self.output_dir}..", self.verbose)
 
         if self.do_fit:
+
             out_dict = {
-                "hrfs": getattr(self.fitter, "hrfs"),
+                "hrfs": getattr(self.fitter, "tc_subjects"),
                 "pars_run": getattr(self.fitter, "pars_subjects"),
                 "pars_avg": getattr(self.fitter, "avg_pars_subjects"),
+                "pars_evs": getattr(self.fitter, "pars_condition"),
                 "tcs": getattr(self, "df_func"),
-                "pars_evs": getattr(self, "df_onsets"),
-                "pars_evs": getattr(self, "pars_condition"),
+                "onsets": getattr(self, "df_onsets"),
             }
         else:
             out_dict = {
@@ -1390,6 +1416,7 @@ class ROI():
         mask_type="aparc",
         subject="fsaverage",
         ):
+
         self.roi = roi
         self.mask_type = mask_type
         self.subject = subject

@@ -43,7 +43,8 @@ Optional (flags with defaults):
   -p|--proj       path to project (default = os.environ.get("DIR_DATA_HOME"))
   -f|--ft         path to 1st level FEAT directory
                   (default = opj(proj_dir, "derivatives", "feat", "level1")
-  -i|--incl       include particular subjects only; default is to include all sub-* in '--ft'
+  -i|--incl-sub   include particular subjects only; default is to include all sub-* in '--ft'
+  -e|--excl-evs   exclude particular events from the deconvolution.
   -o|--out        path to output directory
                   (default = opj(proj_dir, "derivatives", "roi_extract"))
   -n|--vox        number of highest/lowest voxels to select from a stats/covariate image (de-
@@ -118,7 +119,7 @@ Optional (flags with defaults):
 
                     "--lut <identifier1>=<color1>,<identifier1>=<color1>,<identifierX>=<colorX>"
 
-  --include_pars  List of parameters to plot as bar plots below the profiles. Can be any of the
+  --incl-pars     List of parameters to plot as bar plots below the profiles. Can be any of the
                   parameters present in the dataframe: 
                   
                   [
@@ -145,7 +146,9 @@ Optional (flags with defaults):
                   ]
 
   --tr            Repetition time to use for the dataframe formation, by default 1
-
+  --in-file       Directly specify a 4D file to extract timecourses from, rather than looking
+                  in predefined folders such as fMRIPrep, FEAT, or Pybest..
+  
 Options (extra):
   -h|--help       print this help info
   --lowest        Select lowest voxels in a given ROI. Use "--vox" to set the number of voxels
@@ -159,8 +162,8 @@ Options (extra):
   --no-fit        Do not perform deconvolution, just extract data and exit
   --fprep         Default to DIR_DATA_DERIV/fmriprep as input directory
   --pybest        Default to DIR_DATA_DERIV/fmriprep as input directory
-  --fsl_mni       Set space to MNI152NLin6Asym (FSL template)
-  --fprep_mni     Set space to MNI152NLin2009cAsym (fMRIprep template)
+  --fsl-mni       Set space to MNI152NLin6Asym (FSL template)
+  --fprep-mni     Set space to MNI152NLin2009cAsym (fMRIprep template)
   --func          Set space to native functional space (default for volumetric data)
   --t1            Set space to T1w
 
@@ -230,6 +233,14 @@ Examples:
     --verbose \
     --no-fit
 
+  # extract time courses from file without fitting HRF
+  call_extract \
+    --in-file some_bold_file.nii.gz \
+    --out /path/derivatives/roi_extract \
+    --base test \
+    --verbose \
+    --no-fit
+
 ---------------------------------------------------------------------------------------------------
     """
 
@@ -265,7 +276,9 @@ Examples:
     proj_dir = context.get("proj_dir", os.environ.get("DIR_DATA_HOME"))
     ft_dir = context.get("ft_dir", opj(proj_dir, "derivatives", "feat", "level1"))
     output_dir = context.get("output_dir", opj(proj_dir, "derivatives", "roi_extract"))
-
+    in_file = context.get("in_file", None)
+    excl_evs = context.get("excl_evs", [])
+    
     #-----------------------------------------------------------------------------
     # parse plotting info
     if isinstance(colors, (str,list)):
@@ -290,6 +303,7 @@ Examples:
     # call FullExtractionPipeline
     _ = roi.FullExtractionPipeline(
         func=func,
+        in_file=in_file,
         proj_dir=proj_dir,
         ft_dir=ft_dir,
         rois=rois,
@@ -308,7 +322,8 @@ Examples:
         dec_kws=dec_kws,
         space=space,
         task=task,
-        TR=tr
+        TR=tr,
+        exclude_evs=excl_evs
     )
 
 if __name__ == "__main__":
@@ -345,12 +360,14 @@ if __name__ == "__main__":
     proj_dir = os.environ.get("DIR_DATA_HOME")
     ft_dir = opj(proj_dir, "derivatives", "feat", "level1")
     output_dir = opj(proj_dir, "derivatives", "roi_extract")
+    in_file = None
+    excl_evs = []
 
     try:
         opts = getopt.getopt(
             sys.argv[1:],
-            "hp:f:i:o:b:j:r:n:t:",
-            ["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl_sub=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "include_pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl_mni","fprep_mni","tr="]
+            "hp:f:i:o:b:j:r:n:t:e:",
+            ["help", "proj=", "ft=", "verbose", "jobs=", "rois=", "cmap=", "colors=","out=","base=","incl-sub=","order=","func=","lowest","vox=","peak=", "dec=", "plot=", "incl-pars=","lut=","subjects","no-fit","filters=","fprep","pybest","space=","task=","func","t1","fsl-mni","fprep-mni","tr=", "in-file=", "excl-evs="]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__, flush=True)
@@ -394,13 +411,13 @@ if __name__ == "__main__":
             func = arg   
         elif opt in ("--space"):
             space = arg       
-        elif opt in ("--fsl_mni"):
+        elif opt in ("--fsl-mni"):
             space = "MNI152NLin6Asym"
         elif opt in ("--func"):
             space = "func"     
         elif opt in ("--t1"):
             space = "T1w"                   
-        elif opt in ("--fprep_mni"):
+        elif opt in ("--fprep-mni"):
             space = "MNI152NLin2009cAsym"                                  
         elif opt in ("-t", "--task"):
             task = arg
@@ -413,7 +430,7 @@ if __name__ == "__main__":
             highest_vox = False
         elif opt in ("--no-fit"):
             do_fit = False            
-        elif opt in ("--include_pars"):
+        elif opt in ("--incl-pars"):
             include_pars = arg
 
             # parse into list
@@ -448,7 +465,17 @@ if __name__ == "__main__":
             if isinstance(rois, list):
                 rois = [os.path.abspath(i) for i in rois]
 
-        elif opt in ("-i", "--incl_sub"):
+        elif opt in ("-e", "--excl-evs"):
+            excl_evs = arg
+            
+            # parse into list
+            if "," in excl_evs:
+                excl_evs = utils.string2list(excl_evs)
+
+            if isinstance(excl_evs, str):
+                excl_evs = [excl_evs]
+
+        elif opt in ("-i", "--incl-sub"):
             incl_subjs = arg
 
             # parse into list
@@ -462,7 +489,9 @@ if __name__ == "__main__":
         elif opt in ("--peak"):
             peak = int(arg)             
         elif opt in ("--order"):
-            order = arg         
+            order = arg
+        elif opt in ("--in-file"):
+            in_file = arg           
         elif opt in ("--tr"):
             tr = float(arg)
         elif opt in ("--colors"):
@@ -497,5 +526,7 @@ if __name__ == "__main__":
         "tr": tr,
         "proj_dir": proj_dir,
         "ft_dir": ft_dir,
-        "output_dir": output_dir
+        "output_dir": output_dir,
+        "in_file": in_file,
+        "excl_evs": excl_evs
     })
