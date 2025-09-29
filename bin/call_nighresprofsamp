@@ -15,7 +15,7 @@ gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 end = utils.color.END
 
 @utils.validate_cli_inputs(required_keys=["layerimg", "samplefrom"])
-def main(argv, context):
+def main(context):
 
     r"""
 ---------------------------------------------------------------------------------------------------
