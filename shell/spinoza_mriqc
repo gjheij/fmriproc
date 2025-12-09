@@ -35,6 +35,7 @@ Options:
   --func-only     only include functional images in the process (default is everything it can 
                   find)  
   --fd            only get FD-timecourse file without initializing MRIqc
+  --sge           submit job to cluster (called with 'master -m <module> --sge')
 
 Positional:
   <project dir>   directory containing the anatomical data. Can also be the regular project root

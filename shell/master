@@ -935,6 +935,7 @@ if [[ $? -eq 0 ]]; then
     "${mod_flag}"
     "${fd_flag}"
     "${run_local}"
+    "${SGE}"
     "${SGE_QUEUE}"
     "${jobs_flag}"
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/mriqc"
