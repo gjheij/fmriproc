@@ -49,7 +49,7 @@ Optional (flags with defaults):
                   nifti-files with space-MNI152*.nii.gz will be removed. The transformation matri-
                   ces will be left alone. Use '-a all' to keep all runs (not recommended..)
  
-ptions (extra):
+Options (extra):
     -h|--help     print this help text
   --docker        use command 'fmriprep-docker' to invoke docker image               
   --warp-only     skip fMRIPrep, but re-do the 'boldref'-images and copy the bold-to-T1w warps
