@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+import subprocess
+import re
+import numpy as np
+import sys
+import os
+
+def run_ants_transform_info(mat_file):
+    result = subprocess.run(["antsTransformInfo", mat_file], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"antsTransformInfo failed:\n{result.stderr}")
+    return result.stdout
+
+def extract_values(output):
+    # Extract forward matrix
+    matrix_match = re.search(r"Matrix:\s+([\d\.\-eE\s]+)Offset:", output)
+    matrix = list(map(float, matrix_match.group(1).split()))
+
+    # Extract offset
+    offset_match = re.search(r"Offset:\s+\[([^\]]+)\]", output)
+    offset = list(map(float, offset_match.group(1).replace(",", "").split()))
+
+    # Extract inverse matrix
+    inv_match = re.search(r"Inverse:\s+([\d\.\-eE\s]+)Singular:", output)
+    inv_matrix = list(map(float, inv_match.group(1).split()))
+
+    return matrix, offset, inv_matrix
+
+def compute_inverse_translation(inv_matrix, translation):
+    A_inv = np.array(inv_matrix).reshape(3, 3)
+    T = np.array(translation)
+    inv_T = A_inv @ (-T)
+    return inv_T.tolist()
+
+def write_txt(filename, matrix, translation, center=[0.0, 0.0, 0.0]):
+    matrix_str = " ".join(f"{x:.8f}" for x in matrix)
+    trans_str = " ".join(f"{x:.8f}" for x in translation)
+    center_str = " ".join(f"{x:.8f}" for x in center)
+
+    with open(filename, "w") as f:
+        f.write("#Insight Transform File V1.0\n")
+        f.write("# Transform 0\n")
+        f.write("Transform: AffineTransform_double_3_3\n")
+        f.write(f"Parameters: {matrix_str} {trans_str}\n")
+        f.write(f"FixedParameters: {center_str}\n")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python convert_mat_to_ants_txt.py <transform.mat> [prefix]")
+        sys.exit(1)
+
+    mat_file = sys.argv[1]
+    prefix = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    output = run_ants_transform_info(mat_file)
+    fwd_matrix, fwd_translation, inv_matrix = extract_values(output)
+    inv_translation = compute_inverse_translation(inv_matrix, fwd_translation)
+
+    write_txt(f"{prefix}fwd.tfm", fwd_matrix, fwd_translation)
+    write_txt(f"{prefix}inv.tfm", inv_matrix, inv_translation)
+
+    print(f"Generated {prefix}fwd.tfm and {prefix}inv.tfm")
+
+if __name__ == "__main__":
+    main()
