@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import argparse
+import re
+import pandas as pd
+
+
+def collapse_fsl_ev_to_bids_events(
+    input_path,
+    output_file=None,
+    include_pattern="*.txt",
+    exclude_regex=None,
+    condition_names=None,
+    condition_regex=r"_([^_/]+)\.txt$",
+    recursive=False,
+):
+    """
+    Collapse separate FSL 3-column EV .txt files into one BIDS _events.tsv.
+    """
+
+    input_path = Path(input_path)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input path does not exist: {input_path}")
+
+    files = sorted(
+        input_path.rglob(include_pattern)
+        if recursive
+        else input_path.glob(include_pattern)
+    )
+
+    if exclude_regex:
+        exclude_re = re.compile(exclude_regex)
+        files = [f for f in files if not exclude_re.search(f.name)]
+
+    if not files:
+        raise ValueError(
+            f"No files found in {input_path} matching {include_pattern}"
+        )
+
+    if condition_names is not None:
+        if len(condition_names) != len(files):
+            raise ValueError(
+                f"condition_names has {len(condition_names)} entries, "
+                f"but found {len(files)} files."
+            )
+
+        file_condition_pairs = list(zip(files, condition_names))
+
+    else:
+        cond_re = re.compile(condition_regex)
+        file_condition_pairs = []
+
+        for f in files:
+            match = cond_re.search(f.name)
+
+            if not match:
+                raise ValueError(
+                    f"Could not extract condition from filename: {f.name}\n"
+                    f"Regex used: {condition_regex}"
+                )
+
+            file_condition_pairs.append((f, match.group(1)))
+
+    all_events = []
+
+    for f, condition in file_condition_pairs:
+
+        df = pd.read_csv(
+            f,
+            sep=r"\s+",
+            header=None,
+            names=["onset", "duration", "value"],
+        )
+
+        if df.shape[1] != 3:
+            raise ValueError(
+                f"Expected 3 columns in {f}, got {df.shape[1]}"
+            )
+
+        df["trial_type"] = condition
+        df["source_file"] = f.name
+
+        all_events.append(
+            df[
+                [
+                    "onset",
+                    "duration",
+                    "trial_type",
+                    "value",
+                    "source_file",
+                ]
+            ]
+        )
+
+    events = (
+        pd.concat(all_events, ignore_index=True)
+        .sort_values(["onset", "trial_type"])
+        .reset_index(drop=True)
+    )
+
+    if output_file is None:
+        output_file = input_path / "events.tsv"
+    else:
+        output_file = Path(output_file)
+
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    events.to_csv(output_file, sep="\t", index=False)
+
+    print(f"\nWrote {len(events)} events to:")
+    print(output_file)
+
+    return events
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Collapse multiple FSL 3-column EV files into a "
+            "single BIDS-compatible _events.tsv"
+        )
+    )
+
+    parser.add_argument(
+        "input_path",
+        help="Directory containing EV .txt files"
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="Output _events.tsv path"
+    )
+
+    parser.add_argument(
+        "--include",
+        default="*.txt",
+        help="Glob pattern for included files (default: *.txt)"
+    )
+
+    parser.add_argument(
+        "--exclude-regex",
+        default=None,
+        help="Regex for excluding files"
+    )
+
+    parser.add_argument(
+        "--condition-regex",
+        default=r"_([^_/]+)\.txt$",
+        help=(
+            "Regex with one capture group for extracting condition names "
+            "(default extracts final token before .txt)"
+        )
+    )
+
+    parser.add_argument(
+        "--conditions",
+        nargs="+",
+        default=None,
+        help=(
+            "Explicit ordered condition names matching sorted input files"
+        )
+    )
+
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="Recursively search subdirectories"
+    )
+
+    args = parser.parse_args()
+
+    collapse_fsl_ev_to_bids_events(
+        input_path=args.input_path,
+        output_file=args.output,
+        include_pattern=args.include,
+        exclude_regex=args.exclude_regex,
+        condition_names=args.conditions,
+        condition_regex=args.condition_regex,
+        recursive=args.recursive,
+    )
+
+
+if __name__ == "__main__":
+    main()

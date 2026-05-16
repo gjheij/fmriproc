@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import argparse
+import pandas as pd
+
+
+def bids_events_to_fsl_evs(
+    events_file,
+    output_dir=None,
+    trial_type_col="trial_type",
+    onset_col="onset",
+    duration_col="duration",
+    value_col=None,
+    default_value=1,
+    prefix=None,
+):
+    """
+    Split a BIDS _events.tsv file into separate FSL 3-column EV .txt files.
+    """
+
+    events_file = Path(events_file)
+
+    if output_dir is None:
+        output_dir = events_file.parent
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(events_file, sep="\t")
+
+    required = [trial_type_col, onset_col, duration_col]
+    missing = [c for c in required if c not in df.columns]
+
+    if missing:
+        raise ValueError(f"Missing required column(s): {missing}")
+
+    if value_col is not None and value_col not in df.columns:
+        raise ValueError(f"Value column not found: {value_col}")
+
+    if prefix is None:
+        prefix = events_file.name.replace("_events.tsv", "")
+
+    written = []
+
+    for trial_type, group in df.groupby(trial_type_col, sort=True):
+        ev = pd.DataFrame()
+        ev["onset"] = group[onset_col]
+        ev["duration"] = group[duration_col]
+
+        if value_col is None:
+            ev["value"] = default_value
+        else:
+            ev["value"] = group[value_col]
+
+        ev = ev.sort_values("onset")
+
+        safe_trial_type = str(trial_type).replace("/", "-").replace(" ", "_")
+        out_file = output_dir / f"{prefix}_{safe_trial_type}.txt"
+
+        ev.to_csv(
+            out_file,
+            sep="\t",
+            header=False,
+            index=False,
+            float_format="%.6g",
+        )
+
+        written.append(out_file)
+
+    print(f"Wrote {len(written)} FSL EV files to {output_dir}")
+    for f in written:
+        print(f)
+
+    return written
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Split a BIDS _events.tsv file into FSL 3-column EV .txt files."
+    )
+
+    parser.add_argument(
+        "events_file",
+        help="Input BIDS _events.tsv file",
+    )
+
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        default=None,
+        help="Directory for output FSL EV .txt files",
+    )
+
+    parser.add_argument(
+        "--trial-type-col",
+        default="trial_type",
+        help="Column containing condition names",
+    )
+
+    parser.add_argument(
+        "--onset-col",
+        default="onset",
+        help="Column containing onset times",
+    )
+
+    parser.add_argument(
+        "--duration-col",
+        default="duration",
+        help="Column containing durations",
+    )
+
+    parser.add_argument(
+        "--value-col",
+        default=None,
+        help="Optional column to use as third FSL EV column",
+    )
+
+    parser.add_argument(
+        "--default-value",
+        type=float,
+        default=1,
+        help="Default third-column value if --value-col is not used",
+    )
+
+    parser.add_argument(
+        "--prefix",
+        default=None,
+        help="Output filename prefix. Defaults to input filename without _events.tsv",
+    )
+
+    args = parser.parse_args()
+
+    bids_events_to_fsl_evs(
+        events_file=args.events_file,
+        output_dir=args.output_dir,
+        trial_type_col=args.trial_type_col,
+        onset_col=args.onset_col,
+        duration_col=args.duration_col,
+        value_col=args.value_col,
+        default_value=args.default_value,
+        prefix=args.prefix,
+    )
+
+
+if __name__ == "__main__":
+    main()
