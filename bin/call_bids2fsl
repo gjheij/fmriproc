@@ -22,7 +22,7 @@ def bids_events_to_fsl_evs(
     events_file = Path(events_file)
 
     if output_dir is None:
-        output_dir = events_file.parent
+        output_dir = events_file.parent.parent / 'events'
     else:
         output_dir = Path(output_dir)
 
