@@ -77,7 +77,13 @@ decide_job_type() {
     job="${script_name}"
   else
     QUEUE="${queue:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
-    call_="$(which ${script_name})"
+    
+    if [[ "${script_name}" == *"/"* ]]; then
+      call_="${script_name}"
+    else
+      call_="$(which ${script_name})"
+    fi
+
     submit=$(
       generate_submission_command \
       "${QUEUE}" \
