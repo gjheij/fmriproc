@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "${BIN_DIR}/call_bashhelper"
+
 #-----------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -77,8 +79,8 @@ function fix_reg_dir {
     rm -r "${feat_dir}/reg_standard" 2>/dev/null
 
     # create reg dir
-    if [[ ! -d '${feat_dir}/reg' ]]; then
-      mkdir -p '${feat_dir}/reg'
+    if [[ ! -d "${feat_dir}/reg" ]]; then
+      mkdir -p "${feat_dir}/reg"
     fi
 
     # echo " Removing matrix files from reg directory"
@@ -128,13 +130,17 @@ fi
 
 #-----------------------------------------------------------------------------
 # find all .feat directories and run command
-all_feats=(
-  $(
-    find "${ft_dir}" \
-    -type d \
-    -name "*.feat"
+if [[ "${ft_dir}" == *.feat ]]; then
+  all_feats=("${ft_dir}")
+else
+  all_feats=(
+    $(
+      find "${ft_dir}" \
+      -type d \
+      -name "*.feat"
+    )
   )
-)
+fi
 
 #-----------------------------------------------------------------------------
 # run
