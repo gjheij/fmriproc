@@ -1,0 +1,390 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+call_loadsetup
+source call_bashhelper
+
+set -euo pipefail
+
+#-----------------------------------------------------------------------------
+# Create help text
+usage() {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_ants2featreg
+
+Create an FSL FEAT-style reg directory from ANTs/fMRIPrep registration outputs. This script converts
+a T1w-to-MNI ANTs transform and a BOLD-to-T1w transform into the files expected by FEAT, including
+highres2standard.mat, highres2standard_warp.nii.gz, example_func2highres.mat, and the corresponding
+resampled images.
+
+Usage:
+  call_ants2featreg [arguments] [options]
+
+Mandatory (required input):
+  --t1w <image>                  T1w/highres image
+  --boldref <image>              FEAT example_func/BOLD reference image
+  --bold-to-t1w <transform>      BOLD-to-T1w affine transform; can be ANTs .txt or .mat
+
+  Either provide:
+  --t1w-to-mni-affine <mat>      ANTs T1w-to-MNI affine transform, e.g.,
+                                 *_0GenericAffine.mat
+  --t1w-to-mni-warp <warp>       ANTs T1w-to-MNI nonlinear warp, e.g.,
+                                 *_1Warp.nii.gz
+
+  Or provide:
+  --t1w-to-mni-h5 <h5>           Composite ANTs/fMRIPrep .h5 transform. This will be
+                                 disassembled into affine and nonlinear warp components.
+
+Optional (flags with defaults):
+  --out-dir <dir>                Output reg directory. If --feat-dir is provided and --out-dir is
+                                 omitted, defaults to:
+                                   <FEAT_DIR>/reg
+  --template <image>             MNI template image. Default:
+                                   \$FSLDIR/data/standard/MNI152_T1_1mm_brain.nii.gz
+  --feat-dir <dir>               FEAT directory that should receive the reg folder
+  --update-featreg               Run updatefeatreg after copying/creating the reg folder
+  --clean                        Remove temporary files after successful completion
+
+Options:
+  -h|--help                      Print this help text
+
+Outputs:
+  The output reg directory will contain FEAT-compatible registration files:
+
+    highres.nii.gz               Copy of the T1w image
+    standard.nii.gz              Copy of the MNI template
+    example_func.nii.gz          Copy of the BOLD reference image
+    highres2standard.mat         T1w-to-MNI affine converted to FSL format
+    highres2standard_warp.nii.gz Combined T1w-to-MNI affine/nonlinear warp in FSL format
+    highres2standard.nii.gz      T1w image resampled to standard space
+    example_func2highres.mat     BOLD-to-T1w affine converted to FSL format
+    example_func2highres.nii.gz  BOLD reference resampled to T1w space
+
+Example:
+  # Create a reg directory directly inside a FEAT directory
+  call_ants2featreg \\
+    --t1w sub-002_T1w.nii.gz \\
+    --t1w-to-mni-affine t1_to_mni_0GenericAffine.mat \\
+    --t1w-to-mni-warp t1_to_mni_1Warp.nii.gz \\
+    --boldref run1.feat/example_func.nii.gz \\
+    --bold-to-t1w sub-002_from-bold_to-T1w_xfm.txt \\
+    --feat-dir run1.feat \\
+    --update-featreg
+
+  # Use a composite fMRIPrep/ANTs .h5 transform instead of separate affine and warp files
+  call_ants2featreg \\
+    --t1w sub-002_T1w.nii.gz \\
+    --t1w-to-mni-h5 sub-002_from-T1w_to-MNI152NLin2009cAsym_xfm.h5 \\
+    --boldref run1.feat/example_func.nii.gz \\
+    --bold-to-t1w sub-002_from-bold_to-T1w_xfm.txt \\
+    --feat-dir run1.feat \\
+    --update-featreg \\
+    --clean
+
+Notes:
+  This script requires FSL, ANTs, Connectome Workbench, and c3d_affine_tool to be available in the
+  shell environment. When --update-featreg is used, --feat-dir must also be provided.
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+
+}
+
+if [[ $# -eq 0 ]] ; then
+  usage && exit 0
+fi
+
+# Save original command-line arguments before parsing
+orig_args=("$@")
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Command not found: $1"
+}
+
+need_file() {
+  [[ -n "${1:-}" ]] || die "Empty file path passed to need_file"
+  [[ -f "$1" ]] || die "File not found: $1"
+}
+
+out_dir=""
+t1w=""
+t1w_to_mni_affine=""
+t1w_to_mni_warp=""
+boldref=""
+bold_to_t1w=""
+template="${FSLDIR:-}/data/standard/MNI152_T1_1mm_brain.nii.gz"
+feat_dir=""
+update_featreg=false
+clean=false
+t1w_to_mni_h5=""
+tmp_transform_base=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --out-dir)
+      out_dir="$2"; shift 2 ;;
+    --t1w)
+      t1w="$2"; shift 2 ;;
+    --t1w-to-mni-affine)
+      t1w_to_mni_affine="$2"; shift 2 ;;
+    --t1w-to-mni-warp)
+      t1w_to_mni_warp="$2"; shift 2 ;;
+    --boldref)
+      boldref="$2"; shift 2 ;;
+    --bold-to-t1w)
+      bold_to_t1w="$2"; shift 2 ;;
+    --t1w-to-mni-h5)
+      t1w_to_mni_h5="$2"; shift 2 ;;
+    --template)
+      template="$2"; shift 2 ;;
+    --feat-dir)
+      feat_dir="$2"; shift 2 ;;
+    --update-featreg)
+      update_featreg=true; shift ;;
+    --clean)
+      clean=true; shift ;;
+    -h|--help)
+      usage; exit 0 ;;
+    *)
+      die "Unknown argument: $1" ;;
+  esac
+done
+
+if [[ -z "$out_dir" ]]; then
+  if [[ -n "$feat_dir" ]]; then
+    out_dir="${feat_dir}/reg"
+  else
+    die "--out-dir is required unless --feat-dir is provided"
+  fi
+fi
+
+#-----------------------------------------------------------------------------
+# Set up logging
+
+log_file="${out_dir}/ants2feat.log"
+mkdir -p "$out_dir"
+
+# Keep original command line before redirecting output
+cmdline="$(basename "$0")"
+printf -v quoted_args ' %q' "$@"
+cmdline="${cmdline}${quoted_args}"
+
+# Send stdout and stderr to both terminal and log file
+exec > >(tee -a "$log_file") 2>&1
+
+echo "---------------------------------------------------------------------------------------------------"
+echo "call_ants2featreg"
+echo "Started: $(date)"
+cmdline="$(basename "$0")"
+
+if [[ ${#orig_args[@]} -gt 0 ]]; then
+    printf -v quoted_args ' %q' "${orig_args[@]}"
+    cmdline="${cmdline}${quoted_args}"
+fi
+
+echo "Command: $cmdline"
+echo "Host: $(hostname)"
+echo "User: ${USER:-unknown}"
+echo "Working directory: $(pwd)"
+echo "Log file: $log_file"
+echo "---------------------------------------------------------------------------------------------------"
+
+#-----------------------------------------------------------------------------
+# start
+[[ -n "$t1w" ]] || die "--t1w is required"
+
+need_cmd c3d_affine_tool
+need_cmd wb_command
+need_cmd convertwarp
+need_cmd applywarp
+need_cmd ConvertTransformFile
+
+if [[ "$update_featreg" == true ]]; then
+  need_cmd updatefeatreg
+  [[ -n "$feat_dir" ]] || die "--feat-dir is required when using --update-featreg"
+fi
+
+need_file "$t1w"
+need_file "$boldref"
+need_file "$bold_to_t1w"
+need_file "$template"
+
+if [[ -n "$t1w_to_mni_h5" ]]; then
+  need_cmd CompositeTransformUtil
+  need_file "$t1w_to_mni_h5"
+else
+  [[ -n "$t1w_to_mni_affine" ]] || die "--t1w-to-mni-affine is required unless --t1w-to-mni-h5 is provided"
+  [[ -n "$t1w_to_mni_warp" ]] || die "--t1w-to-mni-warp is required unless --t1w-to-mni-h5 is provided"
+
+  need_file "$t1w_to_mni_affine"
+  need_file "$t1w_to_mni_warp"
+fi
+
+mkdir -p "$out_dir"
+
+echo "Creating FEAT-style reg directory: $out_dir"
+
+if [[ -n "$t1w_to_mni_h5" ]]; then
+  echo "Disassembling composite H5 transform"
+
+  tmp_transform_base="${out_dir}/t1w_to_mni"
+
+  cmd=(
+    CompositeTransformUtil
+    --disassemble
+    "$t1w_to_mni_h5"
+    "$tmp_transform_base"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+  t1w_to_mni_affine=$(find "$out_dir" -type f \
+    -name "$(basename "$tmp_transform_base")*.mat" \
+    | head -n 1)
+
+  t1w_to_mni_warp=$(find "$out_dir" -type f \
+    -name "$(basename "$tmp_transform_base")*.nii.gz" \
+    | head -n 1)
+
+  [[ -n "$t1w_to_mni_affine" ]] || die "Could not extract affine .mat from $t1w_to_mni_h5"
+  [[ -n "$t1w_to_mni_warp" ]] || die "Could not extract nonlinear warp .nii.gz from $t1w_to_mni_h5"
+fi
+
+cp "$t1w" "$out_dir/highres.nii.gz"
+cp "$template" "$out_dir/standard.nii.gz"
+cp "$boldref" "$out_dir/example_func.nii.gz"
+
+echo "Converting T1w-to-MNI affine to FSL format"
+
+cmd=(
+  c3d_affine_tool 
+  -ref "$out_dir/standard.nii.gz"
+  -src "$out_dir/highres.nii.gz"
+  -itk "$t1w_to_mni_affine"
+  -ras2fsl
+  -o "$out_dir/highres2standard.mat"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+echo "Converting ANTs nonlinear warp to FNIRT/FSL format"
+
+tmp_warp="$out_dir/tmp_highres2standard_warp.nii.gz"
+
+cmd=(
+  wb_command
+  -convert-warpfield
+  -from-itk "$t1w_to_mni_warp"
+  -to-fnirt "$tmp_warp"
+  "$out_dir/standard.nii.gz"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+echo "Combining affine and nonlinear warp"
+
+cmd=(
+  convertwarp
+  --ref="$out_dir/standard.nii.gz"
+  --premat="$out_dir/highres2standard.mat"
+  --warp1="$tmp_warp"
+  --out="$out_dir/highres2standard_warp.nii.gz"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+echo "Applying highres-to-standard warp"
+
+cmd=(
+  applywarp
+  -i "$out_dir/highres.nii.gz"
+  -r "$out_dir/standard.nii.gz"
+  -w "$out_dir/highres2standard_warp.nii.gz"
+  -o "$out_dir/highres2standard.nii.gz"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+echo "Preparing BOLD-to-T1w transform"
+
+if [[ "$bold_to_t1w" == *.txt ]]; then
+  bold_to_t1w_mat="$out_dir/example_func2highres_ants.mat"
+
+  cmd=(
+    ConvertTransformFile
+    3
+    "$bold_to_t1w"
+    "$bold_to_t1w_mat"
+    --convertToAffineType
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+else
+  bold_to_t1w_mat="$bold_to_t1w"
+fi
+
+echo "Converting BOLD-to-T1w affine to FSL format"
+
+cmd=(
+  c3d_affine_tool
+  -ref "$out_dir/highres.nii.gz"
+  -src "$out_dir/example_func.nii.gz"
+  -itk "$bold_to_t1w_mat"
+  -ras2fsl
+  -o "$out_dir/example_func2highres.mat"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+echo "Applying BOLD-to-T1w transform"
+
+cmd=(
+  applywarp
+  -i "$out_dir/example_func.nii.gz"
+  -r "$out_dir/highres.nii.gz"
+  --postmat="$out_dir/example_func2highres.mat"
+  -o "$out_dir/example_func2highres.nii.gz"
+)
+
+print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+
+if [[ -n "$feat_dir" ]]; then
+  echo "Using FEAT directory: $feat_dir"
+
+  [[ -d "$feat_dir" ]] || die "FEAT directory not found: $feat_dir"
+
+  # Only copy if out_dir is not already feat_dir/reg
+  if [[ "$(realpath "$out_dir")" != "$(realpath "$feat_dir/reg")" ]]; then
+    echo "Copying reg directory to FEAT directory"
+
+    rm -rf "$feat_dir/reg"
+    cp -r "$out_dir" "$feat_dir/reg"
+  fi
+
+  if [[ "$update_featreg" == true ]]; then
+    echo "Running updatefeatreg"
+    cmd=(updatefeatreg "$feat_dir")
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  fi
+fi
+
+if [[ "$clean" == true ]]; then
+  echo "Removing temporary files"
+  rm -f "$tmp_warp"
+  rm -f "$out_dir/example_func2highres_ants.mat"
+
+  if [[ -n "$tmp_transform_base" ]]; then
+    rm -f "${tmp_transform_base}"*
+  fi
+fi
+
+echo "Done."
