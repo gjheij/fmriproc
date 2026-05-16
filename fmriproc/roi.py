@@ -762,6 +762,7 @@ class FullExtractionPipeline(ExtractSubjects):
         verbose=False,
         pos_neg=False,
         do_fit=True,
+        excl_evs=[],
         **kwargs
         ):
 
@@ -775,6 +776,7 @@ class FullExtractionPipeline(ExtractSubjects):
         self.verbose = verbose
         self.pos_neg = pos_neg
         self.do_fit = do_fit
+        self.excl_evs = excl_evs
 
         self.roi_list = None
         if "rois" in list(kwargs.keys()):
@@ -816,6 +818,10 @@ class FullExtractionPipeline(ExtractSubjects):
                     id="event_type",
                     sort=False
                 )
+
+            # filter evs
+            if len(self.excl_evs)>0:
+                self.order = [i for i in self.order if i not in self.excl_evs]
 
             # derive TR from functional dataframe
             self.t = utils.get_unique_ids(self.df_func, id="t")
@@ -1182,6 +1188,7 @@ class FullExtractionPipeline(ExtractSubjects):
                     dpi=300
                 )
 
+
     def generate_plot2(
         self, 
         use_colors=["#D97F75","#9ABDD4"],
@@ -1284,6 +1291,7 @@ class FullExtractionPipeline(ExtractSubjects):
                     dpi=300
                 )
 
+
     def write_csv_files(self):
 
         utils.verbose(f"Writing csv-files to {self.output_dir}..", self.verbose)
@@ -1305,6 +1313,7 @@ class FullExtractionPipeline(ExtractSubjects):
 
         for key,val in out_dict.items():
             val.to_csv(opj(self.output_dir, f"{self.output_base}_desc-{key}.csv"))
+
 
     def write_settings(self):
 
