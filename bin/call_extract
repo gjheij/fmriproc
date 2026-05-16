@@ -323,7 +323,7 @@ Examples:
         space=space,
         task=task,
         TR=tr,
-        exclude_evs=excl_evs
+        excl_evs=excl_evs
     )
 
 if __name__ == "__main__":
