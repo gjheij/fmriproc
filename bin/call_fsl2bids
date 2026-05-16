@@ -19,6 +19,7 @@ def collapse_fsl_ev_to_bids_events(
     Collapse separate FSL 3-column EV .txt files into one BIDS _events.tsv.
     """
 
+
     input_path = Path(input_path)
 
     if not input_path.exists():
