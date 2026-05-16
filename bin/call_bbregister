@@ -208,6 +208,7 @@ if [[ ! "$arg_str" =~ (--fslmat) ]]; then
   fi
   cmd_args+=("${format}")
 fi
+
 #-----------------------------------------------------------------------------
 # check contrast
 if [[ ! "$arg_str" =~ (--t1|--t2|--bold|--dti) ]]; then
