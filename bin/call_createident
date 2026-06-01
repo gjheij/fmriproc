@@ -53,7 +53,7 @@ USAGE
 
 }
 
-if [[ $# -le 1 ]] ; then
+if [[ $# -lt 1 ]] ; then
   Usage && exit 0
 fi
 
@@ -92,8 +92,11 @@ fname="${@:$OPTIND:1}"
 image="${@:$OPTIND+1:1}"
 
 #-----------------------------------------------------------------------------
+# get extension to derive file type
+ext="$(fetch_extension "${fname}")"
+
 # check inputs
-if [[ ! -f "${fname}" ]]; then
+if [[ "${ext}" == "dat" && ! -f "${image}" ]]; then
   echo
   print_line -
   print_error_msg "$(basename ${0})" input "Could not find input file \"${BOLD_GREEN}${fname}${RESET}\""
@@ -101,9 +104,6 @@ if [[ ! -f "${fname}" ]]; then
 else
   fname="$(readlink -f "${fname}")"
 fi
-
-# get extension to derive file type
-ext="$(fetch_extension "${fname}")"
 
 # remove existing
 rm -r "${fname}" 2>/dev/null
