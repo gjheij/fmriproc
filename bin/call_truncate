@@ -9,11 +9,13 @@ from lazyfmri import (
 )
 import shutil
 import pandas as pd
+import nibabel as nb
+
 opj = os.path.join
 gb = f"{utils.color.GREEN}{utils.color.BOLD}"
 rb = f"{utils.color.RED}{utils.color.BOLD}"
 end = utils.color.END
-
+    
 @utils.validate_cli_inputs(required_keys=["subject"])
 def main(context):
 
@@ -50,6 +52,7 @@ Options (extra):
   --ow            overwrite existing output files
   --full-ow       delete output_folder/subject
   --conf-only     only do the confound files
+  
 
 Example:
   # simple call with 5 volumes to be removed
@@ -77,17 +80,19 @@ Example:
     filters = context.get("filters")
     conf_only = context.get("conf_only")
     tr = context.get("tr")
+    cut_from = context.get("cut_from")
+    excl_filters = context.get("excl_filters")
 
     # set default directories
     if not isinstance(fprep_dir, str):
         fprep_dir = opj(os.environ.get("DIR_DATA_DERIV"), "fmriprep")
 
     if not isinstance(output, str):
-        output = opj(os.environ.get("DIR_DATA_DERIV"), f"del{cut_vols}")
+        output = opj(os.environ.get("DIR_DATA_DERIV"), f"truncate_{cut_from}_{cut_vols}")
 
     utils.verbose(f"Input directory: {gb}{opj(fprep_dir, subject)}{end}", verbose)
     utils.verbose(f"Output directory: {gb}{opj(output, subject)}{end}", verbose)
-    utils.verbose(f"Cutting {rb}{cut_vols}{end} volumes", verbose)
+    utils.verbose(f"Cutting {rb}{cut_from} {cut_vols}{end} volumes", verbose)
     
     if isinstance(tr, (str,float,int)):
         utils.verbose(f"Setting TR to {rb}{tr}{end}", verbose)
@@ -96,63 +101,161 @@ Example:
         utils.verbose(f"Extra filters: {rb}{filters}{end}", verbose)
         search_list += filters
 
+    if isinstance(excl_filters, list):
+        utils.verbose(f"Excluding filters: {rb}{excl_filters}{end}", verbose)
+
     if full_ow:
         if os.path.exists(opj(output, subject)):
             utils.verbose(f"Removing old files in '{gb}{opj(output, subject)}{end}'", verbose)
             shutil.rmtree(opj(output, subject))
-
+    
     if not conf_only:
-        # find all files while excluding the anatomicals
-        all_giftis = utils.FindFiles(opj(fprep_dir, subject), extension="gii", exclude="anat").files
-        if not isinstance(all_giftis, list):
-            raise TypeError(f"Could not find files in '{opj(fprep_dir, subject)}' with extension 'gii'")
 
-        # filter out space
-        filtered_gifti_list = utils.get_file_from_substring(search_list, all_giftis)
+        # process giftis
+        all_giftis = utils.FindFiles(
+            opj(fprep_dir, subject),
+            extension="gii",
+            exclude="anat"
+        ).files
 
-        if isinstance(filtered_gifti_list, str):
-            filtered_gifti_list = [filtered_gifti_list]
+        if isinstance(all_giftis, str):
+            all_giftis = [all_giftis]
 
-        utils.verbose(f"Found {rb}{len(filtered_gifti_list)}{end} functional files", verbose)
+        if len(all_giftis)>0:
 
-        # loop
-        for ix,gii in enumerate(filtered_gifti_list):
+            # filter out space
+            filtered_gifti_list = utils.get_file_from_substring(
+                search_list,
+                all_giftis,
+                exclude=excl_filters
+            )
 
-            # find where subject occurs in string
-            sub_ix = gii.split(os.sep).index(subject)
+            if isinstance(filtered_gifti_list, str):
+                filtered_gifti_list = [filtered_gifti_list]
 
-            # get path after that and plop outputdir in front of it
-            out_file = opj(output, os.sep.join(gii.split(os.sep)[sub_ix:]))
-            if not os.path.exists(os.path.dirname(out_file)):
-                os.makedirs(os.path.dirname(out_file), exist_ok=True)
+            utils.verbose(f"Found {rb}{len(filtered_gifti_list)}{end} functional files", verbose)
 
-            # read original file
-            obj_ = dataset.ParseGiftiFile(gii)
-            
-            if not isinstance(tr, (str,float,int)):
-                tr = obj_.TR_ms
-                
-            # write new one
-            obj_new = dataset.ParseGiftiFile(obj_.data[cut_vols:,:], set_tr=tr)
+            # loop
+            if len(filtered_gifti_list)>0:
+                for ix, i in enumerate(filtered_gifti_list):
+                    utils.verbose(f" #{ix+1}: {gb}{i}{end}", verbose)
 
-            # check if we should overwrite or not
-            execute = True
-            if os.path.exists(out_file):
-                if not overwrite:
-                    execute = False 
+                utils.verbose("Start truncating Gifti-files..", verbose)
 
-            if execute:
-                obj_new.write_file(out_file)
-                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={rb}{obj_new.TR_ms}{end}: '{gb}{out_file}{end}'", verbose)
+                for ix,gii in enumerate(filtered_gifti_list):
+
+                    # find where subject occurs in string
+                    sub_ix = gii.split(os.sep).index(subject)
+
+                    # get path after that and plop outputdir in front of it
+                    out_file = opj(output, os.sep.join(gii.split(os.sep)[sub_ix:]))
+                    if not os.path.exists(os.path.dirname(out_file)):
+                        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+                    # read original file
+                    obj_ = dataset.ParseGiftiFile(gii)
+                    
+                    if not isinstance(tr, (str,float,int)):
+                        tr = obj_.TR_ms
+                        
+                    # write new one
+                    if cut_from == "first":
+                        new_data = obj_.data[cut_vols:, ...]
+                    else:
+                        new_data = obj_.data[ :-cut_vols, ...]
+
+                    obj_new = dataset.ParseGiftiFile(new_data, set_tr=tr)
+
+                    # check if we should overwrite or not
+                    execute = True
+                    if os.path.exists(out_file):
+                        if not overwrite:
+                            execute = False 
+
+                    if execute:
+                        obj_new.write_file(out_file)
+                        utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={rb}{obj_new.TR_ms}{end}: '{gb}{out_file}{end}'", verbose)
+        else:
+            utils.verbose(f"No *.gii files in {rb}{opj(fprep_dir, subject)}{end}", verbose)
+
+        # process niftis
+        all_niftis = utils.FindFiles(
+            opj(fprep_dir, subject),
+            extension="nii.gz",
+            exclude="anat"
+        ).files
+
+        if isinstance(all_niftis, str):
+            all_niftis = [all_niftis]
+
+        if len(all_niftis)>0:
+
+            filtered_nifti_list = utils.get_file_from_substring(
+                search_list,
+                all_niftis,
+                exclude=excl_filters
+            )
+
+            if isinstance(filtered_nifti_list, str):
+                filtered_nifti_list = [filtered_nifti_list]
+
+            utils.verbose(f"Found {rb}{len(filtered_nifti_list)}{end} functional files", verbose)
+
+            if len(filtered_nifti_list)>0:
+                for ix, i in enumerate(filtered_nifti_list):
+                    utils.verbose(f" #{ix+1}: {gb}{i}{end}", verbose)
+
+                utils.verbose("Start truncating nifti-files..", verbose)
+                for ix, nii in enumerate(filtered_nifti_list):
+
+                    # find where subject occurs in string
+                    sub_ix = nii.split(os.sep).index(subject)
+
+                    # get path after that and plop outputdir in front of it
+                    out_file = opj(output, os.sep.join(nii.split(os.sep)[sub_ix:]))
+                    if not os.path.exists(os.path.dirname(out_file)):
+                        os.makedirs(os.path.dirname(out_file), exist_ok=True)
+
+                    img = nb.load(nii)
+
+                    data = img.get_fdata()
+
+                    if data.ndim != 4:
+                        continue
+
+                    if cut_from == "first":
+                        new_data = data[..., cut_vols:]
+                    else:
+                        new_data = data[..., :-cut_vols]
+
+                    # check if we should overwrite or not
+                    execute = True
+                    if os.path.exists(out_file):
+                        if not overwrite:
+                            execute = False 
+
+                    if execute:
+                        new_img = nb.Nifti1Image(
+                            new_data,
+                            affine=img.affine,
+                            header=img.header
+                        )
+
+                        nb.save(new_img, out_file)
+                        utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_nifti_list)}) funcs {new_data.shape}: '{gb}{out_file}{end}'", verbose)
+        else:
+            utils.verbose(f"No *.nii.gz files in {rb}{opj(fprep_dir, subject)}{end}", verbose)
 
     # check confounds
     if confounds:
         all_tsv = utils.FindFiles(opj(fprep_dir, subject), extension="tsv", exclude="anat").files
         if isinstance(all_tsv, str):
             all_tsv = [all_tsv]
-
+        
         if len(filters) > 0:
-            all_tsv = utils.get_file_from_substring(filters, all_tsv)
+            filters = [i for i in filters if i != "preproc_bold"]
+            if len(filters) > 0:
+                all_tsv = utils.get_file_from_substring(filters, all_tsv)
 
         utils.verbose(f"Found {rb}{len(all_tsv)}{end} confound files", verbose)
         for ix,tsv in enumerate(all_tsv):
@@ -174,9 +277,15 @@ Example:
             # cut columes, skip index so that "Unnamed" column is not made.
             # DONT USE SKIP_ROWS, YOU NEED THE COLUMN NAMES
             if execute:
-                new_csv = pd.read_csv(tsv, delimiter="\t").iloc[cut_vols:,:]
+                conf_df = pd.read_csv(tsv, delimiter="\t")
+
+                if cut_from == "first":
+                    new_csv = conf_df.iloc[cut_vols:, :]
+                else:
+                    new_csv = conf_df.iloc[:-cut_vols, :]
+
                 new_csv.to_csv(out_tsv, index=False, sep="\t")
-                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(all_tsv)}) confs {rb}{new_csv.shape}{rb}: '{gb}{out_tsv}{end}'", verbose)
+                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(all_tsv)}) confs {rb}{new_csv.shape}{rb}: {gb}{out_tsv}{end}", verbose)
     
 if __name__ == "__main__":
 
@@ -184,7 +293,7 @@ if __name__ == "__main__":
     subject = None
     output = None
     cut_vols = 5
-    search_list = ["space-"]
+    search_list = []
     confounds = True
     verbose = False
     overwite = False
@@ -193,12 +302,14 @@ if __name__ == "__main__":
     conf_only = False
     overwrite = False
     tr = None
+    cut_from = "first"
+    excl_filters = []
 
     try:
         opts = getopt.getopt(
             sys.argv[1:],
             "hf:s:o:c:x:t:",
-            ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr="]
+            ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr=", "exclude=", "last", "first"]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__, flush=True)
@@ -239,6 +350,16 @@ if __name__ == "__main__":
                 filters = utils.string2list(filters)
             else:
                 filters = [filters]
+        elif opt in ("--exclude"):
+            excl_filters = arg
+            if "," in excl_filters:
+                excl_filters = utils.string2list(excl_filters)
+            else:
+                excl_filters = [excl_filters]                
+        elif opt == "--last":
+            cut_from = "last"
+        elif opt == "--first":
+            cut_from = "first"
 
     main(context={
         "fprep_dir": fprep_dir,
@@ -252,5 +373,7 @@ if __name__ == "__main__":
         "full_ow": full_ow,
         "filters": filters,
         "conf_only": conf_only,
-        "tr": tr
+        "tr": tr,
+        "cut_from": cut_from,
+        "excl_filters": excl_filters
     })
