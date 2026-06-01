@@ -1,0 +1,494 @@
+#!/bin/bash
+
+source "${BIN_DIR}/call_bashhelper"
+
+#-----------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_regqc
+
+Compute registration QC metrics and collect visual QC images for FEAT registration.
+
+Metrics:
+  - FLIRT registration cost using existing matrices
+  - Dice overlap
+  - Coverage-normalized Dice overlap for partial-FOV BOLD
+  - Visual QC PNG listing
+
+Arguments:
+  -p <proj dir>   project root folder (defaults to DIR_DATA_HOME)
+  -l <level1 tag> tag for level1 analysis (default: level1)
+  -f <feat dir>   feat directory or parent directory containing .feat folders
+                  defaults to DIR_DATA_HOME/derivatives/feat/<level1_tag>
+
+Options:
+  -h|--help       print this help text
+
+Outputs:
+  reg/qc_registration.tsv
+  reg/qc_pngs.txt
+
+Example:
+  call_regqc --help
+  call_regqc
+  call_regqc -f sub-01_task-rest.feat
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+SPACE=""
+
+#-----------------------------------------------------------------------------
+# Check arguments
+while getopts :-:hl:f:p: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)
+      Usage && exit 0
+      ;;
+    l)
+      L1_tag="${OPTARG}"
+      ;;
+    f)
+      ft_dir="${OPTARG}"
+      ;;
+    p)
+      project_dir="${OPTARG}"
+      ;;
+  esac
+done
+
+#-----------------------------------------------------------------------------
+# specify defaults
+if [[ -z "${project_dir}" ]]; then
+  project_dir="${DIR_DATA_HOME}"
+fi
+
+if [[ -z "${L1_tag}" ]]; then
+  L1_tag="level1"
+fi
+
+if [[ -z "${ft_dir}" ]]; then
+  ft_dir="${project_dir}/derivatives/feat/${L1_tag}"
+fi
+
+if [[ ! -d "${ft_dir}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "find" "Directory \"${ft_dir}\" does not exist."
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# define QC function
+function run_regqc {
+
+  local feat_dir="${1}"
+  local reg_dir="${feat_dir}/reg"
+
+  if [[ ! -d "${reg_dir}" ]]; then
+    print_error_msg "$(basename ${0})" "reg" "Missing reg directory in ${feat_dir}"
+    return 1
+  fi
+
+  echo "Processing ${feat_dir}"
+
+  local out_tsv="${reg_dir}/qc_registration.tsv"
+  local out_png="${reg_dir}/qc_pngs.txt"
+  local tmp_dir="${reg_dir}/qc_tmp"
+
+  mkdir -p "${tmp_dir}"
+
+  echo -e "metric\timage_a\timage_b\tvalue" > "${out_tsv}"
+
+  #---------------------------------------------------------------------------
+  # Helper: write missing metric
+  function write_missing {
+    local label="${1}"
+    local img1="${2}"
+    local img2="${3}"
+
+    echo -e "${label}\t$(basename "${img1}")\t$(basename "${img2}")\tmissing_input" \
+      >> "${out_tsv}"
+  }
+
+  #---------------------------------------------------------------------------
+  # Helper: FLIRT cost
+  function flirt_cost {
+
+    local in_img="${1}"
+    local ref_img="${2}"
+    local mat="${3}"
+    local label="${4}"
+
+    echo "  Computing FLIRT cost: ${label}"
+
+    if [[ ! -f "${in_img}" || ! -f "${ref_img}" || ! -f "${mat}" ]]; then
+      write_missing "${label}" "${in_img}" "${ref_img}"
+      return 0
+    fi
+
+    local raw
+    local val
+
+    raw=$(
+      flirt \
+        -in "${in_img}" \
+        -ref "${ref_img}" \
+        -init "${mat}" \
+        -schedule "${FSLDIR}/etc/flirtsch/measurecost1.sch" \
+        2>&1
+    )
+
+    val=$(
+      echo "${raw}" \
+      | grep -Eo '[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?' \
+      | tail -n 1
+    )
+
+    if [[ -z "${val}" ]]; then
+      val="NA"
+      echo "  WARNING: Could not parse FLIRT cost for ${label}"
+      echo "${raw}" | sed 's/^/    /'
+    fi
+
+    echo -e "${label}\t$(basename "${in_img}")\t$(basename "${ref_img}")\t${val}" \
+      >> "${out_tsv}"
+  }
+
+  #---------------------------------------------------------------------------
+  # Helper: Dice overlap
+  function dice_overlap {
+
+    local img1="${1}"
+    local img2="${2}"
+    local label="${3}"
+
+    echo "  Computing Dice overlap: ${label}"
+
+    if [[ ! -f "${img1}" || ! -f "${img2}" ]]; then
+      write_missing "${label}" "${img1}" "${img2}"
+      return 0
+    fi
+
+    local b1="${tmp_dir}/$(basename "${img1}" .nii.gz)_bin"
+    local b2="${tmp_dir}/$(basename "${img2}" .nii.gz)_bin"
+    local ov="${tmp_dir}/${label}_overlap"
+
+    fslmaths "${img1}" -abs -bin "${b1}"
+    fslmaths "${img2}" -abs -bin "${b2}"
+    fslmaths "${b1}" -mul "${b2}" "${ov}"
+
+    local v1
+    local v2
+    local vo
+    local dice
+
+    v1=$(fslstats "${b1}" -V | awk '{print $1}')
+    v2=$(fslstats "${b2}" -V | awk '{print $1}')
+    vo=$(fslstats "${ov}" -V | awk '{print $1}')
+
+    if [[ "${v1}" -gt 0 && "${v2}" -gt 0 ]]; then
+      dice=$(echo "scale=6; 2*${vo}/(${v1}+${v2})" | bc -l)
+    else
+      dice="NA"
+    fi
+
+    echo -e "${label}\t$(basename "${img1}")\t$(basename "${img2}")\t${dice}" \
+      >> "${out_tsv}"
+  }
+
+  function resampled_mask_dice {
+
+    local mask_img="${1}"
+    local ref_img="${2}"
+    local mat="${3}"
+    local label="${4}"
+
+    echo "  Computing mask Dice: ${label}"
+
+    if [[ ! -f "${mask_img}" || ! -f "${ref_img}" || ! -f "${mat}" ]]; then
+      write_missing "${label}" "${mask_img}" "${ref_img}"
+      return 0
+    fi
+
+    local mask_res="${tmp_dir}/${label}_mask_res"
+    local ref_bin="${tmp_dir}/${label}_ref_bin"
+    local ov="${tmp_dir}/${label}_overlap"
+
+    flirt \
+      -in "${mask_img}" \
+      -ref "${ref_img}" \
+      -init "${mat}" \
+      -applyxfm \
+      -interp nearestneighbour \
+      -out "${mask_res}"
+
+    fslmaths "${mask_res}" -bin "${mask_res}"
+    fslmaths "${ref_img}" -abs -bin "${ref_bin}"
+    fslmaths "${mask_res}" -mul "${ref_bin}" "${ov}"
+
+    local v1
+    local v2
+    local vo
+    local dice
+
+    v1=$(fslstats "${mask_res}" -V | awk '{print $1}')
+    v2=$(fslstats "${ref_bin}" -V | awk '{print $1}')
+    vo=$(fslstats "${ov}" -V | awk '{print $1}')
+
+    if [[ "${v1}" -gt 0 && "${v2}" -gt 0 ]]; then
+      dice=$(echo "scale=6; 2*${vo}/(${v1}+${v2})" | bc -l)
+    else
+      dice="NA"
+    fi
+
+    echo -e "${label}\t$(basename "${mask_img}")\t$(basename "${ref_img}")\t${dice}" \
+      >> "${out_tsv}"
+  }
+
+  #---------------------------------------------------------------------------
+  # Helper: coverage-normalized Dice
+  #
+  # IMPORTANT:
+  # Coverage must be estimated from original example_func.nii.gz,
+  # not from resampled example_func2highres/example_func2standard images.
+  function coverage_normalized_dice {
+
+    local slab_img="${1}"
+    local ref_img="${2}"
+    local dice_label="${3}"
+    local label_suffix="${4}"
+
+    echo "  Computing coverage-normalized Dice: ${label_suffix}"
+
+    if [[ ! -f "${slab_img}" || ! -f "${ref_img}" ]]; then
+      write_missing "coverage_${label_suffix}" "${slab_img}" "${ref_img}"
+      write_missing "coverage_normalized_${label_suffix}" "${slab_img}" "${ref_img}"
+      return 0
+    fi
+
+    local nz1
+    local dz1
+    local nz2
+    local dz2
+    local cov
+    local dice
+    local normdice
+
+    nz1=$(fslval "${slab_img}" dim3)
+    dz1=$(fslval "${slab_img}" pixdim3)
+    nz2=$(fslval "${ref_img}" dim3)
+    dz2=$(fslval "${ref_img}" pixdim3)
+
+    cov=$(echo "scale=6; (${nz1} * ${dz1}) / (${nz2} * ${dz2})" | bc -l)
+
+    if (( $(echo "${cov} > 1" | bc -l) )); then
+      cov="1.000000"
+    fi
+
+    dice=$(awk -F'\t' -v metric="${dice_label}" '$1 == metric {print $4}' "${out_tsv}" | tail -n 1)
+
+    if [[ -n "${dice}" && "${dice}" != "NA" && "${dice}" != "missing_input" && "${cov}" != "0" ]]; then
+      normdice=$(echo "scale=6; ${dice} / ${cov}" | bc -l)
+    else
+      normdice="NA"
+    fi
+
+    echo -e "coverage_${label_suffix}\t$(basename "${slab_img}")\t$(basename "${ref_img}")\t${cov}" \
+      >> "${out_tsv}"
+
+    echo -e "coverage_normalized_${label_suffix}\t$(basename "${slab_img}")\t$(basename "${ref_img}")\t${normdice}" \
+      >> "${out_tsv}"
+  }
+
+  #---------------------------------------------------------------------------
+  # FLIRT costs
+
+  flirt_cost \
+    "${reg_dir}/example_func.nii.gz" \
+    "${reg_dir}/highres.nii.gz" \
+    "${reg_dir}/example_func2highres.mat" \
+    "flirt_cost_example_func_to_highres"
+
+  flirt_cost \
+    "${reg_dir}/example_func.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "${reg_dir}/example_func2standard.mat" \
+    "flirt_cost_example_func_to_standard"
+
+  flirt_cost \
+    "${reg_dir}/highres.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "${reg_dir}/highres2standard.mat" \
+    "flirt_cost_highres_to_standard"
+
+  #---------------------------------------------------------------------------
+  # Dice overlaps
+
+  dice_overlap \
+    "${reg_dir}/example_func2highres.nii.gz" \
+    "${reg_dir}/highres.nii.gz" \
+    "dice_example_func2highres"
+
+  resampled_mask_dice \
+    "${feat_dir}/mask.nii.gz" \
+    "${reg_dir}/highres.nii.gz" \
+    "${reg_dir}/example_func2highres.mat" \
+    "dice_mask_to_highres"
+
+  coverage_normalized_dice \
+    "${reg_dir}/example_func.nii.gz" \
+    "${reg_dir}/highres.nii.gz" \
+    "dice_mask_to_highres" \
+    "dice_mask_to_highres"
+
+  dice_overlap \
+    "${reg_dir}/example_func2standard.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "dice_example_func2standard"
+
+  resampled_mask_dice \
+    "${feat_dir}/mask.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "${reg_dir}/example_func2standard.mat" \
+    "dice_mask_to_standard"
+
+  coverage_normalized_dice \
+    "${reg_dir}/example_func.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "dice_mask_to_standard" \
+    "dice_mask_to_standard"
+
+  dice_overlap \
+    "${reg_dir}/highres2standard.nii.gz" \
+    "${reg_dir}/standard.nii.gz" \
+    "dice_highres2standard"
+
+  #---------------------------------------------------------------------------
+  # Visual QC PNGs
+
+  find "${reg_dir}" \
+    -maxdepth 1 \
+    -type f \
+    -iname "*.png" \
+    ! -regex '.*[0-9]\.png$' \
+    | sort \
+    > "${out_png}"
+
+  #---------------------------------------------------------------------------
+  # terminal summary
+
+  echo
+  print_line -
+  echo "Registration QC summary"
+  echo "FEAT : ${feat_dir}"
+  print_line -
+
+  column -t -s $'\t' "${out_tsv}"
+
+  echo
+  print_line -
+  echo "Interpretation"
+  print_line -
+
+  cat <<EOF
+
+FLIRT COST
+  - Computed from existing matrices only; no new registration is performed.
+  - Lower values generally indicate better alignment.
+  - Use mainly to detect outliers across subjects/runs.
+  - Absolute thresholds are not reliable.
+
+DICE OVERLAP
+  - Range: 0 to 1.
+  - 1.0 = perfect overlap.
+  - Low values are expected for partial-FOV BOLD.
+  - Use mainly to detect gross failures.
+
+COVERAGE
+  - Estimated from original example_func.nii.gz slab thickness:
+      BOLD coverage / reference coverage
+    = (BOLD slices * BOLD slice thickness) /
+      (reference slices * reference slice thickness)
+  - This is a geometric approximation, not a true anatomical overlap.
+
+COVERAGE-NORMALIZED DICE
+  - Raw Dice divided by expected slab coverage.
+  - Around 1.0 means overlap is roughly as expected for the slab coverage.
+  - Below 1.0 may indicate less overlap than expected.
+  - Above 1.0 can happen because this is only a simple slice-coverage model.
+
+VISUAL QC
+  Always visually inspect:
+    - example_func2highres.png
+    - example_func2standard.png
+    - highres2standard.png
+
+  For partial-FOV BOLD, focus on:
+    - cortical boundary alignment
+    - midline alignment
+    - ventricle consistency if visible
+    - plausible slab position
+    - absence of obvious rotation/shearing
+
+EOF
+
+  echo "Visual QC PNGs"
+  while read png; do
+    echo "  $(basename "${png}")"
+  done < "${out_png}"
+
+  echo
+  echo "Outputs"
+  echo "  TSV : ${out_tsv}"
+  echo "  PNG : ${out_png}"
+
+  rm -r "${tmp_dir}"
+}
+
+#-----------------------------------------------------------------------------
+# find feat directories
+if [[ "${ft_dir}" == *.feat ]]; then
+  all_feats=("${ft_dir}")
+else
+  all_feats=(
+    $(
+      find "${ft_dir}" \
+        -type d \
+        -name "*.feat"
+    )
+  )
+fi
+
+#-----------------------------------------------------------------------------
+# run
+for ft in ${all_feats[@]}; do
+  run_regqc "${ft}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "run_regqc"
+    exit 1
+  fi
+done
+
+echo "Done"
