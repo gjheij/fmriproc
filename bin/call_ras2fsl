@@ -116,8 +116,7 @@ fi
 if [[ ${to_fsl} -eq 0 ]]; then
   cmd=(
     c3d_affine_tool
-    -itk 
-    "${AFF}"
+    -itk "${AFF}"
     -ref "${REF}"
     -src "${MOV}"
     -ras2fsl
