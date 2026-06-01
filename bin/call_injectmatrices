@@ -1,6 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-source "${BIN_DIR}/call_bashhelper"
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+call_loadsetup
+source call_bashhelper
+
 
 #-----------------------------------------------------------------------------
 # Create help text
@@ -19,6 +23,7 @@ Arguments:
   -l <level1 tag> tag for level1 analysis (e.g., 'level1' [default] or 'level1_confounds')
   -f <feat dir>   directory where your subject-specific feat-directories live (defaults to DIR-
                   DATA_HOME/derivatives/feat/<level1_tag>)
+  -t <file>       use this file as template. Defaults to <feat dir>/mean_func.nii.gz
 
 Options:
   -h|--help       print this help text
@@ -32,6 +37,18 @@ Example:
 
   # run script for all feat-folders in 'feat_dir/sub-01'
   call_injectmatrices -p feat_dir/sub-01
+
+Notes:
+  If you have functional data in T1w space but in BOLD voxel space, you first
+  need to create an ANTs transformation for the identity matrix, then convert
+  that to FSL:
+
+  1) call_createident ident.txt
+  2) call_ras2fsl highres.nii.gz example_func.nii.gz ident.txt example_func2highres.mat
+  3) updatefeatreg
+
+  If you specify the T1w to be the template for call_injectmatrices, you can use
+  the \$FSLDIR/etc/flirtsch/ident.mat for highres2standard.nii.gz
 
 ---------------------------------------------------------------------------------------------------
 
@@ -64,40 +81,100 @@ do
           ;;
     p)  project_dir="${OPTARG}"
           ;;
+    t)  template="${OPTARG}"
+          ;;          
   esac
 done
 
 #-----------------------------------------------------------------------------
 # define single-use functon
+check_and_make_mat() {
+  local ref="$1"
+  local mov="$2"
+  local outmat="$3"
+
+  local same_affine
+  same_affine=$(
+  python - "$ref" "$mov" <<'PY'
+import sys
+import nibabel as nb
+import numpy as np
+
+a = nb.load(sys.argv[1]).affine
+b = nb.load(sys.argv[2]).affine
+
+print(int(np.allclose(a, b, rtol=0, atol=1e-5)))
+PY
+    )
+
+    if [[ "$same_affine" == "1" ]]; then
+      echo -e "Affines of ${BOLD_GREEN}$(basename $ref)${RESET} and ${BOLD_GREEN}$(basename ${mov})${RESET} are the same; using ident.mat"
+      cp "${FSLDIR}/etc/flirtsch/ident.mat" "$outmat"
+    else
+      echo -e "Affines of ${BOLD_GREEN}$(basename $ref)${RESET} and ${BOLD_GREEN}$(basename ${mov})${RESET} are ${BOLD_RED}not${RESET} the same; using ANTs identity"
+      tmp_ident="${outmat%.mat}_ident.txt"
+      call_createident "$tmp_ident"
+      call_ras2fsl "$ref" "$mov" "$tmp_ident" "$outmat"
+
+      rm -f "$tmp_ident"
+    fi
+}
+
 function fix_reg_dir {
   local feat_dir="${1}"
+  local template_img="${template:-${feat_dir}/mean_func.nii.gz}"
+  local func_img="${feat_dir}/mean_func.nii.gz"
+  
   if [[ -d "${feat_dir}" ]]; then
 
-    echo "Processing ${feat_dir}"
+    echo -e "Processing ${BOLD_MAGENTA}${feat_dir}${RESET}"
 
-    # remove standard dir
-    rm -r "${feat_dir}/reg_standard" 2>/dev/null
-
-    # create reg dir
-    if [[ ! -d "${feat_dir}/reg" ]]; then
-      mkdir -p "${feat_dir}/reg"
+    if [[ ! -f "${template_img}" ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "template" "Template image \"${template_img}\" does not exist."
+      return 1
+    else
+      echo -e "Template image: ${BOLD_GREEN}${template_img}${RESET}"
     fi
 
-    # echo " Removing matrix files from reg directory"
-    rm -r "${feat_dir}/reg/"*".mat" 2>/dev/null
-    rm -r "${feat_dir}/reg/standard.nii.gz" 2>/dev/null
+    rm -r "${feat_dir}/reg_standard" 2>/dev/null
+    rm -r "${feat_dir}/reg" 2>/dev/null
 
-    # echo " Copying identity matrix to reg directory"
-    cp "${FSLDIR}/etc/flirtsch/ident.mat" "${feat_dir}/reg/example_func2standard.mat" 2>/dev/null
+    mkdir -p "${feat_dir}/reg"
 
-    # echo " Renaming mean_func to standard to prevent interpolation"
-    cp "${feat_dir}/mean_func.nii.gz" "${feat_dir}/reg/standard.nii.gz" 2>/dev/null
+    # define relevant images
+    highres="${feat_dir}/reg/highres.nii.gz"
+    example_func="${feat_dir}/reg/example_func.nii.gz"
+    standard="${feat_dir}/reg/standard.nii.gz"
+    
+    # copy
+    cp "${template_img}" "${standard}"
+    cp "${template_img}" "${highres}"
+    cp "${func_img}" "${example_func}"
 
-    # updatefeatreg
-    updatefeatreg "${feat_dir}"
+    # check affines to see if we can use pure ident.mat
+    check_and_make_mat \
+      "${highres}" \
+      "${example_func}" \
+      "${feat_dir}/reg/example_func2highres.mat"
+
+    check_and_make_mat \
+      "${standard}" \
+      "${highres}" \
+      "${feat_dir}/reg/highres2standard.mat"
+
+    check_and_make_mat \
+      "${standard}" \
+      "${example_func}" \
+      "${feat_dir}/reg/example_func2standard.mat"
+
+    cmd=(updatefeatreg "${feat_dir}")
+    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
     
   else
     echo "Feat directory does not exists"
+    return 1
   fi
 }
 
