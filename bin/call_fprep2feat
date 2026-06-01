@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import os
+import re
 import sys
 import pandas as pd
+from pathlib import Path
 from lazyfmri import utils
 
 opj = os.path.join
-
 def main(argv):
     """
 ---------------------------------------------------------------------------------------------------
@@ -14,13 +15,14 @@ call_fprep2feat
 
 Convert the confound regressor files from fMRIPrep into FEAT-compatible text files.
 
-This script takes the `desc-confounds_timeseries.tsv` output from fMRIPrep and extracts a subset 
-of the confound regressors based on the desired input type. The resulting files are saved in 
-tab-separated format and can be directly used in FSL's FEAT first-level analyses (e.g., via the 
+This script takes the `desc-confounds_timeseries.tsv` output from fMRIPrep and extracts a subset
+of the confound regressors based on the desired input type. The resulting files are saved in
+tab-separated format and can be directly used in FSL's FEAT first-level analyses (e.g., via the
 'custom confounds' feature).
 
-You can choose from a minimal motion-only model, anatomical CompCor components, a combination 
-of both, or the full set (excluding global signal, which is often discarded in recent analyses).
+You can choose from a minimal motion-only model, anatomical CompCor components, a combination
+of both, the ENIGMA HALFpipe default confound model, or the full set (excluding global signal,
+which is often discarded in recent analyses).
 
 Usage:
   call_fprep2feat <fprep_directory> <type>
@@ -28,26 +30,51 @@ Usage:
 Positional arguments:
   <fprep_dir>     Path to the subject/session-level output directory from fMRIPrep.
                   Should contain one or more `*_desc-confounds_timeseries.tsv` files.
+
   <type>          Type of confounds to extract. Must be one of the following:
-                    - motion         > includes translation & rotation parameters only
-                    - acomp          > includes anatomical CompCor components (CSF, WM)
-                    - motion+acomp   > includes both motion and CompCor
-                    - full           > includes all regressors except global signal
+
+                    - motion
+                        Includes translation and rotation parameters only:
+                        trans_[x|y|z], rot_[x|y|z]
+
+                    - acomp
+                        Includes anatomical CompCor regressors:
+                        white_matter, csf
+
+                    - motion+acomp
+                        Includes both motion parameters and anatomical CompCor regressors
+
+                    - enigma
+                        Includes the ENIGMA HALFpipe default nuisance regression model:
+                          * motion parameters
+                          * temporal derivatives of motion parameters
+                          * squared motion parameters
+                          * squared derivatives of motion parameters
+                          * top five aCompCor components (c_comp_cor_00-04)
+
+                    - full
+                        Includes all available confound regressors except global signal
 
 Outputs:
-  A set of .tsv files, one per BOLD run, with the requested subset of regressors.
-  Output files are named according to the original file, replacing 'timeseries.tsv' with the 
-  selected type (e.g., 'motion.tsv', 'acomp.tsv', etc.).
+  A set of .tsv files, one per BOLD run, containing the requested subset of regressors.
+
+  Output files are named according to the original file, replacing
+  'timeseries.tsv' with the selected type suffix
+  (e.g., 'motion.tsv', 'acomp.tsv', 'enigma.tsv', etc.).
 
 Examples:
   call_fprep2feat derivatives/fmriprep/sub-01/ses-1/func motion
   call_fprep2feat derivatives/fmriprep/sub-05/func motion+acomp
+  call_fprep2feat derivatives/fmriprep/sub-02/ses-1/func enigma
   call_fprep2feat derivatives/fmriprep/sub-02/ses-1/func full
 
 Notes:
   - This script assumes fMRIPrep v20.2 or later with standard BIDS-compatible outputs.
+  - The ENIGMA option follows the default nuisance regression strategy used in
+    HALFpipe/ENIGMA resting-state workflows.
   - Global signal is excluded from the "full" option.
-  - Columns with only zeros are automatically dropped from the output.
+  - Columns containing only zeros are automatically removed from the output.
+  - Output files are directly compatible with FEAT custom confound EVs.
 
 ---------------------------------------------------------------------------------------------------
     """
@@ -56,31 +83,62 @@ Notes:
         print(main.__doc__)
         sys.exit(0)
 
-    fprep_dir   = argv[0]
+    fprep_dir   = Path(argv[0])
     which_conf  = argv[1]
 
-    confounds = utils.get_file_from_substring("confounds_timeseries.tsv", fprep_dir)
+    confounds = sorted(
+        fprep_dir.rglob("*confounds_timeseries.tsv")
+    )
+
     if isinstance(confounds, str):
         confounds = [confounds]
     
-    # define settings
+    confound_options = {
+        "ICA-AROMA": r"ICA-AROMA",
+        "Motion parameters": r"(trans|rot)_[xyz]$",
+        "Derivatives of motion parameters": r"(trans|rot)_[xyz]_derivative1$",
+        "Motion parameters squared": r"(trans|rot)_[xyz]_power2$",
+        "Derivatives of motion parameters squared": r"(trans|rot)_[xyz]_derivative1_power2$",
+        "Motion scrubbing": r"motion_outlier[0-9]+$",
+        "aCompCor (top five components)": r"c_comp_cor_0[0-4]$",
+        "White matter signal": r"white_matter$",
+        "CSF signal": r"csf$",
+        "Global signal": r"global_signal$",
+    }
+
+    enigma_defaults = [
+        "Motion parameters",
+        "Derivatives of motion parameters",
+        "Motion parameters squared",
+        "Derivatives of motion parameters squared",
+        "aCompCor (top five components)",
+    ]
+
+    enigma_regex = re.compile(
+        "|".join(f"(?:{confound_options[k]})" for k in enigma_defaults)
+    )
+
     options = {
         "motion": {
-            "filter": lambda col: 'trans' in col or 'rot' in col,
-            "label": "motion"
+            "filter": lambda col: "trans" in col or "rot" in col,
+            "label": "motion",
         },
         "acomp": {
-            "filter": lambda col: 'white_matter' in col or 'csf' in col,
-            "label": "acomp"
+            "filter": lambda col: "white_matter" in col or "csf" in col,
+            "label": "acomp",
         },
         "motion+acomp": {
-            "filter": lambda col: any(k in col for k in ['trans', 'rot', 'white_matter', 'csf']),
-            "label": "motion+acomp"
+            "filter": lambda col: any(k in col for k in ["trans", "rot", "white_matter", "csf"]),
+            "label": "motion+acomp",
         },
         "full": {
             "filter": lambda col: "global_signal" not in col,
-            "label": "full"
-        }
+            "label": "full",
+        },
+        "enigma": {
+            "filter": lambda col: bool(enigma_regex.fullmatch(col)),
+            "label": "enigma",
+        },
     }
 
     if which_conf not in options:
@@ -90,24 +148,29 @@ Notes:
         )
 
     for conf in confounds:
-        confounds_file = pd.read_csv(conf, sep='\t')
+
+        confounds_file = pd.read_csv(conf, sep="\t")
 
         # Select desired confounds
         selected_cols = [
-            col for col in confounds_file.columns if options[which_conf]["filter"](col)
+            col
+            for col in confounds_file.columns
+            if options[which_conf]["filter"](col)
         ]
 
         # Drop all-zero columns
         conf_df = confounds_file[selected_cols]
         conf_df = conf_df.loc[:, (conf_df != 0).any(axis=0)]
 
-        output = utils.replace_string(
-            conf,
-            "timeseries.tsv",
-            f"{options[which_conf]['label']}.tsv"
+        output = conf.with_name(
+            conf.name.replace(
+                "timeseries.tsv",
+                f"{options[which_conf]['label']}.tsv"
+            )
         )
 
-        conf_df.to_csv(output, sep='\t', index=False)
+        conf_df.to_csv(output, sep="\t", index=False)
+
         print(f"Wrote: {output}")
 
 if __name__ == "__main__":
