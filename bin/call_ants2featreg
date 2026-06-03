@@ -7,6 +7,24 @@ source call_bashhelper
 
 set -euo pipefail
 
+apply_one () {
+  local interp="$1"
+  local input="$2"
+  local output="$3"
+  local xfm="$4"
+
+  cmd=(
+    call_antsapplytransforms
+    "$interp"
+    "$template"
+    "$input"
+    "$output"
+    "$xfm"
+  )
+
+  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+}
+
 #-----------------------------------------------------------------------------
 # Create help text
 usage() {
@@ -46,6 +64,7 @@ Optional (flags with defaults):
                                    \$FSLDIR/data/standard/MNI152_T1_1mm_brain.nii.gz
   --feat-dir <dir>               FEAT directory that should receive the reg folder
   --update-featreg               Run updatefeatreg after copying/creating the reg folder
+  --apply-reg                    Run featregapply after updatefeatreg
   --clean                        Remove temporary files after successful completion
 
 Options:
@@ -124,6 +143,7 @@ bold_to_t1w=""
 template="${FSLDIR:-}/data/standard/MNI152_T1_1mm_brain.nii.gz"
 feat_dir=""
 update_featreg=false
+apply_featreg=false
 clean=false
 t1w_to_mni_h5=""
 tmp_transform_base=""
@@ -150,6 +170,10 @@ while [[ $# -gt 0 ]]; do
       feat_dir="$2"; shift 2 ;;
     --update-featreg)
       update_featreg=true; shift ;;
+    --apply-featreg)
+      update_featreg=true; 
+      apply_featreg=true; 
+      shift ;;      
     --clean)
       clean=true; shift ;;
     -h|--help)
@@ -207,6 +231,11 @@ need_cmd wb_command
 need_cmd convertwarp
 need_cmd applywarp
 need_cmd ConvertTransformFile
+
+if [[ "$apply_featreg" == true ]]; then
+  need_cmd featregapply
+  [[ -n "$feat_dir" ]] || die "--feat-dir is required when using --apply"
+fi
 
 if [[ "$update_featreg" == true ]]; then
   need_cmd updatefeatreg
@@ -374,6 +403,48 @@ if [[ -n "$feat_dir" ]]; then
     echo "Running updatefeatreg"
     cmd=(updatefeatreg "$feat_dir")
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  fi
+
+  if [[ "$apply_featreg" == true ]]; then
+    echo "Creating reg_standard-folder"
+
+    mkdir -p "$feat_dir/reg_standard/stats" "$feat_dir/reg_standard/reg"
+
+    xfm_func2std="$t1w_to_mni_h5,$bold_to_t1w"
+
+    # func-space images to standard
+    for img in mean_func example_func; do
+      apply_one --lin \
+        "$feat_dir/${img}.nii.gz" \
+        "$feat_dir/reg_standard/${img}.nii.gz" \
+        "$xfm_func2std"
+    done
+
+    # brain mask: nearest-neighbour / generic
+    apply_one --gen \
+      "$feat_dir/mask.nii.gz" \
+      "$feat_dir/reg_standard/mask.nii.gz" \
+      "$xfm_func2std"
+
+    # highres to standard: T1w -> MNI only
+    apply_one --lin \
+      "$feat_dir/reg/highres.nii.gz" \
+      "$feat_dir/reg_standard/reg/highres.nii.gz" \
+      "$t1w_to_mni_h5"
+
+    # stats images
+    for stat in cope varcope zstat; do
+      for z in "$feat_dir/stats/${stat}"*.nii.gz; do
+        [[ -e "$z" ]] || continue
+
+        base=$(basename "$z" .nii.gz)
+
+        apply_one --lin \
+          "$z" \
+          "$feat_dir/reg_standard/stats/${base}.nii.gz" \
+          "$xfm_func2std"
+      done
+    done    
   fi
 fi
 
