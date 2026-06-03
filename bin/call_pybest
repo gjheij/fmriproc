@@ -5,6 +5,15 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+# extract affine
+get_affine_sig() {
+  fslhd "$1" | awk '
+    /^dim[123][[:space:]]/ {print}
+    /^pixdim[123][[:space:]]/ {print}
+    /^sto_xyz:[1234][[:space:]]/ {print}
+  '
+}
+
 #-----------------------------------------------------------------------------
 # Create help text
 function Usage {
@@ -13,13 +22,12 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 call_pybest
 
-wrapper for pybest that takes the output from fMRIprep and denoises the data. The output of this
-script is a set up numpy arrays that can be loaded in by prf_fitting.ipynb. It is important to
-have pybest in a conda environment, as it uses the newest version of Nilearn which has not been
-released yet (https://github.com/nilearn/nilearn). By default, call_pybest will look for an envi-
-ronment called fmriprep_denoising, but you can specify your own environment as long as it has py-
-best in it. Check for instruction this page https://github.com/lukassnoek/pybest. As far as I've 
-tested, it only works with surface files. Volumetric data outputs pepper corn noise pattern.
+wrapper for pybest that takes the output from fMRIPrep and denoises the data. The output of this
+script is a set of NIfTI/numpy outputs that can be used for downstream analyses. For volumetric
+native functional-space data, this wrapper checks whether multiple runs have matching image grids/
+affines. If run affines differ, the workflow is split into run-specific temporary datasets so that
+pybest does not combine incompatible native-space runs. During masking, run-specific fMRIPrep brain
+masks are used to avoid affine mismatches across runs.
 
 Usage:
   call_pybest [mandatory] [optional] [options]
@@ -35,9 +43,11 @@ Optional:
   -o <output dir> path to output directory. By default it will create a subject-specific folder,
                   but you can set where that subject folder is going to go. By default this
                   script will output to DIR_DATA_DERIV/pybest
-  -r <space>      the space to process. fMRIprep outputs several kinds of standard spaces such
-                  as the MNI152NLin2009cAsym, or FSL-templates, but also fsnative. The latter
-                  is the default, because we want to project the results in pycortex.
+  -r <space>      the space to process. fMRIPrep outputs several kinds of standard spaces such
+                  as MNI152NLin2009cAsym and fsnative, as well as native functional space
+                  ("func"). The default is fsnative, because we want to project the results in
+                  pycortex. When using "func", multiple runs are only processed together if their
+                  image grids/affines match; otherwise they are processed separately per run.
   -f <fprep dir>  path to fmriprep derivatives directory. Will look by default in the DIR_DATA_
                   DERIV/fmriprep
   -c <n_slots>    number of slots to use when we're on a cluster
@@ -74,7 +84,7 @@ Optional:
 
 Options:
   -h|--help       print this help text
-  --raw           undo the z-scoring done by pybest (call_unzscore)
+  --no-raw        keep z-scored output from pybest (call_unzscore)
   --fsaverage     utilize FSAverage space
   --fsnative      utilize FSNative space
   --post-only     only run un-zscoring AFTER pybest
@@ -198,11 +208,13 @@ fi
 #-----------------------------------------------------------------------------
 # check session input
 base_dir="sub-${sub}/"
+search_ses=()
 if [[ ! -z ${ses} ]]; then
   if [[ ${ses} != "all" ]]; then
     ses_input="--session ${ses}"
     ses_raw="--ses ${ses}"
     base_dir+="ses-${ses}"
+    search_ses=(-and -name "*ses-${ses}*")
   fi
 fi
 
@@ -372,6 +384,8 @@ for task_id in ${task_ids[@]}; do
     # save standard deviation and mean in tmp/ folder (pkl files)
     if [[ ${execute_pre} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
+        echo
+        print_line -
         echo "Saving average/standard deviation"
         
         # copy base command and add --pre
@@ -394,22 +408,133 @@ for task_id in ${task_ids[@]}; do
 
     #-----------------------------------------------------------------------------
     # run pybest
+    out_dir="${output_dir}/${base_dir}"
+
     if [[ ${execute_pyb} -eq 1 ]]; then
 
-      # Clone command args to avoid mutating the original
-      this_cmd=(
-        "${cmd_args[@]}"
-        --task "${task_id}"
-        "${input_dir}"
-      )
+      # if BOLD files are in native space, their masks may have different affines.
+      # so, we need to:
+      # - identify the run IDs
+      # - make run-specific 'fMRIprep'-like directories
+      # - use that as input for Pybest
+      # 
+      # If there's only 1 run, it doesn't matter
+      if [[ "${in_space}" == "func" ]]; then
+        bold_files=($(
+          find "$input_dir" -type f \
+            -name "sub-${sub}*" \
+            "${search_ses[@]}" \
+            -and -name "*task-${task}*" \
+            -and -name "*desc-preproc_bold.nii.gz" \
+            -and -not -name "*space-*"
+        ))
 
-      # run
-      print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "pybest"
-        exit 1
+        # extract run IDs
+        run_ids=()
+        for b in "${bold_files[@]}"; do
+          id=$(get_id "${b}" run)
+          run_ids+=("${id}")
+        done
+
+        split_runs=0
+        if [[ "${#bold_files[@]}" -gt 1 ]]; then
+          ref_sig=$(get_affine_sig "${bold_files[0]}")
+
+          for b in "${bold_files[@]:1}"; do
+            this_sig=$(get_affine_sig "$b")
+
+            if [[ "$this_sig" != "$ref_sig" ]]; then
+              split_runs=1
+              echo -e "${BOLD_RED}WARNING${RESET}: Different affines/grids detected; splitting workflow into separate runs"
+              break
+            fi
+          done
+        fi
+
+        if [[ "${split_runs}" -eq 1 ]]; then
+          
+          for bold_file in "${bold_files[@]}"; do
+            echo
+            print_line -
+                      
+            id=$(get_id "${bold_file}" run)
+            tmp_input="${out_dir}/tmp_run${id}"
+            tmp_path="${tmp_input}/${base_dir}/func"
+
+            mkdir -p "${tmp_path}" 2>/dev/null
+            echo -e "Creating fake dataset: ${BOLD_GREEN}${tmp_path}${RESET}"
+
+            # define other necessary inputs
+            conf_file="${bold_file/preproc_bold.nii.gz/confounds_timeseries.tsv}"
+            mask_file="${bold_file/preproc_bold.nii.gz/brain_mask.nii.gz}"
+
+            # symlink them
+            for f in "${bold_file}" "${conf_file}" "${mask_file}"; do
+              ln -sf "$f" "$tmp_path/"
+              if [[ $? -ne 0 ]]; then
+                echo
+                print_line -
+                print_error_msg "$(basename ${0})" "symlink"
+                exit 1
+              fi                    
+            done
+
+            # Clone command args to avoid mutating the original
+            this_cmd=(
+              "${cmd_args[@]}"
+              --task "${task_id}"
+              "${tmp_input}"
+            )
+
+            # run
+            print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
+            if [[ $? -ne 0 ]]; then
+              echo
+              print_line -
+              print_error_msg "$(basename ${0})" "pybest"
+              exit 1
+            fi
+
+            # clean directory
+            rm -rf "${tmp_input}" 2>/dev/null
+          done
+        else
+          echo
+          print_line -        
+          echo "Single run detected; proceed with Pybest as usual"
+
+          # Clone command args to avoid mutating the original
+          this_cmd=(
+            "${cmd_args[@]}"
+            --task "${task_id}"
+            "${input_dir}"
+          )
+
+          # run
+          print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "pybest"
+            exit 1
+          fi
+        fi
+      else
+        # Clone command args to avoid mutating the original
+        this_cmd=(
+          "${cmd_args[@]}"
+          --task "${task_id}"
+          "${input_dir}"
+        )
+
+        # run
+        print_cmd "${this_cmd[@]}" && eval "${this_cmd[@]}"
+        if [[ $? -ne 0 ]]; then
+          echo
+          print_line -
+          print_error_msg "$(basename ${0})" "pybest"
+          exit 1
+        fi
       fi
     fi
 
@@ -417,6 +542,8 @@ for task_id in ${task_ids[@]}; do
     # undo z-scoring
     if [[ ${execute_post} -eq 1 ]]; then
       if [ ${raw} -eq 1 ]; then
+        echo
+        print_line -      
         echo "Un-zcoring output from pybest"
 
         # copy base command and add --pre
@@ -435,141 +562,126 @@ for task_id in ${task_ids[@]}; do
           exit 1
         fi 
       fi
-      echo "Done"    
     fi       
 
     #-----------------------------------------------------------------------------
     # MASKING
 
-    # find masks
-    out_dir="${output_dir}/${base_dir}"
-
-    if [[ ${in_space} == "func" ]]; then
-      mask=(
-        $(
-          find -L ${out_dir}/preproc \
-          -type f \
-          -name "*task-${task_id}*" \
-          -and -name "*desc-preproc_mask.nii.gz" \
-          -and -not -name "*space-*" \
-          2>/dev/null
-        )
-      )
+    # dir is different depending on unzcoring or not.
+    if [[ ${raw} -eq 1 ]]; then
+      ddir="unzscored"
+      suff="${ddir}"
     else
-      mask=(
-        $(
-          find -L ${out_dir}/preproc \
-          -type f \
-          -name "*task-${task_id}*" \
-          -and -name "*space-${in_space}*" \
-          -and -name "*desc-preproc_mask.nii.gz" \
-          2>/dev/null
-        )
-      )
+      ddir="denoising"
+      suff="denoised"
     fi
 
-    #-----------------------------------------------------------------------------
-    # loop through masks
-    n_masks=${#mask[@]}
-    if [[ ${n_masks} -gt 0 ]]; then
-      if [[ ${n_masks} -gt 1 ]]; then
-        echo "Found multiple masks in \"${output_dir}\""
-        for i in ${mask[@]}; do
-          echo " $i"
-        done
-      else
-        # dir is different depending on unzcoring or not.
-        if [[ ${raw} -eq 1 ]]; then
-          ddir="unzscored"
-          suff="${ddir}"
-        else
-          ddir="denoising"
-          suff="denoised"
+    # Construct the optional space filter
+    space_filter=()
+    if [[ "${in_space}" != "func" ]]; then
+      space_filter=(-name "*space-${in_space}*")
+    fi
+
+    # Find matching denoised BOLD files
+    bold_files=(
+      $(
+        find -L "${out_dir}/${ddir}" \
+          -type f \
+          -name "*task-${task_id}*" \
+          "${space_filter[@]}" \
+          -name "*desc-${suff}_bold.nii.gz" | \
+          sort \
+          2>/dev/null
+      )
+    )
+
+    # apply masks
+    if [[ ${#bold_files[@]} -gt 0 ]]; then
+      echo
+      print_line -    
+      echo "Applying masks to ${#bold_files[@]} nifti-files"
+      for bold in ${bold_files[@]}; do
+
+        # extract relevant tags
+        sub_id=$(get_id "${bold}" sub)
+        ses_id=$(get_id "${bold}" ses)
+        run_id=$(get_id "${bold}" run)
+
+        # set func dir based on ses-ID or not
+        func_dir="${input_dir}/sub-${sub_id}"
+        [[ -n "${ses_id}" ]] && func_dir="${func_dir}/ses-${ses_id}"
+        func_dir="${func_dir}/func"
+
+        # find corresponding mask in fmriprep folder
+        this_mask=($(
+          find -L "${func_dir}" \
+            -type f \
+            -name "*task-${task_id}*" \
+            -name "*run-${run_id}*" \
+            -name "*desc-brain_mask.nii.gz" \
+            2>/dev/null | sort
+        ))
+
+        # double check existence
+        if [[ ${#this_mask[@]} -ne 1 ]]; then
+          echo -e "${BOLD_RED}WARNING${RESET}: Expected 1 mask for task=${task_id}, run=${run_id} in ${func_dir}; found ${#this_mask[@]}"
+          continue
         fi
 
-        # Construct the optional space filter
-        space_filter=()
-        if [[ "${in_space}" != "func" ]]; then
-          space_filter=(-name "*space-${in_space}*")
-        fi
+        # more stable than before in case 'ses' is omitted
+        bold_dir=$(dirname "$bold")
+        bold_base=$(basename "$bold")
+        parent_dir=$(dirname "$bold_dir")
 
-        # Find matching denoised BOLD files
-        bold_files=(
-          $(
-            find -L "${out_dir}/${ddir}" \
-              -type f \
-              -name "*task-${task_id}*" \
-              "${space_filter[@]}" \
-              -name "*desc-${suff}_bold.nii.gz" | \
-              sort \
-              2>/dev/null
-          )
+        # give unique 'desc' to make accessible with BIDSLayout
+        masked_bold="${parent_dir}/masked/${bold_base/${suff}/pybest}"
+        mkdir -p "$(dirname ${masked_bold})" 2>/dev/null
+
+        # define and run cmd
+        echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
+        cmd=(
+          fslmaths 
+          "${bold}"
+          -mas "${this_mask[0]}"
+          "${masked_bold}"
         )
 
-        # apply masks
-        echo "Applying \"${mask}\" to ${#bold_files[@]} nifti-files"
-        if [[ ${#bold_files[@]} -gt 0 ]]; then
-
-          for bold in ${bold_files[@]}; do
-
-            # more stable than before in case 'ses' is omitted
-            bold_dir=$(dirname "$bold")
-            bold_base=$(basename "$bold")
-            parent_dir=$(dirname "$bold_dir")
-
-            # give unique 'desc' to make accessible with BIDSLayout
-            masked_bold="${parent_dir}/masked/${bold_base/${suff}/pybest}"
-            mkdir -p "$(dirname ${masked_bold})" 2>/dev/null
-
-            # define and run cmd
-            echo -e " Writing ${BOLD_GREEN}${masked_bold}${RESET}"
-            cmd=(
-              fslmaths 
-              "${bold}"
-              -mas "${mask}"
-              "${masked_bold}"
-            )
-
-            # check if execution was ok
-            eval "${cmd[@]}"
-            if [[ $? -ne 0 ]]; then
-              echo
-              print_line -
-              print_error_msg "$(basename ${0})" "fslmaths"
-              exit 1
-            fi  
-
-            # copy json file
-            src_json=${bold/.nii.gz/.json}
-            trg_json=${masked_bold/.nii.gz/.json}
-            cp "${src_json}" "${trg_json}" 2>/dev/null
-            if [[ -f "${trg_json}" ]]; then
-              json_cmd=(
-                call_json
-                "${trg_json}"
-                "SkullStripped"
-                True
-              )
-
-              eval "${json_cmd[@]}"
-              if [[ $? -ne 0 ]]; then
-                echo
-                print_line -
-                print_error_msg "$(basename ${0})" "${json_cmd[0]}"
-                exit 1
-              fi
-            fi
-          done
-          echo "Done"
-        else
+        # check if execution was ok
+        eval "${cmd[@]}"
+        if [[ $? -ne 0 ]]; then
           echo
           print_line -
-          print_error_msg "$(basename ${0})" "find" "could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\""
+          print_error_msg "$(basename ${0})" "fslmaths"
           exit 1
+        fi  
+
+        # copy json file
+        src_json=${bold/.nii.gz/.json}
+        trg_json=${masked_bold/.nii.gz/.json}
+        cp "${src_json}" "${trg_json}" 2>/dev/null
+        if [[ -f "${trg_json}" ]]; then
+          json_cmd=(
+            call_json
+            "${trg_json}"
+            "SkullStripped"
+            True
+          )
+
+          eval "${json_cmd[@]}"
+          if [[ $? -ne 0 ]]; then
+            echo
+            print_line -
+            print_error_msg "$(basename ${0})" "${json_cmd[0]}"
+            exit 1
+          fi
         fi
-      fi
+      done
+      echo "Done"
     else
-      print_file_not_in_dir "${sub_name}" "*desc-preproc_mask.nii.gz" "${out_dir}/preproc"
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "find" "could not find files with \"*${ddir}/*\" and \"*desc-denoised_bold.nii.gz\" in \"${out_dir}\""
+      exit 1
     fi
   fi
 done

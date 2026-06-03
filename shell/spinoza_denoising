@@ -327,25 +327,24 @@ for subID in ${search}; do
 
         # also check if there's files in the directories
         searchdir="${DENOISE}/${base_path}/denoising"
-        if [[ ${PYBEST_SPACE} == "func" ]]; then
-          func_files=$(
-            find "${searchdir}" \
-            -type f \
-            -name "*_desc-denoised_bold.nii.gz" \
-            -and -not -name "*space-*" \
-            2>/dev/null
-          )
-        else
-          func_files=$(
-            find "${searchdir}" \
-            -type f \
-            -name "*space-${PYBEST_SPACE}*" \
-            -and -name "*_desc-denoised_bold.nii.gz" \
-            2>/dev/null
-          )
-        fi
 
-        # don't execute if there's no func files
+        case "${PYBEST_SPACE}" in
+          fsnative|fsaverage*)
+            ext="npy"
+            ;;
+          *)
+            ext="nii.gz"
+            ;;
+        esac
+
+        find_args=(
+          "$searchdir"
+          -type f
+          -name "*_desc-denoised_bold.${ext}"
+        )
+
+        func_files=$(find "${find_args[@]}" 2>/dev/null)
+
         if [[ -z "${func_files}" ]]; then
           execute_cmd=0
         fi
