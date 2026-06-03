@@ -56,7 +56,9 @@ Optional:
                   If omitted, all sub-* folders in <source> are processed.
 Options:
   -h|--help       print this help text
-  --searchlight   run whole-brain searchlight decoding instead of ROI decoding
+  --searchlight   run whole-brain searchlight decoding instead of ROI decoding.
+                  Masks are expected to be in <project dir>/derivatives/rois/<subject>/searchlight. This can be a specific ROI over
+                  multiple brain regions or a brain mask.
   --lsa           use least-squares-all beta estimates (default)
   --lss           use least-squares-separate beta estimates
   --dry-run       build command but don't actually execute
@@ -296,6 +298,10 @@ for subject in ${subjects}; do
   )
 
   # Default PANIC configuration overrides applied to every subject
+  if [[ "${searchlight}" -eq 1 ]]; then
+    roi_dir="${roi_dir}/searchlight"
+  fi
+
   set_keys=(
     general_settings.project_dir="${proj_dir}"
     general_settings.save_dir="${save_dir}"
