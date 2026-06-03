@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+source "${SETUP_FILE}"
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_panic
+
+wrapper for PANIC (Pattern Analysis of Neural Imaging in Conditioning).
+
+PANIC performs multivariate decoding on single-trial beta estimates generated with
+HALFpipe-compatible LSA/LSS workflows. Typical use cases include:
+
+  1. Classification of CS+ vs CS- trials
+  2. ROI-based decoding
+  3. Searchlight decoding
+  4. Tracking temporal evolution of CS+ responses across trials/runs
+
+This wrapper submits subject-wise PANIC jobs and automatically configures project,
+ROI, and derivative-source settings.
+
+Usage:
+  call_panic [mandatory] [optional] [options]
+
+Mandatory:
+  -p <project dir> path to project directory
+
+Optional:
+  -c <n_cpus>     number of CPUs/jobs to use. Default = 4
+  -s <source>     derivative source directory. Default = halfpipe
+  -q <queue>      SLURM queue/partition. Default = main
+  -x <kwargs>     Additional PANIC configuration overrides. Multiple values
+                  should be comma-separated and follow the same syntax as
+                  'panic run --set':
+
+                    -x "key1=value1,key2=value2"
+
+                  Examples:
+
+                    -x "decoding_settings.n_permutations=1000"
+                    -x "estimator.name=LogisticRegression"
+                    -x "decoding_settings.searchlight.radius_mm=12,gridsearch.args.scoring=roc_auc"
+
+                  User-specified overrides are appended after the defaults
+                  configured by this wrapper and therefore take precedence.
+  -f <config>     PANIC configuration file. Default:
+                  <project dir>/config.yml
+  -u|--subject    <subject> subject ID to process, e.g. sub-001 or 001.
+                  If omitted, all sub-* folders in <source> are processed.
+Options:
+  -h|--help       print this help text
+  --searchlight   run whole-brain searchlight decoding instead of ROI decoding
+  --lsa           use least-squares-all beta estimates (default)
+  --lss           use least-squares-separate beta estimates
+  --dry-run       build command but don't actually execute
+  --local         do not submit to cluster; run locally instead. Generally discouraged
+
+Expected inputs:
+  <project dir>/derivatives/<source>/sub-*
+      Single-trial beta estimates (e.g., HALFpipe LSA/LSS outputs)
+
+  <project dir>/derivatives/rois/sub-*
+      Subject-specific ROI definitions
+
+Outputs:
+  <project dir>/derivatives/decoding
+      PANIC decoding results, permutation statistics, and searchlight outputs
+
+  <project dir>/logs
+      Cluster and execution logs
+
+Notes:
+  - PANIC uses permutation-based inference to estimate significance.
+  - Default decoding pipelines use scikit-learn estimators and grouped
+    cross-validation to avoid run-wise leakage.
+  - Searchlight analyses are substantially slower than ROI decoding.
+  - Increasing CPU count may increase memory requirements.
+  - This wrapper automatically sets the following PANIC configuration values:
+
+      general_settings.project_dir=<project dir>
+      general_settings.save_dir=<project dir>/derivatives/decoding
+      general_settings.n_jobs=<n_cpus>
+      general_settings.source=<source>
+      general_settings.method=<LSA|LSS>
+      roi_dict=<project dir>/derivatives/rois/<subject>
+
+    These values can be overridden using -x if desired.
+
+Examples:
+  # vanilla call with defaults
+  call_panic -p /project
+
+  # run with LSS estimation
+  call_panic -p /project --lss
+
+  # run searchlight with defaults
+  call_panic -p /project --searchlight
+
+  # run searchlight with LSS estimation
+  call_panic -p /project --searchlight --lss
+
+  # define custom queue and cores/cpus
+  call_panic -p /project --queue short -c 8
+
+  # custom config file
+  call_panic -p /project -f /project/config_searchlight.yml
+
+  # examples to change PANIC's config file
+  call_panic -p /project -x "decoding_settings.n_permutations=1000"
+
+  call_panic -p /project -x "estimator.name=LogisticRegression,estimator.args.C=10"
+
+  call_panic -p /project --searchlight -x "decoding_settings.searchlight.radius_mm=12"
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+#-----------------------------------------------------------------------------
+# Set defaults
+n_cpus=4
+source="halfpipe"
+searchlight=0
+method="LSA"
+queue="main"
+run_local=0
+dry_run=0
+config_file=""
+subject=""
+extra_sets=()
+
+#-----------------------------------------------------------------------------
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p)
+      proj_dir="$2"
+      shift 2
+      ;;
+    -c)
+      n_cpus="$2"
+      shift 2
+      ;;
+    -s)
+      source="$2"
+      shift 2
+      ;;
+    -q|--queue)
+      queue="$2"
+      shift 2
+      ;;
+    -f)
+      config_file="$2"
+      shift 2
+      ;;      
+    --searchlight)
+      searchlight=1
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    -u|--subject)
+      subject="$2"
+      shift 2
+      ;;      
+    --local)
+      run_local=1
+      shift
+      ;;      
+    --lsa)
+      method="LSA"
+      shift
+      ;;
+    --lss)
+      method="LSS"
+      shift
+      ;;
+    -h|--help)
+      Usage
+      exit 0
+      ;;
+    -x)
+      # Additional PANIC config overrides:
+      # -x "decoding_settings.n_permutations=1000,estimator.args.C=10"    
+      IFS=',' read -ra extra_sets <<< "$2"
+      shift 2
+      ;;      
+    *)
+      echo "ERROR: unknown option: $1" >&2
+      Usage
+      exit 1
+      ;;
+  esac
+done
+
+#-----------------------------------------------------------------------------
+# Check mandatory arguments
+if [[ -z "${proj_dir:-}" ]]; then
+  echo "ERROR: project directory must be specified with -p" >&2
+  Usage
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Set directories
+proj_dir="$(realpath "${proj_dir}")"
+
+# Default PANIC configuration
+if [[ -z "${config_file}" ]]; then
+  config_file="${proj_dir}/config.yml"
+fi
+
+if [[ ! -f "${config_file}" ]]; then
+  echo "ERROR: config file not found: ${config_file}" >&2
+  exit 1
+fi
+
+work_dir="${proj_dir}/logs"
+save_dir="${proj_dir}/derivatives/decoding"
+roi_root="${proj_dir}/derivatives/roisSS"
+source_root="${proj_dir}/derivatives/${source}"
+
+mkdir -p "${work_dir}" "${save_dir}"
+
+#-----------------------------------------------------------------------------
+# Check inputs
+if [[ ! -d "${source_root}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input"
+  print_directory_not_exist "Project" "${source_root}"
+  exit 1
+fi
+
+if [[ ! -d "${roi_root}" ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename ${0})" "input"
+  print_directory_not_exist "ROI" "${roi_root}"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Select subjects
+if [[ -n "${subject}" ]]; then
+  subject="${subject#sub-}"
+  subjects="sub-${subject}"
+else
+  subjects=$(
+    find "${source_root}" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) |
+      xargs -n1 basename |
+      grep '^sub-' |
+      sort
+  )
+fi
+
+#-----------------------------------------------------------------------------
+# Run panic
+for subject in ${subjects}; do
+
+  # Skip subjects without corresponding ROI definitions
+  roi_dir="${roi_root}/${subject}"
+
+  if [[ ! -e "${roi_dir}" ]]; then
+    echo -e "${BOLD_RED}WARNING${RESET}: skipping ${subject}; ROI dir not found: ${roi_dir}" >&2
+    continue
+  fi
+
+  # Determine whether to run locally or submit through the cluster helper
+  job=$(
+    decide_job_type \
+      "panic" \
+      "${subject}_source-${source}_model-${method}_desc-decoding" \
+      "${run_local}" \
+      "${work_dir}" \
+      "${n_cpus}" \
+      "${queue}"
+  )
+
+  # Default PANIC configuration overrides applied to every subject
+  set_keys=(
+    general_settings.project_dir="${proj_dir}"
+    general_settings.save_dir="${save_dir}"
+    general_settings.n_jobs="${n_cpus}"
+    general_settings.source="${source}"
+    general_settings.method="${method}"
+    roi_dict="${roi_dir}"
+  )
+
+  # Append user-specified config overrides (-x key=value,key=value)
+  set_keys+=("${extra_sets[@]}")
+
+  # Build panic command
+  cmd_args=(
+    ${job}
+    -c "${config_file}"
+    run
+    --subject "${subject}"
+    --set
+    "${set_keys[@]}"
+  )
+
+  # Enable searchlight decoding instead of ROI-based decoding
+  if [[ "${searchlight}" -eq 1 ]]; then
+    cmd_args+=(--searchlight)
+  fi
+
+  # Dry-run mode: print command but do not execute
+  if [[ "${dry_run}" -eq 1 ]]; then
+    print_cmd "${cmd_args[@]}"
+  else
+    "${cmd_args[@]}"
+  fi
+
+done
