@@ -183,6 +183,7 @@ cmd=(
   -c "${n_cpus}"
   -s "${source}"
   -q "${SGE_QUEUE}"
+  --local
 EOF
 
 for arg in "${panic_args[@]}"; do
