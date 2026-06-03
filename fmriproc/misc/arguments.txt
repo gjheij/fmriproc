@@ -288,12 +288,6 @@ Options:
 
 --fd              only get FD-timecourse file.
 
---fetch-anat      retrieve the nifti-files in T1w-space.
-
---fetch-fsl       retrieve the MNI-transformed nifti-files.
-
---fetch-func      retrieve the nifti-files in func-space.
-
 --fix-hrf         fit the HRF in iterative fitting.
 
 --f(mri)prep      use fMRIPrep output for pRF-fitting.
@@ -447,8 +441,6 @@ Options:
 --v2              only fit voxels in V2.
 
 --verbose         enable verbose logging.
-
---warp-only       skip full processing but create boldref images.
 
 --xopts-clean     delete existing expert options file.
 

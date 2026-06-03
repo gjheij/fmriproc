@@ -85,15 +85,9 @@ TSNR_FLAG=""              # spinoza_nordic
 mag_flag=""               # spinoza_nordic
 RUNS=""                   # spinoza_nordic
 use_bbr=""                # spinoza_fmriprep
-WARP_ONLY=""              # spinoza_fmriprep
 REMOVE_WF=""              # spinoza_fmriprep
 kwargs_file=""            # spinoza_fmriprep
-boldref_flag=""           # spinoza_fmriprep
 clean_flag=""             # spinoza_fmriprep
-fetch_fsl_flag=""         # spinoza_fmriprep
-fetch_func_flag=""        # spinoza_fmriprep
-mask_flag=""              # spinoza_fmriprep
-fetch_anat_flag=""        # spinoza_fmriprep
 DOCKER_FLAG=""            # spinoza_fmriprep
 WORK_FLAG=""              # spinoza_fmriprep
 CRASH_FLAG=""             # spinoza_fmriprep
@@ -227,18 +221,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         docker)
           DOCKER_FLAG="--docker"
           ;;
-        fd)
-          fd_flag="--fd"
-          ;;
-        fetch-anat)
-          fetch_anat_flag="--fetch-anat"
-          ;;
-        fetch-fsl)
-          fetch_fsl_flag="--fetch-fsl"
-          ;;
-        fetch-func)
-          fetch_func_flag="--fetch-func"
-          ;;
         fix-hrf)
           FIX_FLAG="--fix-hrf"
           ;;
@@ -263,7 +245,10 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
           ;;
         fast)
           FAST_LBLS=${DIR_DATA_DERIV}/fast
-          ;; 
+          ;;
+        fd)
+          fd_flag="--fd"
+          ;;          
         fs)
           FS_FLAG="--fs"
           ;;
@@ -373,9 +358,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
           ;;          
         no-bounds)
           bounds_flag="--no-bounds"
-          ;;
-        no-boldref)
-          boldref_flag="--no-boldref"
           ;;
         no-clip)
           CLIP="--no-clip"
@@ -547,9 +529,6 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
           ;;
         verbose)
           verb_flag="--verbose"
-          ;;
-        warp-only)
-          WARP_ONLY="--warp-only"
           ;;
         xopts-clean)
           XOPTS_="--xopts-clean"
@@ -1726,7 +1705,6 @@ if [[ $? -eq 0 ]]; then
 
   cmd=(
     spinoza_fmriprep
-    "${WARP_ONLY}"
     "${use_bbr}"
     "${run_local}"
     "${SUBJECT}"
@@ -1734,7 +1712,6 @@ if [[ $? -eq 0 ]]; then
     "${confFile}"
     "${REMOVE_WF}"
     "${kwargs_file}"
-    "${boldref_flag}"
     "${RUNS}"
     "${OW}"
     "${jobs_flag}"
@@ -1742,12 +1719,7 @@ if [[ $? -eq 0 ]]; then
     "${SGE_QUEUE}"
     "${KEEP_RUNS}"
     "${clean_flag}"
-    "${fd_flag}"
     "${DOCKER_FLAG}"
-    "${fetch_fsl_flag}"
-    "${fetch_func_flag}"
-    "${fetch_anat_flag}"
-    "${mask_flag}"
     "${WORK_FLAG}"
     "${CRASH_FLAG}"
     -f "${DIR_DATA_HOME}"
