@@ -305,7 +305,7 @@ for subject in ${subjects}; do
   set_keys=(
     general_settings.project_dir="${proj_dir}"
     general_settings.save_dir="${save_dir}"
-    general_settings.n_jobs="${n_cpus}"
+    decoding_settings.parallel.n_jobs="${n_cpus}"
     general_settings.source="${source}"
     general_settings.method="${method}"
     roi_dict="${roi_dir}"
