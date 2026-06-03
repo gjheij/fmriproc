@@ -204,6 +204,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 #-----------------------------------------------------------------------------
+# intro
+start_timer "Running decoding with PANIC"
+
+#-----------------------------------------------------------------------------
 # Check mandatory arguments
 if [[ -z "${proj_dir:-}" ]]; then
   echo "ERROR: project directory must be specified with -p" >&2
@@ -227,10 +231,10 @@ fi
 
 work_dir="${proj_dir}/logs"
 save_dir="${proj_dir}/derivatives/decoding"
-roi_root="${proj_dir}/derivatives/roisSS"
+roi_root="${proj_dir}/derivatives/rois"
 source_root="${proj_dir}/derivatives/${source}"
 
-mkdir -p "${work_dir}" "${save_dir}"
+mkdir -p "${work_dir}" "${save_dir}" 2>/dev/null
 
 #-----------------------------------------------------------------------------
 # Check inputs
@@ -267,6 +271,10 @@ fi
 #-----------------------------------------------------------------------------
 # Run panic
 for subject in ${subjects}; do
+
+  if [[ ${run_local} -eq 1 ]]; then
+    print_subject_header ${subject}
+  fi
 
   # Skip subjects without corresponding ROI definitions
   roi_dir="${roi_root}/${subject}"
@@ -319,7 +327,15 @@ for subject in ${subjects}; do
   if [[ "${dry_run}" -eq 1 ]]; then
     print_cmd "${cmd_args[@]}"
   else
+    # print and run
+    if [[ ${run_local} -eq 1 ]]; then
+      print_cmd "${cmd_args[@]}"
+    fi
     "${cmd_args[@]}"
   fi
 
 done
+
+#-----------------------------------------------------------------------------
+# outro
+end_timer
