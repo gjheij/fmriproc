@@ -37,7 +37,7 @@ Mandatory (required input):
 Optional (flags with defaults):
   -f|--fprep      fmriprep directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), 
                   "fmriprep"))
-  -o|--output     output directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), f"del
+  -o|--output     output directory (defaults to opj(os.environ.get("DIR_DATA_DERIV"), f"truncate{cut_from}
                   {cut_vols}"))
   -c|--cut-vols   nr of volumes to cut. Default = 5
   -x|--filters    additional filters when selecting files from fmriprep (e.g., acq-)
@@ -52,6 +52,8 @@ Options (extra):
   --ow            overwrite existing output files
   --full-ow       delete output_folder/subject
   --conf-only     only do the confound files
+  --first         cut the first <cut-vols> volumes
+  --last          cut the last <cut-vols> volumes
   
 
 Example:
@@ -60,11 +62,20 @@ Example:
 
   # specify input/output and space
   call_truncate \
-      -s sub-001 \
-      -f fmriprep_dir \
-      -o output_dir \
-      --fsaverage
+    -s sub-001 \
+    -f fmriprep_dir \
+    -o output_dir \
+    --fsaverage
 
+  # filter for preproc_bold
+  call_truncate \
+    -s sub-14 \
+    --cut-vols 205 \
+    --exclude space \
+    --filters desc-preproc_bold \
+    --last \
+    --verbose
+      
 ---------------------------------------------------------------------------------------------------
     """
 
@@ -174,7 +185,7 @@ Example:
 
                     if execute:
                         obj_new.write_file(out_file)
-                        utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={rb}{obj_new.TR_ms}{end}: '{gb}{out_file}{end}'", verbose)
+                        utils.verbose(f" wrote ({rb}{ix+1}{end}/{len(filtered_gifti_list)}) funcs {obj_new.data.shape}, TR={rb}{obj_new.TR_ms}{end}: '{gb}{out_file}{end}'", verbose)
         else:
             utils.verbose(f"No *.gii files in {rb}{opj(fprep_dir, subject)}{end}", verbose)
 
@@ -242,18 +253,31 @@ Example:
                         )
 
                         nb.save(new_img, out_file)
-                        utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(filtered_nifti_list)}) funcs {new_data.shape}: '{gb}{out_file}{end}'", verbose)
+                        utils.verbose(f" wrote ({rb}{ix+1}{end}/{len(filtered_nifti_list)}) funcs {new_data.shape}: '{gb}{out_file}{end}'", verbose)
+
+                        # copy brain mask
+                        mask_file = nii.replace("preproc_bold", "brain_mask")
+                        assert os.path.exists(mask_file), FileNotFoundError(f"Could not find brain mask file: '{mask_file}'")
+
+                        mask_dest = out_file.replace("preproc_bold", "brain_mask")
+                        shutil.copy2(mask_file, mask_dest)
+
         else:
             utils.verbose(f"No *.nii.gz files in {rb}{opj(fprep_dir, subject)}{end}", verbose)
 
     # check confounds
     if confounds:
-        all_tsv = utils.FindFiles(opj(fprep_dir, subject), extension="tsv", exclude="anat").files
+        all_tsv = utils.FindFiles(
+            opj(fprep_dir, subject),
+            extension="tsv",
+            exclude="anat"
+        ).files
+
         if isinstance(all_tsv, str):
             all_tsv = [all_tsv]
         
         if len(filters) > 0:
-            filters = [i for i in filters if i != "preproc_bold"]
+            filters = [i for i in filters if "preproc_bold" not in i]
             if len(filters) > 0:
                 all_tsv = utils.get_file_from_substring(filters, all_tsv)
 
@@ -285,8 +309,11 @@ Example:
                     new_csv = conf_df.iloc[:-cut_vols, :]
 
                 new_csv.to_csv(out_tsv, index=False, sep="\t")
-                utils.verbose(f"wrote ({rb}{ix+1}{end}/{len(all_tsv)}) confs {rb}{new_csv.shape}{rb}: {gb}{out_tsv}{end}", verbose)
-    
+                utils.verbose(f" wrote ({rb}{ix+1}{end}/{len(all_tsv)}) confs {rb}{new_csv.shape}{rb}: {gb}{out_tsv}{end}", verbose)
+
+    utils.verbose(f"Done", verbose)
+
+
 if __name__ == "__main__":
 
     fprep_dir = None
@@ -309,7 +336,7 @@ if __name__ == "__main__":
         opts = getopt.getopt(
             sys.argv[1:],
             "hf:s:o:c:x:t:",
-            ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr=", "exclude=", "last", "first"]
+            ["sub=", "fprep=", "cut-vols=", "fsaverage", "fsnative", "no-confounds", "verbose", "overwrite", "ow", "full-ow", "filters=", "conf-only","tr=", "exclude=", "last", "first", "help"]
         )[0]
     except getopt.GetoptError:
         print(main.__doc__, flush=True)
@@ -317,7 +344,7 @@ if __name__ == "__main__":
         sys.exit(2)
 
     for opt, arg in opts:
-        if opt == '-h':
+        if opt in ("-h", "--help"):
             print(main.__doc__)
             sys.exit()
         elif opt in ("-s", "--sub"):
