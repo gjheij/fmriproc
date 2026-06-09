@@ -50,8 +50,7 @@ Optional:
 
                   User-specified overrides are appended after the defaults
                   configured by this wrapper and therefore take precedence.
-  -f <config>     PANIC configuration file. Default:
-                  <project dir>/config.yml
+  -f <config>     PANIC configuration file. Default: PANIC's config file
   -u|--subject    <subject> subject ID to process, e.g. sub-001 or 001.
                   If omitted, all sub-* folders in <source> are processed.
 Options:
@@ -135,7 +134,7 @@ method="LSA"
 queue="main"
 run_local=0
 dry_run=0
-config_file=""
+conf_flag=""
 subject=""
 extra_sets=()
 
@@ -160,7 +159,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -f)
-      config_file="$2"
+      conf_flag="$(readlink -f "$2")"
       shift 2
       ;;      
     --searchlight)
@@ -220,17 +219,6 @@ fi
 #-----------------------------------------------------------------------------
 # Set directories
 proj_dir="$(realpath "${proj_dir}")"
-
-# Default PANIC configuration
-if [[ -z "${config_file}" ]]; then
-  config_file="${proj_dir}/config.yml"
-fi
-
-if [[ ! -f "${config_file}" ]]; then
-  echo "ERROR: config file not found: ${config_file}" >&2
-  exit 1
-fi
-
 work_dir="${proj_dir}/logs"
 save_dir="${proj_dir}/derivatives/decoding"
 roi_root="${proj_dir}/derivatives/rois"
@@ -317,7 +305,7 @@ for subject in ${subjects}; do
   # Build panic command
   cmd_args=(
     ${job}
-    -c "${config_file}"
+    "${conf_flag}"
     run
     --subject "${subject}"
     --set
