@@ -134,7 +134,7 @@ method="LSA"
 queue="main"
 run_local=0
 dry_run=0
-conf_flag=""
+conf_flag="run"
 subject=""
 extra_sets=()
 
@@ -159,7 +159,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -f)
-      conf_flag="$(readlink -f "$2")"
+      conf_flag="-c $(readlink -f "$2") run"
       shift 2
       ;;      
     --searchlight)
@@ -306,7 +306,6 @@ for subject in ${subjects}; do
   cmd_args=(
     ${job}
     "${conf_flag}"
-    run
     --subject "${subject}"
     --set
     "${set_keys[@]}"
