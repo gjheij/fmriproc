@@ -159,7 +159,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -f)
-      conf_flag="-c $(readlink -f "$2") run"
+      if [[ -n "${2}" ]]; then
+        if [[ -f "${2}" ]]; then
+          config_file="$(readlink -f "$2")"
+        else
+          echo
+          print_error_msg "$(basename "${0}")" "getopt" "Specified config file \"$2\" does not exist"
+          exit 1
+        fi
+      fi
+      conf_flag="-c \"${config_file}\" run"
       shift 2
       ;;      
     --searchlight)
