@@ -226,6 +226,7 @@ if [[ "${run_local}" -eq 1 ]]; then
       -c "${n_cpus}"
       -s "${source}"
       -q "${SGE_QUEUE}"
+      --local
       "${panic_args[@]}"
     )
 
