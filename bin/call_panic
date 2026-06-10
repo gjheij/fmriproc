@@ -134,7 +134,7 @@ method="LSA"
 queue="main"
 run_local=0
 dry_run=0
-conf_flag="run"
+conf_args=(run)
 subject=""
 extra_sets=()
 
@@ -159,18 +159,16 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -f)
-      if [[ -n "${2}" ]]; then
-        if [[ -f "${2}" ]]; then
-          config_file="$(readlink -f "$2")"
-        else
-          echo
-          print_error_msg "$(basename "${0}")" "getopt" "Specified config file \"$2\" does not exist"
-          exit 1
-        fi
+      if [[ -n "${2}" && -f "${2}" ]]; then
+        config_file="$(readlink -f "$2")"
+      else
+        print_error_msg "$(basename "${0}")" "getopt" "Specified config file \"$2\" does not exist"
+        exit 1
       fi
-      conf_flag="-c \"${config_file}\" run"
+
+      conf_args=(-c "${config_file}" run)
       shift 2
-      ;;      
+      ;;   
     --searchlight)
       searchlight=1
       shift
@@ -314,7 +312,7 @@ for subject in ${subjects}; do
   # Build panic command
   cmd_args=(
     ${job}
-    "${conf_flag}"
+    "${conf_args[@]}"
     --subject "${subject}"
     --set
     "${set_keys[@]}"
