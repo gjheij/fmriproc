@@ -1,61 +1,38 @@
 #!/usr/bin/env bash
 
-#-----------------------------------------------------------------------------
-# source setup and helper functions
 source "${SETUP_FILE}"
 source call_bashhelper
 
-#-----------------------------------------------------------------------------
-# Create help text
 function Usage {
     cat <<USAGE
-
 ---------------------------------------------------------------------------------------------------
 spinoza_decoding
 
-SLURM-array launcher for subject-wise call_panic jobs.
-
-This wrapper discovers subjects, writes them to a subject list, and submits one SLURM array job.
-Use -m/--max-running to limit how many subjects run simultaneously.
+SLURM-array launcher for subject-wise PANIC jobs.
 
 Usage:
-  spinoza_decoding [arguments] [options] <project root> -- [call_panic arguments]
+  spinoza_decoding [arguments] [options] <project root> -- [PANIC/call_panic-style arguments]
 
 Arguments:
-  -s <subject>       subject ID, e.g. 001 or sub-001. Can also be comma-separated: 001,002,005
+  -s <subject>       subject ID, e.g. 001 or sub-001. Can be comma-separated.
   -j <n_cpus>        number of CPUs per subject/job. Default = 4
   -q <queue>         SLURM queue/partition. Default = \$SGE_QUEUE_LONG
   -m <n_jobs>        maximum number of subjects running simultaneously. Default = 10
   -d <source>        derivative source directory. Default = halfpipe
 
 Options:
-  -h|--help          print this help text
-  --local            do not submit array job; run subjects sequentially
+  -h|--help          print help
+  --local            run subjects sequentially via call_panic
   --dry-run          print commands but do not submit/run
 
 Pass-through:
-  Everything after '--' is passed directly to call_panic.
-
-Examples:
-  spinoza_decoding -s 001 /project -- --lss
-
-  spinoza_decoding -m 10 -j 4 -q intelsr_medium /project -- --searchlight --lss
-
-  spinoza_decoding /project -- \\
-    -f /project/config.yml \\
-    -x "decoding_settings.n_permutations=1000"
-
-  spinoza_decoding -s 001,002,003 /project -- \\
-    --searchlight \\
-    -x "decoding_settings.searchlight.radius_mm=12"
+  After '--', supports call_panic-style -f, -x, --searchlight, --lsa, --lss,
+  plus direct PANIC arguments.
 
 ---------------------------------------------------------------------------------------------------
-
 USAGE
 }
 
-#-----------------------------------------------------------------------------
-# defaults
 sub=""
 n_cpus=4
 source="halfpipe"
@@ -63,64 +40,39 @@ run_local=0
 dry_run=0
 max_running=10
 SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
-
-#-----------------------------------------------------------------------------
-# parse wrapper arguments; everything after '--' goes to call_panic
 panic_args=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -s)
-      sub="$2"
-      shift 2
-      ;;
+      sub="$2"; shift 2 ;;
     -j)
-      n_cpus="$2"
-      shift 2
-      ;;
+      n_cpus="$2"; shift 2 ;;
     -q)
-      SGE_QUEUE="$2"
-      shift 2
-      ;;
+      SGE_QUEUE="$2"; shift 2 ;;
     -m|--max-running)
-      max_running="$2"
-      shift 2
-      ;;
+      max_running="$2"; shift 2 ;;
     -d|--source)
-      source="$2"
-      shift 2
-      ;;
+      source="$2"; shift 2 ;;
     --local)
-      run_local=1
-      shift
-      ;;
+      run_local=1; shift ;;
     --dry-run)
-      dry_run=1
-      shift
-      ;;
+      dry_run=1; shift ;;
     -h|--help)
-      Usage
-      exit 0
-      ;;
+      Usage; exit 0 ;;
     --)
       shift
       panic_args=("$@")
-      break
-      ;;
+      break ;;
     -*)
       print_error_msg "$(basename "${0}")" "getopt" "Unknown option $1"
       Usage
-      exit 1
-      ;;
+      exit 1 ;;
     *)
-      proj_dir="$1"
-      shift
-      ;;
+      proj_dir="$1"; shift ;;
   esac
 done
 
-#-----------------------------------------------------------------------------
-# check inputs
 if [[ -z "${proj_dir:-}" ]]; then
   Usage
   print_error_msg "$(basename "${0}")" "input" "Project directory not specified"
@@ -130,16 +82,60 @@ fi
 proj_dir="$(realpath "${proj_dir}")"
 source_root="${proj_dir}/derivatives/${source}"
 work_dir="${proj_dir}/logs"
+save_dir="${proj_dir}/derivatives/decoding"
+roi_root="${proj_dir}/derivatives/rois"
 
-mkdir -p "${work_dir}"
+mkdir -p "${work_dir}" "${save_dir}"
 
 if [[ ! -d "${source_root}" ]]; then
   print_directory_not_exist "Source" "${source_root}"
   exit 1
 fi
 
-#-----------------------------------------------------------------------------
-# collect subjects
+# Parse pass-through args into PANIC-native pieces
+panic_global_args=()
+panic_run_args=()
+extra_sets=()
+searchlight=0
+method="LSA"
+
+i=0
+while [[ $i -lt ${#panic_args[@]} ]]; do
+  arg="${panic_args[$i]}"
+
+  case "${arg}" in
+    -f|--config|-c)
+      i=$((i + 1))
+      panic_global_args+=("-c" "${panic_args[$i]}")
+      ;;
+    -x)
+      i=$((i + 1))
+      IFS=',' read -ra parsed_sets <<< "${panic_args[$i]}"
+      unset IFS
+      extra_sets+=("${parsed_sets[@]}")
+      ;;
+    --set)
+      i=$((i + 1))
+      extra_sets+=("${panic_args[$i]}")
+      ;;
+    --searchlight)
+      searchlight=1
+      panic_run_args+=("--searchlight")
+      ;;
+    --lsa)
+      method="LSA"
+      ;;
+    --lss)
+      method="LSS"
+      ;;
+    *)
+      panic_run_args+=("${arg}")
+      ;;
+  esac
+
+  i=$((i + 1))
+done
+
 subject_file="${work_dir}/panic_subjects.txt"
 
 if [[ -n "${sub}" ]]; then
@@ -165,8 +161,6 @@ if [[ "${n_subjects}" -eq 0 ]]; then
   exit 1
 fi
 
-#-----------------------------------------------------------------------------
-# build subject runner
 runner="${work_dir}/panic_array_runner.sh"
 
 cat <<EOF > "${runner}"
@@ -176,31 +170,66 @@ source call_bashhelper
 
 subject=\$(sed -n "\${SLURM_ARRAY_TASK_ID}p" "${subject_file}")
 
-cmd=(
-  call_panic
-  -p "${proj_dir}"
-  -u "\${subject}"
-  -c "${n_cpus}"
-  -s "${source}"
-  -q "${SGE_QUEUE}"
-  --local
+if [[ -z "\${subject}" ]]; then
+  echo "ERROR: no subject found for SLURM_ARRAY_TASK_ID=\${SLURM_ARRAY_TASK_ID}" >&2
+  exit 1
+fi
+
+roi_dir="${roi_root}/\${subject}"
 EOF
 
-for arg in "${panic_args[@]}"; do
+if [[ "${searchlight}" -eq 1 ]]; then
+cat <<'EOF' >> "${runner}"
+roi_dir="${roi_dir}/searchlight"
+EOF
+fi
+
+cat <<EOF >> "${runner}"
+
+set_keys=(
+  general_settings.project_dir="${proj_dir}"
+  general_settings.save_dir="${save_dir}"
+  decoding_settings.parallel.n_jobs="${n_cpus}"
+  general_settings.source="${source}"
+  general_settings.method="${method}"
+  roi_dict="\${roi_dir}"
+)
+EOF
+
+for s in "${extra_sets[@]}"; do
+  printf 'set_keys+=(%q)\n' "${s}" >> "${runner}"
+done
+
+cat <<'EOF' >> "${runner}"
+
+cmd=(
+  panic
+EOF
+
+for arg in "${panic_global_args[@]}"; do
   printf '  %q\n' "${arg}" >> "${runner}"
 done
 
-cat <<EOF >> "${runner}"
+cat <<'EOF' >> "${runner}"
+  run
+  --subject "${subject}"
+EOF
+
+for arg in "${panic_run_args[@]}"; do
+  printf '  %q\n' "${arg}" >> "${runner}"
+done
+
+cat <<'EOF' >> "${runner}"
+  --set
+  "${set_keys[@]}"
 )
 
-print_cmd "\${cmd[@]}"
-"\${cmd[@]}"
+print_cmd "${cmd[@]}"
+"${cmd[@]}"
 EOF
 
 chmod +x "${runner}"
 
-#-----------------------------------------------------------------------------
-# submit or run
 array_spec="1-${n_subjects}%${max_running}"
 
 if [[ "${dry_run}" -eq 1 ]]; then
@@ -209,6 +238,9 @@ if [[ "${dry_run}" -eq 1 ]]; then
   echo "Array: ${array_spec}"
   echo "Queue: ${SGE_QUEUE}"
   echo "CPUs: ${n_cpus}"
+  echo
+  echo "Runner content:"
+  cat "${runner}"
   echo
   echo "Would submit:"
   echo "sbatch --partition=${SGE_QUEUE} --array=${array_spec} --cpus-per-task=${n_cpus} --job-name=panic --output=${work_dir}/panic_%A_%a.out ${runner}"
