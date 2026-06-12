@@ -14,19 +14,21 @@ Usage:
   spinoza_decoding [arguments] [options] <project root> -- [PANIC/call_panic-style arguments]
 
 Arguments:
-  -s <subject>       subject ID, e.g. 001 or sub-001. Can be comma-separated.
-  -j <n_cpus>        number of CPUs per subject/job. Default = 4
-  -q <queue>         SLURM queue/partition. Default = \$SGE_QUEUE_LONG
-  -m <n_jobs>        maximum number of subjects running simultaneously. Default = 10
-  -d <source>        derivative source directory. Default = halfpipe
-  -r <roi_base>      the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
-                     If --searchlight is passed, 'searchlight' is appended. This can be changed with
-                     the '-r' flag.
-
+  -s <subject>    subject ID, e.g. 001 or sub-001. Can be comma-separated.
+  -j <n_cpus>     number of CPUs per subject/job. Default = 4
+  -q <queue>      SLURM queue/partition. Default = \$SGE_QUEUE_LONG
+  -m <n_jobs>     maximum number of subjects running simultaneously. Default = 10
+  -d <source>     derivative source directory. Default = halfpipe
+  -r <roi_base>   the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
+                  If --searchlight is passed, 'searchlight' is appended. This can be changed with
+                  the '-r' flag.
 Options:
-  -h|--help          print help
-  --local            run subjects sequentially via call_panic
-  --dry-run          print commands but do not submit/run
+  -h|--help       print help
+  --local         run subjects sequentially via call_panic
+  --dry-run       print commands but do not submit/run
+  --overwrite     whether to overwrite existing outputs. Default: False. If True,
+                  existing outputs will be overwritten; if False, existing outputs will
+                  be preserved and the corresponding subject/job will be skipped.
 
 Pass-through:
   After '--', supports call_panic-style -f, -x, --searchlight, --lsa, --lss,
@@ -42,6 +44,8 @@ source="halfpipe"
 run_local=0
 dry_run=0
 max_running=10
+overwrite=()
+overwrite_arg=False
 searchlight_base_dir="searchlight"
 SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
 panic_args=()
@@ -64,6 +68,11 @@ while [[ $# -gt 0 ]]; do
       run_local=1; shift ;;
     --dry-run)
       dry_run=1; shift ;;
+    --overwrite|--ow|-o)
+      overwrite=(--overwrite)
+      overwrite_arg=True
+      shift
+      ;;
     -h|--help)
       Usage; exit 0 ;;
     --)
@@ -199,6 +208,7 @@ set_keys=(
   general_settings.source="${source}"
   general_settings.method="${method}"
   roi_dict="\${roi_dir}"
+  general_settings.overwrite="${overwrite_arg}"
 )
 EOF
 
@@ -265,6 +275,7 @@ if [[ "${run_local}" -eq 1 ]]; then
       -s "${source}"
       -q "${SGE_QUEUE}"
       -r "${searchlight_base_dir}"
+      "${overwrite[@]}"
       --local
       "${panic_args[@]}"
     )

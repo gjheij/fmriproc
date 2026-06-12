@@ -65,6 +65,9 @@ Options:
   --lss           use least-squares-separate beta estimates
   --dry-run       build command but don't actually execute
   --local         do not submit to cluster; run locally instead. Generally discouraged
+  --overwrite     whether to overwrite existing outputs. Default: False. If True,
+                  existing outputs will be overwritten; if False, existing outputs will
+                  be preserved and the corresponding subject/job will be skipped.
 
 Expected inputs:
   <project dir>/derivatives/<source>/sub-*
@@ -133,6 +136,7 @@ USAGE
 n_cpus=4
 source="halfpipe"
 searchlight=0
+overwrite=False
 method="LSA"
 queue="main"
 run_local=0
@@ -181,6 +185,10 @@ while [[ $# -gt 0 ]]; do
       searchlight=1
       shift
       ;;
+    --overwrite|--ow|-o)
+      overwrite=True
+      shift
+      ;;      
     --dry-run)
       dry_run=1
       shift
@@ -312,6 +320,8 @@ for subject in ${subjects}; do
     general_settings.source="${source}"
     general_settings.method="${method}"
     roi_dict="${roi_dir}"
+    decoding_settings.searchlight.basepath="${searchlight_base_dir}"
+    general_settings.overwrite="${overwrite}"
   )
 
   # Append user-specified config overrides (-x key=value,key=value)
