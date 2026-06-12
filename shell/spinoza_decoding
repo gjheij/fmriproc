@@ -194,8 +194,8 @@ roi_dir="${roi_root}/\${subject}"
 EOF
 
 if [[ "${searchlight}" -eq 1 ]]; then
-cat <<'EOF' >> "${runner}"
-roi_dir="${roi_dir}/${searchlight_base_dir}"
+cat <<EOF >> "${runner}"
+roi_dir="\${roi_dir}/${searchlight_base_dir}"
 EOF
 fi
 
