@@ -50,6 +50,9 @@ Optional:
 
                   User-specified overrides are appended after the defaults
                   configured by this wrapper and therefore take precedence.
+  -r <roi_base> the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
+                  If --searchlight is passed, 'searchlight' is appended. This can be changed with
+                  the '-r' flag.                  
   -f <config>     PANIC configuration file. Default: PANIC's config file
   -u|--subject    <subject> subject ID to process, e.g. sub-001 or 001.
                   If omitted, all sub-* folders in <source> are processed.
@@ -134,6 +137,7 @@ method="LSA"
 queue="main"
 run_local=0
 dry_run=0
+searchlight_base_dir="searchlight"
 conf_args=(run)
 subject=""
 extra_sets=()
@@ -158,6 +162,10 @@ while [[ $# -gt 0 ]]; do
       queue="$2"
       shift 2
       ;;
+    -r|--roi-base)
+      searchlight_base_dir="$2"
+      shift 2
+      ;;      
     -f)
       if [[ -n "${2}" && -f "${2}" ]]; then
         config_file="$(readlink -f "$2")"
@@ -294,7 +302,7 @@ for subject in ${subjects}; do
 
   # Default PANIC configuration overrides applied to every subject
   if [[ "${searchlight}" -eq 1 ]]; then
-    roi_dir="${roi_dir}/searchlight"
+    roi_dir="${roi_dir}/${searchlight_base_dir}"
   fi
 
   set_keys=(

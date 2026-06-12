@@ -19,6 +19,9 @@ Arguments:
   -q <queue>         SLURM queue/partition. Default = \$SGE_QUEUE_LONG
   -m <n_jobs>        maximum number of subjects running simultaneously. Default = 10
   -d <source>        derivative source directory. Default = halfpipe
+  -r <roi_base>      the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
+                     If --searchlight is passed, 'searchlight' is appended. This can be changed with
+                     the '-r' flag.
 
 Options:
   -h|--help          print help
@@ -39,6 +42,7 @@ source="halfpipe"
 run_local=0
 dry_run=0
 max_running=10
+searchlight_base_dir="searchlight"
 SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
 panic_args=()
 
@@ -54,6 +58,8 @@ while [[ $# -gt 0 ]]; do
       max_running="$2"; shift 2 ;;
     -d|--source)
       source="$2"; shift 2 ;;
+    -r|--roi-base)
+      searchlight_base_dir="$2"; shift 2 ;;
     --local)
       run_local=1; shift ;;
     --dry-run)
@@ -180,7 +186,7 @@ EOF
 
 if [[ "${searchlight}" -eq 1 ]]; then
 cat <<'EOF' >> "${runner}"
-roi_dir="${roi_dir}/searchlight"
+roi_dir="${roi_dir}/${searchlight_base_dir}"
 EOF
 fi
 
@@ -258,6 +264,7 @@ if [[ "${run_local}" -eq 1 ]]; then
       -c "${n_cpus}"
       -s "${source}"
       -q "${SGE_QUEUE}"
+      -r "${searchlight_base_dir}"
       --local
       "${panic_args[@]}"
     )
