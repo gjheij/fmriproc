@@ -5,6 +5,36 @@
 source "${SETUP_FILE}"
 source call_bashhelper
 
+# Normalize legacy command-array elements.
+#
+# Older sections of this script store an option and its value in one scalar
+# (for example, "-s 22"). Command arrays require those to be separate argv
+# elements. This helper also drops empty optional arguments while preserving
+# spaces inside the value (for example, "-x --output-spaces=T1w func").
+normalize_cmd_array() {
+  local array_name=$1
+  local -n cmd_ref="$array_name"
+  local -a normalized=()
+  local arg flag value
+
+  for arg in "${cmd_ref[@]}"; do
+    [[ -z $arg ]] && continue
+
+    if [[ $arg == -* && $arg == *[[:space:]]* ]]; then
+      flag=${arg%%[[:space:]]*}
+      value=${arg#"$flag"}
+      value=${value#"${value%%[![:space:]]*}"}
+
+      normalized+=("$flag")
+      [[ -n $value ]] && normalized+=("$value")
+    else
+      normalized+=("$arg")
+    fi
+  done
+
+  cmd_ref=("${normalized[@]}")
+}
+
 #-----------------------------------------------------------------------------
 # https://askubuntu.com/questions/39309/how-do-i-find-the-version-of-bash-i-am-running
 if [[ -z $(echo ${BASH}) ]]; then
@@ -802,7 +832,9 @@ if [[ $? -eq 0 ]]; then
     -p "${DIR_DATA_DERIV}/pycortex/${subject}/ses-${ses_nr}/${subject}_ses-${ses_nr}_desc-coords.csv"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  # print and run
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -878,7 +910,9 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  # print and run
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -920,7 +954,9 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/mriqc"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  # print and run
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -979,8 +1015,10 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_SOURCE}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
-
+  # print and run
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
@@ -1027,8 +1065,10 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
-
+  # print and run
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+  
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
@@ -1088,7 +1128,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/pymp2rage"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1143,7 +1184,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1193,7 +1235,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants" "mni"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1236,7 +1279,8 @@ if [[ $? -eq 0 ]]; then
       "${INPUT_DIR}" "${DIR_DATA_DERIV}/pymp2rage"
     )
 
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    normalize_cmd_array cmd
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
     if [[ $? -ne 0 ]]; then
       print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1283,7 +1327,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/manual_masks"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1336,7 +1381,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/denoised"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1374,7 +1420,8 @@ if [[ $? -eq 0 ]]; then
       "${DIR_DATA_DERIV}/ants" "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/manual_masks" "fsl"
     )
 
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    normalize_cmd_array cmd
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   elif [[ ${DO_STUFF} == "cat12" ]]; then
 
@@ -1403,7 +1450,8 @@ if [[ $? -eq 0 ]]; then
       "${INPUT_DIR}" "${DIR_DATA_DERIV}/cat12" "${DIR_DATA_DERIV}/manual_masks" cat12
     )
 
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    normalize_cmd_array cmd
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   fi
 
@@ -1446,7 +1494,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
     
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1489,7 +1538,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1533,7 +1583,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/manual_masks"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1579,10 +1630,11 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/masked_${DATA_LWR}" "${DIR_DATA_DERIV}/manual_masks" "${DIR_DATA_DERIV}/skullstripped"
   )
 
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+    normalize_cmd_array cmd
+    print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
-    print_error_msg "$(basename ${0})""${cmd[0]}"
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
     exit 1
   fi
 
@@ -1644,7 +1696,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${FS_stage}" "${DIR_DATA_HOME}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1684,7 +1737,7 @@ if [[ $? -eq 0 ]]; then
       confFile=""
     else
       if [[ -f ${CONF} ]]; then
-        confFile="-u ${CONF}"
+        confFile="${CONF}"
       else
         echo
         print_line -
@@ -1704,30 +1757,93 @@ if [[ $? -eq 0 ]]; then
   INPUT_DIR=$(find_hierarchical_anatomy "${ANAT_DEPTH}")  
 
   cmd=(
-    spinoza_fmriprep
-    "${use_bbr}"
-    "${run_local}"
-    "${SUBJECT}"
-    "${SESSION}"
-    "${confFile}"
-    "${REMOVE_WF}"
-    "${kwargs_file}"
-    "${RUNS}"
-    "${OW}"
-    "${jobs_flag}"
-    "${SGE}"
-    "${SGE_QUEUE}"
-    "${KEEP_RUNS}"
-    "${clean_flag}"
-    "${DOCKER_FLAG}"
-    "${WORK_FLAG}"
-    "${CRASH_FLAG}"
-    -f "${DIR_DATA_HOME}"
-    -m "${TYPE}"
-    "${INPUT_DIR}" "${DIR_DATA_DERIV}" "${DIR_DATA_HOME}"
+      spinoza_fmriprep
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
+  [[ -n ${use_bbr:-} ]]    && cmd+=("$use_bbr")
+  [[ -n ${run_local:-} ]]  && cmd+=("$run_local")
+  [[ -n ${REMOVE_WF:-} ]]  && cmd+=("$REMOVE_WF")
+  [[ -n ${OW:-} ]]         && cmd+=("$OW")
+  [[ -n ${SGE:-} ]]        && cmd+=("$SGE")
+  [[ -n ${clean_flag:-} ]] && cmd+=("$clean_flag")
+  [[ -n ${DOCKER_FLAG:-} ]] && cmd+=("$DOCKER_FLAG")
+  [[ -n ${CRASH_FLAG:-} ]] && cmd+=("$CRASH_FLAG")
+
+  if [[ -n ${SUB:-} ]]; then
+      cmd+=(-s "$SUB")
+  fi
+
+  if [[ -n ${SES:-} ]]; then
+      cmd+=(-n "$SES")
+  elif [[ -n ${SESSION:-} ]]; then
+      # Preserve your default session behavior if needed.
+      cmd+=(-n 1)
+  fi
+
+  if [[ -n ${confFile:-} ]]; then
+      cmd+=(-u "$confFile")
+  fi
+
+  if [[ -n ${DEBUG:-} ]]; then
+      cmd+=("${DEBUG}")
+  fi
+
+  if [[ -n ${kwargs_file:-} ]]; then
+      # Prefer storing only the filename in kwargs_file.
+      kwargs_path=${kwargs_file#-k }
+      cmd+=(-k "$kwargs_path")
+  fi
+
+  if [[ -n ${RUNS:-} ]]; then
+      runs_value=${RUNS#-r }
+      cmd+=(-r "$runs_value")
+  fi
+
+  if [[ -n ${jobs_flag:-} ]]; then
+      jobs_value=${jobs_flag#-j }
+      cmd+=(-j "$jobs_value")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+      queue_value=${SGE_QUEUE#-q }
+      cmd+=(-q "$queue_value")
+  fi
+
+  if [[ -n ${KEEP_RUNS:-} ]]; then
+      keep_value=${KEEP_RUNS#-a }
+      cmd+=(-a "$keep_value")
+  fi
+
+  if [[ -n ${WORK_FLAG:-} ]]; then
+      work_value=${WORK_FLAG#-w }
+      cmd+=(-w "$work_value")
+  fi
+
+  cmd+=(
+      -f "$DIR_DATA_HOME"
+      -m "$TYPE"
+  )
+
+  if [[ -n ${X_KWARGS:-} ]]; then
+      cmd+=(-x "$X_KWARGS")
+  fi
+
+  cmd+=(
+    "$INPUT_DIR"
+    "$DIR_DATA_DERIV"
+    "$DIR_DATA_HOME"
+  )
+
+  if [[ ! -z ${DEBUG} ]]; then
+    # print flag-argument binder
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
+
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1799,7 +1915,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${DIR_DATA_DERIV}/pybest"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1898,7 +2015,8 @@ if [[ $? -eq 0 ]]; then
     "${PRF_INPUT}" "${DIR_DATA_DERIV}/prf" "${PNG_DIR}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -1966,7 +2084,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_HOME}" "${DIR_DATA_DERIV}" "${LABEL_FILE}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2008,7 +2127,8 @@ if [[ $? -eq 0 ]]; then
     "${SKULLSTRIP}" "${DIR_DATA_DERIV}/fast"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2060,7 +2180,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2111,7 +2232,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_DERIV}/manual_masks" "${ROI}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2165,7 +2287,8 @@ if [[ $? -eq 0 ]]; then
     "${PROBSEG}" "${DIR_DATA_DERIV}/nighres" "${ROI}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2221,7 +2344,8 @@ if [[ $? -eq 0 ]]; then
     "${INPUT_DIR}" "${SOFTWARE}"
   )
   
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2269,7 +2393,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_DERIV}/skullstripped" "${DIR_DATA_DERIV}/nighres"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2322,7 +2447,8 @@ if [[ $? -eq 0 ]]; then
     -i "${NIGHRES}/${subject}/ses-${LS_SES}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"  
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"  
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2372,7 +2498,8 @@ if [[ $? -eq 0 ]]; then
     "${DIR_DATA_DERIV}/nighres" "${DIR_DATA_HOME}" "${X_KWARGS}"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  normalize_cmd_array cmd
+  print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   if [[ $? -ne 0 ]]; then
     print_error_msg "$(basename ${0})" "${cmd[0]}"
@@ -2416,7 +2543,8 @@ if [[ $? -eq 0 ]]; then
   #   ${INPUT_DIR} ${DIR_DATA_DERIV}/suit)
 
   # echo
-  #   print_cmd "${cmd[@]}" && eval "${cmd[@]}"    
+  # normalize_cmd_array cmd
+  #   print_cmd "${cmd[@]}" && "${cmd[@]}"    
 
   # if [[ $? -ne 0 ]]; then
   #   print_error_msg "$(basename ${0})" "spinoza_suit"

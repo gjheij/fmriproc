@@ -90,7 +90,8 @@ manage_fmriprep_workdir() {
   local remove_surf_wf="$4"
   local remove_wf="$5"
   local overwrite="$6"
-  local runs=("${@:7}")  # Capture remaining arguments as an array
+  local local_bool="$7"
+  local runs=("${@:8}")  # Capture remaining arguments as an array
 
   # Ensure working directory exists
   if [[ ! -d "${workdir}" ]]; then
@@ -122,24 +123,35 @@ manage_fmriprep_workdir() {
       if [[ "${remove_surf_wf}" -eq 1 ]]; then
         surf_wf=$(find "${subj_wf}" -type d -name "surface_recon_wf")
         if [[ -d "${surf_wf}" ]]; then
-          echo -e "Removing ${BOLD_MAGENTA}${surf_wf}${RESET}"
+          if [[ ${local_bool} -eq 1 ]]; then
+            echo -e "Execute [reason]: Removing ${BOLD_MAGENTA}${surf_wf}${RESET}"
+          fi
           rm -r "${surf_wf}" 2>/dev/null
         else
-          echo -e "Could not find ${BOLD_RED}surface_recon_wf${RESET} folder in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+          if [[ ${local_bool} -eq 1 ]]; then
+            echo -e "Execute [reason]: Could not find ${BOLD_RED}surface_recon_wf${RESET} folder in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+          fi
         fi
       # remove full workflow (BOLD, FMAP, & ANAT)
       elif [[ "${remove_wf}" -eq 1 ]]; then
-        echo -e "Removing ${BOLD_MAGENTA}${subj_wf}${RESET}"
+        if [[ ${local_bool} -eq 1 ]]; then
+          echo -e "Execute [reason]: Removing ${BOLD_MAGENTA}${subj_wf}${RESET}"
+        fi
         rm -r "${subj_wf}" 2>/dev/null
       # Remove workflow folders for specific runs or all runs
       elif [[ "${overwrite}" -eq 1 ]]; then
         if [[ ${#runs[@]} -gt 0 ]]; then
           for r in "${runs[@]}"; do
-            echo -e "Removing workflow folders with ${BOLD_RED}run-${r}${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+            if [[ ${local_bool} -eq 1 ]]; then
+              echo -e "Execute [reason]: Removing workflow folders with ${BOLD_RED}run-${r}${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+            fi
             rm -r "${subj_wf}/"*run_"${r}"* 2>/dev/null
           done
         else
-          echo -e "Removing workflow folders with ${BOLD_RED}run-*${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+          if [[ ${local_bool} -eq 1 ]]; then
+            echo -e "Execute [reason]: Removing workflow folders with ${BOLD_RED}run-*${RESET} in ${BOLD_MAGENTA}${subj_wf}${RESET}"
+          fi
+
           local ddir
           ddir=(
             $(
@@ -154,72 +166,74 @@ manage_fmriprep_workdir() {
         fi
       fi
     else
-      echo -e "No folder with ${BOLD_RED}*_${sub_id}_wf${RESET} in ${BOLD_MAGENTA}${wf_folder}${RESET}"
+      if [[ ${local_bool} -eq 1 ]]; then
+        echo -e "Execute [reason]: No folder with ${BOLD_RED}*_${sub_id}_wf${RESET} in ${BOLD_MAGENTA}${wf_folder}${RESET}"
+      fi
     fi
   else
-    echo -e "No folder with ${BOLD_RED}-name "fmriprep*" -and -name "*wf"${RESET} in ${BOLD_MAGENTA}${workdir}${RESET}"
+    if [[ ${local_bool} -eq 1 ]]; then
+      echo -e "Execute [reason]: No folder with ${BOLD_RED}-name "fmriprep*" -and -name "*wf"${RESET} in ${BOLD_MAGENTA}${workdir}${RESET}"
+    fi
   fi
 }
 
 #-----------------------------------------------------------------------------
 # config file function
 generate_config_file() {
-  local conf="$1"
-  local runs=("${@:2}")  # Capture remaining arguments as an array
-  local confFile=""
+  local conf=$1
+  shift
+  local runs=("$@")
+  local conf_file=""
 
-  if [[ -z "${conf}" ]]; then
-    # If no config file is provided, check for run-specific files
-    if [[ ${#runs[@]} -gt 0 ]]; then
-      local run_="["
-      local r_ct=0
-      local workdir="${WORKDIR:-$DIR_DATA_HOME}"
+  if [[ -z $conf ]]; then
+    if ((${#runs[@]} > 0)); then
+      local workdir=${WORKDIR:-$DIR_DATA_HOME}
+      conf_file="${workdir}/run_conf.json"
 
-      for r in "${runs[@]}"; do
-        if [[ ${r_ct} -lt $((${#runs[@]} - 1)) ]]; then
-          run_+="${r},"
-        else
-          run_+="${r}]"
-        fi
-        ((r_ct++))
+      local run_json=""
+      local run
+
+      for run in "${runs[@]}"; do
+        printf -v run_json '%s"%s",' "$run_json" "$run"
       done
 
-      confFile="${workdir}/run_conf.json"
-      [[ -f "${confFile}" ]] && rm -f "${confFile}"
+      run_json="[${run_json%,}]"
 
-      # Generate JSON config file
-      cat <<EOF > "${confFile}"
+      cat > "$conf_file" <<EOF
 {
   "bold": {
-      "run": ${run_}
+    "run": $run_json
   },
   "fmap": {
-      "run": ${run_}
+    "run": $run_json
   }
 }
 EOF
-
-      confFile="-x ${confFile}"
     fi
   else
-    if [[ ${#runs[@]} -gt 0 ]]; then
-      echo "WARNING: Specific runs were requested, but a configuration file was also specified."
-      echo "Since merging these is tedious, please use the configuration file to select runs."
+    if ((${#runs[@]} > 0)); then
+      echo "WARNING: Specific runs and a configuration file were both provided." >&2
+      echo "The configuration file will determine run selection." >&2
 
       while true; do
-        read -p "Do you want to proceed? (yes/no) " yn
+        read -r -p "Do you want to proceed? (yes/no) " yn
         case $yn in
-          y|yes ) break ;;
-          n|no ) echo "Exiting..."; exit 1 ;;
-          * ) echo "Invalid response (use \"yes\"/\"y\" or \"no\"/\"n\")." ;;
+          y|yes) break ;;
+          n|no)
+            echo "Exiting..." >&2
+            return 1
+            ;;
+          *)
+            echo 'Invalid response; use "yes", "y", "no", or "n".' >&2
+            ;;
         esac
       done
     fi
-    confFile="-x ${conf}"
+
+    conf_file=$conf
   fi
 
-  # Return the config file variable (if needed)
-  echo "$confFile"
+  printf '%s\n' "$conf_file"
 }
 
 #-----------------------------------------------------------------------------
@@ -263,7 +277,7 @@ Arguments:
   -f <func dir>   directory containing functional data; used after running FreeSurfer outside of
                   fMRIprep <optional>
   -j <cpus>       number of cores to use (default is 1)
-  -k <kwargs>     specify a file with additional arguments, similar to FreeSurfer's expert options.
+  -k <file>       specify a file with additional arguments, similar to FreeSurfer's expert options.
                   See fmriproc/misc/fprep_options for an example. Please make sure you have a 
                   final empty white space at the end of the file, otherwise the parser gets confu-
                   sed. For VSCode: https://stackoverflow.com/a/44704969.
@@ -282,6 +296,13 @@ Arguments:
                   (in case another task is already done), use '-t <task_id>'.
   -u <config>     configuration file as specified in /misc/fmriprep_config?.json
   -w <workdir>    custom working directory; defaults to PATH_HOME/fmriprep/<PROJECT>
+  -x <kwargs>     additional arguments passed to call_fmriprep / fMRIprep. Format should be
+                  comma-separated flags:
+                    - flag with value: <flag>=<value>
+                    - flag only:       <flag>
+
+                  Example:
+                    -x "--derivatives=/path/to/derivatives,----bold2t1w-init=header"  
 
 Options:
   -h|--help       print this help text
@@ -360,7 +381,9 @@ crash_flag=""
 mode="anat"
 workdir="${PATH_HOME}/fmriprep/${PROJECT}"
 SGE_QUEUE="${SGE_QUEUE_LONG}"
-while getopts :-:hols:r:n:f:m:j:k:q:u:a:w: argument
+kwargs_flag=""
+dryrun_flag=""
+while getopts :-:hols:r:n:f:m:j:k:q:u:a:w:x: argument
 do
 case ${argument} in
     -)
@@ -374,6 +397,10 @@ case ${argument} in
         sge)
           run_local=0
           ;;
+        debug)
+          dryrun_flag="--debug"
+          run_local=1
+          ;;          
         remove-wf)
           remove_wf=1
           ;; 
@@ -416,7 +443,7 @@ case ${argument} in
           ;;
     j)  n_cpus="${OPTARG}"
           ;; 
-    k)  kwargs_file="-k ${OPTARG}"
+    k)  kwargs_file="${OPTARG}"
           ;;
     r)  runs="${OPTARG}"
           ;; 
@@ -424,20 +451,25 @@ case ${argument} in
           ;; 
     w)  workdir="${OPTARG}"
           ;; 
+    x)  kwargs_flag="${OPTARG}"
+          ;;           
     o)  OW=1
           ;;
-    a)  keep_runs="-a ${OPTARG}"
+    a)  keep_runs="${OPTARG}"
           ;; 
   esac
 done
 
-if [[ $# -lt 3 ]] ; then
-  Usage && exit 0
+shift "$((OPTIND - 1))"
+
+if (( $# < 3 )); then
+    Usage
+    exit 1
 fi
 
-INPUT="${@:$OPTIND:1}"
-OUTPUT="${@:$OPTIND+1:1}"
-T2="${@:$OPTIND+2:1}"
+INPUT=$1
+OUTPUT=$2
+T2=$3
 
 # check run
 if [[ ! -z ${runs} ]]; then
@@ -451,12 +483,12 @@ search=$(determine_subjects "$INPUT" "$SUBJECT_PREFIX" "$sub")
 # Check if ${mode} represents a task ID instead of "anat" or "func"
 task_id=""
 if [[ -n ${mode} && ${mode} != "anat" && ${mode} != "func" ]]; then
-  task_id="-t ${mode}"
+  task_id="${mode}"
 fi
 
-# reset input directory if docker is used
-if [[ ! -z ${docker_flag} ]]; then
-  INPUT="${func_dir}"
+# always run debugger locally
+if [[ -n $dryrun_flag ]]; then
+  run_local=1
 fi
 
 #-----------------------------------------------------------------------------
@@ -475,11 +507,12 @@ for subID in ${search}; do
 
   #-----------------------------------------------------------------------------
   # define input
-  input_dir="${INPUT}/${base_path}"
   if [[ "${mode}" == "anat" ]]; then
+    
     #-----------------------------------------------------------------------------
     # anat only
-    func_txt="Only including anatomical data"
+    input_dir="${INPUT}/${base_path}"
+    func_txt="Only including anatomical data [${BOLD_GREEN}${input_dir}${RESET}]"
     check_and_copy_anat \
       "${func_dir}" \
       "${base_path}" \
@@ -491,16 +524,23 @@ for subID in ${search}; do
   else
     #-----------------------------------------------------------------------------
     # include func
-    func_txt="Including functional data"
+    if [[ -z "${func_dir}" ]]; then
+      func_dir="${INPUT}"
+    else
+      INPUT="${func_dir}"
+    fi
+
+    input_dir="${func_dir}/${base_path}"
 
     # find func
-    func=$(
+    func=($(
       find_func_data \
       "${func_dir}" \
       "${base_path}" \
       "${input_dir}"
-    )
+    ))
 
+    func_txt="Including functional data [${#func[@]} files in ${BOLD_GREEN}${func_dir}${RESET}]"
     # anat still required
     check_and_copy_anat \
       "${func_dir}" \
@@ -511,9 +551,8 @@ for subID in ${search}; do
       "${base}" \
       "${DATA}"
 
-    if [[ -z "${func}" ]]; then
-      echo "${sub_name}; no \"*bold.nii.gz\" files in \"${input_dir}/func\""
-      echo "If you're running a multi-session setup with ses-1 (default) as anatomical session, specify a valid session ID using \"-n <sesID>\"."
+    if [[ -z "${func}" || ${#func[@]} -eq 0 ]]; then
+      print_file_not_in_dir "${sub_name}" "*bold.nii.gz" "${input_dir}/func" "Make sure the session ID (if applicable) is specified correctly and make sure to use \"-f <bids directory with BOLD data>\" to include functional data"
       continue
     fi
   fi
@@ -523,7 +562,7 @@ for subID in ${search}; do
   if [[ ${run_local} -eq 1 ]]; then
     # print header
     print_subject_header ${sub_name}
-    echo "${func_txt}"
+    echo -e "${func_txt}"
   fi
 
   #-----------------------------------------------------------------------------
@@ -535,6 +574,7 @@ for subID in ${search}; do
     "${remove_surf_wf}" \
     "${remove_wf}" \
     "${overwrite}" \
+    "${run_local}" \
     "${n_runs[@]}"
 
   #-----------------------------------------------------------------------------
@@ -561,31 +601,48 @@ for subID in ${search}; do
   # define the command
   cmd=(
     "${job}"
-    -s "${sub_id}"
-    -m "${mode}"
-    -b "${FPREP_BINDING}"
-    -r "${INPUT}"
-    -d "${OUTPUT}"
-    -w "${workdir}"
-    -c "${n_cpus}"
-    "${crash_flag}"
-    "${keep_runs}"
-    "${confFile}"
-    "${task_id}"
-    "${bbr_flag}"
-    "${kwargs_file}"
-    "${clean_wd}"
-    "${func_flag}"
-    "${anat_flag}"
-    "${docker_flag}"
+    -s "$sub_id"
+    -m "$mode"
+    -b "$FPREP_BINDING"
+    -r "$INPUT"
+    -d "$OUTPUT"
+    -w "$workdir"
+    -c "$n_cpus"
   )
+
+  [[ -n ${keep_runs:-} ]]   && cmd+=(-a "$keep_runs")
+  [[ -n ${task_id:-} ]]     && cmd+=(-t "$task_id")
+  [[ -n ${kwargs_file:-} ]] && cmd+=(-k "$kwargs_file")
+  [[ -n ${crash_flag:-} ]]  && cmd+=("$crash_flag")
+  [[ -n ${bbr_flag:-} ]]    && cmd+=("$bbr_flag")
+  [[ -n ${clean_wd:-} ]]    && cmd+=("$clean_wd")
+  [[ -n ${func_flag:-} ]]   && cmd+=("$func_flag")
+  [[ -n ${anat_flag:-} ]]   && cmd+=("$anat_flag")
+  [[ -n ${docker_flag:-} ]] && cmd+=("$docker_flag")
+  [[ -n ${dryrun_flag:-} ]] && cmd+=("$dryrun_flag") && echo -e "${BOLD_RED}DEBUG MODE ENABLED${RESET}" && echo
+
+  if [[ -n $confFile ]]; then
+    cmd+=(-y "$confFile")
+  fi
+
+  if [[ -n ${kwargs_flag:-} ]]; then
+      cmd+=(-x "$kwargs_flag")
+  fi
+
+  # clean up
+  clean_cmd=()
+  for arg in "${cmd[@]}"; do
+      [[ -n $arg ]] && clean_cmd+=("$arg")
+  done
+
+  cmd=("${clean_cmd[@]}")
 
   #-----------------------------------------------------------------------------
   # echo cmd
   if [[ ${run_local} -eq 1 ]]; then
     print_cmd "${cmd[@]}"
   fi
-
+  
   # run
   eval "${cmd[@]}"
   if [[ $? -ne 0 ]]; then

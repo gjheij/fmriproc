@@ -1,5 +1,57 @@
 #!/usr/bin/env bash
 
+parse_extra_sets() {
+    local input=$1
+    local -n output=$2
+    local item
+
+    output=()
+
+    IFS=',' read -r -a raw_items <<< "$input"
+
+    for item in "${raw_items[@]}"; do
+        # Trim surrounding whitespace only.
+        item="${item#"${item%%[![:space:]]*}"}"
+        item="${item%"${item##*[![:space:]]}"}"
+
+        [[ -n $item ]] && output+=("$item")
+    done
+}
+
+remove_cmd_flag() {
+  local array_name=$1
+  local target_flag=$2
+  local takes_value=$3
+  local -n args_ref="$array_name"
+
+  local -a filtered=()
+  local i arg current_flag
+
+  for ((i = 0; i < ${#args_ref[@]}; i++)); do
+    arg=${args_ref[i]}
+    current_flag=${arg%%=*}
+
+    if [[ $current_flag == "$target_flag" ]]; then
+      # Existing --flag=value form.
+      if [[ $arg == *=* ]]; then
+        continue
+      fi
+
+      # Existing --flag value form.
+      if [[ $takes_value == 1 ]] &&
+         ((i + 1 < ${#args_ref[@]})); then
+        ((i++))
+      fi
+
+      continue
+    fi
+
+    filtered+=("$arg")
+  done
+
+  args_ref=("${filtered[@]}")
+}
+
 #-----------------------------------------------------------------------------
 # Get bash helper functions
 source call_bashhelper
@@ -39,7 +91,7 @@ Optional arguments:
                   Default: \$PATH_HOME/fmriprep/\$PROJECT
   -l <license>    FreeSurfer license file. When using Singularity, this path must be
                   accessible from within the bind path
-  -x <config>     BIDS filter file passed to fMRIPrep with --bids-filter-file
+  -y <config>     BIDS filter file passed to fMRIPrep with --bids-filter-file
   -t <task ID>    restrict preprocessing to one task using --task-id
   -k <kwargs>     text file with additional fMRIPrep arguments, one argument or
                   argument-value pair per line
@@ -47,6 +99,13 @@ Optional arguments:
                   BOLD files should be kept. By default, generated MNI152
                   preprocessed BOLD NIfTIs are removed to save disk space while
                   transformation files are retained. Use '-a all' to keep all runs
+  -x <kwargs>     additional arguments passed to call_fmriprep / fMRIprep (alternative
+                  to '-k <kwargs_file>' flag). Format should be comma-separated flags:
+                    - flag with value: <flag>=<value>
+                    - flag only:       <flag>
+
+                  Example:
+                    -x "--derivatives=/path/to/derivatives,----bold2t1w-init=header"
 
 Options:
   -h|--help       print this help text
@@ -58,6 +117,7 @@ Options:
                   previous intermediate results
   --try           do not pass --stop-on-first-crash. This lets fMRIPrep continue after
                   recoverable errors, but failed nodes should still be inspected
+  --dry-run       print final fmriprep-command to-be-executed
 
 Example:
   call_fmriprep -s 001
@@ -104,8 +164,9 @@ work="${PATH_HOME}/fmriprep/${PROJECT}"
 KWARGS_FILE=""
 clean_wd=0
 USE_DOCKER=0
+dryrun=0
 crash_flag="--stop-on-first-crash"
-while getopts :-:hus:m:r:d:c:i:b:w:l:x:t:k:a: arg
+while getopts :-:hus:m:r:d:c:i:b:w:l:x:t:k:a:y: arg
 do
   case ${arg} in
     -)
@@ -118,6 +179,9 @@ do
         docker)
           USE_DOCKER=1
           ;; 
+        debug)
+          dryrun=1
+          ;;           
         clean)
           clean_wd=1
           ;;  
@@ -150,8 +214,10 @@ do
           ;;
     l)  LIC="${OPTARG}"
           ;;
-    x)  CONFIG="${OPTARG}"
+    y)  CONFIG="${OPTARG}"
           ;;
+    x)  KWARGS_FLAG="${OPTARG}"
+          ;;          
     t)  TASK_ID="${OPTARG}"
           ;;
     k)  KWARGS_FILE="${OPTARG}"
@@ -180,7 +246,7 @@ fi
 # check kwargs file
 if [[ ! -z "${KWARGS_FILE}" ]]; then
 
-  echo "Including kwargs from \"${KWARGS_FILE}\":"  
+  echo "Including kwargs from ${BOLD_GREEN}${KWARGS_FILE}${RESET}:"  
   
   # exclude these flags; these should be specified in spinoza_setup or command line
   flags_from_setup=(
@@ -248,6 +314,8 @@ if [[ ! -d "${work}" ]]; then
   mkdir -p "${work}"
 fi
 
+workdir_flag=(--work-dir "${work}")
+
 #-----------------------------------------------------------------------------
 # Set default FS-license if none specified
 if [[ ! -z "${FS_LICENSE}" ]]; then
@@ -262,25 +330,25 @@ fi
 #-----------------------------------------------------------------------------
 # Check if we need to output CIFTIs
 if [[ ! -z "${CIFTI}" ]]; then
-  cifti_flag="--cifti-output ${CIFTI}"
+  cifti_flag=(--cifti-output "${CIFTI}")
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we received configuration file
 if [[ ! -z "${CONFIG}" ]]; then
-  config_flag="--bids-filter-file ${CONFIG}"
+  config_flag=(--bids-filter-file "${CONFIG}")
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we received task ID
 if [[ ! -z "${TASK_ID}" ]]; then
-  task_flag="--task-id ${TASK_ID}"
+  task_flag=(--task-id "${TASK_ID}")
 fi
 
 #-----------------------------------------------------------------------------
 # Check if we need to output CIFTIs
 if [[ ${DO_SYN} -eq 1 ]]; then
-  syn_flag="--use-syn-sdc"
+  syn_flag=(--use-syn-sdc)
 fi
 
 #-----------------------------------------------------------------------------
@@ -300,7 +368,7 @@ fi
 #-----------------------------------------------------------------------------
 # Define command line
 if [[ ${USE_DOCKER} -eq 1 ]]; then
-  run_cmd="fmriprep-docker"
+  run_cmd=("fmriprep-docker")
 else
   if [[ -f "${fprep_container}" ]]; then
 
@@ -329,24 +397,38 @@ else
     fi
 
     # define SGE command |  -B /mnt/d/fMRI/HRA/nipype.cfg:/home/fmriprep/.nipype/nipype.cfg:ro
-    run_cmd="singularity run --cleanenv -B ${binding}:${binding} ${fprep_container}"
+    run_cmd=(
+      singularity run
+      --cleanenv
+      -B "${binding}:${binding}"
+      "${fprep_container}"
+    )
 
   else
     echo "WARNING: system is setup to use singularity, but image \"${fprep_container}\" could not be found. Defaulting to \"fmriprep\"-command"
-    run_cmd="fmriprep"
+    run_cmd=("fmriprep")
   fi
 fi
 
 #-----------------------------------------------------------------------------
 # overwrite anat only if 'func' is specified
-use_output_spaces="${FPREP_OUTPUT_SPACES}"
-if [[ ${mode} != "anat" ]]; then
-  anat_only_flag=""
+read -r -a output_spaces <<< "${FPREP_OUTPUT_SPACES:-}"
+read -r -a anat_spaces <<< "${FPREP_ANAT_SPACES:-}"
+
+use_output_spaces=("${output_spaces[@]}")
+
+if [[ $mode == "anat" && ${#anat_spaces[@]} -gt 0 ]]; then
+  use_output_spaces=("${anat_spaces[@]}")
 else
-  if [[ ! -z "${FPREP_ANAT_SPACES}" ]]; then
-    use_output_spaces="${FPREP_ANAT_SPACES}"
-  fi
+  anat_only_flag=""
 fi
+
+output_space_flag=(
+    --output-spaces
+    "${use_output_spaces[@]}"
+)
+
+output_space_flag=(--output-spaces "${use_output_spaces[@]}")
 
 #-----------------------------------------------------------------------------
 # set nthreads
@@ -355,17 +437,18 @@ if [[ -z ${n_threads} ]]; then
 else
   nthreads=${n_threads}
 fi
-nthread_flag="--nthreads ${nthreads}"
+nthread_flag=(--nthreads "${nthreads}")
 
 #-----------------------------------------------------------------------------
 # output directory structure has changed after v21: https://github.com/nipreps/fmriprep/releases/tag/21.0.0
 echo "Checking fMRIPrep's version.."
-version_string=$(eval ${run_cmd} --version)
-if [[ $? -ne 0 ]]; then
+if ! version_string=$("${run_cmd[@]}" --version); then
   echo
   print_line -
-  print_error_msg "$(basename ${0})" eval "Could not derive version:"
-  echo "${version}"
+  print_error_msg \
+    "$(basename "$0")" \
+    "${run_cmd[0]}" \
+    "Could not derive fMRIPrep version"
   exit 1
 fi
 
@@ -378,7 +461,7 @@ if [[ "${major_version}" -lt 21 ]]; then
   #-----------------------------------------------------------------------------
   # Check how to initialize bold-to-T1w registration
   if [[ ${BOLD_T1W_INIT} == "register" ]] || [[ ${BOLD_T1W_INIT} == "header" ]]; then
-    init_flag="--bold2t1w-init ${BOLD_T1W_INIT}"
+    init_flag=(--bold2t1w-init "${BOLD_T1W_INIT}")
   fi    
 else
   output_dir="${derivatives}/fmriprep"
@@ -391,39 +474,84 @@ else
     if [[ ${BOLD_T1W_INIT} == "register" ]]; then
       export BOLD_T1W_INIT="auto"
     fi
-    init_flag="--bold2anat-init ${BOLD_T1W_INIT}"
+    init_flag=(--bold2anat-init "${BOLD_T1W_INIT}")
   fi    
 fi
 
 #-----------------------------------------------------------------------------
 # define the fMRIPrep command
 cmd=(
-  "${run_cmd}"
+  "${run_cmd[@]}"
   "${project}"
   "${output_dir}"
   participant
   --participant-label "${subj_ID}"
   --skip-bids-validation
   --md-only-boilerplate
-  --fs-license-file "${license}"
-  --output-spaces "${use_output_spaces}"
   --fs-subjects-dir "${FS}"
-  --work-dir "${work}"
-  "${crash_flag}"
-  "${bbr_flag}"
-  "${cifti_flag}"
-  "${syn_flag}"
-  "${config_flag}"
-  "${task_flag}"
-  "${init_flag}"
-  "${anat_only_flag}"
-  "${nthread_flag}"
+  --fs-license-file "${license}"
+  "${output_space_flag[@]}"
+  "${workdir_flag[@]}"
+  "${init_flag[@]}"
   "${kwargs[@]}"
+  ${crash_flag:+"$crash_flag"}
+  ${bbr_flag:+"$bbr_flag"}
+  "${cifti_flag[@]}"
+  "${syn_flag[@]}"
+  "${config_flag[@]}"
+  "${task_flag[@]}"
+  ${anat_only_flag:+"$anat_only_flag"}
+  "${nthread_flag[@]}"
 )
 
 #-----------------------------------------------------------------------------
+# Use specified kwargs as final override
+if [[ -n ${KWARGS_FLAG:-} ]]; then
+
+  # parse kwargs
+  parse_extra_sets "$KWARGS_FLAG" extra_sets
+
+  for override in "${extra_sets[@]}"; do
+    if [[ $override == *=* ]]; then
+      override_flag=${override%%=*}
+      override_value=${override#*=}
+
+      remove_cmd_flag cmd "$override_flag" 1
+      cmd+=("$override_flag" "$override_value")
+    else
+      override_flag=$override
+
+      remove_cmd_flag cmd "$override_flag" 0
+      cmd+=("$override_flag")
+    fi
+  done
+fi
+
+# clean up
+clean_cmd=()
+for arg in "${cmd[@]}"; do
+    [[ -n $arg ]] && clean_cmd+=("$arg")
+done
+
+cmd=("${clean_cmd[@]}")
+
+if [[ ${dryrun} -eq 1 ]]; then
+
+  # print normally
+  print_cmd "${cmd[@]}"
+  echo
+
+  # print flag-argument binder
+  for i in "${!cmd[@]}"; do
+    printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+  done
+
+  exit 0
+fi
+
+#-----------------------------------------------------------------------------
 # execute
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+print_cmd "${cmd[@]}" && "${cmd[@]}"
 
 if [[ $? -ne 0 ]]; then
   echo
