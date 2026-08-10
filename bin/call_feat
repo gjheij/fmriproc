@@ -1,134 +1,931 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+"""
+Run first-level FSL FEAT analyses on fMRIPrep BOLD derivatives.
 
-#-----------------------------------------------------------------------------
-# source setup and helper functions
-source "${SETUP_FILE}"
-source call_bashhelper
+Dependencies:
+    pip install click pandas nibabel pybids nipype
 
-#-----------------------------------------------------------------------------
-# Create help text
-function Usage {
-    cat <<USAGE
+System dependency:
+    FSL must be installed and `feat` must be available on PATH.
+"""
 
----------------------------------------------------------------------------------------------------
-call_feat
+from __future__ import annotations
 
-Simple wrapper to submit an *fsf-file to the cluster. It generates a new .sh-file that will be run
-according to your input. If '--sge' is specified, the job will be submitted to the cluster with a 
-specified number of cores (default = 1) to a specific queue (default = long.q, check your setup file).
+import os
+import shutil
+import subprocess
+from pathlib import Path
+from typing import Any
 
-Usage:
-  call_feat [arguments] [options] <fsf file>
+import click
+import nibabel as nib
+import pandas as pd
+from bids import BIDSLayout
+from nipype.algorithms.modelgen import SpecifyModel
+from nipype.interfaces.base import Bunch
+from nipype.interfaces.fsl import Level1Design
 
-Arguments:
-  -n <name>       custom name for job (default = 'feat')
-  -j <cpus>       number of cores to use (default is 1)
-  -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
-                  must be used with '--sge', otherwise it'll run locally still
-
-Options:
-  -h|--help       print this help text
-  --sge           submit the script to a cluster using a template script
-
-Positional:
-  <fsf file>
-
-Example:
-  call_feat design.fsf # standard implementation
-  call_feat -j 10 design.fsf # run locally with more cores
-  call_feat --sge -j 10 -q short.q design.fsf # submit to cluster
-  
----------------------------------------------------------------------------------------------------
-
-USAGE
-
-}
-
-# Check for subject & session flags
-submit=0
-run_local=1
-n_cpus=1
-SGE_QUEUE="${SGE_QUEUE_LONG}"
-job_name="feat"
-while getopts :-:hj:q:n: argument
-do
-  case ${argument} in
-    -)
-      case "${OPTARG}" in
-        sge)
-          submit=1
-          run_local=0
-          if [[ ! -d "${DIR_LOGS}" ]]; then
-            mkdir -p "${DIR_LOGS}" 2>/dev/null
-          fi
-          ;;
-        help)
-          Usage && exit 0
-          ;;
-        *)
-          Usage
-          print_error_msg "$(basename ${0})" "getopt" "Unknown option --${OPTARG}"
-          exit 1
-          ;;
-      esac
-      ;;
-    h)  Usage && exit 0
-          ;;
-    q)  SGE_QUEUE="${OPTARG}"
-          ;;
-    j)  n_cpus="${OPTARG}"
-          ;; 
-    n)  job_name="${OPTARG}"
-          ;;
-  esac
-done
-
-if [[ $# -lt 1 ]] ; then
-  Usage && exit 0
-fi
-
-#-----------------------------------------------------------------------------
-# define inputs
-fsf_file="${@:$OPTIND:1}"
-if [[ ! -f "${fsf_file}" ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "input" "Specified fsf-file ${BOLD_GREEN}${fsf_file}${RESET} does not exist"
-  exit 1
-else
-  fsf_file="$(readlink -f "${tmp}")"
-fi
-
-#-----------------------------------------------------------------------------
-# delete previously existing file
-base_name="${fsf_file%.fsf}"
-fsf_script=${base_name}.sh
-if [[ -f "${fsf_script}" ]]; then
-  rm -r "${fsf_script}"
-fi
-
-#-----------------------------------------------------------------------------
-# define command
-(
-echo "#!/bin/bash"
-echo "feat ${fsf_file}"
-) > "${fsf_script}"
-
-job="$(
-  decide_job_type \
-  "call_feat" \
-  "${base_name}" \
-  "${run_local}" \
-  "${DIR_LOGS} \
-  "${n_cpus}" \
-  "${SGE_QUEUE}" \
-)"
-
-cmd=(
-  "${job}"
-  "${fsf_script}"
+from fmriproc.fsl import (
+    build_level1_bases,
+    check_executable,
+    default_baseline_contrasts,
+    entity_label,
+    find_single_file,
+    filter_estimable_contrasts,
+    load_confounds,
+    load_contrasts,
+    next_contrast_update_dir,
+    normalize_subject,
+    parse_run_selectors,
+    patch_fsf,
+    query_shared_entities,
+    rebuild_contrast_manifest,
+    resolve_confound_regexes,
+    update_existing_feat_contrasts,
+    write_contrast_manifest
 )
 
-#-----------------------------------------------------------------------------
-# run
-eval "${cmd[@]}"
+# HALFpipe-style confound category names mapped to fMRIPrep column regexes.
+#
+# The order is significant:
+# - base motion patterns exclude derivatives and powers
+# - derivative patterns exclude squared derivatives
+# - aCompCor selects the first five components
+
+
+@click.command(
+    context_settings={
+        "show_default": True,
+        "max_content_width": 120
+    },
+    help=(
+        "Generate one first-level FSL FEAT analysis per matching BOLD run "
+        "using events and nuisance regressors from a BIDS dataset and its "
+        "fMRIPrep derivatives.\n\n"
+        "By default, every trial_type found in each events.tsv file is modeled, "
+        "and one event-versus-implicit-baseline contrast is created per modeled "
+        "condition. User-supplied contrasts are appended to those defaults."
+    ),
+    epilog=(
+        "Examples:\n\n"
+        "\b\n"
+        "  Process one subject with standard fMRIPrep outputs:\n"
+        "    call_feat \\\n"
+        "      --bids-dir /data/study \\\n"
+        "      --deriv-dir /data/study/derivatives/feat/level1 \\\n"
+        "      --subject 01 \\\n"
+        "      --task faces\n\n"
+
+        "\b\n"
+        "  Add a custom contrast while retaining event-vs-baseline contrasts:\n"
+        "    call_feat ... \\\n"
+        "      --contrast 'Face>House;T;Face,House;1,-1'\n\n"
+
+        "\b\n"
+        "  Add extra confounds to the ENIGMA preset:\n"
+        "    call_feat ... \\\n"
+        "      --confound-regex '^framewise_displacement$' \\\n"
+        "      --confound-regex '^motion_outlier[0-9]+$'\n\n"
+
+        "\b\n"
+        "  Generate designs without running FEAT:\n"
+        "    call_feat ... --dry-run\n\n"
+
+        "\b\n"
+        "  Update an existing FEAT directory with additional contrasts:\n"
+        "    call_feat \\\n"
+        "      --bids-dir /data/study \\\n"
+        "      --deriv-dir /data/study/derivatives/feat/level1 \\\n"
+        "      --subject 01 \\\n"
+        "      --task faces \\\n"
+        "      --update-contrasts \\\n"
+        "      --contrast 'Face>House;T;Face,House;1,-1'\n\n"
+
+        "\b\n"
+        "  Rebuild the dataset contrast manifest from existing work outputs:\n"
+        "    call_feat \\\n"
+        "      --deriv-dir /data/study/derivatives/feat/level1 \\\n"
+        "      --rebuild-contrast-manifest\n\n"
+
+        "\b\n"
+        "  Basis functions:\n\n"
+        "\b\n"
+        "  Default behavior:\n"
+        "    call_feat ... \\\n"
+        "      --basis dgamma \\\n"
+        "      --no-basis-derivatives\n\n"
+        
+        "\b\n"
+        "  With temporal derivatives:\n"
+        "    call_feat ... \\\n"
+        "      --basis dgamma \\\n"
+        "      --basis-derivatives\n\n"
+
+        "\b\n"
+        "  Gamma with derivatives and custom gamma parameters:\n"
+        "    call_feat ... \\\n"
+        "      --basis gamma \\\n"
+        "      --basis-derivatives \\\n"
+        "      --gamma-sigma 3 \\\n"
+        "      --gamma-delay 6\n\n"
+
+        "\b\n"
+        "  Custom basis function:\n"
+        "    call_feat ... \\\n"
+        "      --basis custom \\\n"
+        "      --basis-custom-path /path/to/custom_basis.txt\n\n"
+
+        "\b\n"
+        "  No convolution:\n"
+        "    call_feat ... \\\n"
+        "      --basis none"
+    ),
+)
+@click.option(
+    "--bids-dir",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    help=(
+        "Root of the BIDS dataset. It should contain sub-*/ directories and "
+        "discoverable derivative datasets, typically derivatives/fmriprep."
+    ),
+)
+@click.option(
+    "--deriv-dir",
+    required=True,
+    type=click.Path(file_okay=False, path_type=Path),
+    help=(
+        "Output directory. The command creates one .feat directory per run, "
+        "plus work directories and a contrast manifest."
+    ),
+)
+@click.option(
+    "--subject",
+    "subjects",
+    multiple=True,
+    help=(
+        "Subject label without the 'sub-' prefix. May be repeated. If omitted, "
+        "all subjects matching the remaining query are processed."
+    ),
+)
+@click.option(
+    "--run",
+    "runs",
+    multiple=True,
+    metavar="RUN",
+    help=(
+        "Restrict processing to selected BIDS run labels. Accepts a single "
+        "integer-like label (for example --run 2 or --run 02), a comma-separated "
+        "list (--run 1,3,5), an inclusive range (--run 1-4), bracketed list "
+        "notation (--run '[1,2,3]'), or repeated --run options. If omitted, all "
+        "runs matching the subject, task, space, and desc query are processed."
+    ),
+)
+@click.option(
+    "--task",
+    "task_id",
+    required=False,
+    help="BIDS task label without the 'task-' prefix.",
+)
+@click.option(
+    "--space",
+    default="T1w",
+    show_default=True,
+    help=(
+        "BIDS space entity of the input BOLD image, for example T1w or "
+        "MNI152NLin2009cAsym."
+    ),
+)
+@click.option(
+    "--desc",
+    default="preproc",
+    show_default=True,
+    help=(
+        "BIDS desc entity of the input BOLD image. Standard fMRIPrep output "
+        "usually uses 'preproc'; custom derivatives may use values such as "
+        "'masked'."
+    ),
+)
+@click.option(
+    "--keep-condition",
+    "--keep-conditions",
+    "keep_conditions",
+    multiple=True,
+    help=(
+        "Restrict the GLM to selected trial_type values. May be repeated. If "
+        "omitted, every non-null trial_type found in each events.tsv file is "
+        "modeled."
+    ),
+)
+@click.option(
+    "--contrast",
+    "inline_contrasts",
+    multiple=True,
+    help=(
+        "Additional T contrast in the form "
+        "'Name;T;event1,event2;weight1,weight2'. May be repeated. An optional "
+        "fifth field defines a canonical name used for cross-run grouping. "
+        "Custom contrasts are appended to automatic event-vs-baseline contrasts."
+    ),
+)
+@click.option(
+    "--contrasts-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help=(
+        "JSON file containing contrast definitions. Supported entries are "
+        "[name, type, conditions, weights], optionally followed by a canonical "
+        "name. File contrasts are appended to automatic event-vs-baseline contrasts."
+    ),
+)
+@click.option(
+    "--tr",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=None,
+    help=(
+        "Override the repetition time in seconds. If omitted, RepetitionTime "
+        "is read from BIDS metadata."
+    ),
+)
+@click.option(
+    "--high-pass",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=128.0,
+    show_default=True,
+    help="High-pass filter cutoff in seconds.",
+)
+@click.option(
+    "--smoothing-fwhm",
+    type=click.FloatRange(min=0.0),
+    default=5.0,
+    show_default=True,
+    help=(
+        "Spatial smoothing kernel in mm FWHM passed to FEAT. "
+        "Use 0 to disable spatial smoothing."
+    ),
+)
+@click.option(
+    "--basis",
+    "basis_name",
+    type=click.Choice(["dgamma", "gamma", "custom", "none"], case_sensitive=False),
+    default="dgamma",
+    show_default=True,
+    help=(
+        "Task-EV basis function passed to Nipype Level1Design.bases. "
+        "'dgamma' uses FSL's double-gamma HRF; 'gamma' uses a single gamma "
+        "HRF; 'custom' loads a basis function from --basis-custom-path; "
+        "'none' disables convolution."
+    ),
+)
+@click.option(
+    "--basis-derivatives/--no-basis-derivatives",
+    "--temporal-derivatives/--no-temporal-derivatives",
+    "basis_derivatives",
+    default=False,
+    show_default=True,
+    help=(
+        "Include temporal derivatives. Supported for --basis dgamma and "
+        "--basis gamma."
+    ),
+)
+@click.option(
+    "--gamma-sigma",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=None,
+    help=(
+        "Gamma basis-function sigma in seconds. Used only with --basis gamma. "
+        "When omitted, FSL/Nipype's default gamma sigma is used."
+    ),
+)
+@click.option(
+    "--gamma-delay",
+    type=click.FloatRange(min=0.0),
+    default=None,
+    help=(
+        "Gamma basis-function delay in seconds. Used only with --basis gamma. "
+        "When omitted, FSL/Nipype's default gamma delay is used."
+    ),
+)
+@click.option(
+    "--basis-custom-path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Path to a custom basis-function file. Required with --basis custom "
+        "and invalid for the other basis types."
+    ),
+)
+@click.option(
+    "--no-confounds",
+    is_flag=True,
+    help=(
+        "Do not add nuisance regressors. Use only when the BOLD data have "
+        "already been denoised appropriately or nuisance modeling is intentionally omitted."
+    ),
+)
+@click.option(
+    "--confounds-suffix",
+    type=click.Choice(["timeseries", "physio", "custom"], case_sensitive=True),
+    default="timeseries",
+    show_default=True,
+    help=(
+        "BIDS suffix of the confound TSV file. Standard fMRIPrep confounds use "
+        "desc-confounds_timeseries.tsv. For physio or custom files, all numeric "
+        "columns are used unless otherwise handled upstream."
+    ),
+)
+@click.option(
+    "--confound-subtype",
+    default="ENIGMA",
+    show_default=True,
+    help=(
+        "Confound preset or comma-separated selection. 'ENIGMA' includes the "
+        "24-parameter motion expansion and the first five aCompCor components. "
+        "Named HALFpipe-style categories and raw regular expressions are also accepted."
+    ),
+)
+@click.option(
+    "--confound-regex",
+    "confound_regexes_extra",
+    multiple=True,
+    help=(
+        "Additional regular expression used to select confound columns. May be "
+        "repeated and is combined with --confound-subtype. Available only for "
+        "--confounds-suffix timeseries."
+    ),
+)
+@click.option(
+    "--require-all-confounds/--allow-missing-confounds",
+    default=True,
+    show_default=True,
+    help=(
+        "Require every requested confound pattern to match at least one column. "
+        "Use --allow-missing-confounds for heterogeneous or older confound files."
+    ),
+)
+@click.option(
+    "--disable-feat-preprocessing/--allow-feat-preprocessing",
+    default=True,
+    show_default=True,
+    help=(
+        "Disable FEAT motion correction, slice timing, brain extraction, and "
+        "registration. This is recommended for already-preprocessed fMRIPrep BOLD images."
+    ),
+)
+@click.option(
+    "--update-contrasts",
+    is_flag=True,
+    help=(
+        "When the normal run-level .feat output already exists, create a new "
+        "sibling FEAT analysis containing the automatic baseline contrasts plus "
+        "the contrasts supplied with --contrast or --contrasts-file. The original "
+        ".feat directory is never modified. This safely reruns the first-level "
+        "statistics and post-stats from the original BIDS/fMRIPrep inputs and does "
+        "not call the deprecated contrast_mgr utility."
+    ),
+)
+@click.option(
+    "--contrast-update-label",
+    default="contrast-update",
+    show_default=True,
+    help=(
+        "Label appended to the run name for outputs created by --update-contrasts. "
+        "For example, run-1 becomes run-1_contrast-update.feat."
+    ),
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help=(
+        "Remove an existing run-level .feat output before execution. Existing "
+        "outputs are skipped when this flag is omitted."
+    ),
+)
+@click.option(
+    "--rebuild-contrast-manifest",
+    "rebuild_contrast_manifest_flag",
+    is_flag=True,
+    help=(
+        "Rebuild contrast_manifest.tsv from existing <deriv-dir>/work run "
+        "manifests and exit without running FEAT. For each run, the highest "
+        "numbered contrast_update_NNN/contrasts.json is preferred when present."
+    ),
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help=(
+        "Generate, patch, and report the design and FSF without invoking FEAT. "
+        "Use this to inspect selected events, confounds, contrasts, and paths."
+    ),
+)
+def run_firstlevel(
+    bids_dir: Path | None,
+    deriv_dir: Path,
+    subjects: tuple[str, ...],
+    runs: tuple[str, ...],
+    task_id: str | None,
+    space: str,
+    desc: str,
+    keep_conditions: tuple[str, ...],
+    inline_contrasts: tuple[str, ...],
+    contrasts_file: Path | None,
+    tr: float | None,
+    high_pass: float,
+    smoothing_fwhm: float,
+    basis_name: str,
+    basis_derivatives: bool,
+    gamma_sigma: float | None,
+    gamma_delay: float | None,
+    basis_custom_path: Path | None,
+    no_confounds: bool,
+    confounds_suffix: str,
+    confound_subtype: str,
+    confound_regexes_extra: tuple[str, ...],
+    require_all_confounds: bool,
+    disable_feat_preprocessing: bool,
+    update_contrasts: bool,
+    contrast_update_label: str,
+    overwrite: bool,
+    rebuild_contrast_manifest_flag: bool,
+    dry_run: bool,
+) -> None:
+    """Generate first-level FEAT analyses for fMRIPrep BOLD runs."""
+    deriv_dir = deriv_dir.resolve()
+
+    if rebuild_contrast_manifest_flag:
+        # Manifest-only maintenance mode: do not initialize BIDS, FEAT, model
+        # settings, confounds, or any run-level analysis.
+        rebuild_contrast_manifest(deriv_dir, dry_run=dry_run)
+        return
+
+    if bids_dir is None:
+        raise click.UsageError(
+            "--bids-dir is required unless --rebuild-contrast-manifest is used."
+        )
+    if not task_id:
+        raise click.UsageError(
+            "--task is required unless --rebuild-contrast-manifest is used."
+        )
+
+    bids_dir = bids_dir.resolve()
+    deriv_dir.mkdir(parents=True, exist_ok=True)
+
+    bases = build_level1_bases(
+        basis_name=basis_name,
+        derivatives=basis_derivatives,
+        gamma_sigma=gamma_sigma,
+        gamma_delay=gamma_delay,
+        custom_path=basis_custom_path,
+    )
+    click.echo(f"Basis: {bases}")
+
+    if not dry_run:
+        check_executable("feat")
+
+    normalized_subjects = tuple(
+        normalize_subject(subject)
+        for subject in subjects
+    )
+    selected_runs = parse_run_selectors(runs)
+
+    configured_contrasts, configured_canonical_names = load_contrasts(
+        str(contrasts_file) if contrasts_file else None,
+        inline_contrasts,
+    )
+
+    if update_contrasts and not configured_contrasts:
+        raise click.ClickException(
+            "--update-contrasts requires at least one --contrast or "
+            "--contrasts-file definition."
+        )
+
+    contrast_update_label = contrast_update_label.strip().strip("_-")
+    if update_contrasts and not contrast_update_label:
+        raise click.ClickException(
+            "--contrast-update-label must contain at least one non-separator character."
+        )
+
+    confound_regexes = resolve_confound_regexes(
+        no_confounds=no_confounds,
+        confounds_suffix=confounds_suffix,
+        confound_subtype=confound_subtype,
+        extra_regexes=confound_regexes_extra,
+    )
+
+    # derivatives=True indexes derivative datasets discoverable beneath the
+    # BIDS root. Their dataset_description.json files must be valid enough for
+    # PyBIDS to recognize them.
+    click.echo("Reading BIDSLayout...")
+    layout = BIDSLayout(
+        str(bids_dir),
+        derivatives=True,
+        validate=False,
+    )
+    click.echo(layout)
+
+    bold_query: dict[str, Any] = {
+        "suffix": "bold",
+        "desc": desc,
+        "space": space,
+        "task": task_id,
+        "extension": [".nii", ".nii.gz"],
+        "return_type": "file",
+    }
+
+    if normalized_subjects:
+        bold_query["subject"] = list(normalized_subjects)
+    if selected_runs:
+        bold_query["run"] = list(selected_runs)
+
+    bold_files = sorted(set(layout.get(**bold_query)))
+
+    if not bold_files:
+        raise click.ClickException(
+            "No BOLD files matched:\n"
+            f"  task={task_id!r}\n"
+            f"  space={space!r}\n"
+            f"  desc={desc!r}\n"
+            f"  subjects={normalized_subjects or 'all'}\n"
+            f"  runs={selected_runs or 'all'}"
+        )
+
+    completed = 0
+    skipped = 0
+
+    for bold_file in bold_files:
+        bold_file = os.path.abspath(bold_file)
+        entities = layout.parse_file_entities(bold_file)
+        label = entity_label(entities)
+
+        click.echo(f"\n[{label}]")
+
+        try:
+            image = nib.load(bold_file)
+
+            if len(image.shape) != 4:
+                raise click.ClickException(
+                    f"BOLD image is not four-dimensional: {bold_file}"
+                )
+
+            n_volumes = int(image.shape[3])
+
+            metadata = layout.get_metadata(bold_file)
+            this_tr = (
+                float(tr)
+                if tr is not None
+                else metadata.get("RepetitionTime")
+            )
+
+            if this_tr is None:
+                raise click.ClickException(
+                    f"No RepetitionTime metadata for {bold_file}; use --tr."
+                )
+
+            this_tr = float(this_tr)
+            if this_tr <= 0:
+                raise click.ClickException(
+                    f"Invalid RepetitionTime {this_tr} for {bold_file}"
+                )
+
+            shared = query_shared_entities(entities)
+
+            events_file = find_single_file(
+                layout,
+                description="events file",
+                suffix="events",
+                extension=".tsv",
+                **shared,
+            )
+            assert events_file is not None
+
+            events = pd.read_csv(events_file, sep="\t")
+
+            required_event_columns = {"onset", "duration", "trial_type"}
+            missing_event_columns = required_event_columns - set(events.columns)
+
+            if missing_event_columns:
+                raise click.ClickException(
+                    f"Events file lacks columns "
+                    f"{sorted(missing_event_columns)}: {events_file}"
+                )
+
+            events = events.loc[:, ["onset", "duration", "trial_type"]].copy()
+            events = events.loc[events["trial_type"].notna()].copy()
+            events["trial_type"] = events["trial_type"].astype(str)
+
+            if keep_conditions:
+                events = events.loc[
+                    events["trial_type"].isin(keep_conditions)
+                ].copy()
+
+            events["onset"] = pd.to_numeric(
+                events["onset"],
+                errors="raise",
+            )
+            events["duration"] = pd.to_numeric(
+                events["duration"],
+                errors="raise",
+            )
+
+            if events.empty:
+                click.echo(
+                    "[WARN] No retained events; skipping.",
+                    err=True,
+                )
+                skipped += 1
+                continue
+
+            if (events["onset"] < 0).any():
+                raise click.ClickException(
+                    f"Negative onset found in {events_file}"
+                )
+
+            if (events["duration"] < 0).any():
+                raise click.ClickException(
+                    f"Negative duration found in {events_file}"
+                )
+
+            events = events.sort_values("onset").reset_index(drop=True)
+
+            # Preserve CLI order when conditions were requested; otherwise use
+            # first appearance in the events file.
+            if keep_conditions:
+                conditions = [
+                    condition
+                    for condition in keep_conditions
+                    if condition in set(events["trial_type"])
+                ]
+            else:
+                conditions = events["trial_type"].drop_duplicates().tolist()
+
+            # Always generate baseline contrasts for every modeled condition.
+            contrasts, canonical_names = default_baseline_contrasts(conditions)
+
+            # Append any user-specified contrasts.
+            if configured_contrasts:
+                existing_names = {contrast[0] for contrast in contrasts}
+
+                for contrast in configured_contrasts:
+                    name = contrast[0]
+
+                    if name in existing_names:
+                        raise click.ClickException(
+                            f"Duplicate contrast name '{name}'. "
+                            "Custom contrast names must be unique."
+                        )
+
+                    contrasts.append(contrast)
+                    existing_names.add(name)
+
+                canonical_names.update(configured_canonical_names)
+
+            run_contrasts, skipped_contrasts = filter_estimable_contrasts(
+                contrasts,
+                conditions,
+            )
+
+            if skipped_contrasts:
+                click.echo(
+                    "[WARN] Omitting non-estimable contrasts for this run: "
+                    + "; ".join(skipped_contrasts),
+                    err=True,
+                )
+
+            if not run_contrasts:
+                click.echo(
+                    "[WARN] No contrasts are estimable for this run; skipping.",
+                    err=True,
+                )
+                skipped += 1
+                continue
+
+            output_dir = deriv_dir / f"{label}.feat"
+
+            if update_contrasts:
+                if not output_dir.is_dir():
+                    click.echo(
+                        f"[WARN] Existing FEAT directory not found: {output_dir}",
+                        err=True,
+                    )
+                    skipped += 1
+                    continue
+
+                base_work_dir = deriv_dir / "work" / label
+                base_work_dir.mkdir(parents=True, exist_ok=True)
+                work_dir = next_contrast_update_dir(base_work_dir)
+                work_dir.mkdir(parents=True, exist_ok=False)
+
+                update_existing_feat_contrasts(
+                    feat_dir=output_dir,
+                    work_dir=work_dir,
+                    deriv_dir=deriv_dir,
+                    entities=entities,
+                    label=label,
+                    contrasts=run_contrasts,
+                    canonical_names=canonical_names,
+                    dry_run=dry_run,
+                )
+
+                completed += 1
+                continue
+
+            subject_info_kwargs: dict[str, Any] = {
+                "conditions": conditions,
+                "onsets": [
+                    events.loc[
+                        events["trial_type"] == condition,
+                        "onset",
+                    ].astype(float).tolist()
+                    for condition in conditions
+                ],
+                "durations": [
+                    events.loc[
+                        events["trial_type"] == condition,
+                        "duration",
+                    ].astype(float).tolist()
+                    for condition in conditions
+                ],
+            }
+
+            if not no_confounds:
+                confound_query = dict(shared)
+                confound_query.update(
+                    {
+                        "suffix": confounds_suffix,
+                        "extension": ".tsv",
+                    }
+                )
+
+                # Standard fMRIPrep filename:
+                # *_desc-confounds_timeseries.tsv
+                if confounds_suffix == "timeseries":
+                    confound_query["desc"] = "confounds"
+
+                confounds_file = find_single_file(
+                    layout,
+                    description="confound file",
+                    **confound_query,
+                )
+                assert confounds_file is not None
+
+                regressor_names, regressors = load_confounds(
+                    confounds_file,
+                    regexes=confound_regexes,
+                    expected_rows=n_volumes,
+                    require_all_regexes=require_all_confounds,
+                )
+
+                subject_info_kwargs.update(
+                    {
+                        "regressor_names": regressor_names,
+                        "regressors": regressors,
+                    }
+                )
+
+                click.echo(
+                    f"Confounds ({len(regressor_names)}): "
+                    + ", ".join(regressor_names)
+                )
+
+            subject_info = Bunch(**subject_info_kwargs)
+
+            # Normal first-level path only below this point.
+            work_dir = deriv_dir / "work" / label
+
+            work_dir.mkdir(parents=True, exist_ok=True)
+
+            if output_dir.exists():
+                if overwrite:
+                    click.echo(f"Removing existing output: {output_dir}")
+                    shutil.rmtree(output_dir)
+                else:
+                    click.echo(
+                        f"[WARN] Output exists; skipping: {output_dir}",
+                        err=True,
+                    )
+                    skipped += 1
+                    continue
+
+            modelspec = SpecifyModel(
+                input_units="secs",
+                time_repetition=this_tr,
+                high_pass_filter_cutoff=high_pass,
+                functional_runs=[bold_file],
+                subject_info=[subject_info],
+            )
+
+            model_result = modelspec.run(cwd=str(work_dir))
+
+            level1_dir = work_dir / "level1design"
+            level1_dir.mkdir(parents=True, exist_ok=True)
+
+            level1_design = Level1Design(
+                interscan_interval=this_tr,
+                bases=bases,
+                model_serial_correlations=True,
+                contrasts=run_contrasts,
+                session_info=model_result.outputs.session_info,
+            )
+
+            design_result = level1_design.run(cwd=str(level1_dir))
+            fsf_files = design_result.outputs.fsf_files
+
+            if isinstance(fsf_files, (str, os.PathLike)):
+                fsf_path = os.path.abspath(os.fspath(fsf_files))
+            else:
+                if not fsf_files:
+                    raise click.ClickException(
+                        "Level1Design did not produce an FSF file."
+                    )
+                fsf_path = os.path.abspath(os.fspath(fsf_files[0]))
+
+            patch_fsf(
+                fsf_path,
+                output_dir=str(output_dir),
+                bold_file=bold_file,
+                disable_feat_preprocessing=disable_feat_preprocessing,
+                smoothing_fwhm=smoothing_fwhm,
+            )
+
+            write_contrast_manifest(
+                work_dir=work_dir,
+                deriv_dir=deriv_dir,
+                entities=entities,
+                label=label,
+                output_dir=output_dir,
+                contrasts=run_contrasts,
+                canonical_names=canonical_names,
+            )
+
+            resolved_basis_name = next(iter(bases))
+            basis_options = bases[resolved_basis_name]
+
+            click.echo("Settings:")
+            click.echo(f"  BOLD:            {bold_file}")
+            click.echo(f"  Events:          {events_file}")
+            click.echo(f"  TR:              {this_tr:g} s")
+            click.echo(f"  High-pass:       {high_pass:g} s")
+            click.echo(f"  Smoothing FWHM:  {smoothing_fwhm:g} mm")
+            click.echo(
+                f"  Basis:           {resolved_basis_name}"
+                + (f"; options={basis_options}" if basis_options else "")
+            )
+            click.echo(f"  FSF:             {fsf_path}")
+            click.echo(f"  Output:          {output_dir}")
+
+            click.echo("Contrasts:")
+            cope_number = 0
+            for contrast in run_contrasts:
+                name, statistic, conditions, weights = contrast
+                statistic = str(statistic).upper()
+                if statistic == "T":
+                    cope_number += 1
+                    contrast_label = f"cope{cope_number}"
+                else:
+                    contrast_label = statistic
+
+                name = str(name).strip()
+                canonical = str(canonical_names.get(name, name)).strip()
+                click.echo(f"  {contrast_label}: {name}")
+                click.echo(f"    canonical:  {canonical}")
+                click.echo(f"    statistic:  {statistic}")
+                click.echo(
+                    "    conditions: "
+                    + ", ".join(str(condition) for condition in conditions)
+                )
+                click.echo(
+                    "    weights:    "
+                    + ", ".join(f"{float(weight):g}" for weight in weights)
+                )
+
+            if dry_run:
+                click.echo(f"DRY RUN: feat {fsf_path}")
+            else:
+                subprocess.run(
+                    ["feat", fsf_path],
+                    check=True,
+                    cwd=str(level1_dir),
+                )
+
+            completed += 1
+
+        except (
+            click.ClickException,
+            OSError,
+            ValueError,
+            subprocess.CalledProcessError,
+        ) as error:
+            click.echo(f"[ERROR] {label}: {error}", err=True)
+            skipped += 1
+
+    click.echo(
+        f"\nFinished: {completed} run(s) prepared/executed; "
+        f"{skipped} run(s) skipped or failed."
+    )
+
+    if completed == 0:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    run_firstlevel()    

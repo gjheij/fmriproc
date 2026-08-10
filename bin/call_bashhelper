@@ -1570,7 +1570,7 @@ function get_module_nr() {
 
     # Process file to extract module numbers that match the search string(s)
     mods=$(
-      grep "$find_mod" "$modules_txt" | \
+      grep -w "$find_mod" "$modules_txt" | \
       awk '{print $1}' | \
       cut -d"-" -f2 | \
       cut -d':' -f1

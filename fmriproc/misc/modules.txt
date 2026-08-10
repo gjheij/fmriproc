@@ -1,4 +1,4 @@
-Available modules:                                     Script                          hh:mm:ss
+Available modules:                                    Script                           hh:mm:ss
   ${BOLD_MAGENTA}01${RESET}:  Register anat ses-1 to ms ses-1 for planning   (${BOLD_BLUE}spinoza_lineplanning${RESET})           00:06:00
   ${BOLD_MAGENTA}02a${RESET}: Convert raw files to nifti                     (${BOLD_BLUE}spinoza_scanner2bids${RESET})           00:02:00
   ${BOLD_MAGENTA}02b${RESET}: Quality control with MRIQC                     (${BOLD_BLUE}spinoza_mriqc${RESET})                  00:30:00
@@ -28,3 +28,5 @@ Available modules:                                     Script                   
   ${BOLD_MAGENTA}24${RESET}:  Subcortex parcellation with nighres            (${BOLD_BLUE}spinoza_segmentsubcortex${RESET})       00:10:00
   ${BOLD_MAGENTA}25${RESET}:  Project line to surface                        (${BOLD_BLUE}spinoza_line2surface${RESET})           00:02:00
   ${BOLD_MAGENTA}26${RESET}:  Sample a dataset across depth with Nighres     (${BOLD_BLUE}spinoza_profiling${RESET})              00:20:00
+  ${BOLD_MAGENTA}27${RESET}:  Create registration folder for FEAT            (${BOLD_BLUE}spinoza_featreg${RESET})                00:04:00
+  ${BOLD_MAGENTA}28${RESET}:  Run 1st/2nd/3rd level FEAT analyses            (${BOLD_BLUE}spinoza_feat${RESET})                   00:15:00

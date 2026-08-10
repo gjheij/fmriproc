@@ -392,6 +392,7 @@ for subID in ${search}; do
 
         #-----------------------------------------------------------------------------
         # look for T2
+        T2_flag=""
         if [ ! -z "${T2}" ]; then
           if [[ -d "${T2}/${base_path}" ]]; then
 
@@ -423,16 +424,10 @@ for subID in ${search}; do
                 echo -e "Including ${BOLD_RED}T2w${RESET}: ${BOLD_GREEN}${input_t2w}${RESET}"
                 T2_flag="-p ${input_t2w}"
               fi
-            else
-              T2_flag=""
             fi
           else
-            echo 
-            print_line -        
-            print_error_msg "$(basename ${0})" "path" "T2-path was given, but \"${T2}/${base_path}\" does not exist"
+            echo -e "${BOLD_RED}WARNING${RESET}: T2-path was given, but \"${T2}/${base_path}\" does not exist"
           fi
-        else
-          T2_flag=""
         fi
 
         #-----------------------------------------------------------------------------

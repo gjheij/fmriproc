@@ -6,6 +6,7 @@
 --anat-only
 --ap
 --aparc
+--auto-input-space
 --bgfs
 --bold
 --clean
@@ -47,6 +48,8 @@
 --is
 --identity
 --ident
+--input-func
+--input-t1w
 --inv
 --itk
 --lh
@@ -58,6 +61,7 @@
 --mask
 --masks
 --merge-ses
+--mni
 --mni-2009
 --mni-fsl
 --multi-design

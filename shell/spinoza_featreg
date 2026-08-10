@@ -1,0 +1,568 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+source "${SETUP_FILE}"
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+spinoza_featreg
+
+wrapper for call_ants2featreg and call_injectmatrices that recreates the FEAT reg-folder for
+first-level FEAT directories generated from fMRIPrep derivatives.
+
+The registration strategy is selected from the FEAT input space and requested level-2 space:
+  1. BOLD in native/func space -> level 2 in MNI space:
+       call_ants2featreg using boldref->T1w and T1w->template transforms
+  2. BOLD in T1w space -> level 2 in T1w space:
+       call_injectmatrices using identity matrices
+  3. BOLD in native/func space -> level 2 in T1w space:
+       call_ants2featreg using T1w as the target/template
+  4. BOLD in T1w space -> level 2 in MNI space:
+       call_ants2featreg using an identity boldref->T1w matrix and the T1w->template transform
+
+Usage:
+  spinoza_featreg [arguments] [options] <project root> <FEAT level-1 directory>
+
+Arguments:
+  -s <subject>    subject ID (e.g., 001 or sub-001). Can also be a comma-separated list
+  -j <n_cpus>     number of CPUs requested per job (default = 1)
+  -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG
+  -t <template>   template name used for MNI registration, e.g. MNI152NLin6Asym.
+                  If omitted, uses \$FEAT_TEMPLATE, then \$TEMPLATE, when defined
+  -x <kwargs>     additional arguments passed directly to call_ants2featreg or
+                  call_injectmatrices. Supply them as one shell-quoted string
+
+Options:
+  -h|--help       print this help text
+  --sge           submit one registration job per FEAT directory to the cluster
+
+  Input space (default = auto):
+  --func          force FEAT input to native/functional space
+  --input-func    alias for --func
+  --input-t1w     force FEAT input to T1w space
+  --auto-input-space
+                  infer FEAT input space from 'space-func'/'space-T1w' in the .feat name
+
+  Level-2 target space:
+  --anat          target T1w space. Native-space FEATs use case 3;
+                  T1w-space FEATs use case 2
+  --mni           target MNI/template space (default). Native-space FEATs use case 1
+  --apply-featreg pass --apply-featreg to call_ants2featreg
+  --update-featreg
+                  pass --update-featreg to call_ants2featreg
+  --dry-run       print commands without executing/submitting them
+
+Positional:
+  <project root>          BIDS project root containing derivatives/fmriprep
+  <FEAT level-1 directory>
+                          directory containing sub-*.feat first-level FEAT directories
+
+---------------------------------------------------------------------------------------------------
+Examples:
+  # native BOLD -> MNI
+  spinoza_featreg --func --mni -t MNI152NLin6Asym \\
+    \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/feat/level1
+
+  # native BOLD -> T1w
+  spinoza_featreg --func --anat \\
+    \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/feat/level1
+
+  # T1w BOLD -> T1w
+  spinoza_featreg --input-t1w --anat \\
+    \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/feat/level1
+
+  # T1w BOLD -> MNI
+  spinoza_featreg --input-t1w --mni -t MNI152NLin6Asym \\
+    \$DIR_DATA_HOME \\
+    \$DIR_DATA_DERIV/feat/level1
+
+  # restrict to subjects and submit to cluster
+  spinoza_featreg -s 001,002 -j 1 -q main --sge \\
+    \$DIR_DATA_HOME \$DIR_DATA_DERIV/feat/level1
+
+---------------------------------------------------------------------------------------------------
+Call with master:
+
+  # native BOLD -> MNI
+  master -m $(get_module_nr $(basename ${0})) \\
+    --func --mni \\
+    -t MNI152NLin6Asym \\
+    --sge
+
+  # native BOLD -> T1w
+  master -m $(get_module_nr $(basename ${0})) \\
+    --func --anat \\
+    --sge
+
+  # T1w BOLD -> T1w
+  master -m $(get_module_nr $(basename ${0})) \\
+    --input-t1w --anat \\
+    --sge
+
+  # T1w BOLD -> MNI
+  master -m $(get_module_nr $(basename ${0})) \\
+    --input-t1w --mni \\
+    -t MNI152NLin6Asym \\
+    --sge
+
+  # restrict to one subject
+  master -m $(get_module_nr $(basename ${0})) \\
+    -s 001 \\
+    --func --mni \\
+    -t MNI152NLin6Asym \\
+    --sge
+
+Notes:
+  Input space can be specified explicitly with --func/--input-func or --input-t1w.
+  With the default --auto-input-space mode, directories containing 'space-T1w' are treated as
+  T1w-space data and directories containing 'space-func' as native-space data.
+  Explicit input-space flags override the directory-name inference.
+  T1w -> MNI uses the identity matrix for the boldref->T1w leg.
+  For native-space FEATs, the run entity in the FEAT directory name is used to select the
+  corresponding fMRIPrep boldref->T1w transform when present.
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+#-----------------------------------------------------------------------------
+# defaults
+sub=""
+n_cpus=1
+run_local=1
+dry_run=0
+target_space="mni"
+SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
+tpl_name="${FEAT_TEMPLATE:-${TEMPLATE:-}}"
+kwargs_flags=""
+featreg_mode="auto"
+input_space="auto"
+overwrite=0
+
+#-----------------------------------------------------------------------------
+# parse arguments
+while getopts :-:hs:j:q:t:x: argument
+do
+  case ${argument} in
+    -)
+      case "${OPTARG}" in
+        sge)
+          run_local=0
+          ;;
+        func|input-func)
+          input_space="func"
+          ;;
+        ow|overwrite)
+          overwrite=1
+          ;;          
+        input-t1w)
+          input_space="T1w"
+          ;;
+        auto-input-space)
+          input_space="auto"
+          ;;
+        anat|t1w)
+          target_space="T1w"
+          ;;
+        mni)
+          target_space="mni"
+          ;;
+        apply-featreg)
+          featreg_mode="apply"
+          ;;
+        update-featreg)
+          featreg_mode="update"
+          ;;
+        dry-run)
+          dry_run=1
+          ;;
+        help)
+          Usage && exit 0
+          ;;
+        *)
+          Usage
+          print_error_msg "$(basename "${0}")" "getopt" "Unknown option --${OPTARG}"
+          exit 1
+          ;;
+      esac
+      ;;
+    h)
+      Usage && exit 0
+      ;;
+    s)
+      sub="${OPTARG}"
+      ;;
+    j)
+      n_cpus="${OPTARG}"
+      ;;
+    q)
+      SGE_QUEUE="${OPTARG}"
+      ;;
+    t)
+      tpl_name="${OPTARG}"
+      ;;
+    x)
+      kwargs_flags="${OPTARG}"
+      ;;
+  esac
+done
+
+shift $((OPTIND - 1))
+
+if [[ $# -lt 2 ]]; then
+  Usage
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# positional arguments
+PROJ_PATH="$(realpath "$1")"
+FT_DIR="$(realpath "$2")"
+DERIV_PATH="${PROJ_PATH}/derivatives"
+FPREP_ROOT="${DERIV_PATH}/fmriprep"
+
+if [[ ! -d "${FT_DIR}" ]]; then
+  print_directory_not_exist "FEAT" "${FT_DIR}"
+  exit 1
+fi
+
+if [[ ! -d "${FPREP_ROOT}" ]]; then
+  print_directory_not_exist "fMRIPrep" "${FPREP_ROOT}"
+  exit 1
+fi
+
+if [[ ${target_space} == "mni" && -z ${tpl_name} ]]; then
+  print_error_msg "$(basename "${0}")" "input" \
+    "No template specified. Use -t <template> or define FEAT_TEMPLATE/TEMPLATE."
+  exit 1
+fi
+
+export DIR_LOGS="${PROJ_PATH}/code/logs"
+if [[ ${run_local} -eq 0 && ! -d "${DIR_LOGS}" ]]; then
+  mkdir -p "${DIR_LOGS}"
+fi
+
+#-----------------------------------------------------------------------------
+# build optional subject filter
+subjects=()
+if [[ -n ${sub} ]]; then
+  IFS=', ' read -r -a subjects <<< "${sub}"
+  unset IFS
+  for i in "${!subjects[@]}"; do
+    subjects[$i]="${subjects[$i]#sub-}"
+  done
+fi
+
+function subject_requested {
+  local candidate="${1#sub-}"
+
+  if [[ ${#subjects[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  local requested
+  for requested in "${subjects[@]}"; do
+    if [[ ${candidate} == "${requested}" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+function find_unique_file {
+  local label="$1"
+  shift
+
+  local -a matches=()
+  mapfile -t matches < <(find "$@" 2>/dev/null | sort)
+
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    echo "ERROR: could not find ${label}" >&2
+    return 1
+  fi
+
+  if [[ ${#matches[@]} -gt 1 ]]; then
+    echo "ERROR: found multiple files for ${label}:" >&2
+    printf '  %s\n' "${matches[@]}" >&2
+    return 1
+  fi
+
+  printf '%s\n' "${matches[0]}"
+}
+
+function featreg_exists {
+  local feat_dir="$1"
+
+  # Minimum requirement: registration was actually completed.
+  # A directory containing only ants2feat.log is not sufficient.
+  local required_files=(
+    "${feat_dir}/reg/example_func2standard.mat"
+    "${feat_dir}/reg/example_func2standard.png"
+  )
+
+  for f in "${required_files[@]}"; do
+    if [[ ! -f "${f}" ]]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+#-----------------------------------------------------------------------------
+# intro
+start_timer "Recreating FEAT registration folders"
+
+shopt -s nullglob
+feat_dirs=("${FT_DIR}"/sub-*.feat)
+shopt -u nullglob
+
+if [[ ${#feat_dirs[@]} -eq 0 ]]; then
+  print_error_msg "$(basename "${0}")" "input" "No sub-*.feat directories found in ${FT_DIR}"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# loop through FEAT directories
+for ft_sub in "${feat_dirs[@]}"; do
+
+  if [[ ! -d "${ft_sub}" ]]; then
+    echo "ERROR: Directory ${ft_sub} does not exist; run FEAT first" >&2
+    continue
+  fi
+
+  feat_name="$(basename "${ft_sub}" .feat)"
+  if featreg_exists "${ft_sub}"; then
+      print_output_exists "${feat_name}" "reg-folders" "Use \"--ow\" to overwrite"
+      continue
+  fi
+
+  if [[ ${feat_name} =~ (sub-[^_]+) ]]; then
+    sub_name="${BASH_REMATCH[1]}"
+    sub_id="${sub_name#sub-}"
+  else
+    print_error_msg "$(basename "${0}")" "input" \
+      "Could not determine subject from ${feat_name}"
+    continue
+  fi
+
+  if ! subject_requested "${sub_id}"; then
+    continue
+  fi
+
+  fprep_path="${FPREP_ROOT}/${sub_name}"
+  if [[ ! -d "${fprep_path}" ]]; then
+    print_directory_not_exist "${sub_name}" "${fprep_path}"
+    continue
+  fi
+
+  t1w="$(find_unique_file \
+    "${sub_name} preprocessed T1w" \
+    "${fprep_path}" -type f \
+    -name '*desc-preproc_T1w.nii.gz' \
+    ! -name '*space-*')" || continue
+
+  if [[ ${run_local} -eq 1 ]]; then
+    print_subject_header "${feat_name}"
+  fi
+
+  #---------------------------------------------------------------------------
+  # Determine FEAT input space. Explicit flags override directory-name inference.
+  feat_input_space="${input_space}"
+  if [[ ${feat_input_space} == "auto" ]]; then
+    if [[ ${ft_sub} == *"space-T1w"* ]]; then
+      feat_input_space="T1w"
+    elif [[ ${ft_sub} == *"space-func"* ]]; then
+      feat_input_space="func"
+    else
+      print_error_msg "$(basename "${0}")" "registration" \
+        "Cannot determine FEAT input space for ${feat_name}; use --func/--input-func or --input-t1w, or include 'space-func'/'space-T1w' in the directory name"
+      continue
+    fi
+  fi
+
+  #---------------------------------------------------------------------------
+  # cases 2 and 4: BOLD already in T1w space
+  if [[ ${feat_input_space} == "T1w" ]]; then
+
+    if [[ ${target_space} == "T1w" ]]; then
+      # case 2: T1w BOLD -> T1w
+      job_name="${feat_name}_desc-injectmatrices"
+      job="$(
+        decide_job_type \
+          "call_injectmatrices" \
+          "${job_name}" \
+          "${run_local}" \
+          "${DIR_LOGS}" \
+          "${n_cpus}" \
+          "${SGE_QUEUE}"
+      )"
+
+      cmd=(
+        "${job}"
+        -t "${t1w}"
+        -f "${ft_sub}"
+      )
+
+    else
+      # case 4: T1w BOLD -> MNI/template.
+      # The FEAT data are already aligned with T1w, so use an identity matrix
+      # for the boldref->T1w leg and the fMRIPrep T1w->template transform.
+      identity_mat="$(mktemp "${TMPDIR:-/tmp}/spinoza_featreg_identity.XXXXXX.txt")"
+      rm -f "${identity_mat}" 2>/dev/null
+
+      call_createident "${identity_mat}"
+
+      if [[ ! -f "${identity_mat}" ]]; then
+          print_error_msg "$(basename "${0}")" "call_createident" \
+              "Could not create identity matrix: ${identity_mat}"
+          continue
+      fi
+
+      t1w_to_mni="$(find_unique_file \
+        "${sub_name} T1w-to-${tpl_name} transform" \
+        "${fprep_path}" -type f \
+        -name "*from-T1w_to-${tpl_name}*" \
+        -name '*xfm.h5')" || continue
+
+      job_name="${feat_name}_desc-ants2featreg"
+      job="$(
+        decide_job_type \
+          "call_ants2featreg" \
+          "${job_name}" \
+          "${run_local}" \
+          "${DIR_LOGS}" \
+          "${n_cpus}" \
+          "${SGE_QUEUE}"
+      )"
+
+      cmd=(
+        "${job}"
+        --t1w "${t1w}"
+        --t1w-to-mni-h5 "${t1w_to_mni}"
+        --boldref "${ft_sub}/example_func.nii.gz"
+        --bold-to-t1w "${identity_mat}"
+        --feat-dir "${ft_sub}"
+      )
+
+      if [[ ${featreg_mode} == "update" ]]; then
+        cmd+=(--update-featreg)
+      else
+        cmd+=(--apply-featreg)
+      fi
+    fi
+
+  #---------------------------------------------------------------------------
+  # cases 1 and 3: BOLD in native/func space
+  elif [[ ${feat_input_space} == "func" ]]; then
+
+    run_id=""
+    if [[ ${feat_name} =~ _run-([^_]+) ]]; then
+      run_id="${BASH_REMATCH[1]}"
+    fi
+
+    bold_find=(
+      "${fprep_path}"
+      -type f
+      -name '*from-boldref_to-T1w*'
+      -name '*xfm.txt'
+    )
+    if [[ -n ${run_id} ]]; then
+      bold_find+=( -name "*run-${run_id}*" )
+    fi
+
+    bold_to_t1w="$(find_unique_file \
+      "${feat_name} boldref-to-T1w transform" \
+      "${bold_find[@]}")" || continue
+
+    job_name="${feat_name}_desc-ants2featreg"
+    job="$(
+      decide_job_type \
+        "call_ants2featreg" \
+        "${job_name}" \
+        "${run_local}" \
+        "${DIR_LOGS}" \
+        "${n_cpus}" \
+        "${SGE_QUEUE}"
+    )"
+
+    cmd=(
+      "${job}"
+      --t1w "${t1w}"
+      --boldref "${ft_sub}/example_func.nii.gz"
+      --bold-to-t1w "${bold_to_t1w}"
+      --feat-dir "${ft_sub}"
+    )
+
+    if [[ ${target_space} == "T1w" ]]; then
+      # case 3: native BOLD -> T1w
+      if [[ ${featreg_mode} == "apply" ]]; then
+        cmd+=(--apply-featreg)
+      else
+        cmd+=(--update-featreg)
+      fi
+    else
+      # case 1: native BOLD -> MNI/template
+      t1w_to_mni="$(find_unique_file \
+        "${sub_name} T1w-to-${tpl_name} transform" \
+        "${fprep_path}" -type f \
+        -name "*from-T1w_to-${tpl_name}*" \
+        -name '*xfm.h5')" || continue
+
+      cmd+=(--t1w-to-mni-h5 "${t1w_to_mni}")
+
+      if [[ ${featreg_mode} == "update" ]]; then
+        cmd+=(--update-featreg)
+      else
+        cmd+=(--apply-featreg)
+      fi
+    fi
+
+  else
+    print_error_msg "$(basename "${0}")" "registration" \
+      "Unsupported FEAT input space '${feat_input_space}' for ${feat_name}"
+    continue
+  fi
+
+  #---------------------------------------------------------------------------
+  # optional passthrough arguments
+  if [[ -n ${kwargs_flags} ]]; then
+    # Match the style of the other spinoza wrappers: -x is intentionally a shell string.
+    # shellcheck disable=SC2206
+    extra_args=( ${kwargs_flags} )
+    cmd+=("${extra_args[@]}")
+  fi
+
+  #---------------------------------------------------------------------------
+  # print / execute
+  if [[ ${run_local} -eq 1 || ${dry_run} -eq 1 ]]; then
+    print_cmd "${cmd[@]}"
+  fi
+
+  if [[ ${dry_run} -eq 1 ]]; then
+    continue
+  fi
+
+  eval "${cmd[@]}"
+  cmd_status=$?
+
+  if [[ ${cmd_status} -ne 0 ]]; then
+    print_error_msg "$(basename "${0}")" "featreg" "Registration failed for ${feat_name}"
+    exit 1
+  fi
+
+done
+
+#-----------------------------------------------------------------------------
+# outro
+end_timer

@@ -156,6 +156,9 @@ FORCE_FLAG=""             # spinoza_freesurfer
 START_STAGE=""            # spinoza_freesurfer
 use_t2_flag=""            # spinoza_freesurfer
 space_flag=""             # spinoza_denoising
+featreg_input_flag=""     # spinoza_featreg: --func/--input-t1w/--auto-input-space
+featreg_target_flag=""    # spinoza_featreg: --anat/--mni
+featreg_template=""       # spinoza_featreg: template supplied with -t
 mod_flag=""               # spinoza_mriqc
 fd_flag=""                # spinoza_mriqc
 t_specified=0             # keep track when t-flag is specified or --func is used (alias for -t func)
@@ -195,6 +198,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
           ;;
         anat)
           space_flag="--anat"
+          featreg_target_flag="--anat"
           ;;
         anat-only)
           mod_flag="--anat-only"
@@ -295,6 +299,16 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         func)
           TYPE="func"
           space_flag="--func"
+          featreg_input_flag="--func"
+          ;;
+        input-func)
+          featreg_input_flag="--input-func"
+          ;;
+        input-t1w)
+          featreg_input_flag="--input-t1w"
+          ;;
+        auto-input-space)
+          featreg_input_flag="--auto-input-space"
           ;;
         func-only)
           mod_flag="--func-only"
@@ -361,6 +375,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
           ;;
         merge-ses)
           merge_flag="--merge-ses"
+          ;;
+        mni)
+          featreg_target_flag="--mni"
           ;;
         mni-2009)
           space_flag="--mni-2009"
@@ -604,6 +621,7 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
       ;;
     t)
       TYPE="${OPTARG}"
+      featreg_template="${OPTARG}"
       t_specified=1
       TR_FLAG="-t ${OPTARG}"
       ;;
@@ -2511,7 +2529,7 @@ if [[ $? -eq 0 ]]; then
 fi
 
 #-------------------------------------------------------------------------------------
-# STEP 27: Project line to surface with a registration cascade
+# STEP 27: FEAT registration
 module=27
 
 # Check whether the module should be executed
@@ -2520,37 +2538,229 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    spinoza_suit
+    spinoza_featreg --help
     exit 0
   fi
 
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "master" "This is not implemented in 'master' yet. Use ${BOLD_BLUE}call_spmsuit${RESET}."
-  call_spmsuit
+  # print module intro
+  print_module_start "${module}" "Recreate FEAT registration directories"
+
+  # spinoza_featreg keeps INPUT space and TARGET space independent.
+  #
+  # Input-space flags:
+  #   --func / --input-func  -> force native/functional FEAT input
+  #   --input-t1w            -> force T1w-space FEAT input
+  #   --auto-input-space     -> infer from the .feat directory name (default)
+  #
+  # Target-space flags:
+  #   --anat                 -> level-2 target is T1w
+  #   --mni                  -> level-2 target is MNI/template (default)
+  #
+  # This allows all intended combinations without relying on directory names:
+  #   --func --mni           native/func -> MNI       (call_ants2featreg)
+  #   --input-t1w --anat     T1w         -> T1w       (call_injectmatrices)
+  #   --func --anat          native/func -> T1w       (call_ants2featreg)
+  #
+  # master mappings used by this module:
+  #   -s <sub>       -> subject selector
+  #   -j <N>         -> CPUs requested per registration job
+  #   -q <queue>     -> SLURM partition
+  #   --sge          -> submit one job per FEAT directory
+  #   -t <template>  -> MNI/template name (only when -t was explicitly supplied)
+  #   -x '<args>'    -> additional spinoza_featreg arguments
+
+  if [[ ! -z "$P_KWARGS" ]]; then
+    featreg_project_root="${P_KWARGS}"
+  else
+    featreg_project_root="${DIR_DATA_HOME}"
+  fi
+
+  if [[ ! -z "$FOLDS_FLAG" ]]; then
+    featreg_dir=$(echo "$FOLDS_FLAG" | sed 's/^-f //')
+  else
+    featreg_dir="${featreg_project_root}/derivatives/feat/level1"
+  fi
+
+  cmd=(spinoza_featreg)
+
+  if [[ -n ${SUB:-} ]]; then
+    cmd+=(-s "$SUB")
+  fi
+
+  if [[ -n ${jobs_flag:-} ]]; then
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-j "$jobs_value")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
+  fi
+
+  # spinoza_featreg runs locally by default; --sge opts into cluster submission.
+  [[ -n ${SGE:-} ]] && cmd+=(--sge)
+  [[ -n ${OW:-} ]] && cmd+=(--overwrite)
   
-  # # print module intro
-  # print_module_start "${module}" "Cerebellum segmentation with SUIT"
+  # Input and target space are deliberately separate; neither overwrites the other.
+  [[ -n ${featreg_input_flag:-} ]]  && cmd+=("$featreg_input_flag")
+  [[ -n ${featreg_target_flag:-} ]] && cmd+=("$featreg_target_flag")
 
-  # # check where inputs live
-  # INPUT_DIR=$(find_hierarchical_anatomy 6)
+  # Keep the registration template independent of the generic TYPE variable.
+  # This makes both of these equivalent and safe:
+  #   -t MNI152NLin6Asym --func
+  #   --func -t MNI152NLin6Asym
+  if [[ ${t_specified:-0} -eq 1 && -n ${featreg_template:-} ]]; then
+    cmd+=(-t "$featreg_template")
+  fi
 
-  # # spinoza_profiling "${SUBJECT}" "${SESSION}" "${OW}" "${DIR_DATA_DERIV}/nighres" ${DIR_DATA_HOME} T1map
-  # cmd=(spinoza_suit
-  #   "${SUBJECT}"
-  #   "${SESSION}"
-  #   "${OW}"
-  #   ${INPUT_DIR} ${DIR_DATA_DERIV}/suit)
+  # Additional wrapper-level arguments, e.g.:
+  #   -x '--apply-featreg'
+  #   -x '--dry-run'
+  if [[ -n ${X_KWARGS:-} ]]; then
+    eval "featreg_extra=( ${X_KWARGS} )"
+    cmd+=("${featreg_extra[@]}")
+  fi
 
-  # echo
-  # normalize_cmd_array cmd
-  #   print_cmd "${cmd[@]}" && "${cmd[@]}"    
+  cmd+=(
+    "$featreg_project_root"
+    "$featreg_dir"
+  )
 
-  # if [[ $? -ne 0 ]]; then
-  #   print_error_msg "$(basename ${0})" "spinoza_suit"
-  #   exit 1
-  # fi
+  if [[ -n ${DEBUG:-} ]]; then
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
 
-  # print_module_end "${module}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  print_module_end "${module}"
+
+fi
+
+#-------------------------------------------------------------------------------------
+# STEP 28: FEAT
+module=28
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    spinoza_feat --help
+    exit 0
+  fi
+
+  # print module intro
+  print_module_start "${module}" "Statistical analysis with FEAT"
+
+  # spinoza_feat has its own wrapper options before '--' and forwards all
+  # call_feat/call_feat2/call_feat3 options after '--'. Keep those two
+  # namespaces separate here.
+  #
+  # master mappings used by this module:
+  #   -l <1|2|3>   -> FEAT level
+  #   -s <sub>     -> subject selector
+  #   -j <N>       -> maximum concurrently running FEAT jobs
+  #   -q <queue>   -> SLURM partition
+  #   --local      -> local queue instead of SLURM
+  #   -t <task>    -> native --task
+  #   -n <session> -> native --session (levels 2/3)
+  #   -r <runs>    -> native --run (repeat/comma syntax handled by call_feat*)
+  #   -o            -> native --overwrite
+  #   -x '<args>'  -> additional native call_feat* arguments
+
+  feat_level="${WHICH_MOD:-1}"
+  if [[ ! "${feat_level}" =~ ^[123]$ ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "spinoza_feat" \
+      "FEAT level must be 1, 2, or 3. Specify it with '-l <level>' (default: 1)."
+    exit 1
+  fi
+
+  # Project root. spinoza_feat derives the default level1/2/3 derivative
+  # locations underneath this directory itself.
+  if [[ ! -z "$P_KWARGS" ]]; then
+    feat_project_root="${P_KWARGS}"
+  else
+    feat_project_root="${DIR_DATA_HOME}"
+  fi
+
+  cmd=(
+    spinoza_feat
+    -l "$feat_level"
+  )
+
+  # Wrapper-level selectors/settings.
+  if [[ -n ${SUB:-} ]]; then
+    cmd+=(-s "$SUB")
+  fi
+
+  if [[ -n ${jobs_flag:-} ]]; then
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-m "$jobs_value")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
+  fi
+
+  [[ -n ${run_local:-} ]] && cmd+=(--local)
+
+  # The project root is the final wrapper argument before '--'.
+  cmd+=("$feat_project_root" --)
+
+  # Native call_feat* arguments start here.
+  if [[ -n ${TYPE:-} ]]; then
+    cmd+=(--task "$TYPE")
+  fi
+
+  # call_feat (level 1) has no --session option; call_feat2/3 do.
+  if [[ "$feat_level" != 1 && -n ${SES:-} ]]; then
+    cmd+=(--session "$SES")
+  fi
+
+  if [[ -n ${RUNS:-} ]]; then
+    runs_value=${RUNS#-r }
+    cmd+=(--run "$runs_value")
+  fi
+
+  [[ -n ${OW:-} ]] && cmd+=(--overwrite)
+
+  # -x is the escape hatch for native options that do not have a dedicated
+  # master flag. Parse it as shell words so quoted contrasts/group contrasts
+  # remain intact, e.g.:
+  #   -x '--space T1w --basis dgamma --contrast "Face>House;T;Face,House;1,-1"'
+  if [[ -n ${X_KWARGS:-} ]]; then
+    eval "feat_extra=( ${X_KWARGS} )"
+    cmd+=("${feat_extra[@]}")
+  fi
+
+  if [[ -n ${DEBUG:-} ]]; then
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
+
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  print_module_end "${module}"
 
 fi

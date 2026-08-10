@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""
+Run cross-subject FSL higher-level analyses from call_feat manifests.
+
+Supported inputs
+----------------
+1. call_feat level-1 contrast_manifest.tsv
+   Use this when every subject contributes one first-level run for each
+   canonical contrast.
+
+2. call_feat2 contrast_manifest_level2.tsv
+   Use this when subjects with multiple runs have already been combined using
+   within-subject fixed effects.
+
+The default model is a one-sample group mean estimated with FLAME 1. Optional
+subject covariates and custom group-level T contrasts are supported.
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+from typing import Any
+
+import click
+import pandas as pd
+
+from fmriproc.fsl import (
+    detect_manifest_level,
+    _entity_text,
+    _normalize_selector,
+    run_cross_subject_analysis,
+    _safe_label,
+)
+
+@click.command(
+    context_settings={"show_default": True},
+    help=(
+        "Run true cross-subject higher-level FSL analysis.\n\n"
+        "Use a call_feat level-1 manifest when every subject contributes one "
+        "run per canonical contrast. Use a call_feat2 level-2 manifest when "
+        "subjects have multiple runs that were first combined with fixed "
+        "effects.\n\n"
+        "The default model is a one-sample group mean using FLAME 1."
+    ),
+    epilog=(
+        "Examples:\n\n"
+
+        "\b\n"
+        "  Cross-subject analysis from single-run first-level analyses:\n"
+        "    call_feat3 \\\n"
+        "      --manifest /data/study/derivatives/feat/level1/contrast_manifest.tsv \\\n"
+        "      --output-dir /data/study/derivatives/feat/level3\n\n"
+
+        "\b\n"
+        "  Cross-subject analysis from subject-level fixed-effects analyses\n"
+        "  (output of call_feat2):\n"
+        "    call_feat3 \\\n"
+        "      --manifest /data/study/derivatives/feat/level2/contrast_manifest_level2.tsv \\\n"
+        "      --output-dir /data/study/derivatives/feat/level3\n\n"
+
+        "\b\n"
+        "  Use inputs that are already aligned to one common standard-space grid:\n"
+        "    call_feat3 ... \\\n"
+        "      --registration-mode prealigned\n\n"
+
+        "\b\n"
+        "  Use an existing FEAT-style registered output directory:\n"
+        "    call_feat3 ... \\\n"
+        "      --registration-mode reg-standard \\\n"
+        "      --registered-subdir reg_standard\n\n"
+
+        "\b\n"
+        "  Run featregapply before resolving registered group inputs:\n"
+        "    call_feat3 ... \\\n"
+        "      --registration-mode featregapply \\\n"
+        "      --registered-subdir reg_standard\n\n"
+
+        "\b\n"
+        "  Analyse a single canonical contrast:\n"
+        "    call_feat3 \\\n"
+        "      --manifest /data/study/derivatives/feat/level2/contrast_manifest_level2.tsv \\\n"
+        "      --output-dir /data/study/derivatives/feat/level3 \\\n"
+        "      --contrast 'USo>USm'\n\n"
+
+        "\b\n"
+        "  Include subject-level covariates:\n"
+        "    call_feat3 \\\n"
+        "      --manifest /data/study/derivatives/feat/level2/contrast_manifest_level2.tsv \\\n"
+        "      --output-dir /data/study/derivatives/feat/level3 \\\n"
+        "      --covariates-file participants.tsv \\\n"
+        "      --covariate age \\\n"
+        "      --group-contrast 'GroupMean;1,0' \\\n"
+        "      --group-contrast 'AgePositive;0,1'\n\n"
+
+        "\b\n"
+        "  Generate the design and report commands without running FLAMEO:\n"
+        "    call_feat3 \\\n"
+        "      --manifest /data/study/derivatives/feat/level2/contrast_manifest_level2.tsv \\\n"
+        "      --output-dir /data/study/derivatives/feat/level3 \\\n"
+        "      --dry-run"
+    ),
+)
+@click.option(
+    "--manifest",
+    "manifest_path",
+    required=True,
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        path_type=Path,
+    ),
+    help=(
+        "A call_feat contrast_manifest.tsv or call_feat2 "
+        "contrast_manifest_level2.tsv."
+    ),
+)
+@click.option(
+    "--input-level",
+    type=click.Choice(["auto", "1", "2"]),
+    default="auto",
+    help=(
+        "Manifest source level. 'auto' detects call_feat versus call_feat2 "
+        "from the available columns."
+    ),
+)
+@click.option(
+    "--output-dir",
+    required=True,
+    type=click.Path(
+        file_okay=False,
+        path_type=Path,
+    ),
+    help="Directory for cross-subject group outputs.",
+)
+@click.option(
+    "--subject",
+    "subjects",
+    multiple=True,
+    help=(
+        "Restrict the analysis to subject identifiers without sub-. "
+        "May be repeated or comma-separated."
+    ),
+)
+@click.option(
+    "--session",
+    "sessions",
+    multiple=True,
+    help=(
+        "Restrict to session identifiers without ses-. "
+        "May be repeated or comma-separated."
+    ),
+)
+@click.option(
+    "--task",
+    "tasks",
+    multiple=True,
+    help=(
+        "Restrict to task identifiers without task-. "
+        "May be repeated or comma-separated."
+    ),
+)
+@click.option(
+    "--contrast",
+    "canonical_contrasts",
+    multiple=True,
+    help=(
+        "Canonical first/second-level contrast to analyse. May be repeated. "
+        "All canonical contrasts are analysed when omitted."
+    ),
+)
+@click.option(
+    "--runmode",
+    type=click.Choice(["flame1", "flame12", "ols"]),
+    default="flame1",
+    help=(
+        "Highest-level mixed-effects estimator. FLAME 1 is the recommended "
+        "general default; FLAME 1+2 is slower."
+    ),
+)
+@click.option(
+    "--min-subjects",
+    type=click.IntRange(min=2),
+    default=3,
+    help=(
+        "Minimum subjects required for a group model. Groups with fewer "
+        "subjects are skipped."
+    ),
+)
+@click.option(
+    "--covariates-file",
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        path_type=Path,
+    ),
+    help=(
+        "Optional TSV with one row per subject and a required 'subject' "
+        "column. Remaining numeric columns can be included as group EVs."
+    ),
+)
+@click.option(
+    "--covariate",
+    "covariate_names",
+    multiple=True,
+    help=(
+        "Covariate column from --covariates-file. May be repeated. "
+        "All non-subject columns are used when omitted."
+    ),
+)
+@click.option(
+    "--demean-covariates/--no-demean-covariates",
+    default=True,
+    help="Mean-center numeric covariates across selected subjects.",
+)
+@click.option(
+    "--group-contrast",
+    "group_contrast_specs",
+    multiple=True,
+    help=(
+        "Group T contrast in 'Name;w1,w2,...' format. Weights follow the "
+        "design column order: Intercept, then selected covariates. "
+        "May be repeated. Defaults to 'GroupMean;1,0,...'."
+    ),
+)
+@click.option(
+    "--registration-mode",
+    type=click.Choice(
+        ["prealigned", "featregapply", "reg-standard"],
+        case_sensitive=True,
+    ),
+    default="prealigned",
+    show_default=True,
+    help=(
+        "Registration strategy. 'prealigned' uses manifest images directly; "
+        "'featregapply' runs featregapply and then uses registered outputs; "
+        "'reg-standard' uses an existing FEAT-style registered directory."
+    ),
+)
+@click.option(
+    "--registered-subdir",
+    default="reg_standard",
+    show_default=True,
+    help=(
+        "Registered directory relative to each source analysis. Used with "
+        "--registration-mode featregapply and reg-standard."
+    ),
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Replace existing group output directories.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Validate inputs and print FSL commands without writing outputs.",
+)
+def main(
+    manifest_path: Path,
+    input_level: str,
+    output_dir: Path,
+    subjects: tuple[str, ...],
+    sessions: tuple[str, ...],
+    tasks: tuple[str, ...],
+    canonical_contrasts: tuple[str, ...],
+    runmode: str,
+    min_subjects: int,
+    covariates_file: Path | None,
+    covariate_names: tuple[str, ...],
+    demean_covariates: bool,
+    group_contrast_specs: tuple[str, ...],
+    registration_mode: str,
+    registered_subdir: str,
+    overwrite: bool,
+    dry_run: bool,
+) -> None:
+    manifest_path = manifest_path.resolve()
+    output_dir = output_dir.resolve()
+
+    manifest = pd.read_csv(
+        manifest_path,
+        sep="\t",
+        dtype=str,
+        keep_default_na=False,
+    )
+
+    detected_level = detect_manifest_level(manifest, input_level)
+    click.echo(
+        f"Input manifest: {manifest_path}\n"
+        f"Detected input level: {detected_level}"
+    )
+
+    selected_subjects = _normalize_selector(subjects)
+    selected_sessions = _normalize_selector(sessions)
+    selected_tasks = _normalize_selector(tasks)
+    selected_contrasts = set(canonical_contrasts)
+
+    if selected_subjects:
+        manifest = manifest.loc[
+            manifest["subject"].isin(selected_subjects)
+        ]
+    if selected_sessions:
+        manifest = manifest.loc[
+            manifest["session"].isin(selected_sessions)
+        ]
+    if selected_tasks:
+        manifest = manifest.loc[
+            manifest["task"].isin(selected_tasks)
+        ]
+    if selected_contrasts:
+        manifest = manifest.loc[
+            manifest["canonical_name"].isin(selected_contrasts)
+        ]
+
+    if manifest.empty:
+        raise click.ClickException(
+            "No manifest rows remain after applying the requested filters."
+        )
+
+    duplicate_subset = [
+        "subject",
+        "session",
+        "task",
+        "canonical_name",
+        "cope_file",
+        "varcope_file",
+    ]
+    manifest = manifest.drop_duplicates(
+        subset=duplicate_subset
+    ).copy()
+
+    grouping_columns = ["session", "task", "canonical_name"]
+
+    completed = 0
+    skipped = 0
+    group_records: list[dict[str, Any]] = []
+
+    for group_key, rows in manifest.groupby(
+        grouping_columns,
+        sort=True,
+        dropna=False,
+    ):
+        session, task, canonical_name = map(_entity_text, group_key)
+        number_of_subjects = rows["subject"].nunique()
+
+        group_label_parts: list[str] = []
+        if session:
+            group_label_parts.append(f"ses-{session}")
+        group_label_parts.append(f"task-{task}")
+        group_label = "_".join(group_label_parts)
+
+        contrast_label = _safe_label(canonical_name)
+        group_output = (
+            output_dir
+            / f"{group_label}_group.gfeat"
+            / f"contrast-{contrast_label}.feat"
+        )
+
+        click.echo("")
+        click.echo(
+            f"[{group_label}; canonical={canonical_name}; "
+            f"subjects={number_of_subjects}]"
+        )
+
+        if number_of_subjects < min_subjects:
+            click.echo(
+                f"[WARN] Only {number_of_subjects} subject(s); "
+                f"--min-subjects={min_subjects}. Skipping.",
+                err=True,
+            )
+            skipped += 1
+            continue
+
+        try:
+            records = run_cross_subject_analysis(
+                rows=rows,
+                input_level=detected_level,
+                output_dir=group_output,
+                canonical_name=canonical_name,
+                runmode=runmode,
+                covariates_file=covariates_file,
+                covariate_names=covariate_names,
+                demean_covariates=demean_covariates,
+                group_contrast_specs=group_contrast_specs,
+                registration_mode=registration_mode,
+                registered_subdir=registered_subdir,
+                overwrite=overwrite,
+                dry_run=dry_run,
+            )
+            group_records.extend(records)
+            completed += 1
+
+        except (
+            click.ClickException,
+            OSError,
+            ValueError,
+            subprocess.CalledProcessError,
+        ) as error:
+            click.echo(
+                f"[ERROR] {group_label}; {canonical_name}: {error}",
+                err=True,
+            )
+            skipped += 1
+
+    if group_records and not dry_run:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_manifest = output_dir / "contrast_manifest_level3.tsv"
+        table = pd.DataFrame.from_records(group_records)
+        temporary = output_manifest.with_suffix(".tsv.tmp")
+        table.to_csv(temporary, sep="\t", index=False)
+        temporary.replace(output_manifest)
+        click.echo(f"\nGroup manifest: {output_manifest}")
+
+    click.echo(
+        f"\nFinished: {completed} cross-subject analysis/analyses completed; "
+        f"{skipped} skipped or failed."
+    )
+
+    if completed == 0:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

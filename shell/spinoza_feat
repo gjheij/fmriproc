@@ -1,0 +1,446 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Optional site setup, matching the Spinoza wrappers when available.
+if [[ -n "${SETUP_FILE:-}" && -f "${SETUP_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${SETUP_FILE}"
+fi
+if command -v call_bashhelper >/dev/null 2>&1; then
+  # shellcheck disable=SC1091
+  source call_bashhelper
+fi
+
+err() {
+  if declare -F print_error_msg >/dev/null 2>&1; then
+    print_error_msg "$(basename "$0")" "input" "$*"
+  else
+    printf 'ERROR: %s\n' "$*" >&2
+  fi
+}
+
+print_command() {
+  if declare -F print_cmd >/dev/null 2>&1; then
+    print_cmd "$@"
+  else
+    printf '%q ' "$@"
+    printf '\n'
+  fi
+}
+
+Usage() {
+  cat <<USAGE
+---------------------------------------------------------------------------------------------------
+spinoza_feat
+
+SLURM-array/local queue wrapper for FEAT analyses using call_feat, call_feat2, and call_feat3.
+The wrapper limits the number of simultaneously running jobs; native call_feat* options are passed
+through unchanged after '--'.
+
+Usage:
+  spinoza_feat [wrapper options] <project root> -- [call_feat* options]
+
+Wrapper options:
+  -l, --level <1|2|3>   FEAT level / command: 1=call_feat, 2=call_feat2, 3=call_feat3. Default = 1
+  -s, --subject <ids>    subjects to queue, comma/space separated (levels 1/2).
+                         Native --subject after '--' is also supported and used for queue splitting.
+  -m, --max-running <N>  maximum jobs running simultaneously. Default = 6
+  -j, --cpus <N>         CPUs requested per SLURM job. Default = 1
+  -q, --queue <name>     SLURM partition. Default = \$SGE_QUEUE_LONG, or 'main'
+      --local             run through a local process queue instead of SLURM
+      --dry-run           print generated jobs/commands without running/submitting
+      --job-name <name>   SLURM job name. Default = featL<level>
+  -h, --help              show this help
+
+Automatic defaults (only added when the corresponding native option is absent):
+  level 1: --bids-dir   <project root>
+           --deriv-dir  <project root>/derivatives/feat/level1
+  level 2: --manifest   <project root>/derivatives/feat/level1/contrast_manifest.tsv
+           --output-dir <project root>/derivatives/feat/level2
+  level 3: --manifest   level2/contrast_manifest_level2.tsv if it exists, otherwise level1 manifest
+           --output-dir <project root>/derivatives/feat/level3
+
+Queue unit:
+  level 1: one call_feat job per subject, throttled by --max-running
+  level 2: one call_feat2 job for the requested selection
+  level 3: one call_feat3 job for the requested group analysis
+
+Levels 2 and 3 intentionally stay in one process because the supplied scripts each rewrite one
+shared output manifest; splitting them into concurrent calls can race and lose manifest rows.
+
+---------------------------------------------------------------------------------------------------
+Examples:
+  spinoza_feat -l 1 -m 6 -j 2 /data/study -- \\
+    --task faces --space T1w
+
+  spinoza_feat -l 1 -s 01,02,03 -m 2 /data/study -- \\
+    --task faces --contrast 'Face>House;T;Face,House;1,-1' --overwrite
+
+  spinoza_feat -l 2 -m 4 /data/study -- \\
+    --min-runs 2 --overwrite
+
+  spinoza_feat -l 3 -m 3 /data/study -- \\
+    --runmode flame1 --min-subjects 10
+
+Any call_feat/call_feat2/call_feat3 option not listed here is still supported: put it after '--'.
+
+---------------------------------------------------------------------------------------------------
+Call with master:
+
+  # Level 1 FEAT: first-level subject-wise analysis
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 1 \\
+    -s 01,02,03 \\
+    -j 2 \\
+    -x "--task faces --space T1w"
+
+  # Level 1 FEAT with contrast and SLURM submission
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 1 \\
+    -s 01,02,03 \\
+    -j 2 \\
+    --sge \\
+    -x "--task faces --contrast 'Face>House;T;Face,House;1,-1' --overwrite"
+
+  # Level 2 FEAT: subject/contrast aggregation
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 2 \\
+    -j 4 \\
+    --sge \\
+    -x "--min-runs 2 --overwrite"
+
+  # Level 3 FEAT: group analysis
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 3 \\
+    -j 3 \\
+    --sge \\
+    -x "--runmode flame1"
+
+---------------------------------------------------------------------------------------------------
+USAGE
+}
+
+level=1
+subjects_cli=""
+max_running=6
+n_cpus=1
+queue="${SGE_QUEUE_LONG:-main}"
+run_local=0
+dry_run=0
+job_name=""
+proj_dir=""
+pass_args=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -l|--level)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      level="$2"; shift 2 ;;
+    -s|--subject)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      subjects_cli="${subjects_cli}${subjects_cli:+,}$2"; shift 2 ;;
+    -m|--max-running)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      max_running="$2"; shift 2 ;;
+    -j|--cpus|--cpus-per-job)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      n_cpus="$2"; shift 2 ;;
+    -q|--queue|--partition)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      queue="$2"; shift 2 ;;
+    --job-name)
+      [[ $# -ge 2 ]] || { err "$1 requires a value"; exit 2; }
+      job_name="$2"; shift 2 ;;
+    --local)
+      run_local=1; shift ;;
+    --dry-run)
+      dry_run=1; shift ;;
+    -h|--help)
+      Usage; exit 0 ;;
+    --)
+      shift
+      pass_args=("$@")
+      break ;;
+    -*)
+      err "Unknown wrapper option: $1 (native call_feat* options must go after '--')"
+      Usage
+      exit 2 ;;
+    *)
+      if [[ -n "$proj_dir" ]]; then
+        err "Only one project root may be specified before '--'"
+        exit 2
+      fi
+      proj_dir="$1"; shift ;;
+  esac
+done
+
+[[ "$level" =~ ^[123]$ ]] || { err "--level must be 1, 2, or 3"; exit 2; }
+[[ "$max_running" =~ ^[1-9][0-9]*$ ]] || { err "--max-running must be a positive integer"; exit 2; }
+[[ "$n_cpus" =~ ^[1-9][0-9]*$ ]] || { err "--cpus must be a positive integer"; exit 2; }
+[[ -n "$proj_dir" ]] || { err "Project root not specified"; Usage; exit 2; }
+
+# realpath -m also works for paths that do not yet exist (useful for dry-runs).
+if realpath -m / >/dev/null 2>&1; then
+  proj_dir="$(realpath -m "$proj_dir")"
+else
+  proj_dir="$(cd "$proj_dir" && pwd -P)"
+fi
+
+work_dir="${proj_dir}/code/logs"
+mkdir -p "$work_dir"
+job_name="${job_name:-featL${level}}"
+
+# Return success when an option exists in pass_args, supporting --opt value and --opt=value.
+has_opt() {
+  local wanted="$1" a
+  for a in "${pass_args[@]}"; do
+    [[ "$a" == "$wanted" || "$a" == "$wanted="* ]] && return 0
+  done
+  return 1
+}
+
+# Get the last value of a single-valued option from pass_args.
+get_opt_value() {
+  local wanted="$1" i a value=""
+  for ((i=0; i<${#pass_args[@]}; i++)); do
+    a="${pass_args[$i]}"
+    if [[ "$a" == "$wanted" ]]; then
+      (( i + 1 < ${#pass_args[@]} )) || { err "$wanted requires a value"; exit 2; }
+      value="${pass_args[$((i+1))]}"
+    elif [[ "$a" == "$wanted="* ]]; then
+      value="${a#*=}"
+    fi
+  done
+  printf '%s' "$value"
+}
+
+# Pull a repeatable selector out of pass_args so each queued command gets exactly one split value.
+# Values may themselves be comma-separated. Remaining args are stored back in pass_args.
+extract_repeatable_opt() {
+  local wanted="$1" i a v
+  local -a kept=()
+  EXTRACTED=()
+  for ((i=0; i<${#pass_args[@]}; i++)); do
+    a="${pass_args[$i]}"
+    if [[ "$a" == "$wanted" ]]; then
+      (( i + 1 < ${#pass_args[@]} )) || { err "$wanted requires a value"; exit 2; }
+      v="${pass_args[$((i+1))]}"
+      IFS=',' read -r -a _vals <<< "$v"
+      EXTRACTED+=("${_vals[@]}")
+      i=$((i+1))
+    elif [[ "$a" == "$wanted="* ]]; then
+      v="${a#*=}"
+      IFS=',' read -r -a _vals <<< "$v"
+      EXTRACTED+=("${_vals[@]}")
+    else
+      kept+=("$a")
+    fi
+  done
+  pass_args=("${kept[@]}")
+}
+
+normalize_subjects() {
+  local raw="$1" s
+  local -a vals=()
+  raw="${raw// /,}"
+  IFS=',' read -r -a vals <<< "$raw"
+  for s in "${vals[@]}"; do
+    [[ -n "$s" ]] || continue
+    s="${s#sub-}"
+    printf '%s\n' "$s"
+  done
+}
+
+command_name="call_feat${level#1}"
+[[ "$level" == 1 ]] && command_name="call_feat"
+
+# Add standard project paths only when the native option was not supplied.
+case "$level" in
+  1)
+    if ! has_opt --bids-dir; then pass_args=(--bids-dir "$proj_dir" "${pass_args[@]}"); fi
+    if ! has_opt --deriv-dir; then pass_args=(--deriv-dir "$proj_dir/derivatives/feat/level1" "${pass_args[@]}"); fi
+    ;;
+  2)
+    if ! has_opt --manifest; then pass_args=(--manifest "$proj_dir/derivatives/feat/level1/contrast_manifest.tsv" "${pass_args[@]}"); fi
+    if ! has_opt --output-dir; then pass_args=(--output-dir "$proj_dir/derivatives/feat/level2" "${pass_args[@]}"); fi
+    ;;
+  3)
+    if ! has_opt --manifest; then
+      level2_manifest="$proj_dir/derivatives/feat/level2/contrast_manifest_level2.tsv"
+      level1_manifest="$proj_dir/derivatives/feat/level1/contrast_manifest.tsv"
+      if [[ -f "$level2_manifest" ]]; then
+        pass_args=(--manifest "$level2_manifest" "${pass_args[@]}")
+      else
+        pass_args=(--manifest "$level1_manifest" "${pass_args[@]}")
+      fi
+    fi
+    if ! has_opt --output-dir; then pass_args=(--output-dir "$proj_dir/derivatives/feat/level3" "${pass_args[@]}"); fi
+    ;;
+esac
+
+jobs_file="${work_dir}/spinoza_feat_L${level}_jobs.txt"
+: > "$jobs_file"
+
+if [[ "$level" == 1 ]]; then
+  extract_repeatable_opt --subject
+  native_subjects=("${EXTRACTED[@]}")
+
+  if [[ -n "$subjects_cli" && ${#native_subjects[@]} -gt 0 ]]; then
+    err "Specify subjects either with wrapper -s/--subject or native --subject after '--', not both"
+    exit 2
+  fi
+
+  if [[ -n "$subjects_cli" ]]; then
+    normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++' > "$jobs_file"
+  elif [[ ${#native_subjects[@]} -gt 0 ]]; then
+    printf '%s\n' "${native_subjects[@]}" | sed 's/^sub-//' | awk 'NF && !seen[$0]++' > "$jobs_file"
+  else
+    bids_dir="$(get_opt_value --bids-dir)"
+    if [[ ! -d "$bids_dir" ]]; then
+      err "Cannot discover subjects: BIDS directory does not exist: $bids_dir"
+      exit 1
+    fi
+    find "$bids_dir" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) -name 'sub-*' -printf '%f\n' 2>/dev/null \
+      | sed 's/^sub-//' | sort -V > "$jobs_file"
+  fi
+else
+  [[ -z "$subjects_cli" ]] || {
+    if [[ "$level" == 2 ]]; then
+      # Preserve the wrapper convenience selector as a native call_feat2 selector.
+      while IFS= read -r subject; do
+        pass_args+=(--subject "$subject")
+      done < <(normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++')
+    else
+      err "Wrapper -s/--subject is only valid for levels 1 and 2; for level 3 put native --subject after '--'"
+      exit 2
+    fi
+  }
+  # Do not split higher levels: call_feat2 and call_feat3 each write a shared manifest.
+  printf 'all\n' > "$jobs_file"
+fi
+
+n_jobs="$(awk 'NF{n++} END{print n+0}' "$jobs_file")"
+if [[ "$n_jobs" -eq 0 ]]; then
+  err "No jobs found for level $level"
+  exit 1
+fi
+
+runner="${work_dir}/spinoza_feat_L${level}_runner.sh"
+{
+  cat <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "\${SETUP_FILE:-}" && -f "\${SETUP_FILE}" ]]; then
+  source "\${SETUP_FILE}"
+fi
+if command -v call_bashhelper >/dev/null 2>&1; then
+  source call_bashhelper
+fi
+
+job_value=\$(sed -n "\${SLURM_ARRAY_TASK_ID}p" $(printf '%q' "$jobs_file"))
+if [[ -z "\${job_value}" ]]; then
+  echo "ERROR: no queue value for SLURM_ARRAY_TASK_ID=\${SLURM_ARRAY_TASK_ID}" >&2
+  exit 1
+fi
+
+cmd=( $(printf '%q' "$command_name") )
+EOF
+
+  for arg in "${pass_args[@]}"; do
+    printf 'cmd+=(%q)\n' "$arg"
+  done
+
+  if [[ "$level" == 1 ]]; then
+    cat <<'EOF'
+cmd+=(--subject "${job_value}")
+EOF
+  fi
+
+  cat <<'EOF'
+if declare -F print_cmd >/dev/null 2>&1; then
+  print_cmd "${cmd[@]}"
+else
+  printf '%q ' "${cmd[@]}"; printf '\n'
+fi
+"${cmd[@]}"
+EOF
+} > "$runner"
+chmod +x "$runner"
+
+array_spec="1-${n_jobs}%${max_running}"
+
+print_summary() {
+  printf 'FEAT level:       %s (%s)\n' "$level" "$command_name"
+  printf 'Jobs:             %s\n' "$n_jobs"
+  printf 'Max simultaneous: %s\n' "$max_running"
+  printf 'CPUs/job:         %s\n' "$n_cpus"
+  printf 'Queue:            %s\n' "$queue"
+  printf 'Jobs file:        %s\n' "$jobs_file"
+  printf 'Runner:           %s\n' "$runner"
+}
+
+if [[ "$dry_run" -eq 1 ]]; then
+  print_summary
+  printf '\nQueue values:\n'
+  nl -ba "$jobs_file"
+  printf '\nCommands:\n'
+  idx=0
+  while IFS= read -r value; do
+    [[ -n "$value" ]] || continue
+    idx=$((idx+1))
+    cmd=("$command_name" "${pass_args[@]}")
+    if [[ "$level" == 1 ]]; then
+      cmd+=(--subject "$value")
+    fi
+    printf '[%d] ' "$idx"
+    print_command "${cmd[@]}"
+  done < "$jobs_file"
+  if [[ "$run_local" -eq 0 ]]; then
+    printf '\nWould submit:\n'
+    printf 'sbatch --partition=%q --array=%q --cpus-per-task=%q --job-name=%q --output=%q %q\n' \
+      "$queue" "$array_spec" "$n_cpus" "$job_name" "$work_dir/${job_name}_%A_%a.out" "$runner"
+  fi
+  exit 0
+fi
+
+if [[ "$run_local" -eq 1 ]]; then
+  print_summary
+  printf 'Running with a local concurrency cap of %s.\n' "$max_running"
+
+  running=0
+  failed=0
+  pids=()
+
+  wait_one() {
+    local pid
+    # wait -n is available in modern bash. Fall back to waiting for the oldest PID.
+    if help wait 2>/dev/null | grep -q -- '-n'; then
+      if ! wait -n; then failed=1; fi
+    else
+      pid="${pids[0]}"
+      if ! wait "$pid"; then failed=1; fi
+      pids=("${pids[@]:1}")
+    fi
+    running=$((running-1))
+  }
+
+  idx=0
+  while IFS= read -r value; do
+    [[ -n "$value" ]] || continue
+    idx=$((idx+1))
+    while (( running >= max_running )); do wait_one; done
+    SLURM_ARRAY_TASK_ID="$idx" "$runner" &
+    pids+=("$!")
+    running=$((running+1))
+  done < "$jobs_file"
+  while (( running > 0 )); do wait_one; done
+  exit "$failed"
+fi
+
+sbatch \
+  --partition="$queue" \
+  --array="$array_spec" \
+  --cpus-per-task="$n_cpus" \
+  --job-name="$job_name" \
+  --output="$work_dir/${job_name}_%A_%a.out" \
+  "$runner"

@@ -205,7 +205,7 @@ cmdline="${cmdline}${quoted_args}"
 # Send stdout and stderr to both terminal and log file
 exec > >(tee -a "$log_file") 2>&1
 
-echo "---------------------------------------------------------------------------------------------------"
+print_line -
 echo "call_ants2featreg"
 echo "Started: $(date)"
 cmdline="$(basename "$0")"
@@ -220,7 +220,7 @@ echo "Host: $(hostname)"
 echo "User: ${USER:-unknown}"
 echo "Working directory: $(pwd)"
 echo "Log file: $log_file"
-echo "---------------------------------------------------------------------------------------------------"
+print_line -
 
 #-----------------------------------------------------------------------------
 # start
@@ -400,12 +400,14 @@ if [[ -n "$feat_dir" ]]; then
   fi
 
   if [[ "$update_featreg" == true ]]; then
+    print_line -
     echo "Running updatefeatreg"
     cmd=(updatefeatreg "$feat_dir")
     print_cmd "${cmd[@]}" && eval "${cmd[@]}"
   fi
 
   if [[ "$apply_featreg" == true ]]; then
+    print_line -
     echo "Creating reg_standard-folder"
 
     mkdir -p "$feat_dir/reg_standard/stats" "$feat_dir/reg_standard/reg"
