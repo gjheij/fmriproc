@@ -48,14 +48,19 @@ Optional:
                     -x "estimator.name=LogisticRegression"
                     -x "decoding_settings.searchlight.radius_mm=12,gridsearch.args.scoring=roc_auc"
 
-                  User-specified overrides are appended after the defaults
-                  configured by this wrapper and therefore take precedence.
+                  User-specified overrides take precedence over wrapper defaults.
+  --set <key=value>
+                  Direct PANIC configuration override. May be repeated.
+  --unset <key...>
+                  Remove one or more configuration keys for this run.
+                  --unset has final precedence over defaults and --set.
   -r <roi_base> the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
                   If --searchlight is passed, 'searchlight' is appended. This can be changed with
                   the '-r' flag.                  
   -f <config>     PANIC configuration file. Default: PANIC's config file
-  -u|--subject    <subject> subject ID to process, e.g. sub-001 or 001.
-                  If omitted, all sub-* folders in <source> are processed.
+  -u|--subject    <subject> subject ID(s), comma-separated IDs, or a text file
+                  containing one subject ID per line. If omitted, all sub-*
+                  folders in <source> are processed.
 Options:
   -h|--help       print this help text
   --searchlight   run whole-brain searchlight decoding instead of ROI decoding.
@@ -145,6 +150,7 @@ searchlight_base_dir="searchlight"
 conf_args=(run)
 subject=""
 extra_sets=()
+unset_keys=()
 
 #-----------------------------------------------------------------------------
 # Parse arguments
@@ -214,11 +220,33 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     -x)
-      # Additional PANIC config overrides:
-      # -x "decoding_settings.n_permutations=1000,estimator.args.C=10"    
-      IFS=',' read -ra extra_sets <<< "$2"
+      # Comma-separated PANIC config overrides. Repeated -x accumulates.
+      IFS=',' read -ra parsed_sets <<< "$2"
+      unset IFS
+      extra_sets+=("${parsed_sets[@]}")
       shift 2
-      ;;      
+      ;;
+    --set)
+      # Direct PANIC-style override; one KEY=VALUE per --set occurrence.
+      if [[ $# -lt 2 || "$2" == -* ]]; then
+        echo "ERROR: --set expects KEY=VALUE" >&2
+        exit 1
+      fi
+      extra_sets+=("$2")
+      shift 2
+      ;;
+    --unset)
+      # Accept one or more keys until the next option.
+      shift
+      if [[ $# -eq 0 || "$1" == -* ]]; then
+        echo "ERROR: --unset expects at least one KEY" >&2
+        exit 1
+      fi
+      while [[ $# -gt 0 && "$1" != -* ]]; do
+        unset_keys+=("$1")
+        shift
+      done
+      ;;
     *)
       echo "ERROR: unknown option: $1" >&2
       Usage
@@ -226,10 +254,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-#-----------------------------------------------------------------------------
-# intro
-start_timer "Running decoding with PANIC"
 
 #-----------------------------------------------------------------------------
 # Check mandatory arguments
@@ -270,8 +294,25 @@ fi
 #-----------------------------------------------------------------------------
 # Select subjects
 if [[ -n "${subject}" ]]; then
-  subject="${subject#sub-}"
-  subjects="sub-${subject}"
+  if [[ -f "${subject}" ]]; then
+    subjects=$(
+      grep -v '^[[:space:]]*$' "${subject}" |
+        grep -v '^[[:space:]]*#' |
+        sed 's/^[[:space:]]*//; s/[[:space:]]*$//' |
+        sed 's/^sub-//' |
+        sed 's/^/sub-/' |
+        sort -u
+    )
+  else
+    IFS=', ' read -r -a subject_list <<< "${subject}"
+    unset IFS
+    subjects=$(
+      for sub in "${subject_list[@]}"; do
+        sub="${sub#sub-}"
+        echo "sub-${sub}"
+      done | sort -u
+    )
+  fi
 else
   subjects=$(
     find "${source_root}" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) |
@@ -324,17 +365,35 @@ for subject in ${subjects}; do
     general_settings.overwrite="${overwrite}"
   )
 
-  # Append user-specified config overrides (-x key=value,key=value)
-  set_keys+=("${extra_sets[@]}")
+  # Merge user-specified overrides. Last user value wins.
+  for extra_set in "${extra_sets[@]}"; do
+    extra_key="${extra_set%%=*}"
+    filtered_set_keys=()
+    for set_key in "${set_keys[@]}"; do
+      [[ "${set_key%%=*}" == "${extra_key}" ]] || filtered_set_keys+=("${set_key}")
+    done
+    set_keys=("${filtered_set_keys[@]}" "${extra_set}")
+  done
+
+  # --unset has final precedence: never re-add an unset key through --set.
+  for unset_key in "${unset_keys[@]}"; do
+    filtered_set_keys=()
+    for set_key in "${set_keys[@]}"; do
+      [[ "${set_key%%=*}" == "${unset_key}" ]] || filtered_set_keys+=("${set_key}")
+    done
+    set_keys=("${filtered_set_keys[@]}")
+  done
 
   # Build panic command
   cmd_args=(
     ${job}
     "${conf_args[@]}"
     --subject "${subject}"
-    --set
-    "${set_keys[@]}"
   )
+
+  if [[ ${#set_keys[@]} -gt 0 ]]; then
+    cmd_args+=(--set "${set_keys[@]}")
+  fi
 
   # Enable searchlight decoding instead of ROI-based decoding
   if [[ "${searchlight}" -eq 1 ]]; then
@@ -353,7 +412,3 @@ for subject in ${subjects}; do
   fi
 
 done
-
-#-----------------------------------------------------------------------------
-# outro
-end_timer

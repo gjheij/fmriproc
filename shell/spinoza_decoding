@@ -34,6 +34,10 @@ Pass-through:
   After '--', supports call_panic-style -f, -x, --searchlight, --lsa, --lss,
   plus direct PANIC arguments.
 
+Precedence:
+  User --set/-x values override launcher defaults. --unset has final precedence
+  and removes matching defaults/overrides before PANIC is invoked.
+
 ---------------------------------------------------------------------------------------------------
 USAGE
 }
@@ -71,8 +75,7 @@ while [[ $# -gt 0 ]]; do
     --overwrite|--ow|-o)
       overwrite=(--overwrite)
       overwrite_arg=True
-      shift
-      ;;
+      shift ;;
     -h|--help)
       Usage; exit 0 ;;
     --)
@@ -107,10 +110,11 @@ if [[ ! -d "${source_root}" ]]; then
   exit 1
 fi
 
-# Parse pass-through args into PANIC-native pieces
+# Parse pass-through args into PANIC-native pieces.
 panic_global_args=()
 panic_run_args=()
 extra_sets=()
+unset_keys=()
 searchlight=0
 method="LSA"
 
@@ -131,7 +135,23 @@ while [[ $i -lt ${#panic_args[@]} ]]; do
       ;;
     --set)
       i=$((i + 1))
+      if [[ $i -ge ${#panic_args[@]} ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "--set expects KEY=VALUE"
+        exit 1
+      fi
       extra_sets+=("${panic_args[$i]}")
+      ;;
+    --unset)
+      i=$((i + 1))
+      if [[ $i -ge ${#panic_args[@]} || "${panic_args[$i]}" == -* ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "--unset expects at least one KEY"
+        exit 1
+      fi
+      while [[ $i -lt ${#panic_args[@]} && "${panic_args[$i]}" != -* ]]; do
+        unset_keys+=("${panic_args[$i]}")
+        i=$((i + 1))
+      done
+      i=$((i - 1))
       ;;
     --searchlight)
       searchlight=1
@@ -154,14 +174,23 @@ done
 subject_file="${work_dir}/panic_subjects.txt"
 
 if [[ -n "${sub}" ]]; then
-  IFS=', ' read -r -a subjects <<< "${sub}"
-  unset IFS
-
   : > "${subject_file}"
-  for subject in "${subjects[@]}"; do
-    subject="${subject#sub-}"
-    echo "sub-${subject}" >> "${subject_file}"
-  done
+
+  if [[ -f "${sub}" ]]; then
+    grep -v '^[[:space:]]*$' "${sub}" |
+      grep -v '^[[:space:]]*#' |
+      sed 's/^[[:space:]]*//; s/[[:space:]]*$//' |
+      sed 's/^sub-//' |
+      sed 's/^/sub-/' |
+      sort -u > "${subject_file}"
+  else
+    IFS=', ' read -r -a subjects <<< "${sub}"
+    unset IFS
+    for subject in "${subjects[@]}"; do
+      subject="${subject#sub-}"
+      echo "sub-${subject}"
+    done | sort -u > "${subject_file}"
+  fi
 else
   find "${source_root}" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) |
     xargs -n1 basename |
@@ -178,7 +207,7 @@ fi
 
 runner="${work_dir}/panic_array_runner.sh"
 
-cat <<EOF > "${runner}"
+cat > "${runner}" <<EOF_RUNNER
 #!/usr/bin/env bash
 source "${SETUP_FILE}"
 source call_bashhelper
@@ -191,15 +220,15 @@ if [[ -z "\${subject}" ]]; then
 fi
 
 roi_dir="${roi_root}/\${subject}"
-EOF
+EOF_RUNNER
 
 if [[ "${searchlight}" -eq 1 ]]; then
-cat <<EOF >> "${runner}"
+  cat >> "${runner}" <<EOF_RUNNER
 roi_dir="\${roi_dir}/${searchlight_base_dir}"
-EOF
+EOF_RUNNER
 fi
 
-cat <<EOF >> "${runner}"
+cat >> "${runner}" <<EOF_RUNNER
 
 set_keys=(
   general_settings.project_dir="${proj_dir}"
@@ -210,39 +239,66 @@ set_keys=(
   roi_dict="\${roi_dir}"
   general_settings.overwrite="${overwrite_arg}"
 )
-EOF
+EOF_RUNNER
 
+# User --set/-x values override defaults; last user value wins.
 for s in "${extra_sets[@]}"; do
-  printf 'set_keys+=(%q)\n' "${s}" >> "${runner}"
+  key="${s%%=*}"
+  printf '\nfiltered_set_keys=()\n' >> "${runner}"
+  printf 'for set_key in "${set_keys[@]}"; do\n' >> "${runner}"
+  printf '  [[ "${set_key%%%%=*}" == %q ]] || filtered_set_keys+=("${set_key}")\n' "${key}" >> "${runner}"
+  printf 'done\n' >> "${runner}"
+  printf 'set_keys=("${filtered_set_keys[@]}" %q)\n' "${s}" >> "${runner}"
 done
 
-cat <<'EOF' >> "${runner}"
+# --unset has final precedence over both defaults and user --set values.
+for key in "${unset_keys[@]}"; do
+  printf '\nfiltered_set_keys=()\n' >> "${runner}"
+  printf 'for set_key in "${set_keys[@]}"; do\n' >> "${runner}"
+  printf '  [[ "${set_key%%%%=*}" == %q ]] || filtered_set_keys+=("${set_key}")\n' "${key}" >> "${runner}"
+  printf 'done\n' >> "${runner}"
+  printf 'set_keys=("${filtered_set_keys[@]}")\n' >> "${runner}"
+done
 
-cmd=(
-  panic
-EOF
+cat <<'EOF_RUNNER' >> "${runner}"
+
+cmd=(panic
+EOF_RUNNER
 
 for arg in "${panic_global_args[@]}"; do
   printf '  %q\n' "${arg}" >> "${runner}"
 done
 
-cat <<'EOF' >> "${runner}"
+cat <<'EOF_RUNNER' >> "${runner}"
   run
   --subject "${subject}"
-EOF
+EOF_RUNNER
 
 for arg in "${panic_run_args[@]}"; do
   printf '  %q\n' "${arg}" >> "${runner}"
 done
 
-cat <<'EOF' >> "${runner}"
-  --set
-  "${set_keys[@]}"
+cat <<'EOF_RUNNER' >> "${runner}"
 )
+
+if [[ ${#set_keys[@]} -gt 0 ]]; then
+  cmd+=(--set "${set_keys[@]}")
+fi
+EOF_RUNNER
+
+if [[ ${#unset_keys[@]} -gt 0 ]]; then
+  printf 'cmd+=(--unset' >> "${runner}"
+  for key in "${unset_keys[@]}"; do
+    printf ' %q' "${key}" >> "${runner}"
+  done
+  printf ')\n' >> "${runner}"
+fi
+
+cat <<'EOF_RUNNER' >> "${runner}"
 
 print_cmd "${cmd[@]}"
 "${cmd[@]}"
-EOF
+EOF_RUNNER
 
 chmod +x "${runner}"
 
@@ -266,23 +322,21 @@ fi
 if [[ "${run_local}" -eq 1 ]]; then
   start_timer "Running PANIC locally"
 
-  while read -r subject; do
-    cmd=(
-      call_panic
-      -p "${proj_dir}"
-      -u "${subject}"
-      -c "${n_cpus}"
-      -s "${source}"
-      -q "${SGE_QUEUE}"
-      -r "${searchlight_base_dir}"
-      "${overwrite[@]}"
-      --local
-      "${panic_args[@]}"
-    )
+  cmd=(
+    call_panic
+    -p "${proj_dir}"
+    -u "${subject_file}"
+    -c "${n_cpus}"
+    -s "${source}"
+    -q "${SGE_QUEUE}"
+    -r "${searchlight_base_dir}"
+    "${overwrite[@]}"
+    --local
+    "${panic_args[@]}"
+  )
 
-    print_cmd "${cmd[@]}"
-    "${cmd[@]}"
-  done < "${subject_file}"
+  print_cmd "${cmd[@]}"
+  "${cmd[@]}"
 
   end_timer
 else
