@@ -286,14 +286,6 @@ if [[ ${#set_keys[@]} -gt 0 ]]; then
 fi
 EOF_RUNNER
 
-if [[ ${#unset_keys[@]} -gt 0 ]]; then
-  printf 'cmd+=(--unset' >> "${runner}"
-  for key in "${unset_keys[@]}"; do
-    printf ' %q' "${key}" >> "${runner}"
-  done
-  printf ')\n' >> "${runner}"
-fi
-
 cat <<'EOF_RUNNER' >> "${runner}"
 
 print_cmd "${cmd[@]}"
