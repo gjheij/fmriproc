@@ -1069,6 +1069,7 @@ def patch_fsf(
     output_dir: str,
     bold_file: str,
     disable_feat_preprocessing: bool,
+    smoothing_fwhm: float,
 ) -> None:
     """
     Patch output and input paths and disable duplicate FEAT preprocessing.
@@ -1076,9 +1077,14 @@ def patch_fsf(
     Level1Design normally writes the input path through SpecifyModel, but it is
     patched explicitly here to make the generated FSF self-contained.
     """
+    if smoothing_fwhm < 0:
+        raise click.ClickException("smoothing_fwhm must be >= 0")
+
     replacements = {
         "set fmri(outputdir)": f'set fmri(outputdir) "{output_dir}"',
         "set feat_files(1)": f'set feat_files(1) "{bold_file}"',
+        # FEAT spatial smoothing kernel, in mm FWHM. Zero disables smoothing.
+        "set fmri(smooth)": f"set fmri(smooth) {float(smoothing_fwhm):g}",
     }
 
     if disable_feat_preprocessing:
