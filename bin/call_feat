@@ -855,6 +855,7 @@ def run_firstlevel(
                 output_dir=output_dir,
                 contrasts=run_contrasts,
                 canonical_names=canonical_names,
+                dry_run=dry_run
             )
 
             resolved_basis_name = next(iter(bases))
