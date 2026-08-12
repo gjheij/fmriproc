@@ -2764,3 +2764,126 @@ if [[ $? -eq 0 ]]; then
   print_module_end "${module}"
 
 fi
+
+#-------------------------------------------------------------------------------------
+# STEP 29: Decoding
+module=29
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    spinoza_decoding --help
+    exit 0
+  fi
+
+  # print module intro
+  print_module_start "${module}" "Multivariate decoding with PANIC"
+
+  # spinoza_decoding has wrapper-level options before '--' and forwards
+  # call_panic/PANIC arguments after '--'. Keep these namespaces separate.
+  #
+  # master mappings used by this module:
+  #   -s <sub>       -> subject selector
+  #   -j <N>         -> CPUs per subject/job
+  #   -l <N>         -> maximum simultaneously running subject jobs
+  #   -q <queue>     -> SLURM partition
+  #   -r <roi_base>  -> ROI base directory
+  #   -p <project>   -> project root
+  #   -o             -> overwrite existing decoding outputs
+  #   --local        -> run locally
+  #   -x '<args>'    -> arguments passed to call_panic after '--'
+  #
+  # Examples for -x:
+  #   -x '-f /project/config.yml --searchlight'
+  #
+  #   -x '-f /project/config.yml --searchlight
+  #       -x "decoding_settings.n_permutations=1000,
+  #           general_settings.tmp_dir=/project/.cache,
+  #           decoding_settings.searchlight.radius=4"'
+  #
+  # Note that an inner PANIC/call_panic '-x' belongs inside the master -x
+  # string and is forwarded unchanged.
+
+  # Project root.
+  if [[ -n ${P_KWARGS:-} ]]; then
+    decoding_project_root="${P_KWARGS}"
+  else
+    decoding_project_root="${DIR_DATA_HOME}"
+  fi
+
+  cmd=(
+    spinoza_decoding
+  )
+
+  # --------------------------------------------------------------------------
+  # spinoza_decoding wrapper-level arguments
+
+  if [[ -n ${SUB:-} ]]; then
+    cmd+=(-s "$SUB")
+  fi
+
+  # For decoding, master -j retains its natural meaning:
+  # CPUs used by each subject/job.
+  if [[ -n ${jobs_flag:-} ]]; then
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-j "$jobs_value")
+  fi
+
+  # master -m is already the module selector, so use master -l to control
+  # spinoza_decoding -m/--max-running.
+  if [[ -n ${WHICH_MOD:-} ]]; then
+    cmd+=(-m "$WHICH_MOD")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
+  fi
+
+  if [[ -n ${ROI:-} ]]; then
+    cmd+=(-r "$ROI")
+  fi
+
+  [[ -n ${run_local:-} ]] && cmd+=(--local)
+  [[ -n ${OW:-} ]]        && cmd+=(--overwrite)
+
+  # Project root is the final spinoza_decoding argument before '--'.
+  cmd+=("$decoding_project_root")
+
+  # --------------------------------------------------------------------------
+  # Everything after '--' belongs to call_panic / PANIC.
+
+  cmd+=(--)
+
+  if [[ -n ${X_KWARGS:-} ]]; then
+    # Parse the master -x string as shell words so quoted PANIC configuration
+    # overrides remain a single argument.
+    eval "decoding_extra=( ${X_KWARGS} )"
+    cmd+=("${decoding_extra[@]}")
+  fi
+
+  # --------------------------------------------------------------------------
+  # debug / execute
+
+  if [[ -n ${DEBUG:-} ]]; then
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
+
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  print_module_end "${module}"
+
+fi
