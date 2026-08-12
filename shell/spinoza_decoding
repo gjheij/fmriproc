@@ -100,10 +100,10 @@ fi
 proj_dir="$(realpath "${proj_dir}")"
 source_root="${proj_dir}/derivatives/${source}"
 work_dir="${proj_dir}/logs"
-save_dir="${proj_dir}/derivatives/decoding"
+save_dir="${proj_dir}/derivatives/panic"
 roi_root="${proj_dir}/derivatives/rois"
 
-mkdir -p "${work_dir}" "${save_dir}"
+mkdir -p "${work_dir}" "${save_dir}" 2>/dev/null
 
 if [[ ! -d "${source_root}" ]]; then
   print_directory_not_exist "Source" "${source_root}"
