@@ -256,7 +256,7 @@ from fmriproc.fsl import (
 @click.option(
     "--smoothing-fwhm",
     type=click.FloatRange(min=0.0),
-    default=5.0,
+    default=6.0,
     show_default=True,
     help=(
         "Spatial smoothing kernel in mm FWHM passed to FEAT. "
