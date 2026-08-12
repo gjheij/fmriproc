@@ -69,7 +69,42 @@ COMMON_REQUIRED_COLUMNS = {
 
 
 def next_contrast_update_dir(base_work_dir: Path) -> Path:
-    """Return the next available contrast-update working directory."""
+    """
+    Determine the next available working directory for a contrast update.
+
+    Contrast updates are stored as monotonically numbered subdirectories named
+    ``contrast_update_NNN`` within the run-level working directory. Existing
+    directories matching this naming convention are inspected, their numeric
+    suffixes are parsed, and the next integer after the largest existing suffix is
+    returned.
+
+    Directories whose names begin with ``contrast_update_`` but do not contain a
+    valid integer suffix are ignored.
+
+    Parameters
+    ----------
+    base_work_dir : pathlib.Path
+        Run-level working directory containing zero or more
+        ``contrast_update_NNN`` subdirectories.
+
+    Returns
+    -------
+    pathlib.Path
+        Path for the next contrast-update directory. The directory is not created
+        by this function.
+
+    Notes
+    -----
+    The returned index is based on directory names rather than the presence or
+    validity of files inside those directories. Consumers that need the latest
+    *valid* contrast update should use `_latest_run_contrasts_json` instead.
+
+    Examples
+    --------
+    If ``base_work_dir`` contains ``contrast_update_001`` and
+    ``contrast_update_004``, this function returns a path ending in
+    ``contrast_update_005``.
+    """
     prefix = "contrast_update_"
 
     indices = []
@@ -90,12 +125,58 @@ def next_contrast_update_dir(base_work_dir: Path) -> Path:
 
 
 def normalize_subject(subject: str) -> str:
-    """Remove an optional sub- prefix."""
+    """
+    Normalize a subject identifier by removing an optional ``sub-`` prefix.
+
+    Parameters
+    ----------
+    subject : str
+        Subject identifier, optionally prefixed with the BIDS ``sub-`` entity
+        prefix.
+
+    Returns
+    -------
+    str
+        Subject identifier without the leading ``sub-`` prefix.
+
+    Examples
+    --------
+    ``"sub-22"`` becomes ``"22"``, whereas ``"22"`` is returned unchanged.
+    """
     return subject[4:] if subject.startswith("sub-") else subject
 
 
 def entity_label(entities: dict[str, Any]) -> str:
-    """Create a readable BIDS entity label for messages."""
+    """
+    Construct a human-readable BIDS-style label from run entities.
+
+    The label always contains subject and task entities and conditionally includes
+    session, acquisition, direction, echo, and run entities when those values are
+    present. The result is intended primarily for logging, run identification, and
+    manifest bookkeeping.
+
+    Parameters
+    ----------
+    entities : dict[str, Any]
+        Mapping containing BIDS entities. ``subject`` and ``task`` are expected to
+        be present. Optional recognized keys include ``session``, ``acquisition``,
+        ``direction``, ``echo``, and ``run``.
+
+    Returns
+    -------
+    str
+        Underscore-separated BIDS-like entity label.
+
+    Raises
+    ------
+    KeyError
+        If a required ``subject`` or ``task`` entry is absent.
+
+    Examples
+    --------
+    An entity mapping containing subject ``22``, session ``1``, task ``SC2F``, and
+    run ``3`` produces ``sub-22_ses-1_task-SC2F_run-3``.
+    """
     parts = [f"sub-{entities['subject']}"]
 
     if entities.get("session") is not None:
@@ -123,7 +204,36 @@ def query_shared_entities(
     *,
     include_space: bool = False,
 ) -> dict[str, Any]:
-    """Return entities useful for locating a sidecar belonging to one BOLD run."""
+    """
+    Extract BIDS entities suitable for locating files belonging to one BOLD run.
+
+    Only entities that identify the acquisition/run independently of a particular
+    derivative suffix or description are retained. Missing or ``None`` values are
+    omitted from the returned mapping.
+
+    Parameters
+    ----------
+    entities : dict[str, Any]
+        Complete entity mapping for a BOLD or derivative file.
+    include_space : bool, optional
+        If ``True``, include the ``space`` entity when available. By default,
+        spatial normalization is excluded so sidecars without a space entity can
+        still be located.
+
+    Returns
+    -------
+    dict[str, Any]
+        Filtered entity mapping containing available values among ``subject``,
+        ``session``, ``task``, ``acquisition``, ``direction``,
+        ``reconstruction``, ``run``, ``echo``, ``part``, and optionally
+        ``space``.
+
+    Notes
+    -----
+    The function deliberately omits suffix-, datatype-, description-, and
+    extension-specific entities because those are normally supplied separately to
+    a BIDS query.
+    """
     keys = [
         "subject",
         "session",
@@ -147,7 +257,41 @@ def query_shared_entities(
 
 
 def parse_inline_contrast(spec: str) -> dict[str, Any]:
-    """Parse NAME;T;condition1,condition2;weight1,weight2[;canonical]."""
+    """
+    Parse one command-line T-contrast specification.
+
+    The accepted syntax is::
+
+        NAME;T;condition1,condition2;weight1,weight2[;canonical_name]
+
+    Inline contrasts are restricted to T contrasts. Condition and weight lists
+    must contain the same number of entries, and all weights must be convertible
+    to floating-point values.
+
+    Parameters
+    ----------
+    spec : str
+        Semicolon-delimited contrast specification supplied by the user.
+
+    Returns
+    -------
+    dict[str, Any]
+        Parsed contrast with keys ``name``, ``type``, ``conditions``,
+        ``weights``, and ``canonical_name``. Weights are returned as floats and
+        the statistic type is normalized to ``"T"``.
+
+    Raises
+    ------
+    click.ClickException
+        If the specification contains the wrong number of fields, has empty
+        required fields, requests a non-T statistic, contains unequal numbers of
+        conditions and weights, or contains non-numeric weights.
+
+    Notes
+    -----
+    When the optional canonical name is omitted, the contrast name itself is used
+    as the canonical higher-level name.
+    """
     fields = [field.strip() for field in spec.split(";")]
     if len(fields) not in {4, 5}:
         raise click.ClickException(
@@ -192,7 +336,31 @@ def parse_inline_contrast(spec: str) -> dict[str, Any]:
 def default_baseline_contrasts(
     conditions: Sequence[str],
 ) -> tuple[list[tuple[Any, ...]], dict[str, str]]:
-    """Create one event-versus-implicit-baseline contrast per run EV."""
+    """
+    Create one event-versus-implicit-baseline T contrast per condition.
+
+    Each supplied condition becomes an independent T contrast with a single
+    weight of ``1.0``. The contrast name and canonical higher-level name are both
+    the original condition name.
+
+    Parameters
+    ----------
+    conditions : Sequence[str]
+        Condition or explanatory-variable names present in the first-level model.
+
+    Returns
+    -------
+    contrasts : list[tuple[Any, ...]]
+        Contrast tuples in Nipype/FSL form:
+        ``(name, "T", [condition], [1.0])``.
+    canonical_names : dict[str, str]
+        Mapping from each generated contrast name to the same condition name.
+
+    Notes
+    -----
+    These contrasts test each modelled event against FSL's implicit baseline; they
+    do not construct pairwise condition comparisons.
+    """
     contrasts = [(condition, "T", [condition], [1.0]) for condition in conditions]
     canonical_names = {condition: condition for condition in conditions}
     return contrasts, canonical_names
@@ -203,16 +371,43 @@ def load_contrasts(
     inline_specs: Sequence[str] = (),
 ) -> tuple[list[tuple[Any, ...]], dict[str, str]]:
     """
-    Load contrasts and their canonical higher-level names.
+    Load and normalize user-defined statistical contrasts.
 
-    Accepted JSON forms are either:
+    Contrasts may be supplied from a JSON file or from previously parsed inline
+    specifications. JSON contrasts may use either positional list form or mapping
+    form. An optional canonical name allows differently named first-level
+    contrasts to map onto a common higher-level contrast identity.
 
-        [name, type, conditions, weights]
-        [name, type, conditions, weights, canonical_name]
+    Parameters
+    ----------
+    path : str or None
+        Path to a JSON contrast definition file. Must be ``None`` when
+        ``inline_specs`` is non-empty.
+    inline_specs : Sequence[str], optional
+        Inline contrast specifications accepted by `parse_inline_contrast`.
 
-    or an object with keys ``name``, ``type``, ``conditions``, ``weights``,
-    and optional ``canonical_name``. The four-field form remains backward
-    compatible and uses ``name`` as its canonical name.
+    Returns
+    -------
+    contrasts : list[tuple[Any, ...]]
+        Normalized contrast tuples suitable for the first-level model. T-contrast
+        weights are converted to floats.
+    canonical_names : dict[str, str]
+        Mapping from each local contrast name to its canonical higher-level name.
+
+    Raises
+    ------
+    click.ClickException
+        If file and inline specifications are supplied simultaneously, a
+        definition has an unsupported structure or statistic type, duplicate
+        names occur, required mapping keys are missing, or T-contrast conditions
+        and weights differ in length.
+    json.JSONDecodeError
+        If the supplied JSON file is not valid JSON.
+
+    Notes
+    -----
+    T and F contrasts are accepted from JSON. Inline command-line contrasts are
+    restricted to T contrasts by `parse_inline_contrast`.
     """
     if path is not None and inline_specs:
         raise click.ClickException(
@@ -291,7 +486,28 @@ def validate_t_contrasts(
     contrasts: Sequence[tuple[Any, ...]],
     conditions: Sequence[str],
 ) -> set[str]:
-    """Return condition names referenced by T contrasts but absent from a run."""
+    """
+    Identify T-contrast conditions that are unavailable in a run.
+
+    Parameters
+    ----------
+    contrasts : Sequence[tuple[Any, ...]]
+        Contrast definitions containing name, statistic, referenced conditions,
+        and weights.
+    conditions : Sequence[str]
+        Condition names available in the current first-level run.
+
+    Returns
+    -------
+    set[str]
+        Union of all condition names referenced by T contrasts but absent from the
+        run.
+
+    Notes
+    -----
+    F contrasts are ignored by this validation step because their estimability is
+    handled separately by `filter_estimable_contrasts`.
+    """
     available = set(conditions)
     missing: set[str] = set()
 
@@ -309,14 +525,46 @@ def resolve_confound_regexes(
     confound_subtype: str,
     extra_regexes: Sequence[str] = (),
 ) -> list[str] | None:
-    """Resolve named presets and arbitrary regexes for confound columns.
+    """
+    Resolve confound-selection options into regular expressions.
 
-    For ``timeseries`` files, ``confound_subtype`` may be ``ENIGMA``, a
-    comma-separated list of named presets, or raw regular expressions.
-    Repeatable ``--confound-regex`` values are appended to that selection.
+    For fMRIPrep ``timeseries`` confounds, named presets are translated through
+    ``CONFOUND_OPTIONS`` and arbitrary user expressions are accepted directly.
+    The special ``ENIGMA`` preset expands to the predefined ENIGMA confound
+    categories. Duplicate expressions are removed while preserving order.
 
-    ``None`` means no column subselection for physio/custom files, or no
-    confound loading at all when ``--no-confounds`` is used.
+    Parameters
+    ----------
+    no_confounds : bool
+        Disable confound loading entirely when ``True``.
+    confounds_suffix : str
+        Confound-file suffix. Supported values are ``"timeseries"``, ``"physio"``,
+        and ``"custom"``.
+    confound_subtype : str
+        Named preset, comma-separated presets/regular expressions, or ``ENIGMA``
+        for ``timeseries`` files.
+    extra_regexes : Sequence[str], optional
+        Additional regular expressions supplied independently of
+        ``confound_subtype``.
+
+    Returns
+    -------
+    list[str] or None
+        Ordered regular expressions for ``timeseries`` confounds. ``None`` means
+        either that confounds are disabled or that every numeric column should be
+        considered for ``physio``/``custom`` inputs.
+
+    Raises
+    ------
+    click.ClickException
+        If a regular expression is invalid, no timeseries confounds are selected,
+        extra regular expressions are used with an unsupported suffix, or
+        ``confounds_suffix`` is unsupported.
+
+    Notes
+    -----
+    The function emits a short description of the resolved confound strategy to
+    the Click log.
     """
     if no_confounds:
         click.echo("Confounds: disabled.")
@@ -394,7 +642,40 @@ def build_level1_bases(
     gamma_delay: float | None,
     custom_path: Path | None,
 ) -> dict[str, Any]:
-    """Validate CLI basis options and build Level1Design.bases."""
+    """
+    Validate HRF basis options and construct a Nipype Level1Design basis mapping.
+
+    Supported basis families are FSL double-gamma, gamma, custom basis functions,
+    and no convolution. Option combinations that are incompatible with the
+    selected basis are rejected before model construction.
+
+    Parameters
+    ----------
+    basis_name : str
+        Basis family. Supported values are ``"dgamma"``, ``"gamma"``,
+        ``"custom"``, and ``"none"``.
+    derivatives : bool
+        Include temporal derivatives where supported.
+    gamma_sigma : float or None
+        Gamma-function sigma parameter. Valid only for the ``gamma`` basis.
+    gamma_delay : float or None
+        Gamma-function delay parameter. Valid only for the ``gamma`` basis.
+    custom_path : pathlib.Path or None
+        Path to a custom FSL basis function file. Required only for the
+        ``custom`` basis.
+
+    Returns
+    -------
+    dict[str, Any]
+        Basis dictionary suitable for ``nipype.interfaces.fsl.Level1Design``.
+
+    Raises
+    ------
+    click.ClickException
+        If unsupported options are combined, a required custom basis file is not
+        specified, derivatives are requested for unsupported basis types, or the
+        basis name is unknown.
+    """
     basis_name = basis_name.lower()
 
     if basis_name == "dgamma":
@@ -461,7 +742,38 @@ def find_single_file(
     required: bool = True,
     **query: Any,
 ) -> str | None:
-    """Run a BIDS query that should identify one file."""
+    """
+    Execute a BIDS query expected to resolve to at most one file.
+
+    Parameters
+    ----------
+    layout : bids.BIDSLayout
+        Initialized BIDS layout used for the query.
+    description : str
+        Human-readable description included in error messages.
+    required : bool, optional
+        If ``True``, absence of a matching file is an error. If ``False``, return
+        ``None`` when no match exists.
+    **query : Any
+        Entity and metadata filters forwarded to ``BIDSLayout.get``.
+
+    Returns
+    -------
+    str or None
+        Absolute path to the unique matched file, or ``None`` when no file is
+        found and ``required`` is ``False``.
+
+    Raises
+    ------
+    click.ClickException
+        If a required file is absent or more than one unique file matches the
+        query.
+
+    Notes
+    -----
+    Duplicate paths returned by the BIDS layout are collapsed before uniqueness
+    is checked.
+    """
     matches = sorted(set(layout.get(return_type="file", **query)))
 
     if not matches:
@@ -485,7 +797,27 @@ def select_columns_by_regex(
     dataframe: pd.DataFrame,
     regexes: Iterable[str],
 ) -> list[str]:
-    """Select columns once, preserving dataframe column order."""
+    """
+    Select DataFrame columns using full regular-expression matches.
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        Table whose column names will be tested.
+    regexes : Iterable[str]
+        Regular expressions. A column is selected when any expression fully
+        matches its complete name.
+
+    Returns
+    -------
+    list[str]
+        Matching column names in their original DataFrame order.
+
+    Notes
+    -----
+    Expressions are compiled once before scanning the columns. Matching uses
+    ``Pattern.fullmatch`` rather than substring matching.
+    """
     compiled = [re.compile(regex) for regex in regexes]
 
     return [
@@ -500,9 +832,32 @@ def filter_estimable_contrasts(
     available_conditions: Sequence[str],
 ) -> tuple[list[tuple[Any, ...]], list[str]]:
     """
-    Keep only contrasts whose required conditions exist in this run.
+    Filter contrast definitions to those estimable for the current run.
 
-    F contrasts are retained only when all referenced T contrasts survive.
+    A T contrast is retained only when all of its referenced conditions are
+    available. An F contrast is retained only when all T contrasts that it
+    references survive the T-contrast filtering step.
+
+    Parameters
+    ----------
+    contrasts : Sequence[tuple[Any, ...]]
+        T and/or F contrast definitions.
+    available_conditions : Sequence[str]
+        Conditions represented by the current run's design.
+
+    Returns
+    -------
+    estimable_contrasts : list[tuple[Any, ...]]
+        T contrasts followed by F contrasts that remain estimable.
+    skipped_names : list[str]
+        Descriptions of skipped contrasts. Missing conditions are included in the
+        description for T contrasts.
+
+    Notes
+    -----
+    The function permits a common contrast specification to be applied across
+    runs that do not necessarily contain identical event sets, while preventing
+    invalid contrast vectors from reaching FEAT.
     """
     available = set(available_conditions)
 
@@ -554,11 +909,30 @@ def filter_estimable_contrasts(
 
 
 def _latest_run_contrasts_json(run_work_dir: Path) -> Path | None:
-    """Return the newest valid per-run contrasts.json for one run work directory.
+    """
+    Locate the authoritative contrast manifest for one run working directory.
 
-    Updated contrast sets take precedence over the original run manifest.  Only
-    update directories that actually contain ``contrasts.json`` are considered,
-    so an incomplete/dry-run update directory cannot hide the last valid update.
+    Contrast-update manifests take precedence over the original run-level
+    ``contrasts.json``. Among updates, the manifest from the highest numeric
+    ``contrast_update_NNN`` directory that actually contains a
+    ``contrasts.json`` file is selected.
+
+    Parameters
+    ----------
+    run_work_dir : pathlib.Path
+        Run-level directory under the derivative ``work`` tree.
+
+    Returns
+    -------
+    pathlib.Path or None
+        Path to the preferred ``contrasts.json`` file, or ``None`` when neither an
+        update manifest nor an original run manifest exists.
+
+    Notes
+    -----
+    Update directories without ``contrasts.json`` are deliberately ignored. This
+    prevents incomplete or dry-run update directories from superseding the last
+    completed contrast definition.
     """
     update_candidates: list[tuple[int, Path]] = []
     pattern = re.compile(r"^contrast_update_(\d+)$")
@@ -582,7 +956,29 @@ def _latest_run_contrasts_json(run_work_dir: Path) -> Path | None:
 
 
 def _manifest_record_outputs_exist(record: dict[str, Any]) -> bool:
-    """Return True only when the referenced first-level outputs still exist."""
+    """
+    Check whether a recovered contrast-manifest record still references real data.
+
+    A record is considered usable only when it contains non-empty ``feat_dir``,
+    ``cope_file``, and ``varcope_file`` values, the FEAT directory currently
+    exists, and both statistical images currently exist as files.
+
+    Parameters
+    ----------
+    record : dict[str, Any]
+        One serialized contrast-manifest record.
+
+    Returns
+    -------
+    bool
+        ``True`` when the referenced FEAT directory, COPE, and VARCOPE all exist;
+        otherwise ``False``.
+
+    Notes
+    -----
+    This check prevents deleted or moved analyses from being resurrected when the
+    dataset-wide manifest is reconstructed from historical work directories.
+    """
     feat_dir_value = str(record.get("feat_dir", "")).strip()
     cope_value = str(record.get("cope_file", "")).strip()
     varcope_value = str(record.get("varcope_file", "")).strip()
@@ -602,7 +998,32 @@ def _manifest_record_outputs_exist(record: dict[str, Any]) -> bool:
 
 
 def _load_manifest_records(path: Path) -> list[dict[str, Any]]:
-    """Load one per-run contrasts.json and keep only extant FEAT outputs."""
+    """
+    Load and validate records from one run-level ``contrasts.json`` file.
+
+    Malformed files and records are skipped with warnings. Valid records must be
+    mapping objects, contain a ``run_label``, and reference currently existing
+    FEAT, COPE, and VARCOPE outputs.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Path to a run-level or contrast-update ``contrasts.json``.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        Valid, filesystem-backed manifest records copied from the JSON payload.
+
+    Notes
+    -----
+    An unreadable JSON file, non-list top-level object, malformed record, missing
+    run label, or stale output reference does not propagate into the rebuilt
+    dataset manifest.
+
+    The function is intentionally conservative because work directories may
+    outlive the corresponding derivative outputs.
+    """
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
@@ -641,11 +1062,34 @@ def _load_manifest_records(path: Path) -> list[dict[str, Any]]:
 
 
 def _rebuild_contrast_manifest_from_work(deriv_dir: Path) -> pd.DataFrame:
-    """Reconstruct the dataset manifest from existing level-1 work outputs.
+    """
+    Reconstruct dataset-level contrast state from completed run work directories.
 
-    For each run directory under ``<deriv_dir>/work``, the highest numbered
-    ``contrast_update_NNN/contrasts.json`` is used when present; otherwise the
-    run's original ``contrasts.json`` is used.
+    Every immediate subdirectory of ``<deriv_dir>/work`` is treated as a
+    candidate run. For each run, `_latest_run_contrasts_json` determines the
+    authoritative manifest, preferring the highest completed contrast update.
+    Records whose referenced FEAT/COPE/VARCOPE outputs no longer exist are
+    discarded.
+
+    Parameters
+    ----------
+    deriv_dir : pathlib.Path
+        Root directory of the level-1 FEAT derivatives.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Reconstructed manifest table. An empty DataFrame is returned when no work
+        tree or no usable records are available.
+
+    Notes
+    -----
+    Duplicate ``run_label``/``cope`` pairs are reduced to the last selected
+    record. List-valued ``conditions`` and ``weights`` are serialized as compact
+    JSON strings to match the dataset TSV representation.
+
+    The function reports the number of usable run manifests and stale manifests
+    encountered during reconstruction.
     """
     work_root = deriv_dir / "work"
     if not work_root.is_dir():
@@ -699,7 +1143,31 @@ def _rebuild_contrast_manifest_from_work(deriv_dir: Path) -> pd.DataFrame:
 
 
 def _normalize_contrast_manifest_table(table: pd.DataFrame) -> pd.DataFrame:
-    """Normalize columns and deterministic numeric-aware ordering."""
+    """
+    Normalize the schema and ordering of a contrast-manifest table.
+
+    The canonical manifest columns are created when absent, existing additional
+    columns are retained, missing values are converted to empty strings, and all
+    columns are normalized to string representation.
+
+    Rows are sorted deterministically using numeric-aware subject, session, run,
+    and cope keys while preserving textual labels as secondary sort keys.
+
+    Parameters
+    ----------
+    table : pandas.DataFrame
+        Contrast-manifest table to normalize.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Normalized and deterministically ordered table.
+
+    Notes
+    -----
+    Temporary numeric sort columns are discarded before returning. Numeric-aware
+    sorting ensures, for example, that run 10 follows run 9 rather than run 1.
+    """
     preferred_columns = [
         "subject",
         "session",
@@ -756,19 +1224,43 @@ def _normalize_contrast_manifest_table(table: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-
 def rebuild_contrast_manifest(
     deriv_dir: Path,
     *,
     dry_run: bool = False,
 ) -> Path:
-    """Rebuild the dataset-wide contrast manifest from existing run work output.
+    """
+    Rebuild the dataset-wide ``contrast_manifest.tsv`` from existing analyses.
 
-    For each run under ``<deriv_dir>/work``, the highest numbered
-    ``contrast_update_NNN/contrasts.json`` that actually exists is preferred;
-    otherwise the original run-level ``contrasts.json`` is used.  The rebuild
-    holds the same advisory lock used by normal manifest updates and replaces
-    the TSV atomically.
+    The level-1 work tree is scanned for run-level contrast provenance. The newest
+    completed contrast-update manifest is preferred for each run, stale records
+    whose FEAT/COPE/VARCOPE files have disappeared are excluded, and the resulting
+    table is normalized before being written.
+
+    Parameters
+    ----------
+    deriv_dir : pathlib.Path
+        Root directory containing the level-1 derivatives and ``work`` directory.
+    dry_run : bool, optional
+        If ``True``, report the intended rebuild without reading/writing the
+        manifest state.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the dataset-wide ``contrast_manifest.tsv``.
+
+    Raises
+    ------
+    click.ClickException
+        If no usable contrast records can be reconstructed.
+
+    Notes
+    -----
+    The rebuild acquires the same advisory ``fcntl`` lock used for incremental
+    manifest updates. The TSV is written through a process-unique temporary file
+    and atomically renamed, making explicit rebuilds safe with respect to
+    concurrent manifest writers.
     """
     deriv_dir = Path(deriv_dir).resolve()
     manifest_path = deriv_dir / "contrast_manifest.tsv"
@@ -818,6 +1310,7 @@ def rebuild_contrast_manifest(
     )
     return manifest_path
 
+
 def write_contrast_manifest(
     *,
     work_dir: Path,
@@ -829,12 +1322,54 @@ def write_contrast_manifest(
     canonical_names: dict[str, str],
     dry_run: bool = False,
 ) -> None:
-    """Write per-run contrast provenance and update the dataset-wide manifest.
+    """
+    Persist run-level contrast provenance and update the dataset-wide manifest.
 
-    The dataset-wide TSV is concurrency-safe.  If it is missing or empty, its
-    prior state is reconstructed from existing run work directories before the
-    current run is merged.  Contrast-update directories are resolved by using
-    the highest numbered update that contains a valid ``contrasts.json``.
+    One record is generated for each T contrast, using FSL's T-contrast COPE
+    numbering. The exact current run/update mapping is first written to
+    ``contrasts.json`` in the run working directory. The dataset-wide
+    ``contrast_manifest.tsv`` is then updated under an advisory file lock.
+
+    If the dataset manifest is missing or empty, its previous state is rebuilt
+    from completed run work directories before the current run is merged.
+
+    Parameters
+    ----------
+    work_dir : pathlib.Path
+        Working directory for the current run or contrast update.
+    deriv_dir : pathlib.Path
+        Level-1 derivative root containing ``contrast_manifest.tsv``.
+    entities : dict[str, Any]
+        BIDS entities for the current run.
+    label : str
+        Unique run label used to replace stale entries for the same run.
+    output_dir : pathlib.Path
+        FEAT output directory referenced by generated COPE and VARCOPE records.
+    contrasts : Sequence[tuple[Any, ...]]
+        Current contrast definitions.
+    canonical_names : dict[str, str]
+        Mapping from local contrast names to canonical higher-level names.
+    dry_run : bool, optional
+        If ``True``, return without modifying either manifest.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If no T contrasts are available or an existing/rebuilt dataset manifest
+        lacks the required ``run_label`` field.
+
+    Notes
+    -----
+    The lock covers the complete read/rebuild, merge, write, and rename
+    transaction. This prevents lost updates when multiple first-level jobs finish
+    in parallel.
+
+    Both JSON and TSV writes use process-unique temporary files followed by
+    atomic replacement.
     """
     if dry_run:
         click.echo("DRY RUN: contrast manifests were not modified.")
@@ -967,6 +1502,7 @@ def write_contrast_manifest(
     click.echo(f"Updated run manifest: {json_path}")
     click.echo(f"Updated dataset manifest: {manifest_path}")
 
+
 def load_confounds(
     confounds_file: str,
     *,
@@ -975,11 +1511,44 @@ def load_confounds(
     require_all_regexes: bool,
 ) -> tuple[list[str], list[list[float]]]:
     """
-    Load nuisance regressors in Nipype Bunch format.
+    Load nuisance regressors from a tabular confound file.
 
-    Returns:
-        regressor_names
-        regressors, where each inner list is one regressor over time
+    The confound table is required to contain exactly one row per BOLD volume.
+    Columns may either be selected using regular-expression full matches or, when
+    ``regexes`` is ``None``, by retaining every numeric column. Non-finite values
+    are replaced with zero and constant regressors are discarded.
+
+    Parameters
+    ----------
+    confounds_file : str
+        Path to a tab-separated confound file.
+    regexes : list[str] or None
+        Column-selection regular expressions. ``None`` selects all numeric
+        columns.
+    expected_rows : int
+        Expected number of time points, normally the BOLD fourth dimension.
+    require_all_regexes : bool
+        If ``True``, fail when any requested pattern matches no column. Otherwise
+        unmatched expressions generate warnings.
+
+    Returns
+    -------
+    regressor_names : list[str]
+        Selected non-constant column names.
+    regressors : list[list[float]]
+        Regressor values in Nipype orientation: one inner list per regressor over
+        time.
+
+    Raises
+    ------
+    click.ClickException
+        If row counts disagree, required regexes are unmatched, no usable columns
+        remain, or all selected columns are constant.
+
+    Notes
+    -----
+    NaN values commonly introduced by derivative confound columns on the first
+    volume are explicitly converted to zero.
     """
     confounds = pd.read_csv(
         confounds_file,
@@ -1072,10 +1641,41 @@ def patch_fsf(
     smoothing_fwhm: float,
 ) -> None:
     """
-    Patch output and input paths and disable duplicate FEAT preprocessing.
+    Patch run-specific fields in a generated first-level FEAT configuration.
 
-    Level1Design normally writes the input path through SpecifyModel, but it is
-    patched explicitly here to make the generated FSF self-contained.
+    The generated FSF is made self-contained by explicitly setting its output
+    directory, input BOLD file, and spatial smoothing kernel. Optionally,
+    preprocessing operations already performed by fMRIPrep are disabled.
+
+    Parameters
+    ----------
+    fsf_path : str
+        Path to the FSF file to modify in place.
+    output_dir : str
+        FEAT output directory written to ``fmri(outputdir)``.
+    bold_file : str
+        Input BOLD image written to ``feat_files(1)``.
+    disable_feat_preprocessing : bool
+        Disable FEAT motion correction, slice timing, brain extraction, and
+        registration when ``True``.
+    smoothing_fwhm : float
+        Spatial smoothing kernel in millimetres FWHM. A value of zero disables
+        smoothing.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If ``smoothing_fwhm`` is negative or the generated FSF does not contain an
+        expected output-directory setting.
+
+    Notes
+    -----
+    Registration DOF is kept at a valid menu value even when FEAT registration is
+    disabled. The function modifies the supplied FSF in place.
     """
     if smoothing_fwhm < 0:
         raise click.ClickException("smoothing_fwhm must be >= 0")
@@ -1138,20 +1738,44 @@ def patch_contrasts_in_fsf(
     contrasts: Sequence[tuple[Any, ...]],
 ) -> None:
     """
-    Replace T-contrast definitions in an existing first-level FEAT FSF.
+    Replace first-level T-contrast definitions in an existing FEAT FSF.
 
-    Each contrast must have the form:
+    Existing task EV names and derivative settings are parsed from the FSF.
+    Requested contrasts are mapped from named original EVs into both FSL's
+    original-EV and real-EV spaces. Existing contrast and F-test declarations are
+    removed and a new contrast block is appended.
 
-        (name, "T", condition_names, weights)
+    Parameters
+    ----------
+    fsf_path : pathlib.Path
+        Existing or copied first-level FSF to update in place.
+    contrasts : Sequence[tuple[Any, ...]]
+        T-contrast definitions of the form
+        ``(name, "T", conditions, weights)`` or a compatible five-field form.
 
-    or:
+    Returns
+    -------
+    None
 
-        (name, "T", condition_names, weights, canonical_name)
+    Raises
+    ------
+    click.ClickException
+        If EV declarations cannot be read, EV names are ambiguous, contrast
+        definitions are malformed, non-T contrasts are supplied, names are
+        duplicated, conditions are missing, contrast vectors are all zero, or
+        original EVs cannot be safely expanded into FEAT's declared real-EV
+        dimensionality.
 
-    Contrast conditions are matched against `fmri(evtitleN)` entries in the
-    existing FSF. Conditions not included in a contrast receive weight zero.
+    Notes
+    -----
+    Temporal derivatives are handled by assigning each original contrast weight
+    to the main real EV and assigning zero to its derivative EV.
 
-    `feat_model` should be run after this function to regenerate design.con.
+    Basis expansions more complicated than one optional temporal derivative per
+    original EV are rejected rather than silently producing an incorrect
+    contrast.
+
+    After this function, ``feat_model`` must be run to regenerate ``design.con``.
     """
     text = fsf_path.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -1427,6 +2051,52 @@ def update_existing_feat_contrasts(
     canonical_names,
     dry_run: bool,
 ) -> None:
+    """
+    Update contrasts in an existing first-level FEAT analysis without refitting the design.
+
+    The existing design specification is copied into a dedicated update working
+    directory, contrast definitions are replaced, and ``feat_model`` regenerates
+    the associated design files. The regenerated design matrix is required to be
+    numerically identical to the original before FILM statistics are replaced.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        Existing first-level ``.feat`` directory.
+    work_dir : pathlib.Path
+        Dedicated ``contrast_update_NNN`` working directory.
+    deriv_dir : pathlib.Path
+        Level-1 derivative root containing the dataset contrast manifest.
+    entities : dict[str, Any]
+        BIDS run entities used for manifest records.
+    label : str
+        Unique run label.
+    contrasts : Sequence[tuple]
+        New T-contrast definitions.
+    canonical_names : Mapping
+        Mapping from local contrast names to canonical names.
+    dry_run : bool
+        If ``True``, create and validate updated design files but do not rerun
+        FILM or modify contrast manifests.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If required existing FEAT files are absent or the regenerated design
+        matrix differs from the original.
+    subprocess.CalledProcessError
+        If ``feat_model`` or downstream FSL commands fail.
+
+    Notes
+    -----
+    The design matrix equality check is a central safety invariant: contrast
+    updates are permitted only when the underlying first-level model remains
+    unchanged.
+    """    
     click.echo("Updating contrasts in existing FEAT analysis")
     click.echo(f"FEAT directory : {feat_dir}")
     click.echo(f"Working directory: {work_dir}")
@@ -1514,7 +2184,30 @@ def update_existing_feat_contrasts(
 
 
 def read_original_film_command(feat_dir: Path) -> list[str]:
-    """Read the original film_gls command from <feat_dir>/stats/logfile."""
+    """
+    Recover the original ``film_gls`` command from a FEAT statistics logfile.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        Existing FEAT directory containing ``stats/logfile``.
+
+    Returns
+    -------
+    list[str]
+        Shell-tokenized original ``film_gls`` command, including the executable.
+
+    Raises
+    ------
+    click.ClickException
+        If ``stats/logfile`` does not exist or no command whose executable basename
+        is ``film_gls`` can be found.
+
+    Notes
+    -----
+    Parsing uses ``shlex.split`` so quoted command-line arguments are preserved
+    correctly.
+    """
     logfile = feat_dir / "stats" / "logfile"
 
     if not logfile.is_file():
@@ -1545,7 +2238,31 @@ def build_updated_film_command(
     feat_dir: Path,
     new_con_file: Path,
 ) -> list[str]:
-    """Reuse original FILM options with the updated contrast file."""
+    """
+    Construct a FILM command for an updated contrast set.
+
+    The original ``film_gls`` invocation is recovered from the FEAT logfile so
+    run-specific estimation options are preserved. Arguments identifying the
+    input data, output statistics directory, design matrix, and contrast file are
+    replaced with paths appropriate to the updated analysis.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        Existing FEAT directory.
+    new_con_file : pathlib.Path
+        Newly generated ``design.con``.
+
+    Returns
+    -------
+    list[str]
+        Command argument vector suitable for ``subprocess.run``.
+
+    Notes
+    -----
+    Unrecognized or additional original FILM options are intentionally retained.
+    Only ``--in``, ``--rn``, ``--pd``, and ``--con`` are replaced.
+    """
     original = read_original_film_command(feat_dir)
 
     executable = original[0]
@@ -1577,6 +2294,35 @@ def backup_existing_statistics(
     feat_dir: Path,
     update_work_dir: Path,
 ) -> None:
+    """
+    Back up FEAT design and statistical outputs before a contrast update.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        Existing FEAT analysis directory.
+    update_work_dir : pathlib.Path
+        Contrast-update working directory in which a new ``backup`` directory will
+        be created.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    FileExistsError
+        If the target backup directory already exists.
+
+    Notes
+    -----
+    Existing ``design.con``, ``design.fts``, and ``design.fsf`` files are copied
+    when present. The complete ``stats`` directory is recursively copied when it
+    exists.
+
+    The backup makes a contrast update reversible without requiring the original
+    first-level model to be recomputed.
+    """    
     backup_dir = update_work_dir / "backup"
     backup_dir.mkdir(parents=True, exist_ok=False)
 
@@ -1598,6 +2344,47 @@ def rerun_film_with_updated_contrasts(
     dry_run: bool,
     contrasts: Sequence[tuple],
 ) -> None:
+    """
+    Recompute FILM statistics and FEAT post-statistics for updated contrasts.
+
+    The original FILM estimation options are reused with the new contrast file.
+    Before modifying the FEAT directory, existing statistical and design outputs
+    are backed up. The old statistics directory is removed, updated contrast/FSF
+    files are installed, FILM is rerun, required outputs are validated, and
+    post-statistics are regenerated.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        FEAT directory whose contrast statistics will be replaced.
+    update_work_dir : pathlib.Path
+        Contrast-update working directory used for backups.
+    new_con_file : pathlib.Path
+        Updated FSL contrast file.
+    new_fsf_file : pathlib.Path
+        Updated FEAT configuration.
+    dry_run : bool
+        If ``True``, print the FILM command but modify nothing.
+    contrasts : Sequence[tuple]
+        Updated contrast definitions used when regenerating post-statistics.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If FILM finishes without required residual/DOF outputs or produces no
+        z-statistic images.
+    subprocess.CalledProcessError
+        If FILM or post-statistics commands fail.
+
+    Notes
+    -----
+    This operation intentionally preserves the original design matrix while
+    recomputing only contrast-dependent statistical products.
+    """    
     click.echo("Preparing FILM re-fit")
     click.echo(f"FEAT directory   : {feat_dir}")
     click.echo(f"Update work dir  : {update_work_dir}")
@@ -1703,7 +2490,24 @@ def rerun_film_with_updated_contrasts(
 
 
 def _require_fsl_command(name: str) -> str:
-    """Return an FSL executable path or fail with a clear message."""
+    """
+    Resolve a required FSL executable from ``PATH``.
+
+    Parameters
+    ----------
+    name : str
+        Executable name.
+
+    Returns
+    -------
+    str
+        Resolved executable path.
+
+    Raises
+    ------
+    click.ClickException
+        If the executable cannot be located on ``PATH``.
+    """
     executable = shutil.which(name)
     if executable is None:
         raise click.ClickException(
@@ -1718,6 +2522,32 @@ def read_fsf_number(
     *,
     value_type: type = float,
 ):
+    """
+    Read and convert a numeric ``fmri(...)`` setting from an FSF file.
+
+    Parameters
+    ----------
+    fsf_path : pathlib.Path
+        FEAT configuration file.
+    key : str
+        Name inside ``fmri(key)``.
+    value_type : type, optional
+        Callable used to convert the textual value. Defaults to ``float``.
+
+    Returns
+    -------
+    Any
+        Parsed value converted using ``value_type``.
+
+    Raises
+    ------
+    click.ClickException
+        If the key cannot be found or its value cannot be converted.
+
+    Notes
+    -----
+    Quoted and unquoted scalar values are supported.
+    """    
     pattern = re.compile(
         rf"^\s*set\s+fmri\({re.escape(key)}\)\s+"
         r'"?([^"\s]+)"?\s*$'
@@ -1743,7 +2573,24 @@ def read_fsf_number(
 
 
 def _read_scalar_file(path: Path) -> float:
-    """Read the first numeric token from a small FSL text output file."""
+    """
+    Read the first parseable floating-point token from a text file.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Small FSL output file containing at least one numeric token.
+
+    Returns
+    -------
+    float
+        First token that can be converted to ``float``.
+
+    Raises
+    ------
+    click.ClickException
+        If the file does not exist or contains no numeric token.
+    """
     if not path.is_file():
         raise click.ClickException(f"Required file is missing: {path}")
     for token in path.read_text(encoding="utf-8", errors="replace").split():
@@ -1755,7 +2602,28 @@ def _read_scalar_file(path: Path) -> float:
 
 
 def _parse_smoothest_output(output: str) -> tuple[float, int, float]:
-    """Parse DLH, VOLUME, and RESELS from FSL smoothest output."""
+    """
+    Extract smoothness parameters from FSL ``smoothest`` output.
+
+    Parameters
+    ----------
+    output : str
+        Standard output produced by ``smoothest``.
+
+    Returns
+    -------
+    dlh : float
+        Estimated smoothness determinant term.
+    volume : int
+        Search volume rounded to the nearest integer.
+    resels : float
+        Number of resolution elements.
+
+    Raises
+    ------
+    click.ClickException
+        If any of ``DLH``, ``VOLUME``, or ``RESELS`` cannot be parsed.
+    """
     values: dict[str, float] = {}
     for key in ("DLH", "VOLUME", "RESELS"):
         match = re.search(rf"\b{key}\s*(?:=)?\s*([-+0-9.eE]+)", output)
@@ -1770,7 +2638,26 @@ def _parse_smoothest_output(output: str) -> tuple[float, int, float]:
 
 
 def _indexed_stat_images(stats_dir: Path, stem: str) -> list[tuple[int, Path]]:
-    """Return numbered FSL images such as zstat1, zstat2 in numeric order."""
+    """
+    Find numerically indexed FSL statistic images.
+
+    Parameters
+    ----------
+    stats_dir : pathlib.Path
+        Directory containing statistic NIfTI files.
+    stem : str
+        Filename stem such as ``"zstat"``, ``"cope"``, or ``"tstat"``.
+
+    Returns
+    -------
+    list[tuple[int, pathlib.Path]]
+        ``(index, path)`` pairs ordered numerically by statistic index.
+
+    Notes
+    -----
+    Both ``.nii`` and ``.nii.gz`` forms are recognized. Files whose names do not
+    exactly match ``<stem><integer>.nii[.gz]`` are ignored.
+    """
     found: dict[int, Path] = {}
     pattern = re.compile(rf"^{re.escape(stem)}(\d+)\.nii(?:\.gz)?$")
     for path in stats_dir.glob(f"{stem}*.nii*"):
@@ -1781,7 +2668,26 @@ def _indexed_stat_images(stats_dir: Path, stem: str) -> list[tuple[int, Path]]:
 
 
 def _remove_old_poststats(feat_dir: Path) -> None:
-    """Remove post-stats products that would otherwise become stale."""
+    """
+    Remove FEAT post-statistical products that would become stale.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        FEAT directory whose post-statistics are about to be regenerated.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Thresholded z-statistics, cluster masks/tables, local-maxima tables, rendered
+    images, volume files, ramp images, and the ``tsplot`` directory are removed
+    when present.
+
+    Raw FILM statistics in ``stats`` are not removed by this function.
+    """
     file_patterns = (
         "thresh_zstat*",
         "cluster_mask_zstat*",
@@ -1809,11 +2715,46 @@ def run_updated_poststats(
     overwrite: bool = True,
     generate_tsplot: bool = True,
 ) -> None:
-    """Recreate FEAT first-level post-stats after updated FILM contrasts.
+    """
+    Regenerate first-level FEAT post-statistics after contrast replacement.
 
-    Values that vary by run are read from the existing FEAT directory:
-    degrees of freedom from stats/dof, cluster thresholds from design.fsf,
-    and DLH/volume from smoothest. No run-specific values are hard-coded.
+    Run-dependent quantities are recovered from the updated FEAT directory rather
+    than hard-coded. Residual smoothness is estimated with ``smoothest`` and each
+    z-statistic is masked, cluster-thresholded, summarized, and rendered using FSL
+    utilities. Optional time-series plots and FEAT HTML sections are subsequently
+    regenerated.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        Existing FEAT directory containing updated FILM outputs.
+    contrasts : Sequence[tuple]
+        Contrast definitions corresponding to the current z-statistic ordering.
+    overwrite : bool, optional
+        Remove previously generated post-statistical products before rebuilding.
+    generate_tsplot : bool, optional
+        Generate time-series plots and associated report content when ``True``.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If required FEAT inputs, threshold parameters, FSL commands, statistic
+        images, or expected products are unavailable.
+    subprocess.CalledProcessError
+        If an invoked FSL post-statistics command fails.
+
+    Notes
+    -----
+    Degrees of freedom are read from ``stats/dof``. Cluster-forming and
+    probability thresholds are read from ``design.fsf``. DLH and search volume are
+    estimated from ``stats/res4d`` and the FEAT mask using ``smoothest``.
+
+    This reproduces contrast-dependent post-stats without repeating the complete
+    first-level FEAT preprocessing/model workflow.
     """
     stats_dir = feat_dir / "stats"
     mask = feat_dir / "mask"
@@ -1983,8 +2924,31 @@ def run_updated_poststats(
         render_max=render_max,
         include_tsplots=tsplot_succeeded,
     )
+
     
 def read_fsl_matrix(path: Path) -> np.ndarray:
+    """
+    Read the numeric matrix section of an FSL VEST matrix file.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        FSL ``.mat`` or other VEST-formatted matrix file containing a ``/Matrix``
+        marker.
+
+    Returns
+    -------
+    numpy.ndarray
+        Two-dimensional floating-point matrix formed from all non-empty lines
+        following ``/Matrix``.
+
+    Raises
+    ------
+    click.ClickException
+        If the file does not contain a ``/Matrix`` section.
+    ValueError
+        If a matrix token cannot be converted to floating point.
+    """    
     lines = path.read_text(encoding="utf-8").splitlines()
 
     try:
@@ -2007,6 +2971,34 @@ def verify_design_matrices_equal(
     existing: Path,
     generated: Path,
 ) -> None:
+    """
+    Verify that regenerated and existing FEAT design matrices are equivalent.
+
+    Parameters
+    ----------
+    existing : pathlib.Path
+        Original ``design.mat``.
+    generated : pathlib.Path
+        Newly generated ``design.mat`` produced during contrast updating.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If the matrices differ in shape or are not numerically equal within the
+        configured tolerances.
+
+    Notes
+    -----
+    Numerical equality is tested with ``numpy.allclose`` using ``rtol=1e-7`` and
+    ``atol=1e-8``. The maximum absolute discrepancy is reported on failure.
+
+    This check prevents a contrast-only update from silently modifying the
+    underlying model.
+    """    
     old_matrix = read_fsl_matrix(existing)
     new_matrix = read_fsl_matrix(generated)
 
@@ -2033,7 +3025,24 @@ def verify_design_matrices_equal(
 
     
 def check_executable(name: str) -> None:
-    """Require an external executable."""
+    """
+    Require an external executable to be available on ``PATH``.
+
+    Parameters
+    ----------
+    name : str
+        Executable name.
+
+    Returns
+    -------
+    str
+        Resolved executable path.
+
+    Raises
+    ------
+    click.ClickException
+        If the executable cannot be found.
+    """
     if shutil.which(name) is None:
         raise click.ClickException(
             f"Required executable {name!r} was not found on PATH."
@@ -2041,11 +3050,33 @@ def check_executable(name: str) -> None:
 
 
 def parse_run_selectors(values: tuple[str, ...]) -> tuple[str, ...]:
-    """Normalize repeatable --run values, comma lists, and integer ranges.
+    """
+    Normalize command-line run selectors into explicit BIDS run labels.
 
-    Accepted examples include ``--run 1``, ``--run 01``, ``--run 1,3,5``,
-    ``--run 1-4``, and repeated options. Run labels are returned as strings so
-    zero-padded BIDS labels such as ``01`` are preserved.
+    Individual values, comma-separated lists, repeated options, and inclusive
+    integer ranges are supported. Zero-padded labels are retained when supplied
+    as literal values.
+
+    Parameters
+    ----------
+    values : Sequence[str]
+        Raw run-selection arguments.
+
+    Returns
+    -------
+    set[str]
+        Explicit selected run labels.
+
+    Raises
+    ------
+    click.ClickException
+        If a range expression is malformed or represents an invalid descending or
+        otherwise unsupported range.
+
+    Examples
+    --------
+    Accepted forms include ``"1"``, ``"01"``, ``"1,3,5"``, ``"1-4"``, and
+    combinations supplied through repeated options.
     """
     selected: list[str] = []
 
@@ -2109,7 +3140,30 @@ def _replace_html_section(
     section: str,
     content: str,
 ) -> str:
-    """Replace content between FEAT report marker comments."""
+    """
+    Replace a marker-delimited section of a FEAT HTML report.
+
+    Parameters
+    ----------
+    text : str
+        Complete HTML document.
+    start_marker : str
+        Marker delimiting the beginning of the managed section.
+    end_marker : str
+        Marker delimiting the end of the managed section.
+    replacement : str
+        New content to place between the markers.
+
+    Returns
+    -------
+    str
+        HTML text containing the replaced section.
+
+    Notes
+    -----
+    This helper allows generated post-statistics content to be updated without
+    rewriting unrelated sections of FEAT's HTML report.
+    """
     start = f"<!--{section}start-->"
     stop = f"<!--{section}stop-->"
 
@@ -2140,7 +3194,31 @@ def update_poststats_html(
     render_max: float,
     include_tsplots: bool = True,
 ) -> None:
-    """Regenerate contrast and time-series sections of report_poststats.html."""
+    """
+    Regenerate contrast and time-series sections of FEAT's post-stats report.
+
+    The function reads current contrast definitions and available post-statistical
+    outputs and updates the managed portions of ``report_poststats.html`` so the
+    report reflects newly generated contrast statistics.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        FEAT directory containing post-statistical outputs.
+    contrasts : Sequence[tuple]
+        Current contrast definitions.
+    generate_tsplot : bool, optional
+        Include time-series plot report content when available/requested.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Only marker-delimited sections managed by this workflow are replaced; other
+    FEAT report content is preserved.
+    """
     report_path = feat_dir / "report_poststats.html"
 
     if not report_path.is_file():
@@ -2254,7 +3332,26 @@ def update_poststats_html(
 
     click.echo(f"Updated post-stats report: {report_path}")
 
+
 def _require_command(name: str) -> str:
+    """
+    Resolve a required external command.
+
+    Parameters
+    ----------
+    name : str
+        Command name to locate on ``PATH``.
+
+    Returns
+    -------
+    str
+        Absolute or executable path returned by ``shutil.which``.
+
+    Raises
+    ------
+    click.ClickException
+        If the required command is unavailable.
+    """    
     executable = shutil.which(name)
     if executable is None:
         raise click.ClickException(
@@ -2264,6 +3361,29 @@ def _require_command(name: str) -> str:
 
 
 def _existing_nifti(path: Path) -> Path:
+    """
+    Resolve an existing NIfTI image from a path or extensionless image root.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Candidate image path. The path may already include ``.nii`` or
+        ``.nii.gz`` or may be an extensionless FSL image root.
+
+    Returns
+    -------
+    pathlib.Path
+        Resolved path to the existing NIfTI image.
+
+    Raises
+    ------
+    click.ClickException
+        If no matching image exists.
+
+    Notes
+    -----
+    For extensionless input, ``.nii.gz`` is tried before ``.nii``.
+    """    
     candidates = [path]
     if not str(path).endswith((".nii", ".nii.gz")):
         candidates += [Path(str(path) + ".nii.gz"), Path(str(path) + ".nii")]
@@ -2274,6 +3394,23 @@ def _existing_nifti(path: Path) -> Path:
 
 
 def _normalize_selector(values: Sequence[str]) -> set[str]:
+    """
+    Normalize comma-separated selector values into a set.
+
+    Parameters
+    ----------
+    values : Sequence[str]
+        Raw selector strings, each potentially containing comma-separated values.
+
+    Returns
+    -------
+    set[str]
+        Non-empty, whitespace-trimmed selector values.
+
+    Notes
+    -----
+    No numeric interpretation or range expansion is performed.
+    """    
     selected: set[str] = set()
     for raw in values:
         for value in str(raw).split(","):
@@ -2284,18 +3421,79 @@ def _normalize_selector(values: Sequence[str]) -> set[str]:
 
 
 def _safe_label(value: str, max_length: int = 80) -> str:
+    """
+    Convert arbitrary text into a filesystem-safe label.
+
+    Parameters
+    ----------
+    value : str
+        Input text.
+    max_length : int, optional
+        Maximum output length. Defaults to 80 characters.
+
+    Returns
+    -------
+    str
+        Sanitized label containing only alphanumeric characters, periods,
+        underscores, and hyphens.
+
+    Notes
+    -----
+    Unsupported character sequences become hyphens, repeated hyphens are
+    collapsed, leading/trailing punctuation is stripped, and an empty result
+    becomes ``"contrast"``.
+    """    
     label = re.sub(r"[^A-Za-z0-9._-]+", "-", str(value).strip())
     label = re.sub(r"-+", "-", label).strip("-._") or "contrast"
     return label[:max_length]
 
 
 def _entity_text(value: object) -> str:
+    """
+    Convert an optional tabular entity value to text.
+
+    Parameters
+    ----------
+    value : object
+        Entity value that may be ``None`` or a pandas missing value.
+
+    Returns
+    -------
+    str
+        Empty string for missing values; otherwise ``str(value)``.
+    """    
     if value is None or pd.isna(value):
         return ""
     return str(value)
 
 
 def _write_vest_matrix(path: Path, matrix: Sequence[Sequence[float]]) -> None:
+    """
+    Write a numeric matrix in FSL VEST format.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination file.
+    matrix : Sequence[Sequence[float]]
+        Rectangular numeric matrix. Rows correspond to observations and columns
+        to design waves.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If the matrix is empty, has zero columns, or contains rows of inconsistent
+        length.
+
+    Notes
+    -----
+    The output contains ``/NumWaves``, ``/NumPoints``, ``/PPheights``, and
+    ``/Matrix`` declarations expected by FSL tools.
+    """    
     rows = [list(map(float, row)) for row in matrix]
     if not rows or not rows[0]:
         raise click.ClickException(f"Cannot write empty matrix: {path}")
@@ -2318,13 +3516,42 @@ def _write_vest_contrast(
     names: str | Sequence[str],
     matrix: Sequence[Sequence[float]] | None = None,
 ) -> None:
-    """Write an FSL VEST design.con file.
-
-    Supports both:
-      * a simple one-wave/one-contrast fixed-effects design
-      * arbitrary group-level contrast matrices
     """
+    Write an FSL VEST T-contrast file.
 
+    Both the historical one-wave fixed-effects form and arbitrary multi-wave,
+    multi-contrast group designs are supported.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination ``design.con`` path.
+    names : str or Sequence[str]
+        Single contrast name or ordered collection of names.
+    matrix : Sequence[Sequence[float]] or None, optional
+        Contrast matrix. Each row represents one contrast and each column one
+        design wave. When ``names`` is a single string and ``matrix`` is omitted,
+        a one-by-one contrast matrix containing ``1.0`` is generated.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If names or matrix rows are absent, the number of names differs from the
+        number of matrix rows, the matrix has zero waves, or row widths differ.
+
+    Notes
+    -----
+    Contrast names are sanitized only for embedded newline/carriage-return
+    characters; their substantive labels are preserved.
+
+    The generated file includes FSL ``/ContrastNameN``, ``/NumWaves``,
+    ``/NumContrasts``, ``/PPheights``, ``/RequiredEffect``, and ``/Matrix``
+    sections.
+    """
     # Backward compatibility with calls like:
     # _write_vest_contrast(path, canonical_name)
     if isinstance(names, str):
@@ -2412,6 +3639,24 @@ def _write_vest_contrast(
 
 
 def _read_first_level_dof(feat_dir: Path) -> float:
+    """
+    Read the residual degrees of freedom from a first-level FEAT analysis.
+
+    Parameters
+    ----------
+    feat_dir : pathlib.Path
+        First-level FEAT directory containing ``stats/dof``.
+
+    Returns
+    -------
+    float
+        First numeric token found in the DOF file.
+
+    Raises
+    ------
+    click.ClickException
+        If the DOF file is absent or contains no numeric value.
+    """    
     dof_file = feat_dir / "stats" / "dof"
     if not dof_file.is_file():
         raise click.ClickException(f"Missing first-level DOF file: {dof_file}")
@@ -2427,6 +3672,27 @@ def _read_first_level_dof(feat_dir: Path) -> float:
 
 
 def _run(command: Sequence[str], cwd: Path, dry_run: bool) -> None:
+    """
+    Execute or display an external command for the fixed-effects workflow.
+
+    Parameters
+    ----------
+    command : Sequence[str]
+        Command argument vector.
+    cwd : pathlib.Path
+        Working directory.
+    dry_run : bool
+        If ``True``, display the command without executing it.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    subprocess.CalledProcessError
+        If command execution is enabled and the process exits unsuccessfully.
+    """    
     click.echo("  " + shlex.join([str(v) for v in command]))
     if not dry_run:
         subprocess.run([str(v) for v in command], check=True, cwd=str(cwd))
@@ -2439,6 +3705,46 @@ def run_fixed_effects_group(
     overwrite: bool,
     dry_run: bool,
 ) -> dict[str, object]:
+    """
+    Combine multiple first-level estimates using FLAME fixed effects.
+
+    COPE, VARCOPE, and first-level DOF images are merged across inputs. Subject/run
+    masks are intersected, a one-column fixed-effects design is written, and
+    ``flameo`` is executed in fixed-effects mode.
+
+    Parameters
+    ----------
+    rows : pandas.DataFrame
+        Manifest rows belonging to one canonical contrast and fixed-effects
+        grouping unit.
+    output_dir : pathlib.Path
+        Destination second-level analysis directory.
+    canonical_name : str
+        Canonical contrast name represented by the inputs.
+    overwrite : bool
+        Permit replacement of an existing output directory.
+    dry_run : bool
+        Display commands and intended outputs without modifying files.
+
+    Returns
+    -------
+    dict[str, Any]
+        Record describing the resulting second-level analysis, including its input
+        count, output directory, and principal COPE/VARCOPE/T/Z statistic paths.
+
+    Raises
+    ------
+    click.ClickException
+        If required inputs are missing, the output already exists without
+        overwrite permission, or analysis prerequisites are invalid.
+    subprocess.CalledProcessError
+        If FSL merging, masking, or FLAME execution fails.
+
+    Notes
+    -----
+    All observations are assigned to one variance group and receive a fixed-effect
+    design value of one.
+    """    
     fslmerge = _require_command("fslmerge")
     fslmaths = _require_command("fslmaths")
     flameo = _require_command("flameo")
@@ -2546,7 +3852,24 @@ def run_fixed_effects_group(
 
 
 def write_group_file(path: Path, number_of_subjects: int) -> None:
-    """Write one variance group containing all subjects."""
+    """
+    Write an FSL variance-group file containing one group.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Destination ``design.grp`` file.
+    n_subjects : int
+        Number of observations/subjects.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Every observation is assigned group number ``1``.
+    """
     _write_vest_matrix(path, [[1.0] for _ in range(number_of_subjects)])
 
 
@@ -2556,6 +3879,33 @@ def run_command(
     cwd: Path,
     dry_run: bool,
 ) -> None:
+    """
+    Execute an external command with consistent logging and dry-run handling.
+
+    Parameters
+    ----------
+    command : Sequence[str]
+        Executable and arguments.
+    cwd : pathlib.Path
+        Working directory used for execution.
+    dry_run : bool
+        If ``True``, print the command without executing it.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    subprocess.CalledProcessError
+        If execution is enabled and the command returns a non-zero exit status.
+
+    Notes
+    -----
+    Arguments are rendered with shell-safe quoting for diagnostic output, while
+    execution itself uses the argument sequence directly rather than invoking a
+    shell.
+    """    
     click.echo("  " + shlex.join([str(value) for value in command]))
 
     if not dry_run:
@@ -2570,6 +3920,36 @@ def detect_manifest_level(
     manifest: pd.DataFrame,
     requested_level: str,
 ) -> str:
+    """
+    Determine whether a contrast manifest contains level-1 or level-2 estimates.
+
+    Common mandatory columns are validated first. When the requested level is
+    explicit, it is returned directly after validation. Automatic detection uses
+    columns characteristic of each manifest level.
+
+    Parameters
+    ----------
+    manifest : pandas.DataFrame
+        Loaded contrast-manifest table.
+    requested_level : str
+        ``"1"``, ``"2"``, or the automatic-selection value used by the caller.
+
+    Returns
+    -------
+    str
+        ``"1"`` for first-level inputs or ``"2"`` for second-level inputs.
+
+    Raises
+    ------
+    click.ClickException
+        If required common columns are missing or automatic detection is
+        ambiguous.
+
+    Notes
+    -----
+    Level-1 hints include run-level and FEAT-directory fields. Level-2 hints
+    include the number of combined inputs and second-level directory fields.
+    """    
     missing_common = COMMON_REQUIRED_COLUMNS - set(manifest.columns)
     if missing_common:
         raise click.ClickException(
@@ -2596,6 +3976,28 @@ def detect_manifest_level(
 
 
 def analysis_dir_from_row(row: pd.Series, input_level: str) -> Path:
+    """
+    Resolve the source analysis directory represented by a manifest row.
+
+    Parameters
+    ----------
+    row : pandas.Series
+        Contrast-manifest row.
+    input_level : str
+        Input analysis level, normally ``"1"`` or ``"2"``.
+
+    Returns
+    -------
+    pathlib.Path
+        Resolved analysis directory.
+
+    Notes
+    -----
+    For level-2 input, ``second_level_dir`` is preferred. Otherwise ``feat_dir``
+    is used when present. As a final fallback, the analysis directory is inferred
+    as the grandparent of ``cope_file``, reflecting the conventional
+    ``<analysis>/stats/copeN`` layout.
+    """    
     if input_level == "2":
         value = row.get("second_level_dir", "")
         if value:
@@ -2614,11 +4016,38 @@ def parse_group_contrast(
     column_names: Sequence[str],
 ) -> tuple[str, list[float]]:
     """
-    Parse NAME;w1,w2,... for the group design columns.
+    Parse a group-level T-contrast specification.
 
-    Example:
-        AgePositive;0,1
-    when columns are Intercept, age.
+    The specification uses the form::
+
+        NAME;w1,w2,...
+
+    where the number of weights must equal the number of group-design columns.
+
+    Parameters
+    ----------
+    specification : str
+        User-supplied group contrast.
+    design_columns : Sequence[str]
+        Ordered group-design columns against which weights are interpreted.
+
+    Returns
+    -------
+    name : str
+        Contrast name.
+    weights : list[float]
+        Numeric contrast vector.
+
+    Raises
+    ------
+    click.ClickException
+        If the specification is malformed, unnamed, contains non-numeric values,
+        or has a weight count inconsistent with the design matrix.
+
+    Examples
+    --------
+    For design columns ``["Intercept", "age"]``, ``"AgePositive;0,1"`` tests the
+    positive age effect.
     """
     fields = [field.strip() for field in specification.split(";")]
 
@@ -2666,9 +4095,45 @@ def prepare_group_design(
     group_contrast_specs: Sequence[str],
 ) -> tuple[list[str], list[list[float]], list[str], list[list[float]], pd.DataFrame]:
     """
-    Create the cross-subject design matrix and T contrasts.
+    Construct a cross-subject design matrix and its T contrasts.
 
-    The intercept is always the first design column.
+    An intercept is always included as the first design column. Optional
+    subject-level covariates are loaded, aligned to the requested subjects,
+    validated, optionally demeaned, and appended as additional columns.
+
+    Parameters
+    ----------
+    subjects : Sequence[str]
+        Ordered subject identifiers defining design-matrix row order.
+    covariates_file : pathlib.Path or None
+        Optional table containing subject-level covariates.
+    covariate_names : Sequence[str]
+        Covariate columns to include.
+    demean_covariates : bool
+        Subtract each selected covariate's sample mean before inclusion.
+    group_contrast_specs : Sequence[str]
+        Explicit group-level contrast specifications. If empty, a default
+        intercept/GroupMean contrast is created.
+
+    Returns
+    -------
+    design_columns : list[str]
+        Ordered design-column names, beginning with ``Intercept``.
+    design_matrix : list[list[float]]
+        Subject-by-wave design matrix.
+    contrast_names : list[str]
+        Ordered group contrast names.
+    contrast_matrix : list[list[float]]
+        Contrast vectors in design-column space.
+    subject_table : pandas.DataFrame
+        Subject table containing identifiers and processed covariates.
+
+    Raises
+    ------
+    click.ClickException
+        If covariate data cannot uniquely and completely map onto the requested
+        subjects, requested columns are missing, values are non-numeric or
+        otherwise invalid, or contrast vectors do not match the design width.
     """
     subject_table = pd.DataFrame({"subject": list(subjects)})
     design_columns = ["Intercept"]
@@ -2794,6 +4259,34 @@ def build_intersection_mask(
     output_dir: Path,
     dry_run: bool,
 ) -> Path:
+    """
+    Create a common analysis mask from source analysis directories.
+
+    Each analysis directory's ``mask`` image is resolved, masks are concatenated
+    along the fourth dimension with ``fslmerge``, and ``fslmaths -Tmin -bin`` is
+    used to retain only voxels present in every input mask.
+
+    Parameters
+    ----------
+    analysis_dirs : Sequence[pathlib.Path]
+        Source FEAT or higher-level analysis directories.
+    output_dir : pathlib.Path
+        Directory in which intermediate and final masks are written.
+    dry_run : bool
+        Display commands without executing them.
+
+    Returns
+    -------
+    pathlib.Path
+        Expected path to the gzipped intersection mask.
+
+    Raises
+    ------
+    click.ClickException
+        If a source mask or required FSL command cannot be located.
+    subprocess.CalledProcessError
+        If mask construction fails.
+    """    
     fslmerge = _require_fsl_command("fslmerge")
     fslmaths = _require_fsl_command("fslmaths")
 
@@ -2826,7 +4319,28 @@ def build_intersection_mask_from_files(
     output_dir: Path,
     dry_run: bool,
 ) -> Path:
-    """Create an intersection mask from resolved subject masks."""
+    """
+    Create a common binary mask from explicitly resolved subject mask files.
+
+    Parameters
+    ----------
+    mask_files : Sequence[pathlib.Path]
+        Existing mask images in subject/input order.
+    output_dir : pathlib.Path
+        Group analysis output directory.
+    dry_run : bool
+        Display the FSL merge/masking commands without executing them.
+
+    Returns
+    -------
+    pathlib.Path
+        Expected final gzipped intersection mask.
+
+    Notes
+    -----
+    Masks are merged in time and reduced using ``-Tmin -bin``, so a voxel is
+    included only if it is present in every subject mask.
+    """
     fslmerge = _require_fsl_command("fslmerge")
     fslmaths = _require_fsl_command("fslmaths")
 
@@ -2865,6 +4379,71 @@ def run_cross_subject_analysis(
     overwrite: bool,
     dry_run: bool,
 ) -> list[dict[str, Any]]:
+    """
+    Run a highest-level cross-subject FLAME analysis.
+
+    The function validates that each subject contributes exactly one independent
+    estimate, resolves registered COPE/VARCOPE/mask inputs, verifies image
+    geometry, builds the group design, merges subject statistic images, constructs
+    an intersection mask, writes FSL VEST design files, and executes ``flameo``
+    using the requested run mode.
+
+    Parameters
+    ----------
+    rows : pandas.DataFrame
+        Manifest rows for one canonical contrast.
+    input_level : str
+        Source manifest level, ``"1"`` or ``"2"``.
+    output_dir : pathlib.Path
+        Group-analysis output directory.
+    canonical_name : str
+        Canonical contrast represented by the subject inputs.
+    runmode : str
+        FLAME run mode passed to ``flameo``.
+    covariates_file : pathlib.Path or None
+        Optional subject-level covariate table.
+    covariate_names : Sequence[str]
+        Covariates to include in the design.
+    demean_covariates : bool
+        Demean selected covariates before model construction.
+    group_contrast_specs : Sequence[str]
+        Explicit group T contrasts.
+    registration_mode : str
+        Strategy used to obtain common-space inputs.
+    registered_subdir : str
+        Subdirectory used for precomputed/created registered images.
+    overwrite : bool
+        Permit replacement of an existing group output.
+    dry_run : bool
+        Report the planned analysis without modifying data.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        One output record per group contrast, containing group-analysis identity
+        and paths to contrast-specific statistics.
+
+    Raises
+    ------
+    click.ClickException
+        If subjects are duplicated, fewer than two independent subjects are
+        available, output replacement is forbidden, registered inputs cannot be
+        resolved, geometry is incompatible, or group-design validation fails.
+    subprocess.CalledProcessError
+        If FSL merging, registration, masking, or FLAME execution fails.
+
+    Notes
+    -----
+    A level-1 manifest containing multiple runs for the same subject is explicitly
+    rejected because those runs are not independent group observations. Such runs
+    must first be combined with the fixed-effects second-level workflow.
+
+    When ``registration_mode`` is ``featregapply`` in dry-run mode, geometry
+    validation is deferred because registered files do not yet exist.
+
+    The function also writes reproducibility tables and ``analysis.json`` during
+    a real run.
+    """    
     fslmerge = _require_fsl_command("fslmerge")
     flameo = _require_fsl_command("flameo")
 
@@ -3146,7 +4725,46 @@ def resolve_registered_input(
     registered_subdir: str,
     dry_run: bool,
 ) -> tuple[Path, Path, Path, Path]:
-    """Resolve COPE, VARCOPE, mask, and source analysis directory."""
+    """
+    Resolve common-space COPE, VARCOPE, and mask inputs for one analysis row.
+
+    The source analysis directory is derived from the manifest row and the
+    requested registration strategy is applied. Depending on configuration, the
+    function may use native/current outputs, pre-existing registered outputs, or
+    invoke FEAT registration application to create registered images.
+
+    Parameters
+    ----------
+    row : pandas.Series
+        Input manifest row.
+    input_level : str
+        Source manifest level.
+    registration_mode : str
+        Registration strategy selected for the group analysis.
+    registered_subdir : str
+        Subdirectory containing or receiving registered statistics.
+    dry_run : bool
+        Report registration commands without executing them.
+
+    Returns
+    -------
+    cope_file : pathlib.Path
+        Resolved COPE image.
+    varcope_file : pathlib.Path
+        Resolved VARCOPE image.
+    mask_file : pathlib.Path
+        Resolved analysis mask.
+    analysis_dir : pathlib.Path
+        Source FEAT or higher-level analysis directory.
+
+    Raises
+    ------
+    click.ClickException
+        If source or registered files required by the selected mode cannot be
+        resolved.
+    subprocess.CalledProcessError
+        If an on-demand registration command fails.
+    """
     analysis_dir = analysis_dir_from_row(row, input_level)
 
     if registration_mode == "prealigned":
@@ -3203,7 +4821,32 @@ def verify_matching_geometry(
     description: str,
     affine_tolerance: float = 1e-5,
 ) -> None:
-    """Require matching 3D dimensions and affine matrices."""
+    """
+    Require two NIfTI images to have compatible spatial geometry.
+
+    Parameters
+    ----------
+    reference_path : pathlib.Path
+        Reference image defining expected dimensions and affine transform.
+    candidate_path : pathlib.Path
+        Image to compare with the reference.
+    description : str
+        Human-readable label used in validation errors.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If the images differ in their first three dimensions or affine matrices.
+
+    Notes
+    -----
+    The check targets spatial compatibility. It does not require identical voxel
+    data or statistic values.
+    """
     reference = nib.load(str(reference_path))
     candidate = nib.load(str(candidate_path))
 
@@ -3232,7 +4875,39 @@ def verify_group_geometry(
     varcope_files: Sequence[Path],
     mask_files: Sequence[Path],
 ) -> None:
-    """Validate within-subject and across-subject image geometry."""
+    """
+    Validate spatial geometry for all COPE, VARCOPE, and mask inputs in a group.
+
+    Within each subject/input, the VARCOPE and mask must match the corresponding
+    COPE geometry. Across subjects, each COPE must also match the spatial geometry
+    of the first COPE used as the group reference.
+
+    Parameters
+    ----------
+    cope_files : Sequence[pathlib.Path]
+        Subject/input COPE images.
+    varcope_files : Sequence[pathlib.Path]
+        Corresponding VARCOPE images.
+    mask_files : Sequence[pathlib.Path]
+        Corresponding masks.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    click.ClickException
+        If input list lengths are inconsistent, no group reference is available,
+        or any within-subject or across-subject spatial geometry mismatch is
+        detected.
+
+    Notes
+    -----
+    Validation occurs before images are merged for group analysis, providing an
+    early and more interpretable failure than allowing FSL tools to operate on
+    misregistered data.
+    """
     if not cope_files:
         raise click.ClickException("No group inputs were supplied.")
 
