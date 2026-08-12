@@ -5,6 +5,7 @@ Python modules
    :maxdepth: 1
 
    image
+   fsl
    planning
    prf
    roi
