@@ -251,6 +251,10 @@ normalize_subjects() {
   done
 }
 
+#-----------------------------------------------------------------------------
+# intro
+start_timer "GLM analysis with FSL's FEAT"
+
 command_name="call_feat${level#1}"
 [[ "$level" == 1 ]] && command_name="call_feat"
 
@@ -444,3 +448,7 @@ sbatch \
   --job-name="$job_name" \
   --output="$work_dir/${job_name}_%A_%a.out" \
   "$runner"
+
+#-----------------------------------------------------------------------------
+# Calculate time spent using 'let'
+end_timer
