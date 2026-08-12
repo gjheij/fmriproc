@@ -407,6 +407,8 @@ for subject in ${subjects}; do
     # print and run
     if [[ ${run_local} -eq 1 ]]; then
       print_cmd "${cmd_args[@]}"
+      echo
+      print_line -
     fi
     "${cmd_args[@]}"
   fi
