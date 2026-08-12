@@ -97,11 +97,16 @@ if [[ -z "${proj_dir:-}" ]]; then
   exit 1
 fi
 
+
 proj_dir="$(realpath "${proj_dir}")"
 source_root="${proj_dir}/derivatives/${source}"
 work_dir="${proj_dir}/logs"
 save_dir="${proj_dir}/derivatives/panic"
 roi_root="${proj_dir}/derivatives/rois"
+
+#-----------------------------------------------------------------------------
+# intro
+start_timer "Decoding/classification/dimensionality estimation with PANIC"
 
 mkdir -p "${work_dir}" "${save_dir}" 2>/dev/null
 
@@ -312,8 +317,6 @@ if [[ "${dry_run}" -eq 1 ]]; then
 fi
 
 if [[ "${run_local}" -eq 1 ]]; then
-  start_timer "Running PANIC locally"
-
   cmd=(
     call_panic
     -p "${proj_dir}"
@@ -340,3 +343,7 @@ else
     --output="${work_dir}/panic_%A_%a.out" \
     "${runner}"
 fi
+
+#-----------------------------------------------------------------------------
+# outro
+end_timer
