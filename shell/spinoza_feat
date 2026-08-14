@@ -65,7 +65,11 @@ Queue unit:
   level 2: one call_feat2 job per eligible subject/session/task/canonical-contrast group,
            throttled by --max-running. Each task writes a private manifest fragment; fragments
            are merged into contrast_manifest_level2.tsv after all jobs complete.
-  level 3: one call_feat3 job for the requested group analysis
+  level 3: one call_feat3 job per task x canonical-contrast combination,
+           throttled by --max-running. Sessions are intentionally pooled.
+           Each task writes a private manifest fragment; fragments are merged
+           into contrast_manifest_level3.tsv after all jobs complete.
+           Native --task/--contrast after '--' act as selectors.
 
 ---------------------------------------------------------------------------------------------------
 Examples:
@@ -325,6 +329,94 @@ with open(jobs_path, "w", encoding="utf-8", newline="") as f:
 PY
 }
 
+# Build one level-3 queue entry per task x canonical-contrast combination.
+# Sessions are intentionally omitted from the key, so rows from different
+# sessions are pooled into the same group analysis. Native --task and
+# --contrast values act as selectors.
+build_level3_jobs() {
+  local manifest="$1"
+  local jobs_out="$2"
+  local tasks_csv="$3"
+  local contrasts_csv="$4"
+
+  python3 - "$manifest" "$jobs_out" "$tasks_csv" "$contrasts_csv" <<'PY'
+import csv
+import sys
+
+manifest_path, jobs_path, tasks_s, contrasts_s = sys.argv[1:]
+
+selected_tasks = {
+    item.strip().removeprefix("task-")
+    for item in tasks_s.split(",")
+    if item.strip()
+}
+selected_contrasts = {
+    item.strip()
+    for item in contrasts_s.split(",")
+    if item.strip()
+}
+
+with open(manifest_path, newline="", encoding="utf-8") as f:
+    reader = csv.DictReader(f, delimiter="\t")
+    fields = set(reader.fieldnames or [])
+
+    if "task" not in fields:
+        raise SystemExit("Level-3 manifest does not contain required 'task' column")
+
+    name_field = next(
+        (x for x in ("canonical_name", "contrast", "contrast_name", "name") if x in fields),
+        None,
+    )
+    if name_field is None:
+        raise SystemExit(
+            "Manifest does not contain a contrast-name column; expected one of: "
+            "canonical_name, contrast, contrast_name, name"
+        )
+
+    found = set()
+    all_tasks = set()
+    all_contrasts = set()
+
+    for row in reader:
+        task = (row.get("task") or "").strip()
+        contrast = (row.get(name_field) or "").strip()
+
+        if not contrast:
+            continue
+
+        all_tasks.add(task)
+        all_contrasts.add(contrast)
+
+        if selected_tasks and task not in selected_tasks:
+            continue
+        if selected_contrasts and contrast not in selected_contrasts:
+            continue
+
+        found.add((task, contrast))
+
+if selected_tasks:
+    missing = sorted(selected_tasks - all_tasks)
+    if missing:
+        raise SystemExit(
+            "Requested level-3 task(s) not present in manifest: "
+            + ", ".join(missing)
+        )
+
+if selected_contrasts:
+    missing = sorted(selected_contrasts - all_contrasts)
+    if missing:
+        raise SystemExit(
+            "Requested level-3 contrast(s) not present in manifest: "
+            + ", ".join(missing)
+        )
+
+with open(jobs_path, "w", encoding="utf-8", newline="") as f:
+    writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+    for task, contrast in sorted(found, key=lambda x: (x[0], x[1])):
+        writer.writerow((task, contrast))
+PY
+}
+
 normalize_subjects() {
   local raw="$1" s
   local -a vals=()
@@ -372,8 +464,13 @@ esac
 # per-array manifest fragments. Track this separately from the wrapper-level
 # spinoza_feat --dry-run flag so we do not attempt to merge nonexistent files.
 level2_write_manifest=1
+level3_write_manifest=1
+
 if [[ "$level" == 2 ]] && has_opt --dry-run; then
   level2_write_manifest=0
+fi
+if [[ "$level" == 3 ]] && has_opt --dry-run; then
+  level3_write_manifest=0
 fi
 
 jobs_file="${work_dir}/spinoza_feat_L${level}_jobs.txt"
@@ -478,7 +575,33 @@ else
     err "Wrapper -s/--subject is only valid for levels 1 and 2; for level 3 put native --subject after '--'"
     exit 2
   }
-  printf 'all\n' > "$jobs_file"
+
+  # Split level 3 over task x canonical contrast. Session is deliberately
+  # omitted so multiple sessions are pooled into the same group analysis.
+  extract_repeatable_opt --task
+  level3_tasks=("${EXTRACTED[@]}")
+
+  extract_repeatable_opt --contrast
+  level3_contrasts=("${EXTRACTED[@]}")
+
+  manifest_path="$(get_opt_value --manifest)"
+  [[ -f "$manifest_path" ]] || {
+    err "Level-3 manifest does not exist: $manifest_path"
+    exit 1
+  }
+
+  build_level3_jobs \
+    "$manifest_path" \
+    "$jobs_file" \
+    "$(join_by_comma "${level3_tasks[@]}")" \
+    "$(join_by_comma "${level3_contrasts[@]}")"
+
+  # As with level 2, every concurrent call_feat3 invocation writes a private
+  # manifest fragment. A final merge runs only after all group jobs succeed.
+  manifest_parts_dir="$(mktemp -d "${work_dir}/spinoza_feat_L3_manifest_parts.XXXXXX")"
+  output_dir="$(get_opt_value --output-dir)"
+  level3_manifest="${output_dir}/contrast_manifest_level3.tsv"
+  merge_runner="${work_dir}/spinoza_feat_L3_merge_manifest.sh"
 fi
 
 n_jobs="$(awk 'NF{n++} END{print n+0}' "$jobs_file")"
@@ -522,6 +645,13 @@ IFS=\$'\\t' read -r job_subject job_session job_task job_contrast <<< "\${job_va
 
 cmd+=(--subject "\${job_subject}")
 [[ -z "\${job_session}" ]] || cmd+=(--session "\${job_session}")
+[[ -z "\${job_task}" ]] || cmd+=(--task "\${job_task}")
+cmd+=(--contrast "\${job_contrast}")
+cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${SLURM_ARRAY_TASK_ID}.tsv")
+EOF
+  elif [[ "$level" == 3 ]]; then
+    cat <<EOF
+IFS=\$'\\t' read -r job_task job_contrast <<< "\${job_value}"
 [[ -z "\${job_task}" ]] || cmd+=(--task "\${job_task}")
 cmd+=(--contrast "\${job_contrast}")
 cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${SLURM_ARRAY_TASK_ID}.tsv")
@@ -600,6 +730,92 @@ PY
 EOF
 fi
 
+if [[ "$level" == 3 ]]; then
+  cat > "$merge_runner" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+python3 - $(printf '%q' "$manifest_parts_dir") $(printf '%q' "$level3_manifest") <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+parts_dir = Path(sys.argv[1])
+out_file = Path(sys.argv[2])
+parts = sorted(parts_dir.glob("job-*.tsv"))
+
+if not parts:
+    raise SystemExit(f"No level-3 manifest fragments found in {parts_dir}")
+
+rows = []
+fieldnames = None
+
+for part in parts:
+    with part.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if reader.fieldnames is None:
+            raise SystemExit(f"Manifest fragment has no header: {part}")
+
+        if fieldnames is None:
+            fieldnames = list(reader.fieldnames)
+        elif list(reader.fieldnames) != fieldnames:
+            raise SystemExit(f"Manifest columns differ in {part}")
+
+        rows.extend(reader)
+
+if not fieldnames:
+    raise SystemExit("Level-3 manifest fragments contain no header")
+
+# One row normally represents one group contrast result. Keep multiple
+# group_contrast rows for a canonical contrast, but remove exact duplicate
+# outputs deterministically.
+key_fields = [
+    x for x in (
+        "session",
+        "task",
+        "canonical_name",
+        "group_contrast",
+        "cope_file",
+        "varcope_file",
+        "tstat_file",
+        "zstat_file",
+    )
+    if x in fieldnames
+]
+
+seen = set()
+unique = []
+for row in rows:
+    key = tuple(row.get(k, "") for k in key_fields)
+    if key in seen:
+        continue
+    seen.add(key)
+    unique.append(row)
+
+sort_fields = [
+    x for x in ("task", "session", "canonical_name", "group_contrast")
+    if x in fieldnames
+]
+unique.sort(key=lambda row: tuple(row.get(k, "") for k in sort_fields))
+
+out_file.parent.mkdir(parents=True, exist_ok=True)
+tmp = out_file.with_name(out_file.name + ".tmp")
+with tmp.open("w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(
+        f,
+        fieldnames=fieldnames,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    writer.writerows(unique)
+
+tmp.replace(out_file)
+print(f"Merged {len(parts)} fragment(s), {len(unique)} row(s) -> {out_file}")
+PY
+EOF
+fi
+
 print_summary() {
   printf 'FEAT level:       %s (%s)\n' "$level" "$command_name"
   printf 'Jobs:             %s\n' "$n_jobs"
@@ -629,6 +845,11 @@ if [[ "$dry_run" -eq 1 ]]; then
       [[ -z "$job_task" ]] || cmd+=(--task "$job_task")
       cmd+=(--contrast "$job_contrast")
       cmd+=(--manifest-out "${manifest_parts_dir}/job-${idx}.tsv")
+    elif [[ "$level" == 3 ]]; then
+      IFS=$'\t' read -r job_task job_contrast <<< "$value"
+      [[ -z "$job_task" ]] || cmd+=(--task "$job_task")
+      cmd+=(--contrast "$job_contrast")
+      cmd+=(--manifest-out "${manifest_parts_dir}/job-${idx}.tsv")
     fi
     printf '[%d] ' "$idx"
     print_command "${cmd[@]}"
@@ -641,12 +862,21 @@ if [[ "$dry_run" -eq 1 ]]; then
       printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
     elif [[ "$level" == 2 ]]; then
       printf 'call_feat2 --dry-run is active; no manifest merge job would be submitted.\n'
+    elif [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; then
+      printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
+    elif [[ "$level" == 3 ]]; then
+      printf 'call_feat3 --dry-run is active; no manifest merge job would be submitted.\n'
     fi
   elif [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
     printf '\nAfter local jobs: bash %q\n' "$merge_runner"
   elif [[ "$level" == 2 ]]; then
     printf '\ncall_feat2 --dry-run is active; no manifest merge would be performed.\n'
+  elif [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; then
+    printf '\nAfter local jobs: bash %q\n' "$merge_runner"
+  elif [[ "$level" == 3 ]]; then
+    printf '\ncall_feat3 --dry-run is active; no manifest merge would be performed.\n'
   fi
+  end_timer
   exit 0
 fi
 
@@ -690,8 +920,13 @@ if [[ "$run_local" -eq 1 ]]; then
     bash "$merge_runner"
   elif [[ "$level" == 2 ]]; then
     printf '\nLevel-2 call_feat2 dry run: no manifest fragments were written; skipping manifest merge.\n'
+  elif [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; then
+    bash "$merge_runner"
+  elif [[ "$level" == 3 ]]; then
+    printf '\nLevel-3 call_feat3 dry run: no manifest fragments were written; skipping manifest merge.\n'
   fi
 
+  end_timer
   exit 0
 fi
 
@@ -706,7 +941,9 @@ submit_output="$(
 )"
 printf '%s\n' "$submit_output"
 
-if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
+if { [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]] || \
+     [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; }; then
+
   array_job_id="$(awk '{print $NF}' <<< "$submit_output")"
   [[ "$array_job_id" =~ ^[0-9]+$ ]] || {
     err "Could not parse SLURM array job ID from: $submit_output"
@@ -723,8 +960,11 @@ if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
       "$merge_runner"
   )"
   printf '%s\n' "$merge_submit"
+
 elif [[ "$level" == 2 ]]; then
   printf 'Level-2 call_feat2 dry run: no manifest merge job submitted.\n'
+elif [[ "$level" == 3 ]]; then
+  printf 'Level-3 call_feat3 dry run: no manifest merge job submitted.\n'
 fi
 
 #-----------------------------------------------------------------------------

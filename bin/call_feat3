@@ -33,6 +33,91 @@ from fmriproc.fsl import (
     _safe_label,
 )
 
+
+def _group_contrast_names(specs: tuple[str, ...]) -> list[str]:
+    """Return group-contrast names in the same order used for output COPEs."""
+    if not specs:
+        return ["GroupMean"]
+
+    names: list[str] = []
+    for spec in specs:
+        name = str(spec).split(";", 1)[0].strip()
+        if not name:
+            raise click.ClickException(
+                f"Invalid --group-contrast specification with empty name: {spec!r}"
+            )
+        names.append(name)
+    return names
+
+
+def _records_from_existing_group_output(
+    *,
+    rows: pd.DataFrame,
+    input_level: int,
+    output_dir: Path,
+    session: str,
+    task: str,
+    canonical_name: str,
+    runmode: str,
+    group_contrast_specs: tuple[str, ...],
+    registration_mode: str,
+    registered_subdir: str,
+) -> list[dict[str, Any]]:
+    """Reconstruct level-3 manifest records from an existing group FEAT output.
+
+    This is deliberately strict about the statistical outputs needed to prove
+    that the analysis completed. Existing directories that are incomplete are
+    reported as errors instead of being silently entered into the manifest.
+    """
+    stats_dir = output_dir / "stats"
+    if not stats_dir.is_dir():
+        raise click.ClickException(
+            f"Existing group output is incomplete; missing stats directory: {stats_dir}"
+        )
+
+    number_of_subjects = int(rows["subject"].nunique())
+    number_of_inputs = int(len(rows))
+    contrast_names = _group_contrast_names(group_contrast_specs)
+
+    records: list[dict[str, Any]] = []
+
+    for index, group_contrast in enumerate(contrast_names, start=1):
+        cope = stats_dir / f"cope{index}.nii.gz"
+        varcope = stats_dir / f"varcope{index}.nii.gz"
+        tstat = stats_dir / f"tstat{index}.nii.gz"
+        zstat = stats_dir / f"zstat{index}.nii.gz"
+
+        required = [cope, tstat, zstat]
+        missing = [str(path) for path in required if not path.is_file()]
+        if missing:
+            raise click.ClickException(
+                "Existing group output is incomplete; missing mandatory file(s): "
+                + ", ".join(missing)
+            )
+
+        records.append(
+            {
+                "session": session,
+                "task": task,
+                "canonical_name": canonical_name,
+                "group_contrast": group_contrast,
+                "input_level": input_level,
+                "runmode": runmode,
+                "registration_mode": registration_mode,
+                "registered_subdir": registered_subdir,
+                "number_of_inputs": number_of_inputs,
+                "number_of_subjects": number_of_subjects,
+                "group_dir": str(output_dir),
+                "cope_file": str(cope),
+                "varcope_file": str(varcope) if varcope.is_file() else "",
+                "tstat_file": str(tstat),
+                "zstat_file": str(zstat),
+            }
+        )
+
+    return records
+
+
 @click.command(
     context_settings={"show_default": True},
     help=(
@@ -92,6 +177,12 @@ from fmriproc.fsl import (
         "      --covariate age \\\n"
         "      --group-contrast 'GroupMean;1,0' \\\n"
         "      --group-contrast 'AgePositive;0,1'\n\n"
+
+        "\b\n"
+        "  Write a private manifest fragment for later merging:\n"
+        "    call_feat3 ... \\\n"
+        "      --contrast USp \\\n"
+        "      --manifest-out /tmp/job-1.tsv\n\n"
 
         "\b\n"
         "  Generate the design and report commands without running FLAMEO:\n"
@@ -247,9 +338,24 @@ from fmriproc.fsl import (
     ),
 )
 @click.option(
+    "--manifest-out",
+    type=click.Path(
+        dir_okay=False,
+        path_type=Path,
+    ),
+    help=(
+        "Write this invocation's level-3 manifest rows to this TSV instead of "
+        "<output-dir>/contrast_manifest_level3.tsv. Intended for concurrent "
+        "wrappers that merge private manifest fragments after all jobs finish."
+    ),
+)
+@click.option(
     "--overwrite",
     is_flag=True,
-    help="Replace existing group output directories.",
+    help=(
+        "Replace existing group output directories. Without this flag, complete "
+        "existing outputs are reused and entered into the output manifest."
+    ),
 )
 @click.option(
     "--dry-run",
@@ -272,11 +378,14 @@ def main(
     group_contrast_specs: tuple[str, ...],
     registration_mode: str,
     registered_subdir: str,
+    manifest_out: Path | None,
     overwrite: bool,
     dry_run: bool,
 ) -> None:
     manifest_path = manifest_path.resolve()
     output_dir = output_dir.resolve()
+    if manifest_out is not None:
+        manifest_out = manifest_out.expanduser().resolve()
 
     manifest = pd.read_csv(
         manifest_path,
@@ -333,7 +442,9 @@ def main(
     grouping_columns = ["session", "task", "canonical_name"]
 
     completed = 0
+    reused = 0
     skipped = 0
+    failed = 0
     group_records: list[dict[str, Any]] = []
 
     for group_key, rows in manifest.groupby(
@@ -373,6 +484,26 @@ def main(
             continue
 
         try:
+            if group_output.exists() and not overwrite and not dry_run:
+                click.echo(
+                    f"Reusing existing group output: {group_output}"
+                )
+                records = _records_from_existing_group_output(
+                    rows=rows,
+                    input_level=detected_level,
+                    output_dir=group_output,
+                    session=session,
+                    task=task,
+                    canonical_name=canonical_name,
+                    runmode=runmode,
+                    group_contrast_specs=group_contrast_specs,
+                    registration_mode=registration_mode,
+                    registered_subdir=registered_subdir,
+                )
+                group_records.extend(records)
+                reused += 1
+                continue
+
             records = run_cross_subject_analysis(
                 rows=rows,
                 input_level=detected_level,
@@ -388,6 +519,16 @@ def main(
                 overwrite=overwrite,
                 dry_run=dry_run,
             )
+
+            # Keep the manifest schema informative and consistent for both
+            # newly-computed and reused outputs.
+            for record in records:
+                record.setdefault("number_of_inputs", int(len(rows)))
+                record.setdefault(
+                    "number_of_subjects",
+                    int(rows["subject"].nunique()),
+                )
+
             group_records.extend(records)
             completed += 1
 
@@ -401,23 +542,33 @@ def main(
                 f"[ERROR] {group_label}; {canonical_name}: {error}",
                 err=True,
             )
-            skipped += 1
+            failed += 1
 
     if group_records and not dry_run:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_manifest = output_dir / "contrast_manifest_level3.tsv"
+        output_manifest = (
+            manifest_out
+            if manifest_out is not None
+            else output_dir / "contrast_manifest_level3.tsv"
+        )
+        output_manifest.parent.mkdir(parents=True, exist_ok=True)
+
         table = pd.DataFrame.from_records(group_records)
-        temporary = output_manifest.with_suffix(".tsv.tmp")
+        temporary = output_manifest.with_name(output_manifest.name + ".tmp")
         table.to_csv(temporary, sep="\t", index=False)
         temporary.replace(output_manifest)
-        click.echo(f"\nGroup manifest: {output_manifest}")
+
+        label = "Group manifest fragment" if manifest_out is not None else "Group manifest"
+        click.echo(f"\n{label}: {output_manifest}")
 
     click.echo(
         f"\nFinished: {completed} cross-subject analysis/analyses completed; "
-        f"{skipped} skipped or failed."
+        f"{reused} reused; {skipped} skipped; {failed} failed."
     )
 
-    if completed == 0:
+    # Reused valid outputs count as successful work because their manifest
+    # records were reconstructed and written. Only genuine failures make the
+    # invocation fail when no successful/reused analysis remains.
+    if failed > 0 or (completed + reused) == 0:
         raise SystemExit(1)
 
 
