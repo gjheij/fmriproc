@@ -1788,28 +1788,28 @@ if [[ $? -eq 0 ]]; then
   [[ -n ${CRASH_FLAG:-} ]] && cmd+=("$CRASH_FLAG")
 
   if [[ -n ${SUB:-} ]]; then
-      cmd+=(-s "$SUB")
+    cmd+=(-s "$SUB")
   fi
 
   if [[ -n ${SES:-} ]]; then
-      cmd+=(-n "$SES")
+    cmd+=(-n "$SES")
   elif [[ -n ${SESSION:-} ]]; then
-      # Preserve your default session behavior if needed.
-      cmd+=(-n 1)
+    # Preserve your default session behavior if needed.
+    cmd+=(-n 1)
   fi
 
   if [[ -n ${confFile:-} ]]; then
-      cmd+=(-u "$confFile")
+    cmd+=(-u "$confFile")
   fi
 
   if [[ -n ${DEBUG:-} ]]; then
-      cmd+=("${DEBUG}")
+    cmd+=("${DEBUG}")
   fi
 
   if [[ -n ${kwargs_file:-} ]]; then
-      # Prefer storing only the filename in kwargs_file.
-      kwargs_path=${kwargs_file#-k }
-      cmd+=(-k "$kwargs_path")
+    # Prefer storing only the filename in kwargs_file.
+    kwargs_path=${kwargs_file#-k }
+    cmd+=(-k "$kwargs_path")
   fi
 
   if [[ -n ${RUNS:-} ]]; then
@@ -1818,32 +1818,32 @@ if [[ $? -eq 0 ]]; then
   fi
 
   if [[ -n ${jobs_flag:-} ]]; then
-      jobs_value=${jobs_flag#-j }
-      cmd+=(-j "$jobs_value")
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-j "$jobs_value")
   fi
 
   if [[ -n ${SGE_QUEUE:-} ]]; then
-      queue_value=${SGE_QUEUE#-q }
-      cmd+=(-q "$queue_value")
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
   fi
 
   if [[ -n ${KEEP_RUNS:-} ]]; then
-      keep_value=${KEEP_RUNS#-a }
-      cmd+=(-a "$keep_value")
+    keep_value=${KEEP_RUNS#-a }
+    cmd+=(-a "$keep_value")
   fi
 
   if [[ -n ${WORK_FLAG:-} ]]; then
-      work_value=${WORK_FLAG#-w }
-      cmd+=(-w "$work_value")
+    work_value=${WORK_FLAG#-w }
+    cmd+=(-w "$work_value")
   fi
 
   cmd+=(
-      -f "$DIR_DATA_HOME"
-      -m "$TYPE"
+    -f "$DIR_DATA_HOME"
+    -m "$TYPE"
   )
 
   if [[ -n ${X_KWARGS:-} ]]; then
-      cmd+=(-x "$X_KWARGS")
+    cmd+=(-x "$X_KWARGS")
   fi
 
   cmd+=(
@@ -2563,7 +2563,7 @@ if [[ $? -eq 0 ]]; then
   #
   # master mappings used by this module:
   #   -s <sub>       -> subject selector
-  #   -j <N>         -> CPUs requested per registration job
+  #   -j <N>         -> maps to -m (maximum concurrent processes)
   #   -q <queue>     -> SLURM partition
   #   --sge          -> submit one job per FEAT directory
   #   -t <template>  -> MNI/template name (only when -t was explicitly supplied)
@@ -2578,10 +2578,23 @@ if [[ $? -eq 0 ]]; then
   if [[ ! -z "$FOLDS_FLAG" ]]; then
     featreg_dir=$(echo "$FOLDS_FLAG" | sed 's/^-f //')
   else
-    featreg_dir="${featreg_project_root}/derivatives/feat/level1"
+
+    feat_level="${WHICH_MOD:-1}"
+    if [[ ! "${feat_level}" =~ ^[12]$ ]]; then
+      echo
+      print_line -
+      print_error_msg "$(basename ${0})" "spinoza_featreg" \
+        "FEAT level must be 1 or 2. Specify it with '-l <level>' (default: 1)."
+      exit 1
+    fi
+
+    featreg_dir="${featreg_project_root}/derivatives/feat/level${feat_level}"
   fi
 
-  cmd=(spinoza_featreg)
+  cmd=(
+    spinoza_featreg
+    -l "$feat_level"
+  )
 
   if [[ -n ${SUB:-} ]]; then
     cmd+=(-s "$SUB")
@@ -2589,7 +2602,7 @@ if [[ $? -eq 0 ]]; then
 
   if [[ -n ${jobs_flag:-} ]]; then
     jobs_value=${jobs_flag#-j }
-    cmd+=(-j "$jobs_value")
+    cmd+=(-m "$jobs_value")
   fi
 
   if [[ -n ${SGE_QUEUE:-} ]]; then
@@ -2766,8 +2779,136 @@ if [[ $? -eq 0 ]]; then
 fi
 
 #-------------------------------------------------------------------------------------
-# STEP 29: Decoding
+# STEP 29: Single-trial estimation
 module=29
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    spinoza_singletrials --help
+    exit 0
+  fi
+
+  # print module intro
+  print_module_start "${module}" "Single-trial GLM estimation"
+
+  # spinoza_singletrials has wrapper-level options before '--' and forwards
+  # call_stglm arguments after '--'. Keep these namespaces separate.
+  #
+  # master mappings used by this module:
+  #   -s <sub>      -> subject selector
+  #   -j <N>        -> CPUs per subject/job
+  #   -l <N>        -> maximum simultaneously running subject jobs
+  #   -q <queue>    -> SLURM partition
+  #   -p <project>  -> project root
+  #   --local       -> run locally
+  #   -x '<args>'   -> arguments passed to call_stglm after '--'
+  #
+  # Examples for -x:
+  #
+  #   -x '--task HRA --space T1w --confounds-subset ENIGMA'
+  #
+  #   -x '--glm-single -f /project/code/config.json'
+  #
+  #   -x '--pybest --task HRA'
+  #
+  # Native stglm options not explicitly handled by call_stglm can be passed
+  # through call_stglm with a second '--', for example:
+  #
+  #   -x '--task HRA -- --high-pass-filter-cutoff 100'
+
+  # Project root.
+  if [[ -n ${P_KWARGS:-} ]]; then
+    singletrials_project_root="${P_KWARGS}"
+  else
+    singletrials_project_root="${DIR_DATA_HOME}"
+  fi
+
+  cmd=(
+    spinoza_singletrials
+  )
+
+  # --------------------------------------------------------------------------
+  # spinoza_singletrials wrapper-level arguments
+
+  if [[ -n ${SUB:-} ]]; then
+    cmd+=(-s "$SUB")
+  fi
+
+  # master -j -> CPUs used by each subject/job
+  if [[ -n ${jobs_flag:-} ]]; then
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-j "$jobs_value")
+  fi
+
+  # master -m is already the module selector, so master -l controls
+  # spinoza_singletrials -m/--max-running.
+  if [[ -n ${WHICH_MOD:-} ]]; then
+    cmd+=(-m "$WHICH_MOD")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
+  fi
+
+  [[ -n ${run_local:-} ]] && cmd+=(--local)
+
+  # Project root is the final spinoza_singletrials argument before '--'.
+  cmd+=("$singletrials_project_root")
+
+  # --------------------------------------------------------------------------
+  # Everything after '--' belongs to call_stglm.
+
+  cmd+=(--)
+
+  # Map master task flag directly when supplied.
+  if [[ -n ${TYPE:-} ]]; then
+    cmd+=(--task "$TYPE")
+  fi
+
+  # -x is the escape hatch for all other call_stglm/stglm options.
+  #
+  # Examples:
+  #   -x '--space T1w --confounds-subset ENIGMA'
+  #
+  #   -x '--glm-single -f /project/code/config.json'
+  #
+  #   -x '--run-mode loop --hrf dgamma --lss-mode cond'
+  if [[ -n ${X_KWARGS:-} ]]; then
+    eval "singletrials_extra=( ${X_KWARGS} )"
+    cmd+=("${singletrials_extra[@]}")
+  fi
+
+  # --------------------------------------------------------------------------
+  # debug / execute
+
+  if [[ -n ${DEBUG:-} ]]; then
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
+
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  print_module_end "${module}"
+
+fi
+
+#-------------------------------------------------------------------------------------
+# STEP 30: Decoding
+module=30
 
 # Check whether the module should be executed
 echo ${FLAG_executeModule} | grep -q ${module}
