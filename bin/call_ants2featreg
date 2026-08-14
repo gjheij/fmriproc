@@ -60,12 +60,30 @@ Optional (flags with defaults):
   --out-dir <dir>                Output reg directory. If --feat-dir is provided and --out-dir is
                                  omitted, defaults to:
                                    <FEAT_DIR>/reg
+  --anat-cache-dir <dir>         Reuse/store subject-level anatomical registration products here.
+                                 Expensive T1w->template conversion is only performed when mandatory
+                                 cache files are missing. The output reg directory links to these
+                                 shared anatomical files but keeps functional registration files local.
   --template <image>             MNI template image. Default:
                                    \$FSLDIR/data/standard/MNI152_T1_1mm_brain.nii.gz
   --feat-dir <dir>               FEAT directory that should receive the reg folder
   --update-featreg               Run updatefeatreg after copying/creating the reg folder
   --apply-reg                    Run featregapply after updatefeatreg
   --clean                        Remove temporary files after successful completion
+
+Caching:
+  With --anat-cache-dir, these files are shared/reused:
+    highres.nii.gz
+    standard.nii.gz
+    highres2standard.mat
+    highres2standard_warp.nii.gz
+    highres2standard.nii.gz
+
+  These remain specific to each --out-dir / FEAT analysis:
+    example_func.nii.gz
+    example_func2highres.mat
+    example_func2highres.nii.gz
+    example_func2standard.mat and inverse matrices/images created by updatefeatreg
 
 Options:
   -h|--help                      Print this help text
@@ -134,7 +152,40 @@ need_file() {
   [[ -f "$1" ]] || die "File not found: $1"
 }
 
+anat_cache_complete() {
+  local dir="$1"
+  local required=(
+    "${dir}/highres.nii.gz"
+    "${dir}/standard.nii.gz"
+    "${dir}/highres2standard.mat"
+    "${dir}/highres2standard_warp.nii.gz"
+    "${dir}/highres2standard.nii.gz"
+  )
+  local f
+  for f in "${required[@]}"; do
+    [[ -f "${f}" ]] || return 1
+  done
+  return 0
+}
+
+link_cached_file() {
+  local source="$1"
+  local target="$2"
+
+  [[ -f "${source}" ]] || die "Cached registration file not found: ${source}"
+
+  if [[ -L "${target}" ]]; then
+    [[ "$(readlink "${target}")" == "${source}" ]] && return 0
+    rm -f "${target}"
+  elif [[ -e "${target}" ]]; then
+    rm -f "${target}"
+  fi
+
+  ln -s "${source}" "${target}"
+}
+
 out_dir=""
+anat_cache_dir=""
 t1w=""
 t1w_to_mni_affine=""
 t1w_to_mni_warp=""
@@ -152,6 +203,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --out-dir)
       out_dir="$2"; shift 2 ;;
+    --anat-cache-dir)
+      anat_cache_dir="$2"; shift 2 ;;
     --t1w)
       t1w="$2"; shift 2 ;;
     --t1w-to-mni-affine)
@@ -260,144 +313,208 @@ fi
 
 mkdir -p "$out_dir"
 
-echo "Creating FEAT-style reg directory: $out_dir"
-
-if [[ -n "$t1w_to_mni_h5" ]]; then
-  echo "Disassembling composite H5 transform"
-
-  tmp_transform_base="${out_dir}/t1w_to_mni"
-
-  cmd=(
-    CompositeTransformUtil
-    --disassemble
-    "$t1w_to_mni_h5"
-    "$tmp_transform_base"
-  )
-
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-  t1w_to_mni_affine=$(find "$out_dir" -type f \
-    -name "$(basename "$tmp_transform_base")*.mat" \
-    | head -n 1)
-
-  t1w_to_mni_warp=$(find "$out_dir" -type f \
-    -name "$(basename "$tmp_transform_base")*.nii.gz" \
-    | head -n 1)
-
-  [[ -n "$t1w_to_mni_affine" ]] || die "Could not extract affine .mat from $t1w_to_mni_h5"
-  [[ -n "$t1w_to_mni_warp" ]] || die "Could not extract nonlinear warp .nii.gz from $t1w_to_mni_h5"
+# Anatomical/template products can be cached outside the contrast-specific reg
+# directory. This is particularly useful for level-2 .gfeat analyses, where all
+# contrasts share the same T1w->template transform but have their own functional
+# reference/statistical images.
+if [[ -n "${anat_cache_dir}" ]]; then
+  mkdir -p "${anat_cache_dir}"
+  anat_dir="${anat_cache_dir}"
+  echo "Anatomical registration cache: ${anat_dir}"
+else
+  anat_dir="${out_dir}"
 fi
 
-cp "$t1w" "$out_dir/highres.nii.gz"
-cp "$template" "$out_dir/standard.nii.gz"
-cp "$boldref" "$out_dir/example_func.nii.gz"
+echo "Creating FEAT-style reg directory: $out_dir"
 
-echo "Converting T1w-to-MNI affine to FSL format"
+if anat_cache_complete "${anat_dir}"; then
+  echo "Reusing existing anatomical registration products"
+else
+  echo "Preparing anatomical registration products"
 
-cmd=(
-  c3d_affine_tool 
-  -ref "$out_dir/standard.nii.gz"
-  -src "$out_dir/highres.nii.gz"
-  -itk "$t1w_to_mni_affine"
-  -ras2fsl
-  -o "$out_dir/highres2standard.mat"
-)
+  [[ -f "${anat_dir}/highres.nii.gz" ]] || cp "$t1w" "${anat_dir}/highres.nii.gz"
+  [[ -f "${anat_dir}/standard.nii.gz" ]] || cp "$template" "${anat_dir}/standard.nii.gz"
 
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ -n "$t1w_to_mni_h5" ]]; then
+    # Only disassemble the composite transform if an affine/warp component is
+    # still required by a missing downstream cache product.
+    if [[ ! -f "${anat_dir}/highres2standard.mat" ||
+          ! -f "${anat_dir}/highres2standard_warp.nii.gz" ]]; then
+      echo "Disassembling composite H5 transform"
 
-echo "Converting ANTs nonlinear warp to FNIRT/FSL format"
+      tmp_transform_base="${anat_dir}/t1w_to_mni"
 
-tmp_warp="$out_dir/tmp_highres2standard_warp.nii.gz"
+      # Reuse already-disassembled components when present.
+      t1w_to_mni_affine="$(
+        find "${anat_dir}" -maxdepth 1 -type f \
+          -name "$(basename "$tmp_transform_base")*.mat" \
+          | head -n 1
+      )"
+      t1w_to_mni_warp="$(
+        find "${anat_dir}" -maxdepth 1 -type f \
+          -name "$(basename "$tmp_transform_base")*.nii.gz" \
+          | head -n 1
+      )"
 
-cmd=(
-  wb_command
-  -convert-warpfield
-  -from-itk "$t1w_to_mni_warp"
-  -to-fnirt "$tmp_warp"
-  "$out_dir/standard.nii.gz"
-)
+      if [[ -z "${t1w_to_mni_affine}" || -z "${t1w_to_mni_warp}" ]]; then
+        cmd=(
+          CompositeTransformUtil
+          --disassemble
+          "$t1w_to_mni_h5"
+          "$tmp_transform_base"
+        )
+        print_cmd "${cmd[@]}" && "${cmd[@]}"
 
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+        t1w_to_mni_affine="$(
+          find "${anat_dir}" -maxdepth 1 -type f \
+            -name "$(basename "$tmp_transform_base")*.mat" \
+            | head -n 1
+        )"
+        t1w_to_mni_warp="$(
+          find "${anat_dir}" -maxdepth 1 -type f \
+            -name "$(basename "$tmp_transform_base")*.nii.gz" \
+            | head -n 1
+        )"
+      fi
 
-echo "Combining affine and nonlinear warp"
+      [[ -n "$t1w_to_mni_affine" ]] || die "Could not extract affine .mat from $t1w_to_mni_h5"
+      [[ -n "$t1w_to_mni_warp" ]] || die "Could not extract nonlinear warp .nii.gz from $t1w_to_mni_h5"
+    fi
+  fi
 
-cmd=(
-  convertwarp
-  --ref="$out_dir/standard.nii.gz"
-  --premat="$out_dir/highres2standard.mat"
-  --warp1="$tmp_warp"
-  --out="$out_dir/highres2standard_warp.nii.gz"
-)
+  if [[ ! -f "${anat_dir}/highres2standard.mat" ]]; then
+    echo "Converting T1w-to-MNI affine to FSL format"
+    cmd=(
+      c3d_affine_tool
+      -ref "${anat_dir}/standard.nii.gz"
+      -src "${anat_dir}/highres.nii.gz"
+      -itk "$t1w_to_mni_affine"
+      -ras2fsl
+      -o "${anat_dir}/highres2standard.mat"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/highres2standard.mat"
+  fi
 
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ ! -f "${anat_dir}/highres2standard_warp.nii.gz" ]]; then
+    echo "Converting ANTs nonlinear warp to FNIRT/FSL format"
+    tmp_warp="${anat_dir}/tmp_highres2standard_warp.nii.gz"
 
-echo "Applying highres-to-standard warp"
+    cmd=(
+      wb_command
+      -convert-warpfield
+      -from-itk "$t1w_to_mni_warp"
+      -to-fnirt "$tmp_warp"
+      "${anat_dir}/standard.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
 
-cmd=(
-  applywarp
-  -i "$out_dir/highres.nii.gz"
-  -r "$out_dir/standard.nii.gz"
-  -w "$out_dir/highres2standard_warp.nii.gz"
-  -o "$out_dir/highres2standard.nii.gz"
-)
+    echo "Combining affine and nonlinear warp"
+    cmd=(
+      convertwarp
+      --ref="${anat_dir}/standard.nii.gz"
+      --premat="${anat_dir}/highres2standard.mat"
+      --warp1="$tmp_warp"
+      --out="${anat_dir}/highres2standard_warp.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/highres2standard_warp.nii.gz"
+  fi
 
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ ! -f "${anat_dir}/highres2standard.nii.gz" ]]; then
+    echo "Applying highres-to-standard warp"
+    cmd=(
+      applywarp
+      -i "${anat_dir}/highres.nii.gz"
+      -r "${anat_dir}/standard.nii.gz"
+      -w "${anat_dir}/highres2standard_warp.nii.gz"
+      -o "${anat_dir}/highres2standard.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/highres2standard.nii.gz"
+  fi
+fi
+
+# A contrast-specific FEAT reg directory must still look complete to
+# updatefeatreg/FSL. Link the common anatomical products from the cache while
+# leaving example_func* products local to this analysis.
+if [[ "${anat_dir}" != "${out_dir}" ]]; then
+  for common in \
+    highres.nii.gz \
+    standard.nii.gz \
+    highres2standard.mat \
+    highres2standard_warp.nii.gz \
+    highres2standard.nii.gz
+  do
+    link_cached_file "${anat_dir}/${common}" "${out_dir}/${common}"
+  done
+fi
+
+# Functional reference is always contrast/analysis-specific.
+if [[ ! -f "${out_dir}/example_func.nii.gz" || -L "${out_dir}/example_func.nii.gz" ]]; then
+  rm -f "${out_dir}/example_func.nii.gz" 2>/dev/null || true
+  cp "$boldref" "${out_dir}/example_func.nii.gz"
+else
+  echo "Reusing ${out_dir}/example_func.nii.gz"
+fi
 
 echo "Preparing BOLD-to-T1w transform"
 
 if [[ "$bold_to_t1w" == *.txt ]]; then
   bold_to_t1w_mat="$out_dir/example_func2highres_ants.mat"
 
-  cmd=(
-    ConvertTransformFile
-    3
-    "$bold_to_t1w"
-    "$bold_to_t1w_mat"
-    --convertToAffineType
-  )
-
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  if [[ ! -f "${bold_to_t1w_mat}" ]]; then
+    cmd=(
+      ConvertTransformFile
+      3
+      "$bold_to_t1w"
+      "$bold_to_t1w_mat"
+      --convertToAffineType
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${bold_to_t1w_mat}"
+  fi
 else
   bold_to_t1w_mat="$bold_to_t1w"
 fi
 
-echo "Converting BOLD-to-T1w affine to FSL format"
+if [[ ! -f "$out_dir/example_func2highres.mat" ]]; then
+  echo "Converting BOLD-to-T1w affine to FSL format"
+  cmd=(
+    c3d_affine_tool
+    -ref "$out_dir/highres.nii.gz"
+    -src "$out_dir/example_func.nii.gz"
+    -itk "$bold_to_t1w_mat"
+    -ras2fsl
+    -o "$out_dir/example_func2highres.mat"
+  )
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+else
+  echo "Reusing $out_dir/example_func2highres.mat"
+fi
 
-cmd=(
-  c3d_affine_tool
-  -ref "$out_dir/highres.nii.gz"
-  -src "$out_dir/example_func.nii.gz"
-  -itk "$bold_to_t1w_mat"
-  -ras2fsl
-  -o "$out_dir/example_func2highres.mat"
-)
-
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
-
-echo "Applying BOLD-to-T1w transform"
-
-cmd=(
-  applywarp
-  -i "$out_dir/example_func.nii.gz"
-  -r "$out_dir/highres.nii.gz"
-  --postmat="$out_dir/example_func2highres.mat"
-  -o "$out_dir/example_func2highres.nii.gz"
-)
-
-print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+if [[ ! -f "$out_dir/example_func2highres.nii.gz" ]]; then
+  echo "Applying BOLD-to-T1w transform"
+  cmd=(
+    applywarp
+    -i "$out_dir/example_func.nii.gz"
+    -r "$out_dir/highres.nii.gz"
+    --postmat="$out_dir/example_func2highres.mat"
+    -o "$out_dir/example_func2highres.nii.gz"
+  )
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
+else
+  echo "Reusing $out_dir/example_func2highres.nii.gz"
+fi
 
 if [[ -n "$feat_dir" ]]; then
   echo "Using FEAT directory: $feat_dir"
 
   [[ -d "$feat_dir" ]] || die "FEAT directory not found: $feat_dir"
-
-  # Only copy if out_dir is not already feat_dir/reg
-  if [[ "$(realpath "$out_dir")" != "$(realpath "$feat_dir/reg")" ]]; then
-    echo "Copying reg directory to FEAT directory"
-
-    rm -rf "$feat_dir/reg"
-    cp -r "$out_dir" "$feat_dir/reg"
-  fi
 
   if [[ "$update_featreg" == true ]]; then
     print_line -
@@ -452,7 +569,7 @@ fi
 
 if [[ "$clean" == true ]]; then
   echo "Removing temporary files"
-  rm -f "$tmp_warp"
+  [[ -n "${tmp_warp:-}" ]] && rm -f "$tmp_warp"
   rm -f "$out_dir/example_func2highres_ants.mat"
 
   if [[ -n "$tmp_transform_base" ]]; then

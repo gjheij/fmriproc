@@ -13,34 +13,43 @@ function Usage {
 ---------------------------------------------------------------------------------------------------
 spinoza_featreg
 
-wrapper for call_ants2featreg and call_injectmatrices that recreates the FEAT reg-folder for
-first-level FEAT directories generated from fMRIPrep derivatives.
+wrapper for call_ants2featreg and call_injectmatrices that recreates FEAT registration folders
+for first- or second-level FEAT analyses generated from fMRIPrep derivatives.
 
 The registration strategy is selected from the FEAT input space and requested level-2 space:
   1. BOLD in native/func space -> level 2 in MNI space:
-       call_ants2featreg using boldref->T1w and T1w->template transforms
+      call_ants2featreg using boldref->T1w and T1w->template transforms
   2. BOLD in T1w space -> level 2 in T1w space:
-       call_injectmatrices using identity matrices
+      call_injectmatrices using identity matrices
   3. BOLD in native/func space -> level 2 in T1w space:
-       call_ants2featreg using T1w as the target/template
+      call_ants2featreg using T1w as the target/template
   4. BOLD in T1w space -> level 2 in MNI space:
-       call_ants2featreg using an identity boldref->T1w matrix and the T1w->template transform
+      call_ants2featreg using an identity boldref->T1w matrix and the T1w->template transform
 
 Usage:
-  spinoza_featreg [arguments] [options] <project root> <FEAT level-1 directory>
+  spinoza_featreg [arguments] [options] <project root> <FEAT directory>
 
 Arguments:
+  -l <level>      FEAT source level: 1 or 2. Default = 1
+                  Level 1 expects sub-*.feat directly below <FEAT directory>.
+                  Level 2 expects sub-*_fixedfx.gfeat/contrast-*.feat.
   -s <subject>    subject ID (e.g., 001 or sub-001). Can also be a comma-separated list
   -j <n_cpus>     number of CPUs requested per job (default = 1)
+  -m <N>          maximum number of simultaneously running registration jobs.
+                  Local mode uses a PID throttle; --sge uses a SLURM array
+                  throttle (--array=1-N%<N>). Default = 1
   -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG
-  -t <template>   template name used for MNI registration, e.g. MNI152NLin6Asym.
-                  If omitted, uses \$FEAT_TEMPLATE, then \$TEMPLATE, when defined
+  -t <space>      alias for --tpl-space
   -x <kwargs>     additional arguments passed directly to call_ants2featreg or
                   call_injectmatrices. Supply them as one shell-quoted string
 
 Options:
   -h|--help       print this help text
-  --sge           submit one registration job per FEAT directory to the cluster
+  --sge           submit registrations as a SLURM array. Level 1 arrays over
+                  .feat directories; level 2 arrays over .gfeat directories.
+                  Array concurrency is controlled by -m/--max-running.
+  --max-running <N>
+                  alias for -m
 
   Input space (default = auto):
   --func          force FEAT input to native/functional space
@@ -49,7 +58,7 @@ Options:
   --auto-input-space
                   infer FEAT input space from 'space-func'/'space-T1w' in the .feat name
 
-  Level-2 target space:
+  Target space:
   --anat          target T1w space. Native-space FEATs use case 3;
                   T1w-space FEATs use case 2
   --mni           target MNI/template space (default). Native-space FEATs use case 1
@@ -57,16 +66,27 @@ Options:
   --update-featreg
                   pass --update-featreg to call_ants2featreg
   --dry-run       print commands without executing/submitting them
+  --tpl-home <dir>
+                  TemplateFlow archive/cache root. Default = \$TEMPLATEFLOW_HOME,
+                  otherwise ~/.cache/templateflow
+  --tpl-space <id>
+                  TemplateFlow template identifier.
+                  Default = space from the first entry in \$FPREP_ANAT_SPACES,
+                  otherwise MNI152NLin6Asym.
+  --tpl-res <res> TemplateFlow resolution.
+                  Default = res-* from the first entry in \$FPREP_ANAT_SPACES,
+                  otherwise 1.
 
 Positional:
   <project root>          BIDS project root containing derivatives/fmriprep
-  <FEAT level-1 directory>
-                          directory containing sub-*.feat first-level FEAT directories
+  <FEAT directory>        FEAT source directory corresponding to -l:
+                            level 1: directory containing sub-*.feat
+                            level 2: directory containing sub-*_fixedfx.gfeat
 
 ---------------------------------------------------------------------------------------------------
 Examples:
   # native BOLD -> MNI
-  spinoza_featreg --func --mni -t MNI152NLin6Asym \\
+  spinoza_featreg --func --mni --tpl-space MNI152NLin6Asym --tpl-res 1 \\
     \$DIR_DATA_HOME \\
     \$DIR_DATA_DERIV/feat/level1
 
@@ -81,7 +101,7 @@ Examples:
     \$DIR_DATA_DERIV/feat/level1
 
   # T1w BOLD -> MNI
-  spinoza_featreg --input-t1w --mni -t MNI152NLin6Asym \\
+  spinoza_featreg --input-t1w --mni --tpl-space MNI152NLin6Asym --tpl-res 1 \\
     \$DIR_DATA_HOME \\
     \$DIR_DATA_DERIV/feat/level1
 
@@ -92,34 +112,77 @@ Examples:
 ---------------------------------------------------------------------------------------------------
 Call with master:
 
-  # native BOLD -> MNI
-  master -m $(get_module_nr $(basename ${0})) \\
-    --func --mni \\
-    -t MNI152NLin6Asym \\
-    --sge
+  # Level 1: native BOLD -> MNI
+  master \\
+    -m 27 \\
+    -l 1 \\
+    -x '--func --mni'
 
-  # native BOLD -> T1w
-  master -m $(get_module_nr $(basename ${0})) \\
-    --func --anat \\
-    --sge
+  # Level 1: native BOLD -> MNI with explicit template settings
+  master \\
+    -m 27 \\
+    -l 1 \\
+    -x '--func --mni --tpl-space MNI152NLin6Asym --tpl-res 1'
 
-  # T1w BOLD -> T1w
-  master -m $(get_module_nr $(basename ${0})) \\
-    --input-t1w --anat \\
-    --sge
+  # Level 1: native BOLD -> T1w
+  master \\
+    -m 27 \\
+    -l 1 \\
+    -x '--func --anat'
 
-  # T1w BOLD -> MNI
-  master -m $(get_module_nr $(basename ${0})) \\
-    --input-t1w --mni \\
-    -t MNI152NLin6Asym \\
-    --sge
+  # Level 1: T1w BOLD -> T1w
+  master \\
+    -m 27 \\
+    -l 1 \\
+    -x '--input-t1w --anat'
 
-  # restrict to one subject
-  master -m $(get_module_nr $(basename ${0})) \\
+  # Level 1: T1w BOLD -> MNI
+  master \\
+    -m 27 \\
+    -l 1 \\
+    -x '--input-t1w --mni'
+
+  # Restrict to one subject
+  master \\
+    -m 27 \\
+    -l 1 \\
     -s 001 \\
-    --func --mni \\
-    -t MNI152NLin6Asym \\
-    --sge
+    -x '--func --mni'
+
+  # Level 1: run up to 6 registrations concurrently
+  master \
+    -m 27 \
+    -l 1 \
+    -x '--input-t1w --mni --max-running 6'
+
+  # Level 2: T1w fixed-effects results -> MNI
+  master \\
+    -m 27 \\
+    -l 2 \\
+    -x '--input-t1w --mni'
+
+  # Level 2: explicit TemplateFlow configuration
+  master \\
+    -m 27 \\
+    -l 2 \\
+    -x '--input-t1w --mni \
+        --tpl-home /path/to/templateflow \
+        --tpl-space MNI152NLin6Asym \
+        --tpl-res 1'
+
+  # Level 2: submit registrations to SLURM
+  master \\
+    -m 27 \\
+    -l 2 \\
+    --sge \\
+    -x '--input-t1w --mni'
+
+  # Level 2: limit the number of simultaneously running registration jobs
+  master \\
+    -m 27 \\
+    -l 2 \\
+    --sge \\
+    -x '--input-t1w --mni --max-running 6'
 
 Notes:
   Input space can be specified explicitly with --func/--input-func or --input-t1w.
@@ -130,6 +193,22 @@ Notes:
   For native-space FEATs, the run entity in the FEAT directory name is used to select the
   corresponding fMRIPrep boldref->T1w transform when present.
 
+  Template defaults are derived from the first entry in \$FPREP_ANAT_SPACES when
+  available. For example:
+
+    FPREP_ANAT_SPACES="MNI152NLin6Asym:res-1 MNI152NLin2009cAsym:res-1"
+
+  gives:
+
+    --tpl-space MNI152NLin6Asym
+    --tpl-res 1
+
+  Explicit --tpl-space and --tpl-res arguments override these defaults.
+
+  The -l flag selects the FEAT source level:
+    -l 1  -> derivatives/feat/level1
+    -l 2  -> derivatives/feat/level2
+
 ---------------------------------------------------------------------------------------------------
 
 USAGE
@@ -139,112 +218,246 @@ USAGE
 # defaults
 sub=""
 n_cpus=1
+max_running=1
 run_local=1
+array_unit=""
 dry_run=0
 target_space="mni"
 SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
-tpl_name="${FEAT_TEMPLATE:-${TEMPLATE:-}}"
 kwargs_flags=""
 featreg_mode="auto"
 input_space="auto"
 overwrite=0
+feat_level=1
+tpl_home="${TEMPLATEFLOW_HOME:-${HOME}/.cache/templateflow}"
+
+tpl_space="MNI152NLin6Asym"
+tpl_res=1
+
+#-----------------------------------------------------------------------------
+# intro
+start_timer "Recreating FEAT registration folders"
+
+if [[ -n "${FPREP_ANAT_SPACES:-}" ]]; then
+  default_tpl_spec="${FPREP_ANAT_SPACES%% *}"
+
+  IFS=':' read -r -a tpl_parts <<< "${default_tpl_spec}"
+  unset IFS
+
+  tpl_space="${tpl_parts[0]}"
+
+  for part in "${tpl_parts[@]:1}"; do
+    case "${part}" in
+      res-*)
+        tpl_res="${part#res-}"
+        ;;
+    esac
+  done
+
+  echo -e "Derived template info from ${BOLD_RED}\$FPREP_ANAT_SPACES${RESET} [${FPREP_ANAT_SPACES}]: space=${BOLD_GREEN}${tpl_space}${RESET}, res=${BOLD_GREEN}${tpl_res}${RESET}"
+fi
 
 #-----------------------------------------------------------------------------
 # parse arguments
-while getopts :-:hs:j:q:t:x: argument
-do
-  case ${argument} in
-    -)
-      case "${OPTARG}" in
-        sge)
-          run_local=0
-          ;;
-        func|input-func)
-          input_space="func"
-          ;;
-        ow|overwrite)
-          overwrite=1
-          ;;          
-        input-t1w)
-          input_space="T1w"
-          ;;
-        auto-input-space)
-          input_space="auto"
-          ;;
-        anat|t1w)
-          target_space="T1w"
-          ;;
-        mni)
-          target_space="mni"
-          ;;
-        apply-featreg)
-          featreg_mode="apply"
-          ;;
-        update-featreg)
-          featreg_mode="update"
-          ;;
-        dry-run)
-          dry_run=1
-          ;;
-        help)
-          Usage && exit 0
-          ;;
-        *)
-          Usage
-          print_error_msg "$(basename "${0}")" "getopt" "Unknown option --${OPTARG}"
-          exit 1
-          ;;
-      esac
+positionals=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      Usage
+      exit 0
       ;;
-    h)
-      Usage && exit 0
+
+    -l)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "-l requires a value"; exit 1; }
+      feat_level="$2"
+      shift 2
       ;;
-    s)
-      sub="${OPTARG}"
+
+    -s)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "-s requires a value"; exit 1; }
+      sub="$2"
+      shift 2
       ;;
-    j)
-      n_cpus="${OPTARG}"
+
+    -j)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "-j requires a value"; exit 1; }
+      n_cpus="$2"
+      shift 2
       ;;
-    q)
-      SGE_QUEUE="${OPTARG}"
+
+    -m|--max-running)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "$1 requires a value"; exit 1; }
+      max_running="$2"
+      shift 2
       ;;
-    t)
-      tpl_name="${OPTARG}"
+
+    --max-running=*)
+      max_running="${1#*=}"
+      shift
       ;;
-    x)
-      kwargs_flags="${OPTARG}"
+
+    --array-unit)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "--array-unit requires a value"; exit 1; }
+      array_unit="$2"
+      shift 2
+      ;;
+
+    -q)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "-q requires a value"; exit 1; }
+      SGE_QUEUE="$2"
+      shift 2
+      ;;
+
+    -t|--tpl-space)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "$1 requires a value"; exit 1; }
+      old_space="$tpl_space"
+      tpl_space="$2"
+      echo -e "Updating template space to ${BOLD_GREEN}${tpl_space}${RESET} (was ${old_space})"
+      shift 2
+      ;;
+
+    --tpl-space=*)
+      old_space="$tpl_space"
+      tpl_space="${1#*=}"
+      echo -e "Updating template space to ${BOLD_GREEN}${tpl_space}${RESET} (was ${old_space})"
+      shift
+      ;;
+
+    --tpl-home)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "--tpl-home requires a value"; exit 1; }
+      old_home="$tpl_home"
+      tpl_home="$2"
+      echo -e "Updating template home to ${BOLD_GREEN}${tpl_home}${RESET} (was ${old_home})"
+      shift 2
+      ;;
+
+    --tpl-home=*)
+      old_home="$tpl_home"
+      tpl_home="${1#*=}"
+      echo -e "Updating template home to ${BOLD_GREEN}${tpl_home}${RESET} (was ${old_home})"
+      shift
+      ;;
+
+    --tpl-res)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "--tpl-res requires a value"; exit 1; }
+      old_res="$tpl_res"
+      tpl_res="$2"
+      echo -e "Updating template resolution to res=${BOLD_GREEN}${tpl_res}${RESET} (was res=${old_res})"  
+      shift 2
+      ;;
+
+    --tpl-res=*)
+      old_res="$tpl_res"
+      tpl_res="${1#*=}"
+      echo -e "Updating template resolution to res=${BOLD_GREEN}${tpl_res}${RESET} (was res=${old_res})"  
+      shift
+      ;;
+
+    -x)
+      [[ $# -ge 2 ]] || { print_error_msg "$(basename "${0}")" "getopt" "-x requires a value"; exit 1; }
+      kwargs_flags="$2"
+      shift 2
+      ;;
+
+    --sge) run_local=0; shift ;;
+    --func|--input-func) input_space="func"; shift ;;
+    --input-t1w) input_space="T1w"; shift ;;
+    --auto-input-space) input_space="auto"; shift ;;
+    --ow|--overwrite) overwrite=1; shift ;;
+    --anat|--t1w) target_space="T1w"; shift ;;
+    --mni) target_space="mni"; shift ;;
+    --apply-featreg) featreg_mode="apply"; shift ;;
+    --update-featreg) featreg_mode="update"; shift ;;
+    --dry-run) dry_run=1; shift ;;
+
+    --)
+      shift
+      positionals+=("$@")
+      break
+      ;;
+
+    -*)
+      Usage
+      echo
+      print_line -
+      print_error_msg "$(basename "${0}")" "getopt" "Unknown option $1"
+      exit 1
+      ;;
+
+    *)
+      positionals+=("$1")
+      shift
       ;;
   esac
 done
 
-shift $((OPTIND - 1))
-
-if [[ $# -lt 2 ]]; then
+if [[ ${#positionals[@]} -lt 2 ]]; then
   Usage
   exit 1
 fi
 
 #-----------------------------------------------------------------------------
 # positional arguments
-PROJ_PATH="$(realpath "$1")"
-FT_DIR="$(realpath "$2")"
+PROJ_PATH="$(realpath "${positionals[0]}")"
+FT_DIR="$(realpath "${positionals[1]}")"
 DERIV_PATH="${PROJ_PATH}/derivatives"
 FPREP_ROOT="${DERIV_PATH}/fmriprep"
 
+if [[ ! "${feat_level}" =~ ^[12]$ ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" \
+    "FEAT source level must be 1 or 2; got '${feat_level}'"
+  exit 1
+fi
+
+if ! [[ "${max_running}" =~ ^[1-9][0-9]*$ ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" \
+    "--max-running/-m must be a positive integer; got '${max_running}'"
+  exit 1
+fi
+
 if [[ ! -d "${FT_DIR}" ]]; then
+  echo
+  print_line -
   print_directory_not_exist "FEAT" "${FT_DIR}"
   exit 1
 fi
 
 if [[ ! -d "${FPREP_ROOT}" ]]; then
+  echo
+  print_line -
   print_directory_not_exist "fMRIPrep" "${FPREP_ROOT}"
   exit 1
 fi
 
-if [[ ${target_space} == "mni" && -z ${tpl_name} ]]; then
-  print_error_msg "$(basename "${0}")" "input" \
-    "No template specified. Use -t <template> or define FEAT_TEMPLATE/TEMPLATE."
-  exit 1
+if [[ ${target_space} == "mni" ]]; then
+  if [[ -z "${tpl_space}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "${0}")" "input" \
+      "Template space is empty. Use --tpl-space <template>."
+    exit 1
+  fi
+
+  if [[ -z "${tpl_home}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "${0}")" "input" \
+      "TemplateFlow home is empty. Use --tpl-home <directory> or set TEMPLATEFLOW_HOME."
+    exit 1
+  fi
+
+  if ! [[ "${tpl_res}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "${0}")" "input" \
+      "--tpl-res must be numeric; got '${tpl_res}'"
+    exit 1
+  fi
 fi
 
 export DIR_LOGS="${PROJ_PATH}/code/logs"
@@ -300,6 +513,32 @@ function find_unique_file {
   printf '%s\n' "${matches[0]}"
 }
 
+function feat_reference_image {
+  local feat_dir="$1"
+
+  if [[ -f "${feat_dir}/example_func.nii.gz" ]]; then
+    printf '%s\n' "${feat_dir}/example_func.nii.gz"
+    return 0
+  fi
+
+  # Higher-level FEAT directories do not necessarily contain example_func.
+  # A cope is on the analysis grid and can be used as the registration reference.
+  local ref
+  ref="$(
+    find "${feat_dir}/stats" -maxdepth 1 -type f -name 'cope*.nii.gz' 2>/dev/null |
+      sort -V |
+      head -n 1
+  )"
+
+  if [[ -n "${ref}" && -f "${ref}" ]]; then
+    printf '%s\n' "${ref}"
+    return 0
+  fi
+
+  echo "ERROR: could not find example_func.nii.gz or a cope image in ${feat_dir}" >&2
+  return 1
+}
+
 function featreg_exists {
   local feat_dir="$1"
 
@@ -319,40 +558,604 @@ function featreg_exists {
   return 0
 }
 
-#-----------------------------------------------------------------------------
-# intro
-start_timer "Recreating FEAT registration folders"
+feat_dirs=()
 
-shopt -s nullglob
-feat_dirs=("${FT_DIR}"/sub-*.feat)
-shopt -u nullglob
+case "${feat_level}" in
+  1)
+    # First level: one .feat directory per run directly below FT_DIR.
+    mapfile -t feat_dirs < <(
+      find -L "${FT_DIR}" \
+        -mindepth 1 -maxdepth 1 \
+        \( -type d -o -type l \) \
+        -name 'sub-*.feat' \
+        | sort
+    )
+    ;;
+  2)
+    # Second level: one registration unit per fixed-effects .gfeat. The parent
+    # .gfeat/reg directory caches the expensive anatomical T1w->template
+    # products; each contrast-*.feat keeps its own functional FEAT reg folder.
+    mapfile -t feat_dirs < <(
+      find -L "${FT_DIR}" \
+        -mindepth 1 -maxdepth 1 \
+        \( -type d -o -type l \) \
+        -name 'sub-*_fixedfx.gfeat' \
+        | sort
+    )
+    ;;
+esac
 
 if [[ ${#feat_dirs[@]} -eq 0 ]]; then
-  print_error_msg "$(basename "${0}")" "input" "No sub-*.feat directories found in ${FT_DIR}"
+  if [[ "${feat_level}" -eq 1 ]]; then
+    expected="sub-*.feat"
+  else
+    expected="sub-*_fixedfx.gfeat"
+  fi
+
+  echo
+  print_line -
+  
+  print_error_msg "$(basename "${0}")" "input" \
+    "No level-${feat_level} FEAT directories (${expected}) found in ${FT_DIR}"
   exit 1
+fi
+
+# Internal SLURM-array invocation: process exactly one discovered unit.
+if [[ -n "${array_unit}" ]]; then
+  matched_unit=""
+
+  for unit in "${feat_dirs[@]}"; do
+    if [[ "$(realpath "${unit}")" == "$(realpath "${array_unit}")" ]]; then
+      matched_unit="${unit}"
+      break
+    fi
+  done
+
+  if [[ -z "${matched_unit}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "${0}")" "slurm" \
+      "Array unit is not a discovered level-${feat_level} registration input: ${array_unit}"
+    exit 1
+  fi
+
+  feat_dirs=("${matched_unit}")
+fi
+
+template_ref=""
+
+if [[ ${target_space} == "mni" ]]; then
+  echo -e "Resolving template from TemplateFlow directory"
+  echo -e " TemplateFlow home : ${BOLD_GREEN}${tpl_home}${RESET}"
+  echo -e " Template space    : ${BOLD_GREEN}${tpl_space}${RESET}"
+  echo -e " Template res      : ${BOLD_GREEN}${tpl_res}${RESET}"
+  template_ref="$(
+    TEMPLATEFLOW_HOME="${tpl_home}" python - "${tpl_space}" "${tpl_res}" <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    from templateflow.api import get
+except Exception as exc:
+    raise SystemExit(f"Could not import TemplateFlow: {exc}")
+
+space = sys.argv[1]
+raw_resolution = sys.argv[2]
+resolution = float(raw_resolution) if "." in raw_resolution else int(raw_resolution)
+
+ref = get(
+    space,
+    resolution=resolution,
+    desc=None,
+    suffix="T1w",
+    extension="nii.gz",
+    raise_empty=True,
+)
+
+if isinstance(ref, (list, tuple)):
+    if len(ref) != 1:
+        raise SystemExit(
+            f"TemplateFlow query returned {len(ref)} references for "
+            f"tpl-{space}, res-{raw_resolution}: {ref}"
+        )
+    ref = ref[0]
+
+print(Path(ref))
+PY
+  )"
+  template_status=$?
+
+  if [[ ${template_status} -ne 0 || -z "${template_ref}" || ! -f "${template_ref}" ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename "${0}")" "template" \
+      "Could not resolve TemplateFlow T1w reference for tpl-${tpl_space}, res-${tpl_res} under ${tpl_home}"
+    exit 1
+  fi
+
+  echo -e " Template reference: ${BOLD_GREEN}${template_ref}${RESET}"
+fi
+
+#-----------------------------------------------------------------------------
+# SLURM-array submission
+#
+# Level 1:
+#   one array element == one run-level .feat
+#
+# Level 2:
+#   one array element == one fixed-effects .gfeat
+#   The task owns that subject's anatomical cache and processes its contrast
+#   children locally, avoiding cache races between SLURM jobs.
+submit_slurm_array() {
+  local level="$1"
+  shift
+  local -a units=("$@")
+
+  local n_units="${#units[@]}"
+  [[ "${n_units}" -gt 0 ]] || {
+    print_error_msg "$(basename "${0}")" "slurm" "No registration units to submit"
+    return 1
+  }
+
+  mkdir -p "${DIR_LOGS}"
+
+  local prefix="${DIR_LOGS}/spinoza_featreg_L${level}"
+  local unit_file="${prefix}_units.$$.txt"
+  local runner="${prefix}_runner.$$.sh"
+
+  : > "${unit_file}"
+  local unit
+  for unit in "${units[@]}"; do
+    printf '%s\n' "${unit}" >> "${unit_file}"
+  done
+
+  cat > "${runner}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "${SETUP_FILE}"
+source call_bashhelper
+
+unit=\$(sed -n "\${SLURM_ARRAY_TASK_ID}p" "${unit_file}")
+
+if [[ -z "\${unit}" ]]; then
+  echo "ERROR: no unit for SLURM_ARRAY_TASK_ID=\${SLURM_ARRAY_TASK_ID}" >&2
+  exit 1
+fi
+
+cmd=(
+  $(printf '%q' "$(realpath "$0")")
+  -l $(printf '%q' "${level}")
+  -j $(printf '%q' "${n_cpus}")
+  -m 1
+  -q $(printf '%q' "${SGE_QUEUE}")
+EOF
+
+  case "${input_space}" in
+    func) echo '  --func' >> "${runner}" ;;
+    T1w) echo '  --input-t1w' >> "${runner}" ;;
+    auto) echo '  --auto-input-space' >> "${runner}" ;;
+  esac
+
+  if [[ "${target_space}" == "T1w" ]]; then
+    echo '  --anat' >> "${runner}"
+  else
+    echo '  --mni' >> "${runner}"
+  fi
+
+  case "${featreg_mode}" in
+    apply) echo '  --apply-featreg' >> "${runner}" ;;
+    update) echo '  --update-featreg' >> "${runner}" ;;
+  esac
+
+  [[ ${overwrite} -eq 1 ]] && echo '  --overwrite' >> "${runner}"
+
+  printf '  --tpl-home %q\n' "${tpl_home}" >> "${runner}"
+  printf '  --tpl-space %q\n' "${tpl_space}" >> "${runner}"
+  printf '  --tpl-res %q\n' "${tpl_res}" >> "${runner}"
+
+  if [[ -n "${kwargs_flags}" ]]; then
+    printf '  -x %q\n' "${kwargs_flags}" >> "${runner}"
+  fi
+
+  cat >> "${runner}" <<EOF
+  --array-unit "\${unit}"
+  $(printf '%q' "${PROJ_PATH}")
+  $(printf '%q' "${FT_DIR}")
+)
+
+print_cmd "\${cmd[@]}"
+"\${cmd[@]}"
+EOF
+
+  chmod +x "${runner}" 2>/dev/null || true
+
+  local array_spec="1-${n_units}%${max_running}"
+  local job_name="featregL${level}"
+
+  cmd=(
+    sbatch
+    --partition="${SGE_QUEUE}"
+    --array="${array_spec}"
+    --cpus-per-task="${n_cpus}"
+    --job-name="${job_name}"
+    --output="${DIR_LOGS}/${job_name}_%A_%a.out"
+    "${runner}"
+  )
+
+  echo "SLURM units: ${unit_file}"
+  echo "Array: ${array_spec}"
+  print_cmd "${cmd[@]}"
+
+  "${cmd[@]}"
+}
+
+# A top-level --sge invocation only submits the array. Array tasks invoke the
+# wrapper again without --sge and with --array-unit, so they execute the normal
+# local code path inside their allocation.
+if [[ ${run_local} -eq 0 && -z "${array_unit}" ]]; then
+  if [[ ${dry_run} -eq 1 ]]; then
+    echo "DRY RUN: would submit level-${feat_level} SLURM array with ${#feat_dirs[@]} unit(s), max-running=${max_running}"
+    echo "Array: 1-${#feat_dirs[@]}%${max_running}"
+    end_timer
+    exit 0
+  fi
+
+  submit_slurm_array "${feat_level}" "${feat_dirs[@]}"
+  status=$?
+  end_timer
+  exit "${status}"
+fi
+
+#-----------------------------------------------------------------------------
+# local concurrency helpers
+#
+# These govern direct/local execution. SLURM mode uses submit_slurm_array()
+# above and limits remote concurrency with the array %N throttle.
+reg_pids=()
+reg_names=()
+reg_failed=0
+
+wait_reg_slot() {
+  local pid name status
+
+  while (( ${#reg_pids[@]} >= max_running )); do
+    pid="${reg_pids[0]}"
+    name="${reg_names[0]}"
+
+    if wait "${pid}"; then
+      status=0
+    else
+      status=$?
+      echo
+      print_line -
+      print_error_msg "$(basename "${0}")" "featreg" \
+        "Registration failed for ${name} (status ${status})"
+      reg_failed=1
+    fi
+
+    reg_pids=("${reg_pids[@]:1}")
+    reg_names=("${reg_names[@]:1}")
+  done
+}
+
+wait_reg_all() {
+  local pid name status i
+
+  for i in "${!reg_pids[@]}"; do
+    pid="${reg_pids[$i]}"
+    name="${reg_names[$i]}"
+
+    if wait "${pid}"; then
+      status=0
+    else
+      status=$?
+      echo
+      print_line -
+      print_error_msg "$(basename "${0}")" "featreg" \
+        "Registration failed for ${name} (status ${status})"
+      reg_failed=1
+    fi
+  done
+
+  reg_pids=()
+  reg_names=()
+}
+
+run_or_queue_local() {
+  local name="$1"
+  shift
+
+  if [[ ${max_running} -le 1 ]]; then
+    "$@" || {
+      local status=$?
+      print_error_msg "$(basename "${0}")" "featreg" \
+        "Registration failed for ${name} (status ${status})"
+      return "${status}"
+    }
+    return 0
+  fi
+
+  wait_reg_slot
+  echo "Starting registration in background: ${name}"
+  ( "$@" ) &
+  reg_pids+=("$!")
+  reg_names+=("${name}")
+}
+
+#-----------------------------------------------------------------------------
+# level 2: cache anatomical registration once per .gfeat, then construct a
+# complete contrast-specific reg directory for every child .feat.
+if [[ "${feat_level}" -eq 2 ]]; then
+  echo "Processing ${#feat_dirs[@]} level-2 fixed-effects .gfeat directorie(s)"
+  if [[ ${run_local} -eq 1 ]]; then
+    if [[ -n "${array_unit}" ]]; then
+      echo "SLURM array unit: ${array_unit}"
+    else
+      echo "Maximum concurrent local registration jobs: ${max_running}"
+    fi
+  fi
+  print_line -
+
+  for gfeat_dir in "${feat_dirs[@]}"; do
+    [[ -d "${gfeat_dir}" ]] || continue
+
+    gfeat_name="$(basename "${gfeat_dir}" .gfeat)"
+
+    if [[ "${gfeat_dir}" =~ (^|/)(sub-[^/_]+) ]]; then
+      sub_name="${BASH_REMATCH[2]}"
+      sub_id="${sub_name#sub-}"
+    else
+      print_error_msg "$(basename "${0}")" "input" \
+        "Could not determine subject from ${gfeat_dir}"
+      continue
+    fi
+
+    subject_requested "${sub_id}" || continue
+
+    fprep_path="${FPREP_ROOT}/${sub_name}"
+    if [[ ! -d "${fprep_path}" ]]; then
+      print_directory_not_exist "${sub_name}" "${fprep_path}"
+      continue
+    fi
+
+    t1w="$(find_unique_file \
+      "${sub_name} preprocessed T1w" \
+      "${fprep_path}" -type f \
+      -name '*desc-preproc_T1w.nii.gz' \
+      ! -name '*space-*')" || continue
+
+    feat_input_space="${input_space}"
+    if [[ "${feat_input_space}" == "auto" ]]; then
+      print_error_msg "$(basename "${0}")" "registration" \
+        "Cannot infer input space from level-2 fixed-effects directory ${gfeat_name}; specify --func/--input-func or --input-t1w"
+      continue
+    fi
+
+    mapfile -t child_feats < <(
+      find -L "${gfeat_dir}" \
+        -mindepth 1 -maxdepth 1 \
+        \( -type d -o -type l \) \
+        -name '*.feat' \
+        | sort
+    )
+
+    if [[ ${#child_feats[@]} -eq 0 ]]; then
+      print_error_msg "$(basename "${0}")" "input" \
+        "No contrast-*.feat directories found in ${gfeat_dir}"
+      continue
+    fi
+
+    if [[ ${run_local} -eq 1 ]]; then
+      print_subject_header "${gfeat_name}"
+    fi
+
+    # Resolve transforms once for this subject/.gfeat.
+    if [[ "${target_space}" == "mni" ]]; then
+      t1w_to_mni="$(find_unique_file \
+        "${sub_name} T1w-to-${tpl_space} transform" \
+        "${fprep_path}" -type f \
+        -name "*from-T1w_to-${tpl_space}*" \
+        -name '*xfm.h5')" || continue
+    fi
+
+    if [[ "${feat_input_space}" == "T1w" ]]; then
+      identity_mat="$(mktemp "${TMPDIR:-/tmp}/spinoza_featreg_identity.XXXXXX.txt")"
+      rm -f "${identity_mat}" 2>/dev/null
+      call_createident "${identity_mat}"
+      [[ -f "${identity_mat}" ]] || {
+        print_error_msg "$(basename "${0}")" "call_createident" \
+          "Could not create identity matrix: ${identity_mat}"
+        continue
+      }
+      bold_to_t1w="${identity_mat}"
+    else
+      # Native-space level-2 fixed effects require one unambiguous functional
+      # transform. If several run-specific transforms exist, refuse to guess.
+      bold_to_t1w="$(find_unique_file \
+        "${gfeat_name} boldref-to-T1w transform" \
+        "${fprep_path}" -type f \
+        -name '*from-boldref_to-T1w*' \
+        -name '*xfm.txt')" || continue
+    fi
+
+    anat_cache="${gfeat_dir}/reg"
+
+    # If the common anatomical cache is incomplete, the first contrast must
+    # finish synchronously before other children are started. This prevents
+    # several call_ants2featreg processes from racing while generating the
+    # expensive T1w->template products.
+    cache_seeded=0
+    if [[ -f "${anat_cache}/highres.nii.gz" &&
+          -f "${anat_cache}/standard.nii.gz" &&
+          -f "${anat_cache}/highres2standard.mat" &&
+          -f "${anat_cache}/highres2standard_warp.nii.gz" &&
+          -f "${anat_cache}/highres2standard.nii.gz" ]]; then
+      cache_seeded=1
+    fi
+
+    reg_failed=0
+
+    for ft_sub in "${child_feats[@]}"; do
+      contrast_name="$(basename "${ft_sub}" .feat)"
+      feat_name="${gfeat_name}_${contrast_name}"
+
+      if featreg_exists "${ft_sub}" && [[ ${overwrite} -eq 0 ]]; then
+        print_output_exists "${feat_name}" "reg-folders" "Use \"--ow\" to overwrite"
+        continue
+      fi
+
+      # Higher-level FEAT directories do not have a true example_func. Use a
+      # representative image from this contrast's own analysis grid.
+      feat_ref="$(feat_reference_image "${ft_sub}")" || continue
+
+      if [[ ! -f "${ft_sub}/mean_func.nii.gz" ]]; then
+        if [[ -f "${ft_sub}/filtered_func_data.nii.gz" ]]; then
+          echo "Creating ${contrast_name}/mean_func.nii.gz"
+          fslmaths \
+            "${ft_sub}/filtered_func_data.nii.gz" \
+            -Tmean \
+            "${ft_sub}/mean_func"
+        else
+          fslmaths \
+            "${feat_ref}" \
+            -mul 1 \
+            "${ft_sub}/mean_func"
+        fi
+      fi
+
+      if [[ ! -f "${ft_sub}/example_func.nii.gz" ]]; then
+        echo "Creating ${contrast_name}/example_func.nii.gz"
+        cp "${ft_sub}/mean_func.nii.gz" "${ft_sub}/example_func.nii.gz"
+      fi
+      feat_ref="${ft_sub}/example_func.nii.gz"
+
+      if [[ "${feat_input_space}" == "T1w" && "${target_space}" == "T1w" ]]; then
+        cmd=(
+          call_injectmatrices
+          -t "${t1w}"
+          -f "${ft_sub}"
+        )
+      else
+        cmd=(
+          call_ants2featreg
+          --t1w "${t1w}"
+          --boldref "${feat_ref}"
+          --bold-to-t1w "${bold_to_t1w}"
+          --feat-dir "${ft_sub}"
+          --anat-cache-dir "${anat_cache}"
+        )
+
+        if [[ "${target_space}" == "mni" ]]; then
+          cmd+=(
+            --t1w-to-mni-h5 "${t1w_to_mni}"
+            --template "${template_ref}"
+          )
+        fi
+
+        if [[ ${featreg_mode} == "update" ]]; then
+          cmd+=(--update-featreg)
+        else
+          # call_ants2featreg applies the ANTs transform directly; it does not
+          # require a level-2 design.fsf/featregapply.
+          cmd+=(--apply-featreg)
+        fi
+      fi
+
+      if [[ -n ${kwargs_flags} ]]; then
+        # shellcheck disable=SC2206
+        extra_args=( ${kwargs_flags} )
+        cmd+=("${extra_args[@]}")
+      fi
+
+      print_cmd "${cmd[@]}"
+
+      [[ ${dry_run} -eq 1 ]] && continue
+
+      if [[ ${run_local} -eq 1 ]]; then
+        if [[ ${cache_seeded} -eq 0 ]]; then
+          echo "Seeding anatomical cache before parallel contrast registration"
+          "${cmd[@]}" || {
+            print_error_msg "$(basename "${0}")" "featreg" \
+              "Registration failed for ${feat_name}"
+            exit 1
+          }
+          cache_seeded=1
+        else
+          run_or_queue_local "${feat_name}" "${cmd[@]}" || exit 1
+        fi
+      else
+        # SLURM path: decide_job_type owns submission; local PID throttling
+        # cannot represent remotely running jobs.
+        "${cmd[@]}" || {
+          print_error_msg "$(basename "${0}")" "featreg" \
+            "Registration submission failed for ${feat_name}"
+          exit 1
+        }
+      fi
+    done
+
+    # Keep one .gfeat self-contained: all contrast jobs finish before the next
+    # subject/cache is processed.
+    if [[ ${run_local} -eq 1 ]]; then
+      wait_reg_all
+      [[ ${reg_failed} -eq 0 ]] || exit 1
+    fi
+  done
+
+  end_timer
+  exit 0
 fi
 
 #-----------------------------------------------------------------------------
 # loop through FEAT directories
+echo "Processing ${#feat_dirs[@]} FEAT-directories"
+if [[ ${run_local} -eq 1 ]]; then
+  if [[ -n "${array_unit}" ]]; then
+    echo "SLURM array unit: ${array_unit}"
+  else
+    echo "Maximum concurrent local registration jobs: ${max_running}"
+  fi
+fi
+print_line -
+
+reg_failed=0
+
 for ft_sub in "${feat_dirs[@]}"; do
 
   if [[ ! -d "${ft_sub}" ]]; then
+    echo
+    print_line -
     echo "ERROR: Directory ${ft_sub} does not exist; run FEAT first" >&2
     continue
   fi
 
-  feat_name="$(basename "${ft_sub}" .feat)"
-  if featreg_exists "${ft_sub}"; then
-      print_output_exists "${feat_name}" "reg-folders" "Use \"--ow\" to overwrite"
-      continue
+  if [[ "${feat_level}" -eq 1 ]]; then
+    feat_name="$(basename "${ft_sub}" .feat)"
+  else
+    gfeat_name="$(basename "$(dirname "${ft_sub}")" .gfeat)"
+    contrast_name="$(basename "${ft_sub}" .feat)"
+    feat_name="${gfeat_name}_${contrast_name}"
   fi
 
-  if [[ ${feat_name} =~ (sub-[^_]+) ]]; then
-    sub_name="${BASH_REMATCH[1]}"
+  if featreg_exists "${ft_sub}"; then
+    if [[ ${overwrite} -eq 0 ]]; then
+      print_output_exists "${feat_name}" "reg-folders" "Use \"--ow\" to overwrite"
+      continue
+    fi
+  fi
+
+  # For level 2 the immediate .feat basename is only 'contrast-<name>'.
+  # Extract the subject from the complete path, which contains the parent
+  # sub-*_fixedfx.gfeat directory.
+  if [[ "${ft_sub}" =~ (^|/)(sub-[^/_]+) ]]; then
+    sub_name="${BASH_REMATCH[2]}"
     sub_id="${sub_name#sub-}"
   else
+    echo
+    print_line -
     print_error_msg "$(basename "${0}")" "input" \
-      "Could not determine subject from ${feat_name}"
+      "Could not determine subject from ${ft_sub}"
     continue
   fi
 
@@ -362,6 +1165,8 @@ for ft_sub in "${feat_dirs[@]}"; do
 
   fprep_path="${FPREP_ROOT}/${sub_name}"
   if [[ ! -d "${fprep_path}" ]]; then
+    echo
+    print_line -  
     print_directory_not_exist "${sub_name}" "${fprep_path}"
     continue
   fi
@@ -385,12 +1190,67 @@ for ft_sub in "${feat_dirs[@]}"; do
     elif [[ ${ft_sub} == *"space-func"* ]]; then
       feat_input_space="func"
     else
-      print_error_msg "$(basename "${0}")" "registration" \
-        "Cannot determine FEAT input space for ${feat_name}; use --func/--input-func or --input-t1w, or include 'space-func'/'space-T1w' in the directory name"
+      if [[ "${feat_level}" -eq 2 ]]; then
+        echo
+        print_line -      
+        print_error_msg "$(basename "${0}")" "registration" \
+          "Cannot infer input space from level-2 fixed-effects directory ${feat_name}; specify --func/--input-func or --input-t1w"
+      else
+        echo
+        print_line -        
+        print_error_msg "$(basename "${0}")" "registration" \
+          "Cannot determine FEAT input space for ${feat_name}; use --func/--input-func or --input-t1w, or include 'space-func'/'space-T1w' in the directory name"
+      fi
       continue
     fi
   fi
 
+  # Resolve the analysis-grid reference used by call_ants2featreg. At level 1
+  # this is normally example_func.nii.gz; at level 2 we fall back to cope1.
+  feat_ref="$(feat_reference_image "${ft_sub}")" || continue
+
+  # Level-2 fixed-effects FEAT directories do not normally contain the
+  # first-level compatibility images expected by call_ants2featreg.
+  if [[ "${feat_level}" -eq 2 ]]; then
+
+    # Use the mean of the merged COPEs as a representative level-2 image.
+    if [[ ! -f "${ft_sub}/mean_func.nii.gz" ]]; then
+
+      if [[ -f "${ft_sub}/filtered_func_data.nii.gz" ]]; then
+        echo "Creating level-2 mean_func compatibility image"
+
+        fslmaths \
+          "${ft_sub}/filtered_func_data.nii.gz" \
+          -Tmean \
+          "${ft_sub}/mean_func"
+
+      elif [[ -f "${feat_ref}" ]]; then
+        fslmaths \
+          "${feat_ref}" \
+          -mul 1 \
+          "${ft_sub}/mean_func"
+      else
+        echo
+        print_line -        
+        print_error_msg "$(basename "${0}")" "registration" \
+          "Could not create mean_func.nii.gz for ${feat_name}"
+        continue
+      fi
+    fi
+
+    # call_ants2featreg also expects example_func.nii.gz. At level 2 there is no
+    # special example volume, so use the same representative image/grid.
+    if [[ ! -f "${ft_sub}/example_func.nii.gz" ]]; then
+      echo "Creating level-2 example_func compatibility image"
+
+      cp \
+        "${ft_sub}/mean_func.nii.gz" \
+        "${ft_sub}/example_func.nii.gz"
+    fi
+
+    feat_ref="${ft_sub}/example_func.nii.gz"
+
+  fi
   #---------------------------------------------------------------------------
   # cases 2 and 4: BOLD already in T1w space
   if [[ ${feat_input_space} == "T1w" ]]; then
@@ -424,15 +1284,17 @@ for ft_sub in "${feat_dirs[@]}"; do
       call_createident "${identity_mat}"
 
       if [[ ! -f "${identity_mat}" ]]; then
-          print_error_msg "$(basename "${0}")" "call_createident" \
+        echo
+        print_line -        
+        print_error_msg "$(basename "${0}")" "call_createident" \
               "Could not create identity matrix: ${identity_mat}"
           continue
       fi
 
       t1w_to_mni="$(find_unique_file \
-        "${sub_name} T1w-to-${tpl_name} transform" \
+        "${sub_name} T1w-to-${tpl_space} transform" \
         "${fprep_path}" -type f \
-        -name "*from-T1w_to-${tpl_name}*" \
+        -name "*from-T1w_to-${tpl_space}*" \
         -name '*xfm.h5')" || continue
 
       job_name="${feat_name}_desc-ants2featreg"
@@ -450,7 +1312,8 @@ for ft_sub in "${feat_dirs[@]}"; do
         "${job}"
         --t1w "${t1w}"
         --t1w-to-mni-h5 "${t1w_to_mni}"
-        --boldref "${ft_sub}/example_func.nii.gz"
+        --template "${template_ref}"
+        --boldref "${feat_ref}"
         --bold-to-t1w "${identity_mat}"
         --feat-dir "${ft_sub}"
       )
@@ -499,7 +1362,7 @@ for ft_sub in "${feat_dirs[@]}"; do
     cmd=(
       "${job}"
       --t1w "${t1w}"
-      --boldref "${ft_sub}/example_func.nii.gz"
+      --boldref "${feat_ref}"
       --bold-to-t1w "${bold_to_t1w}"
       --feat-dir "${ft_sub}"
     )
@@ -514,12 +1377,15 @@ for ft_sub in "${feat_dirs[@]}"; do
     else
       # case 1: native BOLD -> MNI/template
       t1w_to_mni="$(find_unique_file \
-        "${sub_name} T1w-to-${tpl_name} transform" \
+        "${sub_name} T1w-to-${tpl_space} transform" \
         "${fprep_path}" -type f \
-        -name "*from-T1w_to-${tpl_name}*" \
+        -name "*from-T1w_to-${tpl_space}*" \
         -name '*xfm.h5')" || continue
 
-      cmd+=(--t1w-to-mni-h5 "${t1w_to_mni}")
+      cmd+=(
+        --t1w-to-mni-h5 "${t1w_to_mni}"
+        --template "${template_ref}"
+      )
 
       if [[ ${featreg_mode} == "update" ]]; then
         cmd+=(--update-featreg)
@@ -529,6 +1395,8 @@ for ft_sub in "${feat_dirs[@]}"; do
     fi
 
   else
+    echo
+    print_line -
     print_error_msg "$(basename "${0}")" "registration" \
       "Unsupported FEAT input space '${feat_input_space}' for ${feat_name}"
     continue
@@ -553,15 +1421,27 @@ for ft_sub in "${feat_dirs[@]}"; do
     continue
   fi
 
-  eval "${cmd[@]}"
-  cmd_status=$?
+  if [[ ${run_local} -eq 1 ]]; then
+    run_or_queue_local "${feat_name}" "${cmd[@]}" || exit 1
+  else
+    # With --sge, decide_job_type submits the command to SLURM. Do not
+    # background sbatch locally and call that a concurrency throttle.
+    "${cmd[@]}"
+    cmd_status=$?
 
-  if [[ ${cmd_status} -ne 0 ]]; then
-    print_error_msg "$(basename "${0}")" "featreg" "Registration failed for ${feat_name}"
-    exit 1
+    if [[ ${cmd_status} -ne 0 ]]; then
+      print_error_msg "$(basename "${0}")" "featreg" \
+        "Registration submission failed for ${feat_name}"
+      exit 1
+    fi
   fi
 
 done
+
+if [[ ${run_local} -eq 1 ]]; then
+  wait_reg_all
+  [[ ${reg_failed} -eq 0 ]] || exit 1
+fi
 
 #-----------------------------------------------------------------------------
 # outro

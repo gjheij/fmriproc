@@ -62,11 +62,10 @@ Automatic defaults (only added when the corresponding native option is absent):
 
 Queue unit:
   level 1: one call_feat job per subject, throttled by --max-running
-  level 2: one call_feat2 job for the requested selection
+  level 2: one call_feat2 job per eligible subject/session/task/canonical-contrast group,
+           throttled by --max-running. Each task writes a private manifest fragment; fragments
+           are merged into contrast_manifest_level2.tsv after all jobs complete.
   level 3: one call_feat3 job for the requested group analysis
-
-Levels 2 and 3 intentionally stay in one process because the supplied scripts each rewrite one
-shared output manifest; splitting them into concurrent calls can race and lose manifest rows.
 
 ---------------------------------------------------------------------------------------------------
 Examples:
@@ -239,6 +238,93 @@ extract_repeatable_opt() {
   pass_args=("${kept[@]}")
 }
 
+
+join_by_comma() {
+  local IFS=,
+  printf '%s' "$*"
+}
+
+# Build the level-2 queue from the first-level manifest after applying the same
+# selectors that each call_feat2 task will receive. Output columns are:
+#   subject<TAB>session<TAB>task<TAB>canonical_name
+build_level2_jobs() {
+  local manifest="$1"
+  local jobs_out="$2"
+  local subjects_csv="$3"
+  local sessions_csv="$4"
+  local tasks_csv="$5"
+  local contrasts_csv="$6"
+  local runs_csv="$7"
+  local min_runs="$8"
+
+  python3 - "$manifest" "$jobs_out" \
+    "$subjects_csv" "$sessions_csv" "$tasks_csv" "$contrasts_csv" "$runs_csv" "$min_runs" <<'PY'
+import csv
+import sys
+from collections import defaultdict
+
+manifest_path, jobs_path, subjects_s, sessions_s, tasks_s, contrasts_s, runs_s, min_runs_s = sys.argv[1:]
+
+def selector(value, prefix=None):
+    values = set()
+    for item in value.split(","):
+        if not item:
+            continue
+        if prefix and item.startswith(prefix):
+            item = item[len(prefix):]
+        values.add(item)
+    return values
+
+subjects = selector(subjects_s, "sub-")
+sessions = selector(sessions_s, "ses-")
+tasks = selector(tasks_s, "task-")
+contrasts = selector(contrasts_s)
+runs = selector(runs_s, "run-")
+min_runs = int(min_runs_s)
+
+groups = defaultdict(set)
+
+with open(manifest_path, newline="", encoding="utf-8") as f:
+    reader = csv.DictReader(f, delimiter="\t")
+    required = {"subject", "session", "task", "run", "run_label", "canonical_name"}
+    missing = required - set(reader.fieldnames or [])
+    if missing:
+        raise SystemExit("Manifest is missing columns: " + ", ".join(sorted(missing)))
+
+    for row in reader:
+        subject = row.get("subject", "")
+        session = row.get("session", "")
+        task = row.get("task", "")
+        run = row.get("run", "")
+        canonical = row.get("canonical_name", "")
+
+        if subjects and subject not in subjects:
+            continue
+        if sessions and session not in sessions:
+            continue
+        if tasks and task not in tasks:
+            continue
+        if contrasts and canonical not in contrasts:
+            continue
+        if runs and run not in runs:
+            continue
+
+        key = (subject, session, task, canonical)
+        groups[key].add(row.get("run_label", "") or run)
+
+eligible = [
+    key for key, unique_runs in groups.items()
+    if len(unique_runs) >= min_runs
+]
+
+eligible.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+
+with open(jobs_path, "w", encoding="utf-8", newline="") as f:
+    writer = csv.writer(f, delimiter="\t", lineterminator="\n")
+    writer.writerows(eligible)
+PY
+}
+
 normalize_subjects() {
   local raw="$1" s
   local -a vals=()
@@ -282,6 +368,14 @@ case "$level" in
     ;;
 esac
 
+# Native call_feat2 --dry-run produces no FEAT outputs and therefore no
+# per-array manifest fragments. Track this separately from the wrapper-level
+# spinoza_feat --dry-run flag so we do not attempt to merge nonexistent files.
+level2_write_manifest=1
+if [[ "$level" == 2 ]] && has_opt --dry-run; then
+  level2_write_manifest=0
+fi
+
 jobs_file="${work_dir}/spinoza_feat_L${level}_jobs.txt"
 : > "$jobs_file"
 
@@ -307,19 +401,83 @@ if [[ "$level" == 1 ]]; then
     find "$bids_dir" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) -name 'sub-*' -printf '%f\n' 2>/dev/null \
       | sed 's/^sub-//' | sort -V > "$jobs_file"
   fi
+
+elif [[ "$level" == 2 ]]; then
+  # Pull group-defining selectors out of pass_args. They are used once to
+  # discover the queue and then re-added per array task as exact selectors.
+  extract_repeatable_opt --subject
+  native_subjects=("${EXTRACTED[@]}")
+
+  if [[ -n "$subjects_cli" && ${#native_subjects[@]} -gt 0 ]]; then
+    err "Specify subjects either with wrapper -s/--subject or native --subject after '--', not both"
+    exit 2
+  fi
+
+  if [[ -n "$subjects_cli" ]]; then
+    mapfile -t level2_subjects < <(normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++')
+  else
+    level2_subjects=("${native_subjects[@]}")
+  fi
+
+  extract_repeatable_opt --session
+  level2_sessions=("${EXTRACTED[@]}")
+
+  extract_repeatable_opt --task
+  level2_tasks=("${EXTRACTED[@]}")
+
+  extract_repeatable_opt --contrast
+  level2_contrasts=("${EXTRACTED[@]}")
+
+  # --run remains a normal call_feat2 selector, but we also need its values
+  # when determining whether a group satisfies --min-runs.
+  level2_runs=()
+  for ((i=0; i<${#pass_args[@]}; i++)); do
+    if [[ "${pass_args[$i]}" == "--run" ]]; then
+      (( i + 1 < ${#pass_args[@]} )) || { err "--run requires a value"; exit 2; }
+      IFS=',' read -r -a _vals <<< "${pass_args[$((i+1))]}"
+      level2_runs+=("${_vals[@]}")
+      i=$((i+1))
+    elif [[ "${pass_args[$i]}" == --run=* ]]; then
+      IFS=',' read -r -a _vals <<< "${pass_args[$i]#*=}"
+      level2_runs+=("${_vals[@]}")
+    fi
+  done
+
+  manifest_path="$(get_opt_value --manifest)"
+  [[ -f "$manifest_path" ]] || {
+    err "Level-1 manifest does not exist: $manifest_path"
+    exit 1
+  }
+
+  min_runs="$(get_opt_value --min-runs)"
+  [[ -n "$min_runs" ]] || min_runs=2
+  [[ "$min_runs" =~ ^[1-9][0-9]*$ ]] || {
+    err "--min-runs must be a positive integer"
+    exit 2
+  }
+
+  build_level2_jobs \
+    "$manifest_path" \
+    "$jobs_file" \
+    "$(join_by_comma "${level2_subjects[@]}")" \
+    "$(join_by_comma "${level2_sessions[@]}")" \
+    "$(join_by_comma "${level2_tasks[@]}")" \
+    "$(join_by_comma "${level2_contrasts[@]}")" \
+    "$(join_by_comma "${level2_runs[@]}")" \
+    "$min_runs"
+
+  # Each array task gets a private manifest fragment. A dependent merge job
+  # combines these only after all fixed-effects jobs finish successfully.
+  manifest_parts_dir="$(mktemp -d "${work_dir}/spinoza_feat_L2_manifest_parts.XXXXXX")"
+  output_dir="$(get_opt_value --output-dir)"
+  level2_manifest="${output_dir}/contrast_manifest_level2.tsv"
+  merge_runner="${work_dir}/spinoza_feat_L2_merge_manifest.sh"
+
 else
   [[ -z "$subjects_cli" ]] || {
-    if [[ "$level" == 2 ]]; then
-      # Preserve the wrapper convenience selector as a native call_feat2 selector.
-      while IFS= read -r subject; do
-        pass_args+=(--subject "$subject")
-      done < <(normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++')
-    else
-      err "Wrapper -s/--subject is only valid for levels 1 and 2; for level 3 put native --subject after '--'"
-      exit 2
-    fi
+    err "Wrapper -s/--subject is only valid for levels 1 and 2; for level 3 put native --subject after '--'"
+    exit 2
   }
-  # Do not split higher levels: call_feat2 and call_feat3 each write a shared manifest.
   printf 'all\n' > "$jobs_file"
 fi
 
@@ -358,6 +516,16 @@ EOF
     cat <<'EOF'
 cmd+=(--subject "${job_value}")
 EOF
+  elif [[ "$level" == 2 ]]; then
+    cat <<EOF
+IFS=\$'\\t' read -r job_subject job_session job_task job_contrast <<< "\${job_value}"
+
+cmd+=(--subject "\${job_subject}")
+[[ -z "\${job_session}" ]] || cmd+=(--session "\${job_session}")
+[[ -z "\${job_task}" ]] || cmd+=(--task "\${job_task}")
+cmd+=(--contrast "\${job_contrast}")
+cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${SLURM_ARRAY_TASK_ID}.tsv")
+EOF
   fi
 
   cat <<'EOF'
@@ -369,9 +537,68 @@ fi
 "${cmd[@]}"
 EOF
 } > "$runner"
-chmod +x "$runner"
 
 array_spec="1-${n_jobs}%${max_running}"
+
+
+if [[ "$level" == 2 ]]; then
+  cat > "$merge_runner" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+python3 - $(printf '%q' "$manifest_parts_dir") $(printf '%q' "$level2_manifest") <<'PY'
+import csv
+import sys
+from pathlib import Path
+
+parts_dir = Path(sys.argv[1])
+out_file = Path(sys.argv[2])
+parts = sorted(parts_dir.glob("job-*.tsv"))
+
+if not parts:
+    raise SystemExit(f"No level-2 manifest fragments found in {parts_dir}")
+
+rows = []
+fieldnames = None
+
+for part in parts:
+    with part.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if fieldnames is None:
+            fieldnames = reader.fieldnames
+        elif reader.fieldnames != fieldnames:
+            raise SystemExit(f"Manifest columns differ in {part}")
+        rows.extend(reader)
+
+if not fieldnames:
+    raise SystemExit("Level-2 manifest fragments contain no header")
+
+# Deduplicate deterministically. Normally every array task contributes one row.
+seen = set()
+unique = []
+key_fields = [x for x in ("subject", "session", "task", "canonical_name", "cope_file", "varcope_file") if x in fieldnames]
+for row in rows:
+    key = tuple(row.get(k, "") for k in key_fields)
+    if key in seen:
+        continue
+    seen.add(key)
+    unique.append(row)
+
+sort_fields = [x for x in ("subject", "session", "task", "canonical_name") if x in fieldnames]
+unique.sort(key=lambda row: tuple(row.get(k, "") for k in sort_fields))
+
+out_file.parent.mkdir(parents=True, exist_ok=True)
+tmp = out_file.with_name(out_file.name + ".tmp")
+with tmp.open("w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(unique)
+tmp.replace(out_file)
+
+print(f"Merged {len(parts)} fragment(s), {len(unique)} row(s) -> {out_file}")
+PY
+EOF
+fi
 
 print_summary() {
   printf 'FEAT level:       %s (%s)\n' "$level" "$command_name"
@@ -395,6 +622,13 @@ if [[ "$dry_run" -eq 1 ]]; then
     cmd=("$command_name" "${pass_args[@]}")
     if [[ "$level" == 1 ]]; then
       cmd+=(--subject "$value")
+    elif [[ "$level" == 2 ]]; then
+      IFS=$'\t' read -r job_subject job_session job_task job_contrast <<< "$value"
+      cmd+=(--subject "$job_subject")
+      [[ -z "$job_session" ]] || cmd+=(--session "$job_session")
+      [[ -z "$job_task" ]] || cmd+=(--task "$job_task")
+      cmd+=(--contrast "$job_contrast")
+      cmd+=(--manifest-out "${manifest_parts_dir}/job-${idx}.tsv")
     fi
     printf '[%d] ' "$idx"
     print_command "${cmd[@]}"
@@ -403,6 +637,15 @@ if [[ "$dry_run" -eq 1 ]]; then
     printf '\nWould submit:\n'
     printf 'sbatch --partition=%q --array=%q --cpus-per-task=%q --job-name=%q --output=%q %q\n' \
       "$queue" "$array_spec" "$n_cpus" "$job_name" "$work_dir/${job_name}_%A_%a.out" "$runner"
+    if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
+      printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
+    elif [[ "$level" == 2 ]]; then
+      printf 'call_feat2 --dry-run is active; no manifest merge job would be submitted.\n'
+    fi
+  elif [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
+    printf '\nAfter local jobs: bash %q\n' "$merge_runner"
+  elif [[ "$level" == 2 ]]; then
+    printf '\ncall_feat2 --dry-run is active; no manifest merge would be performed.\n'
   fi
   exit 0
 fi
@@ -433,21 +676,56 @@ if [[ "$run_local" -eq 1 ]]; then
     [[ -n "$value" ]] || continue
     idx=$((idx+1))
     while (( running >= max_running )); do wait_one; done
-    SLURM_ARRAY_TASK_ID="$idx" "$runner" &
+    SLURM_ARRAY_TASK_ID="$idx" bash "$runner" &
     pids+=("$!")
     running=$((running+1))
   done < "$jobs_file"
   while (( running > 0 )); do wait_one; done
-  exit "$failed"
+
+  if [[ "$failed" -ne 0 ]]; then
+    exit "$failed"
+  fi
+
+  if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
+    bash "$merge_runner"
+  elif [[ "$level" == 2 ]]; then
+    printf '\nLevel-2 call_feat2 dry run: no manifest fragments were written; skipping manifest merge.\n'
+  fi
+
+  exit 0
 fi
 
-sbatch \
-  --partition="$queue" \
-  --array="$array_spec" \
-  --cpus-per-task="$n_cpus" \
-  --job-name="$job_name" \
-  --output="$work_dir/${job_name}_%A_%a.out" \
-  "$runner"
+submit_output="$(
+  sbatch \
+    --partition="$queue" \
+    --array="$array_spec" \
+    --cpus-per-task="$n_cpus" \
+    --job-name="$job_name" \
+    --output="$work_dir/${job_name}_%A_%a.out" \
+    "$runner"
+)"
+printf '%s\n' "$submit_output"
+
+if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
+  array_job_id="$(awk '{print $NF}' <<< "$submit_output")"
+  [[ "$array_job_id" =~ ^[0-9]+$ ]] || {
+    err "Could not parse SLURM array job ID from: $submit_output"
+    exit 1
+  }
+
+  merge_submit="$(
+    sbatch \
+      --partition="$queue" \
+      --dependency="afterok:${array_job_id}" \
+      --cpus-per-task=1 \
+      --job-name="${job_name}_merge" \
+      --output="$work_dir/${job_name}_merge_%j.out" \
+      "$merge_runner"
+  )"
+  printf '%s\n' "$merge_submit"
+elif [[ "$level" == 2 ]]; then
+  printf 'Level-2 call_feat2 dry run: no manifest merge job submitted.\n'
+fi
 
 #-----------------------------------------------------------------------------
 # Calculate time spent using 'let'

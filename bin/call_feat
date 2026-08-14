@@ -375,12 +375,13 @@ from fmriproc.fsl import (
     "--update-contrasts",
     is_flag=True,
     help=(
-        "When the normal run-level .feat output already exists, create a new "
-        "sibling FEAT analysis containing the automatic baseline contrasts plus "
-        "the contrasts supplied with --contrast or --contrasts-file. The original "
-        ".feat directory is never modified. This safely reruns the first-level "
-        "statistics and post-stats from the original BIDS/fMRIPrep inputs and does "
-        "not call the deprecated contrast_mgr utility."
+        "Update contrasts for an existing first-level FEAT analysis without "
+        "rerunning the full model. Rebuild the requested contrasts from the "
+        "existing parameter estimates and update the corresponding contrast "
+        "outputs. This does not refit the first-level GLM or apply changes to "
+        "the design matrix, event durations, basis functions, confounds, or "
+        "other model settings. Use --overwrite/full model execution when any "
+        "part of the fitted model itself has changed."
     ),
 )
 @click.option(
@@ -418,6 +419,17 @@ from fmriproc.fsl import (
         "Use this to inspect selected events, confounds, contrasts, and paths."
     ),
 )
+@click.option(
+    "--duration",
+    "duration_overrides",
+    multiple=True,
+    metavar="CONDITIONS;SECONDS",
+    help=(
+        "Override event durations for selected conditions. "
+        "Format: 'condition1,condition2;seconds'. May be repeated. "
+        "Example: --duration 'CSplus,CSminus;3.5'."
+    ),
+)
 def run_firstlevel(
     bids_dir: Path | None,
     deriv_dir: Path,
@@ -448,6 +460,7 @@ def run_firstlevel(
     overwrite: bool,
     rebuild_contrast_manifest_flag: bool,
     dry_run: bool,
+    duration_overrides: tuple[str, ...],
 ) -> None:
     """Generate first-level FEAT analyses for fMRIPrep BOLD runs."""
     deriv_dir = deriv_dir.resolve()
@@ -626,6 +639,60 @@ def run_firstlevel(
                 events["duration"],
                 errors="raise",
             )
+
+            for specification in duration_overrides:
+                try:
+                    condition_text, duration_text = specification.rsplit(";", 1)
+                    override_duration = float(duration_text)
+                except ValueError as exc:
+                    raise click.UsageError(
+                        "--duration must have the form "
+                        "'condition1,condition2;seconds'."
+                    ) from exc
+
+                if override_duration < 0:
+                    raise click.UsageError(
+                        "--duration cannot specify a negative duration."
+                    )
+
+                override_conditions = [
+                    condition.strip()
+                    for condition in condition_text.split(",")
+                    if condition.strip()
+                ]
+
+                if not override_conditions:
+                    raise click.UsageError(
+                        "--duration requires at least one condition."
+                    )
+
+                missing_conditions = sorted(
+                    set(override_conditions) - set(events["trial_type"])
+                )
+
+                if missing_conditions:
+                    click.echo(
+                        "[WARN] --duration conditions absent from this run: "
+                        + ", ".join(missing_conditions),
+                        err=True,
+                    )
+
+                matched_conditions = [
+                    condition
+                    for condition in override_conditions
+                    if condition in set(events["trial_type"])
+                ]
+
+                events.loc[
+                    events["trial_type"].isin(matched_conditions),
+                    "duration",
+                ] = override_duration
+
+                if matched_conditions:
+                    click.echo(
+                        f"Duration override: {', '.join(matched_conditions)} "
+                        f"-> {override_duration:g} s"
+                    )
 
             if events.empty:
                 click.echo(
@@ -839,7 +906,7 @@ def run_firstlevel(
                     )
                 fsf_path = os.path.abspath(os.fspath(fsf_files[0]))
 
-            patch_fsf(
+            patch _fsf(
                 fsf_path,
                 output_dir=str(output_dir),
                 bold_file=bold_file,
@@ -871,6 +938,29 @@ def run_firstlevel(
                 f"  Basis:           {resolved_basis_name}"
                 + (f"; options={basis_options}" if basis_options else "")
             )
+
+            click.echo("  Event durations:")
+
+            for condition in conditions:
+                condition_durations = (
+                    events.loc[
+                        events["trial_type"] == condition,
+                        "duration",
+                    ]
+                    .astype(float)
+                    .unique()
+                    .tolist()
+                )
+
+                duration_text = ", ".join(
+                    f"{duration:g} s"
+                    for duration in condition_durations
+                )
+
+                click.echo(
+                    f"    {condition:<16} {duration_text}"
+                )
+
             click.echo(f"  FSF:             {fsf_path}")
             click.echo(f"  Output:          {output_dir}")
 

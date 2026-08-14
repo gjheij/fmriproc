@@ -2,6 +2,7 @@
 """Create within-subject second-level fixed-effects analyses from a call_feat manifest."""
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -58,6 +59,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 )
 @click.option("--manifest", "manifest_path", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path), help="First-level contrast_manifest.tsv produced by call_feat.")
 @click.option("--output-dir", required=True, type=click.Path(file_okay=False, path_type=Path), help="Directory for subject-level fixed-effects outputs.")
+@click.option("--manifest-out", type=click.Path(dir_okay=False, path_type=Path), default=None, help="Output manifest path. Default = <output-dir>/contrast_manifest_level2.tsv. Useful for parallel jobs writing separate manifest fragments.")
 @click.option("--subject", "subjects", multiple=True, help="Subject without sub-. Repeatable or comma-separated.")
 @click.option("--session", "sessions", multiple=True, help="Session without ses-. Repeatable or comma-separated.")
 @click.option("--task", "tasks", multiple=True, help="Task without task-. Repeatable or comma-separated.")
@@ -66,7 +68,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 @click.option("--min-runs", type=click.IntRange(min=1), default=2, help="Minimum first-level inputs required per fixed-effects analysis.")
 @click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories.")
 @click.option("--dry-run", is_flag=True, help="Validate inputs and print FSL commands without writing outputs.")
-def main(manifest_path: Path, output_dir: Path, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, overwrite: bool, dry_run: bool) -> None:
+def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, overwrite: bool, dry_run: bool) -> None:
     manifest_path = manifest_path.resolve()
     output_dir = output_dir.resolve()
     manifest = pd.read_csv(manifest_path, sep="\t", dtype=str, keep_default_na=False)
@@ -116,7 +118,14 @@ def main(manifest_path: Path, output_dir: Path, subjects: tuple[str, ...], sessi
             skipped += 1
             continue
         try:
-            result = run_fixed_effects_group(rows, group_output, canonical_name, overwrite, dry_run)
+            result = run_fixed_effects_group(
+                rows,
+                group_output,
+                canonical_name,
+                overwrite,
+                dry_run
+            )
+            
             records.append({
                 "subject": subject,
                 "session": session,
@@ -131,8 +140,19 @@ def main(manifest_path: Path, output_dir: Path, subjects: tuple[str, ...], sessi
 
     if records and not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
-        level2_manifest = output_dir / "contrast_manifest_level2.tsv"
-        temp = level2_manifest.with_suffix(".tsv.tmp")
+
+        if manifest_out is None:
+            level2_manifest = output_dir / "contrast_manifest_level2.tsv"
+        else:
+            level2_manifest = manifest_out.resolve()
+
+        level2_manifest.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use a process-specific temporary file so independent array tasks can
+        # safely write separate manifest fragments.
+        temp = level2_manifest.with_name(
+            f"{level2_manifest.name}.tmp-{os.getpid()}"
+        )
         pd.DataFrame.from_records(records).to_csv(temp, sep="\t", index=False)
         temp.replace(level2_manifest)
         click.echo(f"\nSecond-level manifest: {level2_manifest}")
