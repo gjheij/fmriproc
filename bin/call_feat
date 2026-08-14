@@ -906,7 +906,7 @@ def run_firstlevel(
                     )
                 fsf_path = os.path.abspath(os.fspath(fsf_files[0]))
 
-            patch _fsf(
+            patch_fsf(
                 fsf_path,
                 output_dir=str(output_dir),
                 bold_file=bold_file,
