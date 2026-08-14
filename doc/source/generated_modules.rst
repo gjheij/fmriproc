@@ -274,6 +274,19 @@ spinoza_brainextraction_
       -n <session>    session ID (e.g., 1, 2, or n)
       -l <lower>      lower percentile (default = 0.01) for call_winsorize
       -u <upper>      upper percentile (default = 0.99) for call_winsorize
+      -c <file>       specify a custom batch-file for CAT12; versions utilize different inputs, making
+                      it hard to be agnostic to support all versions. For now, I have template files
+                      for the following versions in \$REPO_DIR/misc:
+                        - r1113
+                        - r1450
+                        - r2043
+                        - r2170
+                        - r2556 [CAT12 Linux Standalone (2017b)]
+                        - r2557 [CAT12 MacOS Standalone (2023b)]
+                        - r2664 [CAT12 Linux Standalone (2023b)]
+    
+                      you can either save your batch-file as '\$REPO_DIR/misc/cat_batch_custom.m' or
+                      use this flag to use a different version.
     
     Options:
       -h|--help       print this help text
@@ -389,6 +402,43 @@ spinoza_cortexrecon_
       # pass kwargs
       master -m $(get_module_nr $(basename ${0})) -s 01 -x max_iterations=100,wm_dropoff_dist=0.5
 
+spinoza_decoding_
+====================================================================================================
+
+.. code-block:: none
+
+    spinoza_decoding
+    
+    SLURM-array launcher for subject-wise PANIC jobs.
+    
+    Usage:
+      spinoza_decoding [arguments] [options] <project root> -- [PANIC/call_panic-style arguments]
+    
+    Arguments:
+      -s <subject>    subject ID, e.g. 001 or sub-001. Can be comma-separated.
+      -j <n_cpus>     number of CPUs per subject/job. Default = 4
+      -q <queue>      SLURM queue/partition. Default = \$SGE_QUEUE_LONG
+      -m <n_jobs>     maximum number of subjects running simultaneously. Default = 10
+      -d <source>     derivative source directory. Default = halfpipe
+      -r <roi_base>   the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
+                      If --searchlight is passed, 'searchlight' is appended. This can be changed with
+                      the '-r' flag.
+    Options:
+      -h|--help       print help
+      --local         run subjects sequentially via call_panic
+      --dry-run       print commands but do not submit/run
+      --overwrite     whether to overwrite existing outputs. Default: False. If True,
+                      existing outputs will be overwritten; if False, existing outputs will
+                      be preserved and the corresponding subject/job will be skipped.
+    
+    Pass-through:
+      After '--', supports call_panic-style -f, -x, --searchlight, --lsa, --lss,
+      plus direct PANIC arguments.
+    
+    Precedence:
+      User --set/-x values override launcher defaults. --unset has final precedence
+      and removes matching defaults/overrides before PANIC is invoked.
+
 spinoza_denoising_
 ====================================================================================================
 
@@ -449,9 +499,9 @@ spinoza_denoising_
       <derivatives>   path to the derivatives folder
     
     Eample:
-      spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV
-      spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV
-      spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV
+      spinoza_denoising \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
+      spinoza_denoising -s 001 -n 1 \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
+      spinoza_denoising -o \$DIR_DATA_HOME \$DIR_DATA_DERIV/pybest
     
     Call with master:
       # vanilla
@@ -577,6 +627,105 @@ spinoza_extractregions_
         > tissues(anat)
         > tissues(func)
         > brain_mask
+
+spinoza_feat_
+====================================================================================================
+
+.. code-block:: none
+
+    spinoza_feat
+    
+    SLURM-array/local queue wrapper for FEAT analyses using call_feat, call_feat2, and call_feat3.
+    The wrapper limits the number of simultaneously running jobs; native call_feat* options are passed
+    through unchanged after '--'.
+    
+    Usage:
+      spinoza_feat [wrapper options] <project root> -- [call_feat* options]
+    
+    Wrapper options:
+      -l, --level <1|2|3>   FEAT level / command: 1=call_feat, 2=call_feat2, 3=call_feat3. Default = 1
+      -s, --subject <ids>    subjects to queue, comma/space separated (levels 1/2).
+                             Native --subject after '--' is also supported and used for queue splitting.
+      -m, --max-running <N>  maximum jobs running simultaneously. Default = 6
+      -j, --cpus <N>         CPUs requested per SLURM job. Default = 1
+      -q, --queue <name>     SLURM partition. Default = \$SGE_QUEUE_LONG, or 'main'
+          --local             run through a local process queue instead of SLURM
+          --dry-run           print generated jobs/commands without running/submitting
+          --job-name <name>   SLURM job name. Default = featL<level>
+      -h, --help              show this help
+    
+    Automatic defaults (only added when the corresponding native option is absent):
+      level 1: --bids-dir   <project root>
+               --deriv-dir  <project root>/derivatives/feat/level1
+      level 2: --manifest   <project root>/derivatives/feat/level1/contrast_manifest.tsv
+               --output-dir <project root>/derivatives/feat/level2
+      level 3: --manifest   level2/contrast_manifest_level2.tsv if it exists, otherwise level1 manifest
+               --output-dir <project root>/derivatives/feat/level3
+    
+    Queue unit:
+      level 1: one call_feat job per subject, throttled by --max-running
+      level 2: one call_feat2 job for the requested selection
+      level 3: one call_feat3 job for the requested group analysis
+    
+    Levels 2 and 3 intentionally stay in one process because the supplied scripts each rewrite one
+    shared output manifest; splitting them into concurrent calls can race and lose manifest rows.
+
+spinoza_featreg_
+====================================================================================================
+
+.. code-block:: none
+
+    spinoza_featreg
+    
+    wrapper for call_ants2featreg and call_injectmatrices that recreates the FEAT reg-folder for
+    first-level FEAT directories generated from fMRIPrep derivatives.
+    
+    The registration strategy is selected from the FEAT input space and requested level-2 space:
+      1. BOLD in native/func space -> level 2 in MNI space:
+           call_ants2featreg using boldref->T1w and T1w->template transforms
+      2. BOLD in T1w space -> level 2 in T1w space:
+           call_injectmatrices using identity matrices
+      3. BOLD in native/func space -> level 2 in T1w space:
+           call_ants2featreg using T1w as the target/template
+      4. BOLD in T1w space -> level 2 in MNI space:
+           call_ants2featreg using an identity boldref->T1w matrix and the T1w->template transform
+    
+    Usage:
+      spinoza_featreg [arguments] [options] <project root> <FEAT level-1 directory>
+    
+    Arguments:
+      -s <subject>    subject ID (e.g., 001 or sub-001). Can also be a comma-separated list
+      -j <n_cpus>     number of CPUs requested per job (default = 1)
+      -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_LONG
+      -t <template>   template name used for MNI registration, e.g. MNI152NLin6Asym.
+                      If omitted, uses \$FEAT_TEMPLATE, then \$TEMPLATE, when defined
+      -x <kwargs>     additional arguments passed directly to call_ants2featreg or
+                      call_injectmatrices. Supply them as one shell-quoted string
+    
+    Options:
+      -h|--help       print this help text
+      --sge           submit one registration job per FEAT directory to the cluster
+    
+      Input space (default = auto):
+      --func          force FEAT input to native/functional space
+      --input-func    alias for --func
+      --input-t1w     force FEAT input to T1w space
+      --auto-input-space
+                      infer FEAT input space from 'space-func'/'space-T1w' in the .feat name
+    
+      Level-2 target space:
+      --anat          target T1w space. Native-space FEATs use case 3;
+                      T1w-space FEATs use case 2
+      --mni           target MNI/template space (default). Native-space FEATs use case 1
+      --apply-featreg pass --apply-featreg to call_ants2featreg
+      --update-featreg
+                      pass --update-featreg to call_ants2featreg
+      --dry-run       print commands without executing/submitting them
+    
+    Positional:
+      <project root>          BIDS project root containing derivatives/fmriprep
+      <FEAT level-1 directory>
+                              directory containing sub-*.feat first-level FEAT directories
 
 spinoza_fitprfs_
 ====================================================================================================
@@ -760,14 +909,13 @@ spinoza_fmriprep_
       -f <func dir>   directory containing functional data; used after running FreeSurfer outside of
                       fMRIprep <optional>
       -j <cpus>       number of cores to use (default is 1)
-      -k <kwargs>     specify a file with additional arguments, similar to FreeSurfer's expert options.
+      -k <file>       specify a file with additional arguments, similar to FreeSurfer's expert options.
                       See fmriproc/misc/fprep_options for an example. Please make sure you have a
                       final empty white space at the end of the file, otherwise the parser gets confu-
-                      sed. For VSCode: https://stackoverflow.com/a/44704969. If you run with master,
-                      the  '-u' flag maps onto this
+                      sed. For VSCode: https://stackoverflow.com/a/44704969.
       -n <session>    session ID (e.g., 1, 2, or none); used to check for T1w-image. fMRIprep will do
                       all sessions it finds in the project root regardless of this argument. Use the
-                      bids filter file ('-k' flag) if you want fMRIPrep to to specific sessions/tasks/
+                      bids filter file ('-u' flag) if you want fMRIPrep to to specific sessions/tasks/
                       acquisitions.
       -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
       -r <runs>       re-)run specific runs by removing existing single_subject_<subj_id>_wf/
@@ -780,6 +928,13 @@ spinoza_fmriprep_
                       (in case another task is already done), use '-t <task_id>'.
       -u <config>     configuration file as specified in /misc/fmriprep_config?.json
       -w <workdir>    custom working directory; defaults to PATH_HOME/fmriprep/<PROJECT>
+      -x <kwargs>     additional arguments passed to call_fmriprep / fMRIprep. Format should be
+                      comma-separated flags:
+                        - flag with value: <flag>=<value>
+                        - flag only:       <flag>
+    
+                      Example:
+                        -x "--derivatives=/path/to/derivatives,----bold2t1w-init=header"
     
     Options:
       -h|--help       print this help text
@@ -791,24 +946,15 @@ spinoza_fmriprep_
                       docker is not compatible with separate input folders for 'anat' and 'func', so
                       the input folder will be set to DIR_DATA_HOME by default. The T1w that is
                       present in the anat'-folder will be used as input.
-      --fd            only fetch framewise displacement files
-      --fetch-anat    retrieve the nifti-files in T1w-space
-      --fetch-fsl     retrieve the MNI-transformed nifti-files (which are cleaned by default)
-      --fetch-func    retrieve the nifti-files in func-space
       --func          same as '-t func'
       --sge           submit to SGE, if present.
-      --masks         used in combination with '--fetch-{fsl|func|anat}' to also fetch the brain masks
-                      associated with the timeseries files
       --no-bbr        maps to '--force-no-bbr' in call_fmriprep
-      --no-boldref    don't create new boldref images (mean over time) after fMRIprep has finished.
       --remove-surf-wf  Remove surface reconstruction workflow folder; refreshes the surfaces used for
                       registration and transformation
       --remove-wf     remove full single_subject workflow folder. Use \"--remove-surf-wf\" to
                       specifically remove the surface reconstruction folder when you have new
                       FreeSurfer output that fMRIPrep needs to use, or "--ow" to remove all folders
                       within single_subj workflow with "run-"
-      --warp-only     skips fMRIPrep, but creates new boldref images (if '--no-boldref' is not
-                      specified) and copies the bold-to-T1w warps to the subject's output folder
     
     Positional:
       <anat dir>      directory containing the anatomical data. Can also be the regular project root
@@ -883,6 +1029,8 @@ spinoza_freesurfer_
                       '-r'. By default, we'll re-use the T2 if present. Same flag should be
                       used for not re-using FLAIR images
       --sge           Submit the script to a cluster using a template script
+      --segment       run the 'segment_subregions'-function with 'call_fssegment'. To pass other
+                      arguments, use the '-k' flag.
       --xopts-use     maps to '-xopts-use' for existing expert option file; use existing file
       --xopts-clean   maps to '-xopts-clean' for existing expert option file; delete existing file
       --xopts-overwrite maps to '-xopts-overwrite' for existing expert option file; use new file
@@ -940,7 +1088,16 @@ spinoza_freesurfer_
       master -m $(get_module_nr $(basename ${0})) -s 01 --no-t2
     
       # turn off highres-mode
-      master -m $(get_module_nr $(basename ${0})) -s 01 --func -j 15 --sge --no-highres
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 15 --sge --no-highres
+    
+      # segment amygdala [default is --segment is passed]
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment
+    
+      # segment thalamus
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment -k thalamus
+    
+      # pass custom args
+      master -m $(get_module_nr $(basename ${0})) -s 01 -j 4 --segment -k thalamus,--out-dir=thal,--relative-path
     
     Notes:
       When an expert options is passed, it will be copied to scripts/expert-options. Future calls to
@@ -1310,7 +1467,11 @@ spinoza_linerecon_
     
     wrapper for call_linerecon that performs the reconstruction of the line data. Uses MRecon, so we
     can only run it on the spinoza cluster. It calls upon call_linerecon, which internally uses a
-    template for the reconstruction with MRecon based on scripts provided by Luisa Raimondo.
+    template for the reconstruction with MRecon based on scripts provided by Luisa Raimondo. By de-
+    fault, we take the SoS method to combine multi-echo data. This boosts tSNR, but weighs the data
+    towards superficial surface because these signals disproportionally contribute to the signals due
+    to longer T2*. Because of this longer T2*, they contribute more at longer TEs. Other methods in-
+    clude CNR, T2*, T2*-fit, averaging, or complex combination (see flags below).
     
     Usage:
       spinoza_linerecon [arguments] [options] <project root directory> <sourcedata>
@@ -1320,7 +1481,11 @@ spinoza_linerecon_
       -n <session>    session ID (e.g., 1, 2, or n)
       -m <n_echoes>   number of echoes in the acquisition (e.g., 5); by default we try to read it
                       from the PAR-file (field 'number of echoes')
-      -r <runIDs>     specific runs to preproces; can be comma-separated list
+      -r <run>        limit reconstruction to a run-identifier. Tasks with the same run identifier will
+                      be considered, unless the '-t' flag is specified to limit the process to a speci-
+                      fic task. Input can be comma-separated (e.g., '-r 1,2,5')
+      -t <task>       limit reconstruction to a task-identifier. Runs with the same task identifier
+                      will be considered, unless the '-r' flag is specified to limit the process to a specific run. Input can be comma-separated (e.g., '-t SRFa,SRFb')
       -q <queue>      submit jobs to a specific queue. Defaults to SGE_QUEUE_LONG in spinoza_setup
       -c <comps>      percentage of components to remove using NORDIC (default is to use scree
                       plot to remove appropriae number of components)
@@ -1332,7 +1497,21 @@ spinoza_linerecon_
       --debug         don't submit job, just print inputs/outputs
       --no-nordic     turn off NORDIC denoising during reconstruction
       --sge           submit job to cluster (SoGE/SLURM)
+      --cnr           Echo combination via temporal-SNR weighting (Poser et al. 2006): each echo's
+                      timecourse is weighted by its tSNR (mean/SD over time), i.e.:
     
+                        w_i = tSNR_i/∑_j tSNR_j,
+    
+                      before summing across echoes.
+      --t2s           Combine multi-echo data using Poser et al. (2006) T2*-weighting: fit T2* per
+                      voxel, compute weights wᵢ = TEᵢ·exp(-TEᵢ/T2*), normalize across echoes, and sum
+                      weighted magnitudes.
+      --avg           Simply take the mean over echoes
+      --cpl           Combine multi-echo data into a complex signal by fitting B0-induced phase shifts
+                      across echoes (ΔB0), computing voxelwise phase at the first TE, extracting
+                      magnitude via sum-of-squares, and reconstructing S = mag·exp(i·phase). Unlike
+                      the T2*-weighted methods, this preserves both amplitude and phase
+                      information.
     Positional:
       <project root>  base directory containing the derivatives and the subject's folders.
       <sourcedata>    base directory containing the raw data for reconstruction
@@ -1358,8 +1537,9 @@ spinoza_linerecon_
       master -m $(get_module_nr $(basename ${0})) -s 01 --debug
     
     Notes:
-      Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
-      bution is not uniform.
+      - Runs by default NORDIC denoising, might be problematic with surface coils as the noise distri-
+        bution is not uniform!
+      - Default echo combination is SoS (sum-of-squares); use flags to switch to a different method
 
 spinoza_lsprep_
 ====================================================================================================
@@ -1604,6 +1784,7 @@ spinoza_mriqc_
       --func-only     only include functional images in the process (default is everything it can
                       find)
       --fd            only get FD-timecourse file without initializing MRIqc
+      --sge           submit job to cluster (called with 'master -m <module> --sge')
     
     Positional:
       <project dir>   directory containing the anatomical data. Can also be the regular project root
@@ -1792,13 +1973,25 @@ spinoza_qmrimaps_
       -q <queue>      submit jobs to a specific queue. Defaults to \$SGE_QUEUE_SHORT in spinoza_setup
       -l <lower>      lower percentile (default = 0.01) for call_winsorize
       -u <upper>      upper percentile (default = 0.99) for call_winsorize
-      -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be
-                      comma-separated flags as follows:
+      -y <kwargs>     Additional commands to be passed to 'call_b1correct'. Format should be colon-
+                      separated flags as follows:
                         - if you specify a flag and values | <flag>=<value>
                         - if you specify a flag only | <flag>
     
                       combine as:
-                        "-x <flag1>=<value>,<flag2>,<flag3>,<flag4>=<value>"
+                        "-y <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
+    
+                      e.g.,
+                        "-y --smooth:--sigma=1.5"
+    
+                      This allows bash commands to be translated to 'N4BiasFieldCorrection' commands
+      -x <kwargs>     Additional commands to be passed to 'N4BiasFieldCorrection'. Format should be
+                      colon-separated flags as follows:
+                        - if you specify a flag and values | <flag>=<value>
+                        - if you specify a flag only | <flag>
+    
+                      combine as:
+                        "-x <flag1>=<value>:<flag2>:<flag3>:<flag4>=<value>"
     
                       This allows bash commands to be translated to 'N4BiasFieldCorrection' commands
     
@@ -1809,6 +2002,7 @@ spinoza_qmrimaps_
       --verbose       echo command to terminal
       --ups           use settings for universal pulse (UP) [parameters are hardcoded]
       --no-reg        do not register separate T1map in case you have MPRAGE image
+      --no-bias       skip bias correction (e.g., is B1-correction is enough)
       --no-winsor     do not winsorize the image intensities of T1w (and T1map) from MPRAGE. Generally
                       recommend doing so, though..
       --spm           use SPM for bias correction instead of ANTs [call_mprage]
@@ -2034,7 +2228,7 @@ spinoza_scanner2bids_
     
     Convert raw data from the scanner to nifti format using 'call_dcm2niix'. This script can handle
     both PAR/RECs and DCM input. DCM files will be converted using 'dcm2niix', whereas PAR/RECs will be
-    converted using 'parrec2nii' (wrapper in 'call_parrec2nii'). Complete json sidecars will be produ-
+    converted using 'parrec2nii' (wrapped in 'call_parrec2nii'). Complete json sidecars will be produ-
     ced and populated with relevant information for fMRIPrep, including:
       - SliceTiming (if BOLD files are 2D); see also 'call_slicetiming'. Important factors for this
         function are:
@@ -2042,9 +2236,11 @@ spinoza_scanner2bids_
           - Multiband factor (either read from PAR-file or from \$MB_FACTOR-variable)
           - Assumes ascending slice ordering
       - PhaseEncodingDirection:
+        - Read from fmap-file (e.g., sub-01_ses-1_task-rest_run-1_dir-AP_bold.nii.gz)
         - Read from the \$PE_DIR_BOLD-variable (priority)
-        - Specified for BOLD through flags (--ap|--pa|--lr|--rl), reversed for FMAP
-        - Either read from PAR (but is ambiguous) or DCM (via 'CSA')
+        - Specified for BOLD through flags (--ap|--pa|--lr|--rl), reversed for FMAP; overwrites speci-
+          fied \$PE_DIR_BOLD
+        - Read from DCM (via 'CSA'), but is difficult
         - Defaults to AP for BOLD, reversed for FMAP
       - RepetitionTime:
         - For DCMs:
@@ -2056,7 +2252,9 @@ spinoza_scanner2bids_
             4.  For 2D multi-band sequences, apply multi-band correction (TR / MultiBandFactor).
         - For PAR/RECs:
             We can read the 'dtime' column and extra unique values between slices/volumes. This works
-            well for 3D acquisitions.
+            well for 3D acquisitions. By default, the first element of this list is taken. Alternative-
+            ly, you can specify '--take-avg-tr' to get the average over the interslice/volume differen-
+            ce.
         - Both:
             Specified through the '-t <tr' flag.
     
@@ -2146,10 +2344,12 @@ spinoza_scanner2bids_
       --take-avg-tr   Derive RepetitionTime by averaging the time differences between all slices.
                       Default behavior is to take the difference between the first and second volume.
                       Only works for PAR/REC-files!
-      --ap            set the phase-encoding of the BOLD to AP (FMAP=PA)
-      --pa            set the phase-encoding of the BOLD to PA (FMAP=AP)
-      --lr            set the phase-encoding of the BOLD to LR (FMAP=RL)
-      --rl            set the phase-encoding of the BOLD to RL (FMAP=LR)
+      --ap            set PhaseEncodingDirection to AP: anterior-to-posterior → 'j'
+      --pa            set PhaseEncodingDirection to PA: posterior-to-anterior → 'j-'
+      --lr            set PhaseEncodingDirection to LR: left-to-right         → 'i'
+      --rl            set PhaseEncodingDirection to RL: right-to-left         → 'i-'
+      --is            set PhaseEncodingDirection to IS: inferior-to-superior  → 'k'
+      --si            set PhaseEncodingDirection to SI: superior-to-inferior  → 'k-'
       --no-lpi        do not reorient files to LPI. If you want to use NORDIC or use fMRIprep's out-
                       puts on more raw data, I'd advise you to reorient to LPI and to NOT use this
                       flag. This flag is mainly here because it can take some time with big files
@@ -2162,6 +2362,7 @@ spinoza_scanner2bids_
                       mended, but exists for debugging purposes.
       --skip-fmap     do not trim the time series from FMAPs. By default, it is assumed that all your
                       functional files have dummy-saving turned on.
+      --force-dcm     Force the usage of dcm2niix for PAR/REC files (default = parrec2nii)
     
     Positional:
       <project root>  directory to output BIDSified data to
@@ -2278,6 +2479,123 @@ spinoza_setup_
 .. code-block:: none
 
     (No help text found)
+
+spinoza_singletrials_
+====================================================================================================
+
+.. code-block:: none
+
+    spinoza_singletrials
+    
+    SLURM-array launcher for subject-wise single-trial GLM jobs using call_stglm.
+    
+    Usage:
+      spinoza_singletrials [arguments] [options] <project root> -- [call_stglm arguments]
+    
+    Arguments:
+      -s <subject>    subject ID, e.g. 001 or sub-001. Can be comma-separated or a
+                      text file containing one subject per line. If omitted, subjects
+                      are discovered from the BIDS project/fMRIPrep derivatives.
+      -j <n_cpus>     number of CPUs per subject/job. Default = 4
+      -q <queue>      SLURM queue/partition. Default = \$SGE_QUEUE_LONG, or main
+      -m <n_jobs>     maximum number of subjects running simultaneously. Default = 3
+      -w <workdir>    custom working directory; defaults to PATH_HOME/stglm/<PROJECT>
+    
+    Options:
+      -h|--help       print help
+      --local         run subjects locally via call_stglm instead of submitting SLURM jobs
+      --dry-run       print generated commands/job information but do not submit/run
+    
+    Pass-through:
+      Everything after '--' is passed directly to call_stglm.
+    
+      Examples:
+        --task HRA
+        --desc masked
+        --space T1w
+        --confounds-subset ENIGMA
+        --confounds-suffix timeseries
+        --evs CSm,CSpu,CSpr,USp
+        --run-mode loop
+        --hrf dgamma
+        --lss-mode cond
+        --clean
+        --no-confounds
+        --pybest
+        --glm-single
+        -f /path/to/config.json
+    
+      Native stglm arguments can still be passed through call_stglm by adding a
+      second '--'. For example:
+    
+        spinoza_singletrials -s 015 <project> -- \\
+            --task HRA -- \\
+            --high-pass-filter-cutoff 100
+    
+    Scheduling:
+      On SLURM, one array task is created per subject. The array throttle
+      '1-N%M' ensures that at most -m/--max-running subject jobs execute at once.
+    
+      Each array task calls call_stglm with --local for one subject. This prevents
+      nested SLURM submissions: spinoza_singletrials owns subject-level scheduling,
+      while call_stglm owns construction of the stglm command.
+    
+      With --local, call_stglm processes the selected subject list locally.
+      As in spinoza_decoding, local execution is sequential; -m applies to the
+      SLURM array throttle.
+    
+    Examples:
+      # Standard stGLM for all subjects, maximum 8 concurrent jobs
+      spinoza_singletrials -m 8 -j 4 /data/HRA -- \\
+        --task HRA \\
+        --confounds-subset ENIGMA
+    
+      # Selected subjects
+      spinoza_singletrials -s 015,016,017 -m 3 -j 4 /data/HRA -- \\
+        --task HRA \
+        --space T1w
+    
+      # pybest input
+      spinoza_singletrials -s 015 -j 4 /data/HRA -- \\
+        --pybest \
+        --task HRA
+    
+      # GLMsingle
+      spinoza_singletrials -s 015 -j 1 /data/HRA -- \\
+        --glm-single \\
+        -f /data/HRA/code/config.json
+    
+      # Run locally
+      spinoza_singletrials -s 015,016 --local -j 4 /data/HRA -- \\
+        --task HRA
+    
+    Running with master:
+      # standard single-trial estimation with at most 8 subjects running simultaneously and 6 CPUs per subject
+      master -m $(get_module_nr $(basename ${0})) \\
+        -l 8 \\
+        -j 6 \\
+        -x '--space T1w --confounds-subset ENIGMA'
+    
+      # For pybest
+      master -m $(get_module_nr $(basename ${0})) \\
+        -l 8 \\
+        -j 6 \\
+        -x '--pybest'
+    
+      # For GLMsingle
+      master -m $(get_module_nr $(basename ${0})) \\
+        -l 8 \\
+        -j 1 \\
+        -t HRA \\
+        -x "--glm-single"
+    
+      # selected subjects locally
+      master -m $(get_module_nr $(basename ${0})) \\
+        -s 015,016,017 \\
+        -l 1 \\
+        -j 4 \\
+        --local \\
+        -x '--space T1w --confounds-subset ENIGMA'
 
 spinoza_sinusfrommni_
 ====================================================================================================

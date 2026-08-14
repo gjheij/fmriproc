@@ -47,3 +47,7 @@
 .. _spinoza_subcortex: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_subcortex
 .. _spinoza_line2surface: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_line2surface
 .. _spinoza_profiling: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_profiling
+.. _spinoza_feat: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_feat
+.. _spinoza_featreg: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_featreg
+.. _spinoza_singletrials: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_singletrials
+.. _spinoza_decoding: https://github.com/gjheij/fmriproc/blob/main/shell/spinoza_decoding
