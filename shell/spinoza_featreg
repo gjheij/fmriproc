@@ -150,9 +150,9 @@ Call with master:
     -x '--func --mni'
 
   # Level 1: run up to 6 registrations concurrently
-  master \
-    -m 27 \
-    -l 1 \
+  master \\
+    -m 27 \\
+    -l 1 \\
     -x '--input-t1w --mni --max-running 6'
 
   # Level 2: T1w fixed-effects results -> MNI

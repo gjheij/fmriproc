@@ -672,10 +672,15 @@ def run_firstlevel(
 
                 if missing_conditions:
                     click.echo(
-                        "[WARN] --duration conditions absent from this run: "
-                        + ", ".join(missing_conditions),
+                        "[WARN] --duration conditions absent from this run:",
                         err=True,
                     )
+
+                    for condition in missing_conditions:
+                        click.echo(
+                            f"  - {condition}",
+                            err=True,
+                        )
 
                 matched_conditions = [
                     condition
@@ -690,9 +695,13 @@ def run_firstlevel(
 
                 if matched_conditions:
                     click.echo(
-                        f"Duration override: {', '.join(matched_conditions)} "
-                        f"-> {override_duration:g} s"
+                        f"Duration override -> {override_duration:g} s"
                     )
+
+                    for condition in matched_conditions:
+                        click.echo(
+                            f"  - {condition}"
+                        )
 
             if events.empty:
                 click.echo(
@@ -753,10 +762,15 @@ def run_firstlevel(
 
             if skipped_contrasts:
                 click.echo(
-                    "[WARN] Omitting non-estimable contrasts for this run: "
-                    + "; ".join(skipped_contrasts),
+                    "[WARN] Omitting non-estimable contrasts for this run:",
                     err=True,
                 )
+
+                for contrast in skipped_contrasts:
+                    click.echo(
+                        f"  - {contrast}",
+                        err=True,
+                    )
 
             if not run_contrasts:
                 click.echo(
