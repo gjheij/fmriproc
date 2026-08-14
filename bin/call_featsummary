@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+"""
+Summarize a Spinoza/FSL FEAT contrast manifest.
+
+The command is intentionally read-only. It accepts both first-level
+contrast_manifest.tsv files and second-level contrast_manifest_level2.tsv files
+and reports the information that is actually present in the manifest.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import os
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+
+def die(message: str, status: int = 1) -> "NoReturn":
+    print(f"ERROR: {message}", file=sys.stderr)
+    raise SystemExit(status)
+
+
+def split_values(values: list[str]) -> set[str]:
+    out: set[str] = set()
+    for value in values:
+        for item in str(value).replace(" ", ",").split(","):
+            item = item.strip()
+            if item:
+                out.add(item)
+    return out
+
+
+def norm_entity(value: str, prefix: str) -> str:
+    value = value.strip()
+    return value[len(prefix):] if value.startswith(prefix) else value
+
+
+def first_existing(fieldnames: list[str], *candidates: str) -> str | None:
+    fields = set(fieldnames)
+    for candidate in candidates:
+        if candidate in fields:
+            return candidate
+    return None
+
+
+def clean(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def unique_nonempty(rows: list[dict[str, str]], field: str | None) -> list[str]:
+    if not field:
+        return []
+    return sorted({clean(row.get(field)) for row in rows if clean(row.get(field))})
+
+
+def format_vector(conditions: str, weights: str) -> str:
+    conditions = clean(conditions)
+    weights = clean(weights)
+    if not conditions and not weights:
+        return ""
+
+    conds = [x.strip() for x in conditions.replace(";", ",").split(",") if x.strip()]
+    wts = [x.strip() for x in weights.replace(";", ",").split(",") if x.strip()]
+
+    if conds and wts and len(conds) == len(wts):
+        return " + ".join(f"{weight}*{condition}" for condition, weight in zip(conds, wts))
+
+    if conditions and weights:
+        return f"{conditions} ; {weights}"
+    return conditions or weights
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="call_featsummary",
+        description=(
+            "Display a compact overview of a FEAT contrast manifest, including "
+            "contrast types, number of inputs, subjects/sessions/tasks/runs, and "
+            "contrast vectors when stored in the manifest."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=r"""
+Examples:
+  call_featsummary /data/study/derivatives/feat/level1/contrast_manifest.tsv
+
+  call_featsummary \
+    /data/study/derivatives/feat/level2/contrast_manifest_level2.tsv
+
+  call_featsummary manifest.tsv --task SC2F
+
+  call_featsummary manifest.tsv \
+    --task SC2F \
+    --contrast ThreatContext \
+    --session 1
+
+  call_featsummary manifest.tsv --subject 22,23,24
+""",
+    )
+
+    parser.add_argument("manifest", type=Path, help="contrast manifest TSV")
+    parser.add_argument(
+        "--subject",
+        action="append",
+        default=[],
+        metavar="ID[,ID...]",
+        help="restrict to subject(s); may be repeated",
+    )
+    parser.add_argument(
+        "--session",
+        action="append",
+        default=[],
+        metavar="ID[,ID...]",
+        help="restrict to session(s); may be repeated",
+    )
+    parser.add_argument(
+        "--task",
+        action="append",
+        default=[],
+        metavar="ID[,ID...]",
+        help="restrict to task(s); may be repeated",
+    )
+    parser.add_argument(
+        "--contrast",
+        action="append",
+        default=[],
+        metavar="NAME[,NAME...]",
+        help="restrict to canonical contrast(s); may be repeated",
+    )
+    parser.add_argument(
+        "--show-inputs",
+        action="store_true",
+        help="list the manifest input paths underneath each contrast",
+    )
+    parser.add_argument(
+        "--check-files",
+        action="store_true",
+        help="check whether cope/varcope/input paths in the manifest exist",
+    )
+
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    manifest = args.manifest.expanduser().resolve()
+
+    if not manifest.is_file():
+        die(f"Manifest does not exist: {manifest}")
+
+    with manifest.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = list(reader.fieldnames or [])
+        rows = [dict(row) for row in reader]
+
+    if not fieldnames:
+        die(f"Manifest has no header: {manifest}")
+    if not rows:
+        die(f"Manifest contains no rows: {manifest}")
+
+    subject_field = first_existing(fieldnames, "subject", "participant", "participant_id")
+    session_field = first_existing(fieldnames, "session", "ses")
+    task_field = first_existing(fieldnames, "task", "task_id")
+    run_field = first_existing(fieldnames, "run", "run_label")
+
+    canonical_field = first_existing(
+        fieldnames, "canonical_name", "canonical", "contrast", "contrast_name", "name"
+    )
+    name_field = first_existing(fieldnames, "contrast_name", "contrast", "name")
+    statistic_field = first_existing(fieldnames, "statistic", "contrast_type", "type")
+    conditions_field = first_existing(
+        fieldnames, "conditions", "condition_names", "regressors"
+    )
+    weights_field = first_existing(
+        fieldnames, "weights", "contrast_weights", "vector", "contrast_vector"
+    )
+
+    cope_field = first_existing(
+        fieldnames, "cope_file", "cope", "cope_path", "input_cope"
+    )
+    varcope_field = first_existing(
+        fieldnames, "varcope_file", "varcope", "varcope_path", "input_varcope"
+    )
+    input_field = first_existing(
+        fieldnames, "input_file", "input", "feat_dir", "output_dir"
+    )
+
+    if canonical_field is None:
+        die(
+            "Could not identify a contrast-name column. Expected one of: "
+            "canonical_name, canonical, contrast, contrast_name, name"
+        )
+
+    selected_subjects = {
+        norm_entity(x, "sub-") for x in split_values(args.subject)
+    }
+    selected_sessions = {
+        norm_entity(x, "ses-") for x in split_values(args.session)
+    }
+    selected_tasks = {
+        norm_entity(x, "task-") for x in split_values(args.task)
+    }
+    selected_contrasts = split_values(args.contrast)
+
+    def keep(row: dict[str, str]) -> bool:
+        if selected_subjects:
+            if not subject_field:
+                return False
+            if norm_entity(clean(row.get(subject_field)), "sub-") not in selected_subjects:
+                return False
+
+        if selected_sessions:
+            if not session_field:
+                return False
+            if norm_entity(clean(row.get(session_field)), "ses-") not in selected_sessions:
+                return False
+
+        if selected_tasks:
+            if not task_field:
+                return False
+            if norm_entity(clean(row.get(task_field)), "task-") not in selected_tasks:
+                return False
+
+        if selected_contrasts:
+            if clean(row.get(canonical_field)) not in selected_contrasts:
+                return False
+
+        return True
+
+    filtered = [row for row in rows if keep(row)]
+    if not filtered:
+        die("No manifest rows matched the requested selectors")
+
+    subjects = unique_nonempty(filtered, subject_field)
+    sessions = unique_nonempty(filtered, session_field)
+    tasks = unique_nonempty(filtered, task_field)
+    runs = unique_nonempty(filtered, run_field)
+    contrasts = unique_nonempty(filtered, canonical_field)
+
+    print("=" * 100)
+    print("FEAT manifest summary")
+    print("=" * 100)
+    print(f"Manifest:           {manifest}")
+    print(f"Rows:               {len(filtered)} / {len(rows)}")
+    print(f"Subjects:           {len(subjects)}" + (f"  ({', '.join(subjects)})" if 0 < len(subjects) <= 12 else ""))
+    print(f"Sessions:           {len(sessions)}" + (f"  ({', '.join(sessions)})" if sessions else ""))
+    print(f"Tasks:              {len(tasks)}" + (f"  ({', '.join(tasks)})" if tasks else ""))
+    print(f"Runs:               {len(runs)}")
+    print(f"Canonical contrasts:{len(contrasts):>4}")
+    print()
+
+    # Group by task x canonical contrast. This mirrors the current level-3
+    # grouping while still working naturally for a single-task manifest.
+    groups: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    for row in filtered:
+        task = clean(row.get(task_field)) if task_field else ""
+        canonical = clean(row.get(canonical_field))
+        groups[(task, canonical)].append(row)
+
+    print("Contrasts")
+    print("-" * 100)
+
+    for (task, canonical), group_rows in sorted(groups.items(), key=lambda x: (x[0][0], x[0][1])):
+        stats = unique_nonempty(group_rows, statistic_field)
+        names = unique_nonempty(group_rows, name_field)
+        group_subjects = unique_nonempty(group_rows, subject_field)
+        group_sessions = unique_nonempty(group_rows, session_field)
+        group_runs = unique_nonempty(group_rows, run_field)
+
+        # One manifest row is one available input to the next aggregation step.
+        n_inputs = len(group_rows)
+
+        title = canonical
+        if task:
+            title = f"task-{norm_entity(task, 'task-')} :: {canonical}"
+
+        print(title)
+        print(f"  type:              {', '.join(stats) if stats else 'not stored'}")
+        print(f"  inputs:            {n_inputs}")
+        if subject_field:
+            print(f"  subjects:          {len(group_subjects)}")
+        if session_field:
+            print(f"  sessions:          {len(group_sessions)}")
+        if run_field and group_runs:
+            print(f"  runs:              {len(group_runs)}")
+
+        if names and (len(names) > 1 or names[0] != canonical):
+            print(f"  source names:      {', '.join(names)}")
+
+        definitions: dict[tuple[str, str], int] = Counter()
+        if conditions_field or weights_field:
+            for row in group_rows:
+                conditions = clean(row.get(conditions_field)) if conditions_field else ""
+                weights = clean(row.get(weights_field)) if weights_field else ""
+                if conditions or weights:
+                    definitions[(conditions, weights)] += 1
+
+        if definitions:
+            print("  contrast vector(s):")
+            for (conditions, weights), count in sorted(definitions.items()):
+                vector = format_vector(conditions, weights)
+                suffix = f"  [{count} input(s)]" if len(definitions) > 1 else ""
+                print(f"    {vector}{suffix}")
+                if conditions:
+                    print(f"      conditions: {conditions}")
+                if weights:
+                    print(f"      weights:    {weights}")
+        else:
+            print("  contrast vector:   not stored in this manifest")
+
+        paths: list[str] = []
+        for row in group_rows:
+            path = ""
+            for field in (cope_field, input_field, varcope_field):
+                if field and clean(row.get(field)):
+                    path = clean(row.get(field))
+                    break
+            if path:
+                paths.append(path)
+
+        if args.check_files and paths:
+            existing = sum(Path(p).exists() for p in paths)
+            print(f"  files present:     {existing}/{len(paths)}")
+
+        if args.show_inputs:
+            print("  input files:")
+            if paths:
+                for path in paths:
+                    exists = ""
+                    if args.check_files:
+                        exists = " [OK]" if Path(path).exists() else " [MISSING]"
+                    print(f"    - {path}{exists}")
+            else:
+                print("    - no input-path column found")
+
+        print()
+
+    # Statistic distribution across rows.
+    if statistic_field:
+        statistic_counts = Counter(
+            clean(row.get(statistic_field)) or "<empty>" for row in filtered
+        )
+        print("Statistic types")
+        print("-" * 100)
+        for statistic, count in sorted(statistic_counts.items()):
+            print(f"  {statistic:<12} {count:>6} manifest row(s)")
+        print()
+
+    print("Manifest columns")
+    print("-" * 100)
+    print("  " + ", ".join(fieldnames))
+
+
+if __name__ == "__main__":
+    main()
