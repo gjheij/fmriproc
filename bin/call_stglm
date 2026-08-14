@@ -1,0 +1,590 @@
+#!/usr/bin/env bash
+
+#-----------------------------------------------------------------------------
+# source setup and helper functions
+source "${SETUP_FILE}"
+source call_bashhelper
+
+#-----------------------------------------------------------------------------
+# Create help text
+function Usage {
+    cat <<USAGE
+
+---------------------------------------------------------------------------------------------------
+call_stglm
+
+Subject-wise wrapper for stGLM single-trial GLM estimation.
+
+The wrapper handles subject selection, sensible preprocessing/confound defaults,
+working directories, CPU allocation, and local/SLURM execution via decide_job_type.
+
+By default it runs standard stGLM estimation on fMRIPrep-derived masked BOLD data
+with the ENIGMA confound subset. GLMsingle and pybest convenience modes are also
+supported.
+
+Usage:
+  call_stglm [mandatory] [optional] [options] -- [additional stglm arguments]
+
+Mandatory:
+  -p <project_dir>          BIDS project directory
+
+Optional:
+  -u|--subject <subject>    subject ID(s), comma-separated IDs, or a text file
+                            containing one subject per line. If omitted, subjects
+                            are discovered from the BIDS project/fMRIPrep derivatives
+
+  -c <n_cpus>               CPUs/processes per subject job.
+                            Default = 4 for standard stGLM
+                            Default = 1 for GLMsingle unless -c is explicitly set
+
+  -q|--queue <queue>        SLURM queue/partition. Default = main
+
+  -w|--workdir <dir>        working directory. Default:
+                            <parent-of-project>/logs/stglm/<project-name>
+
+  -D|--deriv-dir <dir>      output derivative directory. If omitted, stglm chooses:
+                              <project>/derivatives/stglm
+                            or, with --glm-single:
+                              <project>/derivatives/glmsingle
+
+  -t|--task <task>          task label. Default = HRA
+  -d|--desc <desc>          input BOLD description:
+                              preproc | masked | pybest
+                            Default = masked
+
+  --space <space>           input space. Default = T1w
+                            Use 'func' for native functional space
+
+  --confounds-subset <set>  HALFpipe-style fMRIPrep confound subset.
+                            Default = ENIGMA
+
+  --confounds-suffix <type> confound-file suffix:
+                              timeseries | physio | custom
+                            Default = timeseries
+
+  --evs <ev1,ev2,...>       comma-separated trial types to include
+  --run-mode <mode>         loop | concat. Default = loop
+  --hrf <basis>             dgamma | dgamma_with_derivs | flobs.
+                            Default = dgamma
+  --lss-mode <mode>         cond | nuis. Default = cond
+
+  -f|--config <json>        GLMsingle JSON configuration file
+
+Options:
+  -h|--help                 print this help text
+  --local                   run locally instead of submitting through SLURM
+  --dry-run                 print commands but do not execute/submit
+  --clean                   remove the subject/run working directory before fitting
+
+  --no-confounds            do not include nuisance regressors
+
+  --pybest                  convenience mode equivalent to:
+                              --desc pybest --no-confounds
+
+  --glm-single              run GLMsingle instead of standard LSA/LSS estimation.
+                            Confounds are disabled by stGLM/GLMdenoise.
+                            Unless -c is explicitly set, CPUs default to 1
+
+  --stim-duration <sec>     GLMsingle stimulus duration. Default = 0
+  --fd-threshold <mm>       framewise-displacement threshold. Default = 0.2
+  --gm-threshold <value>    GM probability threshold. Default = 0.5
+  --tsnr-regress-poly <n>   polynomial detrending order for tSNR. Default = 2
+  --high-pass-filter-cutoff <sec>
+                            optional FSL high-pass cutoff
+
+Pass-through:
+  Arguments after '--' are appended directly to the native stglm command.
+
+  This is useful for newly added stglm options that are not yet represented by
+  wrapper flags. Wrapper-generated arguments are placed first; pass-through
+  arguments are placed last.
+
+Examples:
+  # standard stGLM, ENIGMA confounds, masked fMRIPrep BOLD
+  call_stglm -p /data/HRA -u 015
+
+  # multiple subjects through SLURM
+  call_stglm -p /data/HRA -u 015,016,017 -c 4 -q main
+
+  # run locally
+  call_stglm -p /data/HRA -u 015 --local
+
+  # pybest input without confounds
+  call_stglm -p /data/HRA -u 015 --pybest
+
+  # physiological confounds
+  call_stglm -p /data/HRA -u 015 --confounds-suffix physio
+
+  # custom fMRIPrep confound subset
+  call_stglm -p /data/HRA -u 015 \\
+    --confounds-subset "Derivatives of motion parameters"
+
+  # GLMsingle
+  call_stglm -p /data/HRA -u 015 --glm-single \\
+    -f /data/HRA/code/config.json
+
+  # native passthrough
+  call_stglm -p /data/HRA -u 015 -- \\
+    --stim-duration 1.5 --high-pass-filter-cutoff 100
+
+---------------------------------------------------------------------------------------------------
+
+USAGE
+}
+
+#-----------------------------------------------------------------------------
+# defaults
+proj_dir=""
+subject=""
+n_cpus=4
+n_cpus_explicit=0
+queue="main"
+run_local=0
+dry_run=0
+
+work_dir=""
+deriv_dir=""
+task="HRA"
+desc="masked"
+space="T1w"
+run_mode="loop"
+hrf="dgamma"
+lss_mode="cond"
+
+confounds_subset="ENIGMA"
+confounds_suffix="timeseries"
+no_confounds=0
+
+glm_single=0
+config_file=""
+clean_run=0
+evs=()
+
+stim_duration="0"
+fd_threshold="0.2"
+gm_threshold="0.5"
+tsnr_regress_poly="2"
+high_pass_filter_cutoff=""
+
+stglm_extra=()
+
+#-----------------------------------------------------------------------------
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p|--project-dir)
+      proj_dir="$2"
+      shift 2
+      ;;
+
+    -u|--subject)
+      subject="$2"
+      shift 2
+      ;;
+
+    -c|--n-cpus|--n-procs)
+      n_cpus="$2"
+      n_cpus_explicit=1
+      shift 2
+      ;;
+
+    -q|--queue)
+      queue="$2"
+      shift 2
+      ;;
+
+    -w|--workdir)
+      work_dir="$2"
+      shift 2
+      ;;
+
+    -D|--deriv-dir)
+      deriv_dir="$2"
+      shift 2
+      ;;
+
+    -t|--task)
+      task="$2"
+      shift 2
+      ;;
+
+    -d|--desc)
+      desc="$2"
+      shift 2
+      ;;
+
+    --space)
+      space="$2"
+      shift 2
+      ;;
+
+    --confounds-subset)
+      confounds_subset="$2"
+      shift 2
+      ;;
+
+    --confounds-suffix)
+      confounds_suffix="$2"
+      shift 2
+      ;;
+
+    --evs)
+      IFS=', ' read -r -a evs <<< "$2"
+      unset IFS
+      shift 2
+      ;;
+
+    --run-mode)
+      run_mode="$2"
+      shift 2
+      ;;
+
+    --hrf)
+      hrf="$2"
+      shift 2
+      ;;
+
+    --lss-mode)
+      lss_mode="$2"
+      shift 2
+      ;;
+
+    -f|--config)
+      if [[ -z "${2:-}" || ! -f "$2" ]]; then
+        echo
+        print_line -
+        print_error_msg "$(basename "${0}")" "getopt" \
+          "Specified config file '${2:-}' does not exist"
+        exit 1
+      fi
+      config_file="$(realpath "$2")"
+      shift 2
+      ;;
+
+    --no-confounds)
+      no_confounds=1
+      shift
+      ;;
+
+    --pybest)
+      desc="pybest"
+      no_confounds=1
+      shift
+      ;;
+
+    --glm-single)
+      glm_single=1
+      no_confounds=1
+      shift
+      ;;
+
+    --clean)
+      clean_run=1
+      shift
+      ;;
+
+    --stim-duration)
+      stim_duration="$2"
+      shift 2
+      ;;
+
+    --fd-threshold)
+      fd_threshold="$2"
+      shift 2
+      ;;
+
+    --gm-threshold)
+      gm_threshold="$2"
+      shift 2
+      ;;
+
+    --tsnr-regress-poly)
+      tsnr_regress_poly="$2"
+      shift 2
+      ;;
+
+    --high-pass-filter-cutoff)
+      high_pass_filter_cutoff="$2"
+      shift 2
+      ;;
+
+    --local)
+      run_local=1
+      shift
+      ;;
+
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+
+    -h|--help)
+      Usage
+      exit 0
+      ;;
+
+    --)
+      shift
+      stglm_extra=("$@")
+      break
+      ;;
+
+    *)
+      echo
+      print_line -    
+      print_error_msg "$(basename "${0}")" "getopt" "Unknown option $1"
+      Usage
+      exit 1
+      ;;
+  esac
+done
+
+#-----------------------------------------------------------------------------
+# Check mandatory arguments
+if [[ -z "${proj_dir}" ]]; then
+  echo
+  print_line -   
+  print_error_msg "$(basename "${0}")" "input" \
+    "Project directory must be specified with -p"
+  Usage
+  exit 1
+fi
+
+if [[ ! -d "${proj_dir}" ]]; then
+  echo
+  print_line -   
+  print_directory_not_exist "Project" "${proj_dir}"
+  exit 1
+fi
+
+proj_dir="$(realpath "${proj_dir}")"
+
+#-----------------------------------------------------------------------------
+# Validate wrapper values
+case "${desc}" in
+  preproc|masked|pybest) ;;
+  *)
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "input" \
+      "--desc must be one of: preproc, masked, pybest"
+    exit 1
+    ;;
+esac
+
+case "${confounds_suffix}" in
+  timeseries|physio|custom) ;;
+  *)
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "input" \
+      "--confounds-suffix must be one of: timeseries, physio, custom"
+    exit 1
+    ;;
+esac
+
+case "${run_mode}" in
+  loop|concat) ;;
+  *)
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "input" \
+      "--run-mode must be one of: loop, concat"
+    exit 1
+    ;;
+esac
+
+case "${hrf}" in
+  dgamma|dgamma_with_derivs|flobs) ;;
+  *)
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "input" \
+      "--hrf must be one of: dgamma, dgamma_with_derivs, flobs"
+    exit 1
+    ;;
+esac
+
+case "${lss_mode}" in
+  cond|nuis) ;;
+  *)
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "input" \
+      "--lss-mode must be one of: cond, nuis"
+    exit 1
+    ;;
+esac
+
+if ! [[ "${n_cpus}" =~ ^[1-9][0-9]*$ ]]; then
+  echo
+  print_line -   
+  print_error_msg "$(basename "${0}")" "input" \
+    "CPU count must be a positive integer"
+  exit 1
+fi
+
+# GLMsingle was intentionally run with one CPU in the previous workflow.
+# Preserve that default unless the caller explicitly requested -c.
+if [[ "${glm_single}" -eq 1 && "${n_cpus_explicit}" -eq 0 ]]; then
+  n_cpus=1
+fi
+
+#-----------------------------------------------------------------------------
+# Directories
+if [[ -z "${work_dir}" ]]; then
+  work_dir="$(dirname "${proj_dir}")/logs/stglm/$(basename "${proj_dir}")"
+else
+  mkdir -p "${work_dir}" 2>/dev/null
+  work_dir="$(realpath "${work_dir}")"
+fi
+
+mkdir -p "${work_dir}" 2>/dev/null
+
+if [[ -n "${deriv_dir}" ]]; then
+  mkdir -p "${deriv_dir}" 2>/dev/null
+  deriv_dir="$(realpath "${deriv_dir}")"
+fi
+
+#-----------------------------------------------------------------------------
+# Select subjects
+if [[ -n "${subject}" ]]; then
+  if [[ -f "${subject}" ]]; then
+    subjects=$(
+      grep -v '^[[:space:]]*$' "${subject}" |
+        grep -v '^[[:space:]]*#' |
+        sed 's/^[[:space:]]*//; s/[[:space:]]*$//' |
+        sed 's/^sub-//' |
+        sort -u
+    )
+  else
+    IFS=', ' read -r -a subject_list <<< "${subject}"
+    unset IFS
+    subjects=$(
+      for sub in "${subject_list[@]}"; do
+        sub="${sub#sub-}"
+        [[ -n "${sub}" ]] && echo "${sub}"
+      done | sort -u
+    )
+  fi
+else
+  subjects=$(
+    {
+      find "${proj_dir}" -maxdepth 1 -mindepth 1 -type d -name 'sub-*' 2>/dev/null
+      find "${proj_dir}/derivatives/fmriprep" -maxdepth 1 -mindepth 1 \
+        \( -type d -o -type l \) -name 'sub-*' 2>/dev/null
+    } |
+      xargs -r -n1 basename |
+      sed 's/^sub-//' |
+      sort -u
+  )
+fi
+
+if [[ -z "${subjects}" ]]; then
+  echo
+  print_line -   
+  print_error_msg "$(basename "${0}")" "input" "No subjects found"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Run stglm
+for sub_id in ${subjects}; do
+
+  if [[ "${run_local}" -eq 1 ]]; then
+    print_subject_header "sub-${sub_id}"
+  fi
+
+  job_name="sub-${sub_id}_desc-stglm"
+  if [[ "${glm_single}" -eq 1 ]]; then
+    job_name="sub-${sub_id}_desc-glmsingle"
+  fi
+
+  job=$(
+    decide_job_type \
+      "stglm" \
+      "${job_name}" \
+      "${run_local}" \
+      "${work_dir}" \
+      "${n_cpus}" \
+      "${queue}"
+  )
+
+  cmd=(
+    ${job}
+    --project-dir "${proj_dir}"
+    --subject "${sub_id}"
+    --n-procs "${n_cpus}"
+    --workdir "${work_dir}"
+    --task "${task}"
+    --desc "${desc}"
+    --space "${space}"
+    --run-mode "${run_mode}"
+    --hrf "${hrf}"
+    --lss-mode "${lss_mode}"
+    --stim-duration "${stim_duration}"
+    --fd-threshold "${fd_threshold}"
+    --gm-threshold "${gm_threshold}"
+    --tsnr-regress-poly "${tsnr_regress_poly}"
+  )
+
+  if [[ -n "${deriv_dir}" ]]; then
+    cmd+=(--deriv-dir "${deriv_dir}")
+  fi
+
+  if [[ "${no_confounds}" -eq 1 ]]; then
+    cmd+=(--no-confounds)
+  else
+    cmd+=(--confounds-suffix "${confounds_suffix}")
+
+    # confounds-subset is only used by stglm for fMRIPrep-style timeseries.
+    if [[ "${confounds_suffix}" == "timeseries" ]]; then
+      cmd+=(--confounds-subset "${confounds_subset}")
+    fi
+  fi
+
+  if [[ ${#evs[@]} -gt 0 ]]; then
+    cmd+=(--evs "${evs[@]}")
+  fi
+
+  if [[ "${clean_run}" -eq 1 ]]; then
+    cmd+=(--clean)
+  fi
+
+  if [[ "${glm_single}" -eq 1 ]]; then
+    cmd+=(--glm-single)
+  fi
+
+  if [[ -n "${config_file}" ]]; then
+    cmd+=(--config "${config_file}")
+  fi
+
+  if [[ -n "${high_pass_filter_cutoff}" ]]; then
+    cmd+=(--high-pass-filter-cutoff "${high_pass_filter_cutoff}")
+  fi
+
+  if [[ ${#stglm_extra[@]} -gt 0 ]]; then
+    cmd+=("${stglm_extra[@]}")
+  fi
+
+  if [[ "${dry_run}" -eq 1 ]]; then
+    print_cmd "${cmd[@]}"
+    continue
+  fi
+
+  if [[ "${run_local}" -eq 1 ]]; then
+    print_cmd "${cmd[@]}"
+  fi
+
+  "${cmd[@]}"
+  status=$?
+
+  if [[ "${status}" -ne 0 ]]; then
+    echo
+    print_line -     
+    print_error_msg "$(basename "${0}")" "stglm" \
+      "stGLM failed for sub-${sub_id}"
+    exit "${status}"
+  fi
+
+done

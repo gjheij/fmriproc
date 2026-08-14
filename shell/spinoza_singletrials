@@ -1,0 +1,405 @@
+#!/usr/bin/env bash
+
+source "${SETUP_FILE}"
+source call_bashhelper
+
+function Usage {
+    cat <<USAGE
+---------------------------------------------------------------------------------------------------
+spinoza_singletrials
+
+SLURM-array launcher for subject-wise single-trial GLM jobs using call_stglm.
+
+Usage:
+  spinoza_singletrials [arguments] [options] <project root> -- [call_stglm arguments]
+
+Arguments:
+  -s <subject>    subject ID, e.g. 001 or sub-001. Can be comma-separated or a
+                  text file containing one subject per line. If omitted, subjects
+                  are discovered from the BIDS project/fMRIPrep derivatives.
+  -j <n_cpus>     number of CPUs per subject/job. Default = 4
+  -q <queue>      SLURM queue/partition. Default = \$SGE_QUEUE_LONG, or main
+  -m <n_jobs>     maximum number of subjects running simultaneously. Default = 3
+  -w <workdir>    custom working directory; defaults to PATH_HOME/stglm/<PROJECT>
+
+Options:
+  -h|--help       print help
+  --local         run subjects locally via call_stglm instead of submitting SLURM jobs
+  --dry-run       print generated commands/job information but do not submit/run
+
+Pass-through:
+  Everything after '--' is passed directly to call_stglm.
+
+  Examples:
+    --task HRA
+    --desc masked
+    --space T1w
+    --confounds-subset ENIGMA
+    --confounds-suffix timeseries
+    --evs CSm,CSpu,CSpr,USp
+    --run-mode loop
+    --hrf dgamma
+    --lss-mode cond
+    --clean
+    --no-confounds
+    --pybest
+    --glm-single
+    -f /path/to/config.json
+
+  Native stglm arguments can still be passed through call_stglm by adding a
+  second '--'. For example:
+
+    spinoza_singletrials -s 015 <project> -- \\
+        --task HRA -- \\
+        --high-pass-filter-cutoff 100
+
+Scheduling:
+  On SLURM, one array task is created per subject. The array throttle
+  '1-N%M' ensures that at most -m/--max-running subject jobs execute at once.
+
+  Each array task calls call_stglm with --local for one subject. This prevents
+  nested SLURM submissions: spinoza_singletrials owns subject-level scheduling,
+  while call_stglm owns construction of the stglm command.
+
+  With --local, call_stglm processes the selected subject list locally.
+  As in spinoza_decoding, local execution is sequential; -m applies to the
+  SLURM array throttle.
+
+Examples:
+  # Standard stGLM for all subjects, maximum 8 concurrent jobs
+  spinoza_singletrials -m 8 -j 4 /data/HRA -- \\
+    --task HRA \\
+    --confounds-subset ENIGMA
+
+  # Selected subjects
+  spinoza_singletrials -s 015,016,017 -m 3 -j 4 /data/HRA -- \\
+    --task HRA \
+    --space T1w
+
+  # pybest input
+  spinoza_singletrials -s 015 -j 4 /data/HRA -- \\
+    --pybest \
+    --task HRA
+
+  # GLMsingle
+  spinoza_singletrials -s 015 -j 1 /data/HRA -- \\
+    --glm-single \\
+    -f /data/HRA/code/config.json
+
+  # Run locally
+  spinoza_singletrials -s 015,016 --local -j 4 /data/HRA -- \\
+    --task HRA
+
+Running with master:
+  # standard single-trial estimation with at most 8 subjects running simultaneously and 6 CPUs per subject
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 8 \\
+    -j 6 \\
+    -x '--space T1w --confounds-subset ENIGMA'
+
+  # For pybest
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 8 \\
+    -j 6 \\
+    -x '--pybest'  
+
+  # For GLMsingle
+  master -m $(get_module_nr $(basename ${0})) \\
+    -l 8 \\
+    -j 1 \\
+    -t HRA \\
+    -x "--glm-single"
+
+  # selected subjects locally
+  master -m $(get_module_nr $(basename ${0})) \\
+    -s 015,016,017 \\
+    -l 1 \\
+    -j 4 \\
+    --local \\
+    -x '--space T1w --confounds-subset ENIGMA'
+
+---------------------------------------------------------------------------------------------------
+USAGE
+}
+
+sub=""
+n_cpus=4
+run_local=0
+dry_run=0
+max_running=3
+SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
+stglm_args=()
+proj_dir=""
+work_dir="${PATH_HOME}/stglm/${PROJECT}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -s)
+      if [[ $# -lt 2 ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "-s expects a subject/list/file"
+        exit 1
+      fi
+      sub="$2"
+      shift 2
+      ;;
+    -j)
+      if [[ $# -lt 2 ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "-j expects a CPU count"
+        exit 1
+      fi
+      n_cpus="$2"
+      shift 2
+      ;;
+    -q)
+      if [[ $# -lt 2 ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "-q expects a queue"
+        exit 1
+      fi
+      SGE_QUEUE="$2"
+      shift 2
+      ;;
+    -m|--max-running)
+      if [[ $# -lt 2 ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "$1 expects a job count"
+        exit 1
+      fi
+      max_running="$2"
+      shift 2
+      ;;
+    -w|--workdir)
+      if [[ $# -lt 2 ]]; then
+        print_error_msg "$(basename "${0}")" "getopt" "$1 expects a path"
+        exit 1
+      fi
+      work_dir="$2"
+      shift 2
+      ;;     
+    --local)
+      run_local=1
+      shift
+      ;;
+    --dry-run)
+      dry_run=1
+      shift
+      ;;
+    -h|--help)
+      Usage
+      exit 0
+      ;;
+    --)
+      shift
+      stglm_args=("$@")
+      break
+      ;;
+    -*)
+      print_error_msg "$(basename "${0}")" "getopt" "Unknown option $1"
+      Usage
+      exit 1
+      ;;
+    *)
+      if [[ -n "${proj_dir}" ]]; then
+        print_error_msg "$(basename "${0}")" "input" \
+          "Multiple project directories specified: '${proj_dir}' and '$1'"
+        exit 1
+      fi
+      proj_dir="$1"
+      shift
+      ;;
+  esac
+done
+
+#-----------------------------------------------------------------------------
+# intro
+start_timer "Running single-trial GLMs [stGLM]"
+
+if [[ -z "${proj_dir}" ]]; then
+  Usage
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" "Project directory not specified"
+  exit 1
+fi
+
+if [[ ! -d "${proj_dir}" ]]; then
+  echo
+  print_line -
+  print_directory_not_exist "Project" "${proj_dir}"
+  exit 1
+fi
+
+if ! [[ "${n_cpus}" =~ ^[1-9][0-9]*$ ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" \
+    "CPU count must be a positive integer"
+  exit 1
+fi
+
+if ! [[ "${max_running}" =~ ^[1-9][0-9]*$ ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" \
+    "Maximum number of running jobs must be a positive integer"
+  exit 1
+fi
+
+proj_dir="$(realpath "${proj_dir}")"
+
+# Match call_stglm's default work-directory convention and keep launcher
+# bookkeeping/logs in the same location.
+mkdir -p "${work_dir}"
+
+subject_file="${work_dir}/stglm_subjects.txt"
+
+#-----------------------------------------------------------------------------
+# Build subject list
+if [[ -n "${sub}" ]]; then
+  : > "${subject_file}"
+
+  if [[ -f "${sub}" ]]; then
+    grep -v '^[[:space:]]*$' "${sub}" |
+      grep -v '^[[:space:]]*#' |
+      sed 's/^[[:space:]]*//; s/[[:space:]]*$//' |
+      sed 's/^sub-//' |
+      sed 's/^/sub-/' |
+      sort -u > "${subject_file}"
+  else
+    IFS=', ' read -r -a subjects <<< "${sub}"
+    unset IFS
+
+    for subject in "${subjects[@]}"; do
+      subject="${subject#sub-}"
+      [[ -n "${subject}" ]] && echo "sub-${subject}"
+    done | sort -u > "${subject_file}"
+  fi
+else
+  {
+    find "${proj_dir}" \
+      -maxdepth 1 -mindepth 1 \
+      -type d -name 'sub-*' 2>/dev/null
+
+    if [[ -d "${proj_dir}/derivatives/fmriprep" ]]; then
+      find "${proj_dir}/derivatives/fmriprep" \
+        -maxdepth 1 -mindepth 1 \
+        \( -type d -o -type l \) \
+        -name 'sub-*' 2>/dev/null
+    fi
+  } |
+    xargs -r -n1 basename |
+    grep '^sub-' |
+    sort -u > "${subject_file}"
+fi
+
+n_subjects=$(wc -l < "${subject_file}" | tr -d ' ')
+
+if [[ "${n_subjects}" -eq 0 ]]; then
+  echo
+  print_line -
+  print_error_msg "$(basename "${0}")" "input" "No subjects found"
+  exit 1
+fi
+
+#-----------------------------------------------------------------------------
+# Local execution: delegate the complete subject list to call_stglm.
+if [[ "${run_local}" -eq 1 ]]; then
+
+  cmd=(
+    call_stglm
+    -p "${proj_dir}"
+    -u "${subject_file}"
+    -c "${n_cpus}"
+    -q "${SGE_QUEUE}"
+    --local
+    "${stglm_args[@]}"
+  )
+
+  if [[ "${dry_run}" -eq 1 ]]; then
+    echo "Subject file: ${subject_file}"
+    echo "Subjects: ${n_subjects}"
+    echo "CPUs per subject: ${n_cpus}"
+    echo "Mode: local"
+    echo
+    print_cmd "${cmd[@]}"
+    exit 0
+  fi
+
+  print_cmd "${cmd[@]}"
+  "${cmd[@]}"
+  status=$?
+
+  if [[ "${status}" -ne 0 ]]; then
+    print_error_msg "$(basename "${0}")" "call_stglm" \
+      "Single-trial GLM execution failed"
+    exit "${status}"
+  fi
+
+  exit 0
+fi
+
+#-----------------------------------------------------------------------------
+# SLURM array runner
+runner="${work_dir}/stglm_array_runner.sh"
+
+cat > "${runner}" <<EOF_RUNNER
+#!/usr/bin/env bash
+source "${SETUP_FILE}"
+source call_bashhelper
+
+subject=\$(sed -n "\${SLURM_ARRAY_TASK_ID}p" "${subject_file}")
+
+if [[ -z "\${subject}" ]]; then
+  echo "ERROR: no subject found for SLURM_ARRAY_TASK_ID=\${SLURM_ARRAY_TASK_ID}" >&2
+  exit 1
+fi
+
+cmd=(
+  call_stglm
+  -p $(printf '%q' "${proj_dir}")
+  -u "\${subject}"
+  -c $(printf '%q' "${n_cpus}")
+  -q $(printf '%q' "${SGE_QUEUE}")
+  --local
+EOF_RUNNER
+
+for arg in "${stglm_args[@]}"; do
+  printf '  %q\n' "${arg}" >> "${runner}"
+done
+
+cat <<'EOF_RUNNER' >> "${runner}"
+)
+
+print_cmd "${cmd[@]}"
+"${cmd[@]}"
+EOF_RUNNER
+
+chmod +x "${runner}"
+
+array_spec="1-${n_subjects}%${max_running}"
+
+if [[ "${dry_run}" -eq 1 ]]; then
+  echo "Subject file: ${subject_file}"
+  echo "Runner: ${runner}"
+  echo "Subjects: ${n_subjects}"
+  echo "Array: ${array_spec}"
+  echo "Queue: ${SGE_QUEUE}"
+  echo "CPUs per subject: ${n_cpus}"
+  echo
+  echo "Runner content:"
+  cat "${runner}"
+  echo
+  echo "Would submit:"
+  echo "sbatch --partition=${SGE_QUEUE} --array=${array_spec} --cpus-per-task=${n_cpus} --job-name=stglm --output=${work_dir}/stglm_%A_%a.out ${runner}"
+  exit 0
+fi
+
+sbatch \
+  --partition="${SGE_QUEUE}" \
+  --array="${array_spec}" \
+  --cpus-per-task="${n_cpus}" \
+  --job-name="stglm" \
+  --output="${work_dir}/stglm_%A_%a.out" \
+  "${runner}"
+
+#-----------------------------------------------------------------------------
+# outro
+end_timer

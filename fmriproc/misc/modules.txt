@@ -30,4 +30,5 @@ Available modules:                                    Script                    
   ${BOLD_MAGENTA}26${RESET}:  Sample a dataset across depth with Nighres     (${BOLD_BLUE}spinoza_profiling${RESET})              00:20:00
   ${BOLD_MAGENTA}27${RESET}:  Create registration folder for FEAT            (${BOLD_BLUE}spinoza_featreg${RESET})                00:04:00
   ${BOLD_MAGENTA}28${RESET}:  Run 1st/2nd/3rd level FEAT analyses            (${BOLD_BLUE}spinoza_feat${RESET})                   00:15:00
-  ${BOLD_MAGENTA}29${RESET}:  MVPA with PANIC                                (${BOLD_BLUE}spinoza_decoding${RESET})               00:02:00
+  ${BOLD_MAGENTA}29${RESET}:  Single-trial estimation with stGLM             (${BOLD_BLUE}spinoza_singletrials${RESET})           01:00:00
+  ${BOLD_MAGENTA}30${RESET}:  MVPA with PANIC                                (${BOLD_BLUE}spinoza_decoding${RESET})               02:00:00
