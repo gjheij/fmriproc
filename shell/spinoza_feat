@@ -689,16 +689,21 @@ if not parts:
     raise SystemExit(f"No level-2 manifest fragments found in {parts_dir}")
 
 rows = []
-fieldnames = None
+fieldnames = []
+seen_fields = set()
 
 for part in parts:
     with part.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
-        if fieldnames is None:
-            fieldnames = reader.fieldnames
-        elif reader.fieldnames != fieldnames:
-            raise SystemExit(f"Manifest columns differ in {part}")
-        rows.extend(reader)
+        if not reader.fieldnames:
+            raise SystemExit(f"Manifest fragment has no header: {part}")
+
+        for field in reader.fieldnames:
+            if field not in seen_fields:
+                seen_fields.add(field)
+                fieldnames.append(field)
+
+        rows.extend(dict(row) for row in reader)
 
 if not fieldnames:
     raise SystemExit("Level-2 manifest fragments contain no header")
@@ -720,9 +725,18 @@ unique.sort(key=lambda row: tuple(row.get(k, "") for k in sort_fields))
 out_file.parent.mkdir(parents=True, exist_ok=True)
 tmp = out_file.with_name(out_file.name + ".tmp")
 with tmp.open("w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
+    writer = csv.DictWriter(
+        f,
+        fieldnames=fieldnames,
+        delimiter="\t",
+        lineterminator="\n",
+        extrasaction="ignore",
+    )
     writer.writeheader()
-    writer.writerows(unique)
+    writer.writerows(
+        {field: row.get(field, "") for field in fieldnames}
+        for row in unique
+    )
 tmp.replace(out_file)
 
 print(f"Merged {len(parts)} fragment(s), {len(unique)} row(s) -> {out_file}")

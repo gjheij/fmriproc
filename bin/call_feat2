@@ -66,7 +66,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 @click.option("--run", "runs", multiple=True, help="Run label. Repeatable or comma-separated.")
 @click.option("--contrast", "canonical_contrasts", multiple=True, help="Canonical contrast name. Repeatable.")
 @click.option("--min-runs", type=click.IntRange(min=1), default=2, help="Minimum first-level inputs required per fixed-effects analysis.")
-@click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories.")
+@click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories. Without this flag, complete existing outputs are reused and entered into the manifest.")
 @click.option("--dry-run", is_flag=True, help="Validate inputs and print FSL commands without writing outputs.")
 def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, overwrite: bool, dry_run: bool) -> None:
     manifest_path = manifest_path.resolve()
@@ -100,7 +100,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
     ).drop(columns="_run_numeric")
 
     records: list[dict[str, object]] = []
-    completed = skipped = 0
+    completed = reused = skipped = failed = 0
     group_cols = ["subject", "session", "task", "canonical_name"]
     for key, rows in manifest.groupby(group_cols, sort=True, dropna=False):
         subject, session, task, canonical_name = map(_entity_text, key)
@@ -118,6 +118,63 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
             skipped += 1
             continue
         try:
+            if group_output.exists() and not overwrite and not dry_run:
+                stats_dir = group_output / "stats"
+                cope_file = stats_dir / "cope1.nii.gz"
+                varcope_file = stats_dir / "varcope1.nii.gz"
+
+                missing = [
+                    str(path)
+                    for path in (cope_file, varcope_file)
+                    if not path.is_file()
+                ]
+                if missing:
+                    raise click.ClickException(
+                        "Existing fixed-effects output is incomplete; missing "
+                        + ", ".join(missing)
+                    )
+
+                click.echo(f"Reusing existing fixed-effects output: {group_output}")
+
+                existing_manifest = output_dir / "contrast_manifest_level2.tsv"
+                reused_record = None
+
+                if existing_manifest.is_file():
+                    previous = pd.read_csv(
+                        existing_manifest,
+                        sep="\t",
+                        dtype=str,
+                        keep_default_na=False,
+                    )
+                    required_keys = {
+                        "subject", "session", "task", "canonical_name"
+                    }
+                    if required_keys.issubset(previous.columns):
+                        matched = previous.loc[
+                            (previous["subject"] == subject)
+                            & (previous["session"] == session)
+                            & (previous["task"] == task)
+                            & (previous["canonical_name"] == canonical_name)
+                        ]
+                        if len(matched) == 1:
+                            reused_record = matched.iloc[0].to_dict()
+
+                if reused_record is None:
+                    reused_record = {
+                        "subject": subject,
+                        "session": session,
+                        "task": task,
+                        "canonical_name": canonical_name,
+                        "number_of_runs": int(len(rows)),
+                        "output_dir": str(group_output),
+                        "cope_file": str(cope_file),
+                        "varcope_file": str(varcope_file),
+                    }
+
+                records.append(reused_record)
+                reused += 1
+                continue
+
             result = run_fixed_effects_group(
                 rows,
                 group_output,
@@ -125,7 +182,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                 overwrite,
                 dry_run
             )
-            
+
             records.append({
                 "subject": subject,
                 "session": session,
@@ -134,9 +191,10 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                 **result,
             })
             completed += 1
+
         except (click.ClickException, OSError, ValueError, subprocess.CalledProcessError) as error:
             click.echo(f"[ERROR] {group_label}; {canonical_name}: {error}", err=True)
-            skipped += 1
+            failed += 1
 
     if records and not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -157,8 +215,11 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
         temp.replace(level2_manifest)
         click.echo(f"\nSecond-level manifest: {level2_manifest}")
 
-    click.echo(f"\nFinished: {completed} fixed-effects analysis/analyses completed; {skipped} skipped or failed.")
-    if completed == 0:
+    click.echo(
+        f"\nFinished: {completed} fixed-effects analysis/analyses completed; "
+        f"{reused} reused; {skipped} skipped; {failed} failed."
+    )
+    if failed > 0 or (completed + reused) == 0:
         raise SystemExit(1)
 
 
