@@ -319,7 +319,7 @@ for subID in ${search}; do
   else
     T1_DIR="${T1}/${base_path}"
     input_t1w=$(
-      find "${T1_DIR}" \
+      find -L "${T1_DIR}" \
       -type f \
       -name "${sub_name}*" \
       -and -name "*${DATA_UPR}*" \
@@ -337,6 +337,7 @@ for subID in ${search}; do
       echo 
       exit 1
     fi
+    
     #-----------------------------------------------------------------------------
     # overwrite
     if [[ ${OW} -eq 1 ]]; then
