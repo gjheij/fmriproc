@@ -130,7 +130,7 @@ max_running=3
 SGE_QUEUE="${SGE_QUEUE_LONG:-main}"
 stglm_args=()
 proj_dir=""
-work_dir="${PATH_HOME}/stglm/${PROJECT}"
+work_dir=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -247,10 +247,13 @@ proj_dir="$(realpath "${proj_dir}")"
 
 # Match call_stglm's default work-directory convention and keep launcher
 # bookkeeping/logs in the same location.
+if [[ -z "${work_dir}" ]]; then
+  work_dir="$(dirname ${proj_dir})/logs/stglm/$(basename ${proj_dir})"
+fi
+
 mkdir -p "${work_dir}"
 
 subject_file="${work_dir}/stglm_subjects.txt"
-
 #-----------------------------------------------------------------------------
 # Build subject list
 if [[ -n "${sub}" ]]; then
