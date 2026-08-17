@@ -4949,3 +4949,1610 @@ def verify_group_geometry(
         )
 
     click.echo("✓ All group inputs share a common voxel grid and affine")
+
+
+def resolve_group_reference(
+    rows: pd.DataFrame,
+    input_level: str | int,
+) -> Path:
+    """Resolve the common standard-space template used by level-3 inputs."""
+    input_level = str(input_level).strip()
+
+    if input_level == "1":
+        column = "feat_dir"
+    elif input_level == "2":
+        column = "second_level_dir"
+    else:
+        raise ValueError(f"Unsupported input level: {input_level!r}")
+
+    if column not in rows.columns:
+        raise click.ClickException(
+            f"Input-level {input_level} manifest lacks required {column!r} column "
+            "needed to resolve the group template reference."
+        )
+
+    refs: list[Path] = []
+    missing: list[Path] = []
+
+    for value in rows[column].fillna("").astype(str).unique():
+        value = value.strip()
+        if not value:
+            continue
+
+        reference = (Path(value) / "reg" / "standard.nii.gz").resolve()
+        if reference.is_file():
+            refs.append(reference)
+        else:
+            missing.append(reference)
+
+    if not refs:
+        details = ""
+        if missing:
+            details = "\n  " + "\n  ".join(str(path) for path in missing[:10])
+        raise click.ClickException(
+            f"Could not resolve standard-space reference from manifest column "
+            f"{column!r}.{details}"
+        )
+
+    reference = refs[0]
+    reference_img = nib.load(str(reference))
+
+    for candidate in refs[1:]:
+        image = nib.load(str(candidate))
+        if image.shape != reference_img.shape or not np.allclose(
+            image.affine,
+            reference_img.affine,
+            rtol=0.0,
+            atol=1e-4,
+        ):
+            raise click.ClickException(
+                "Level-3 inputs do not share one standard-space reference grid:\n"
+                f"  {reference}\n"
+                f"  {candidate}"
+            )
+
+    return reference
+
+
+def _write_poststats_report(
+    feat_dir: Path,
+    *,
+    title: str,
+    contrast_names: list[str] | None = None,
+    z_threshold: float = 2.3,
+    background: Path | None = None,
+) -> Path:
+    """Create an interactive FEAT poststats-style HTML QC report.
+
+    The report contains:
+    - an in-browser orthogonal NIfTI viewer with slice navigation;
+    - live positive/negative Z thresholding and opacity controls;
+    - voxel and world-coordinate readout;
+    - a static PNG fallback;
+    - descriptive connected-component cluster tables.
+
+    The connected components are *not* cluster-corrected inference.
+    """
+    from datetime import datetime
+    import html
+    import math
+    import os
+
+    feat_dir = Path(feat_dir).resolve()
+    stats_dir = feat_dir / "stats"
+    report_dir = feat_dir / "report_poststats_files"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_file = feat_dir / "report_poststats.html"
+
+    zstats = sorted(
+        stats_dir.glob("zstat*.nii.gz"),
+        key=lambda p: int("".join(ch for ch in p.name if ch.isdigit()) or "0"),
+    )
+
+    if background is not None:
+        background = Path(background).resolve()
+        if not background.is_file():
+            raise click.ClickException(
+                f"Poststats background/reference does not exist: {background}"
+            )
+    else:
+        background_candidates = [
+            feat_dir / "mean_func.nii.gz",
+            feat_dir / "example_func.nii.gz",
+            feat_dir / "mask.nii.gz",
+            feat_dir / "reg_standard" / "mean_func.nii.gz",
+            feat_dir / "reg_standard" / "example_func.nii.gz",
+            feat_dir / "reg" / "standard.nii.gz",
+        ]
+        background = next(
+            (path.resolve() for path in background_candidates if path.is_file()),
+            None,
+        )
+
+    def rel(path: Path) -> str:
+        """Return a report-relative URL without dereferencing symlinks."""
+        path = Path(path)
+
+        if not path.is_absolute():
+            path = feat_dir / path
+
+        return os.path.relpath(
+            str(path.absolute()),
+            str(feat_dir),
+        )
+
+    # Expose the template through a stable report-local browser URL.
+    #
+    # Do not make the HTML fetch the original level-1/level-2 path directly:
+    # the report may be served from a different HTTP document root and a path
+    # containing several ".." components is fragile. Prefer a relative symlink
+    # (zero additional storage), then a hardlink, and finally a real copy when
+    # the underlying filesystem does not support links (e.g. some /mnt/* setups).
+    background_url = None
+    if background is not None:
+        local_background = report_dir / "background.nii.gz"
+
+        def _same_file(left: Path, right: Path) -> bool:
+            try:
+                return left.exists() and os.path.samefile(left, right)
+            except OSError:
+                return False
+
+        if local_background.is_symlink():
+            try:
+                if local_background.resolve() != background:
+                    local_background.unlink()
+            except OSError:
+                local_background.unlink(missing_ok=True)
+        elif local_background.exists() and not _same_file(
+            local_background,
+            background,
+        ):
+            # This file is report-generated state, so replace a stale asset.
+            local_background.unlink()
+
+        if not local_background.exists():
+            created = False
+
+            # 1) Relative symlink: no duplicated template data.
+            try:
+                target = os.path.relpath(
+                    str(background),
+                    str(local_background.parent),
+                )
+                local_background.symlink_to(target)
+                created = local_background.exists()
+            except OSError:
+                created = False
+
+            # A broken/unsupported symlink must not block the fallback paths.
+            if local_background.is_symlink() and not created:
+                local_background.unlink(missing_ok=True)
+
+            # 2) Hardlink: also zero duplicated data when source/destination
+            # are on the same filesystem.
+            if not created:
+                try:
+                    os.link(background, local_background)
+                    created = local_background.exists()
+                except OSError:
+                    created = False
+
+            # 3) Copy: portable last resort.
+            if not created:
+                shutil.copy2(background, local_background)
+                created = local_background.exists()
+
+            if not created:
+                raise click.ClickException(
+                    f"Could not create report-local background asset from "
+                    f"{background}"
+                )
+
+        # Always use the report-local URL in the HTML. This is intentionally
+        # independent of the symlink/hardlink/copy implementation above.
+        background_url = rel(local_background)
+
+    def make_clusters(z_file: Path):
+        try:
+            from scipy import ndimage
+        except Exception:
+            return [], []
+
+        img = nib.load(str(z_file))
+        data = np.asanyarray(img.dataobj, dtype=float)
+        if data.ndim > 3:
+            data = np.squeeze(data)
+        if data.ndim != 3:
+            return [], []
+
+        finite = np.isfinite(data)
+        voxel_volume = abs(float(np.linalg.det(img.affine[:3, :3])))
+        structure = ndimage.generate_binary_structure(3, 3)
+
+        def one_side(mask, sign):
+            labels, n_labels = ndimage.label(mask & finite, structure=structure)
+            rows = []
+
+            for label_id in range(1, n_labels + 1):
+                coords = np.argwhere(labels == label_id)
+                if coords.size == 0:
+                    continue
+
+                values = data[labels == label_id]
+                local = (
+                    int(np.nanargmax(values))
+                    if sign > 0
+                    else int(np.nanargmin(values))
+                )
+                peak_voxel = coords[local]
+                peak_z = float(values[local])
+                xyz = nib.affines.apply_affine(img.affine, peak_voxel)
+
+                rows.append(
+                    {
+                        "voxels": int(coords.shape[0]),
+                        "volume_mm3": float(coords.shape[0] * voxel_volume),
+                        "peak_z": peak_z,
+                        "x": float(xyz[0]),
+                        "y": float(xyz[1]),
+                        "z": float(xyz[2]),
+                    }
+                )
+
+            rows.sort(key=lambda row: row["voxels"], reverse=True)
+            return rows[:25]
+
+        return (
+            one_side(data >= z_threshold, +1),
+            one_side(data <= -z_threshold, -1),
+        )
+
+    def render_stat(z_file: Path, png_file: Path) -> str | None:
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except Exception as exc:
+            return f"Python plotting dependencies unavailable: {exc}"
+
+        z_img = nib.as_closest_canonical(nib.load(str(z_file)))
+        z = np.asanyarray(z_img.dataobj, dtype=float)
+        if z.ndim > 3:
+            z = np.squeeze(z)
+        if z.ndim != 3:
+            return f"Expected 3D Z-stat image, got shape {z.shape}"
+
+        bg = None
+        if background is not None:
+            try:
+                bg_img = nib.as_closest_canonical(nib.load(str(background)))
+                bg_data = np.asanyarray(bg_img.dataobj, dtype=float)
+                if bg_data.ndim > 3:
+                    bg_data = np.squeeze(bg_data)
+                if bg_data.shape == z.shape:
+                    bg = bg_data
+            except Exception:
+                bg = None
+
+        finite = np.isfinite(z)
+        supra = finite & (np.abs(z) >= z_threshold)
+
+        if np.any(supra):
+            peak_flat = np.nanargmax(
+                np.where(supra, np.abs(z), np.nan)
+            )
+            peak = np.unravel_index(peak_flat, z.shape)
+        else:
+            peak = tuple(int(v // 2) for v in z.shape)
+
+        vmax = (
+            float(np.nanmax(np.abs(z[finite])))
+            if np.any(finite)
+            else z_threshold
+        )
+        vmax = max(vmax, z_threshold + 1e-6)
+        masked = np.ma.masked_where(~supra, z)
+
+        slices = [
+            ("Sagittal", peak[0], lambda a, i: a[i, :, :]),
+            ("Coronal", peak[1], lambda a, i: a[:, i, :]),
+            ("Axial", peak[2], lambda a, i: a[:, :, i]),
+        ]
+
+        fig, axes = plt.subplots(1, 3, figsize=(14, 4.8))
+
+        for ax, (label, index, cutter) in zip(axes, slices):
+            if bg is not None:
+                bg_slice = cutter(bg, index).T
+                finite_bg = bg_slice[np.isfinite(bg_slice)]
+                if finite_bg.size:
+                    lo, hi = np.nanpercentile(finite_bg, [2, 98])
+                    if not math.isfinite(lo) or not math.isfinite(hi) or hi <= lo:
+                        lo, hi = None, None
+                else:
+                    lo, hi = None, None
+
+                ax.imshow(
+                    bg_slice,
+                    cmap="gray",
+                    origin="lower",
+                    vmin=lo,
+                    vmax=hi,
+                )
+            else:
+                ax.set_facecolor("black")
+
+            ax.imshow(
+                cutter(masked, index).T,
+                cmap="coolwarm",
+                origin="lower",
+                vmin=-vmax,
+                vmax=vmax,
+                alpha=0.90,
+            )
+            ax.set_title(f"{label}  voxel={index}")
+            ax.axis("off")
+
+        fig.suptitle(
+            f"{title} — {z_file.name} — |Z| ≥ {z_threshold:g}",
+            fontsize=12,
+        )
+        fig.tight_layout()
+        fig.savefig(png_file, dpi=140, bbox_inches="tight")
+        plt.close(fig)
+        return None
+
+    def cluster_table(rows, heading):
+        if not rows:
+            return (
+                f"<h4>{html.escape(heading)}</h4>"
+                "<p class='muted'>No supra-threshold clusters.</p>"
+            )
+
+        body = []
+        for i, row in enumerate(rows, 1):
+            body.append(
+                "<tr>"
+                f"<td>{i}</td>"
+                f"<td>{row['voxels']}</td>"
+                f"<td>{row['volume_mm3']:.1f}</td>"
+                f"<td>{row['peak_z']:.3f}</td>"
+                f"<td>{row['x']:.1f}</td>"
+                f"<td>{row['y']:.1f}</td>"
+                f"<td>{row['z']:.1f}</td>"
+                "</tr>"
+            )
+
+        return (
+            f"<h4>{html.escape(heading)}</h4>"
+            "<table><thead><tr>"
+            "<th>#</th><th>Voxels</th><th>mm³</th><th>Peak Z</th>"
+            "<th>x (mm)</th><th>y (mm)</th><th>z (mm)</th>"
+            "</tr></thead><tbody>"
+            + "".join(body)
+            + "</tbody></table>"
+        )
+
+    sections = []
+
+    for index, z_file in enumerate(zstats, start=1):
+        contrast_name = (
+            contrast_names[index - 1]
+            if contrast_names and index - 1 < len(contrast_names)
+            else f"Contrast {index}"
+        )
+
+        png = report_dir / f"zstat{index}.png"
+        render_error = render_stat(z_file, png)
+        pos_clusters, neg_clusters = make_clusters(z_file)
+
+        links = []
+        for stem in ("cope", "varcope", "tstat", "zstat"):
+            candidate = stats_dir / f"{stem}{index}.nii.gz"
+            if candidate.is_file():
+                links.append(
+                    f"<a href='{html.escape(rel(candidate))}'>"
+                    f"{html.escape(candidate.name)}</a>"
+                )
+
+        static_html = (
+            f"<details class='static-fallback'>"
+            f"<summary>Static snapshot</summary>"
+            f"<img src='{html.escape(rel(png))}' "
+            f"alt='{html.escape(contrast_name)}'>"
+            f"</details>"
+            if png.is_file()
+            else (
+                "<p class='warn'>Could not render static image: "
+                f"{html.escape(render_error or 'unknown error')}</p>"
+            )
+        )
+
+        if background_url is not None:
+            viewer_html = f"""
+<div
+  class="nv-lite"
+  id="viewer-{index}"
+  data-background="{html.escape(background_url)}"
+  data-overlay="{html.escape(rel(z_file))}"
+  data-threshold="{z_threshold:g}"
+>
+  <div class="viewer-status">Loading interactive NIfTI viewer…</div>
+  <div class="viewer-controls">
+    <label>Z threshold
+      <input class="threshold" type="range" min="0" max="10" step="0.1"
+             value="{z_threshold:g}">
+      <output class="threshold-value">{z_threshold:g}</output>
+    </label>
+    <label>Overlay opacity
+      <input class="opacity" type="range" min="0" max="1" step="0.05"
+             value="0.80">
+      <output class="opacity-value">0.80</output>
+    </label>
+    <span class="coord-readout"></span>
+  </div>
+  <div class="orthogonal-grid">
+    <div class="plane">
+      <div class="plane-title">Sagittal</div>
+      <canvas class="slice-canvas" data-axis="0"></canvas>
+      <input class="slice-slider" data-axis="0" type="range" min="0" max="1" value="0">
+    </div>
+    <div class="plane">
+      <div class="plane-title">Coronal</div>
+      <canvas class="slice-canvas" data-axis="1"></canvas>
+      <input class="slice-slider" data-axis="1" type="range" min="0" max="1" value="0">
+    </div>
+    <div class="plane">
+      <div class="plane-title">Axial</div>
+      <canvas class="slice-canvas" data-axis="2"></canvas>
+      <input class="slice-slider" data-axis="2" type="range" min="0" max="1" value="0">
+    </div>
+  </div>
+  <p class="viewer-help">
+    Click or drag directly in any image to move the synchronized crosshair.
+    Use the mouse wheel to step through slices; the sliders remain available as
+    secondary controls. Threshold and opacity update live.
+  </p>
+</div>
+"""
+        else:
+            viewer_html = (
+                "<p class='warn'>Interactive viewer unavailable: "
+                "no background/template image could be resolved.</p>"
+            )
+
+        sections.append(
+            "<section>"
+            f"<h2>{html.escape(contrast_name)}</h2>"
+            f"<p>{' · '.join(links)}</p>"
+            f"{viewer_html}"
+            f"{static_html}"
+            "<p class='muted'>Cluster tables below are descriptive connected "
+            f"components at |Z| ≥ {z_threshold:g}; no multiple-comparison "
+            "correction is implied.</p>"
+            f"{cluster_table(pos_clusters, f'Positive Z ≥ {z_threshold:g}')}"
+            f"{cluster_table(neg_clusters, f'Negative Z ≤ -{z_threshold:g}')}"
+            "</section>"
+        )
+
+    design_links = []
+    for name in ("design.mat", "design.con", "design.grp"):
+        path = feat_dir / name
+        if path.is_file():
+            design_links.append(
+                f"<a href='{html.escape(name)}'>{html.escape(name)}</a>"
+            )
+
+    if not zstats:
+        sections.append(
+            "<section><h2>Statistics</h2>"
+            "<p class='warn'>No stats/zstat*.nii.gz files were found.</p></section>"
+        )
+
+    bg_text = html.escape(str(background)) if background is not None else "none"
+
+    # Self-contained minimal NIfTI-1 reader/viewer. No CDN dependency.
+    interactive_js = r"""
+<script>
+(() => {
+  "use strict";
+
+  function showFileProtocolWarning(root, error) {
+    const status = root.querySelector(".viewer-status");
+    status.classList.add("viewer-error");
+    const extra = location.protocol === "file:"
+      ? " Browsers normally block NIfTI fetches from file://. From the project root, run: python -m http.server 8000 and open the report through http://localhost:8000/…"
+      : "";
+    status.textContent = "Interactive viewer could not load: " + error + extra;
+  }
+
+  async function inflateIfNeeded(buffer) {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      if (!("DecompressionStream" in window)) {
+        throw new Error("this browser does not provide DecompressionStream for .nii.gz");
+      }
+      const ds = new DecompressionStream("gzip");
+      const stream = new Blob([buffer]).stream().pipeThrough(ds);
+      return await new Response(stream).arrayBuffer();
+    }
+    return buffer;
+  }
+
+  async function fetchBuffer(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+    return inflateIfNeeded(await response.arrayBuffer());
+  }
+
+  function parseNifti(buffer) {
+    const view = new DataView(buffer);
+    let little = true;
+    if (view.getInt32(0, true) !== 348) {
+      if (view.getInt32(0, false) !== 348) {
+        throw new Error("not a NIfTI-1 single-file image");
+      }
+      little = false;
+    }
+
+    const dims = [];
+    for (let i = 0; i < 8; i++) dims.push(view.getInt16(40 + i * 2, little));
+    const nx = dims[1], ny = dims[2], nz = dims[3];
+    if (!(nx > 0 && ny > 0 && nz > 0)) throw new Error("invalid NIfTI dimensions");
+
+    const datatype = view.getInt16(70, little);
+    const voxOffset = Math.max(352, Math.floor(view.getFloat32(108, little)));
+    let slope = view.getFloat32(112, little);
+    const inter = view.getFloat32(116, little);
+    if (!Number.isFinite(slope) || slope === 0) slope = 1;
+
+    const nvox = nx * ny * nz;
+
+    function readTyped(kind, bytes) {
+      const out = new Float32Array(nvox);
+      let offset = voxOffset;
+      for (let i = 0; i < nvox; i++, offset += bytes) {
+        let value;
+        switch (kind) {
+          case "u8": value = view.getUint8(offset); break;
+          case "i8": value = view.getInt8(offset); break;
+          case "i16": value = view.getInt16(offset, little); break;
+          case "u16": value = view.getUint16(offset, little); break;
+          case "i32": value = view.getInt32(offset, little); break;
+          case "u32": value = view.getUint32(offset, little); break;
+          case "f32": value = view.getFloat32(offset, little); break;
+          case "f64": value = view.getFloat64(offset, little); break;
+          default: throw new Error("unsupported datatype");
+        }
+        out[i] = value * slope + inter;
+      }
+      return out;
+    }
+
+    let data;
+    switch (datatype) {
+      case 2: data = readTyped("u8", 1); break;
+      case 4: data = readTyped("i16", 2); break;
+      case 8: data = readTyped("i32", 4); break;
+      case 16: data = readTyped("f32", 4); break;
+      case 64: data = readTyped("f64", 8); break;
+      case 256: data = readTyped("i8", 1); break;
+      case 512: data = readTyped("u16", 2); break;
+      case 768: data = readTyped("u32", 4); break;
+      default: throw new Error(`unsupported NIfTI datatype code ${datatype}`);
+    }
+
+    const sformCode = view.getInt16(254, little);
+    let affine = [
+      [1,0,0,0],
+      [0,1,0,0],
+      [0,0,1,0],
+      [0,0,0,1],
+    ];
+
+    if (sformCode > 0) {
+      affine = [[], [], [], [0,0,0,1]];
+      for (let row = 0; row < 3; row++) {
+        const base = 280 + row * 16;
+        for (let col = 0; col < 4; col++) {
+          affine[row][col] = view.getFloat32(base + col * 4, little);
+        }
+      }
+    } else {
+      const pix = [
+        view.getFloat32(80, little) || 1,
+        view.getFloat32(84, little) || 1,
+        view.getFloat32(88, little) || 1,
+      ];
+      affine[0][0] = pix[0];
+      affine[1][1] = pix[1];
+      affine[2][2] = pix[2];
+    }
+
+    return {nx, ny, nz, data, affine};
+  }
+
+  function percentileSample(data, p) {
+    const maxSamples = 100000;
+    const step = Math.max(1, Math.floor(data.length / maxSamples));
+    const values = [];
+    for (let i = 0; i < data.length; i += step) {
+      const v = data[i];
+      if (Number.isFinite(v)) values.push(v);
+    }
+    values.sort((a,b) => a-b);
+    if (!values.length) return 0;
+    const idx = Math.max(0, Math.min(values.length - 1, Math.round((values.length - 1) * p)));
+    return values[idx];
+  }
+
+  function voxelIndex(vol, x, y, z) {
+    return x + vol.nx * (y + vol.ny * z);
+  }
+
+  function world(aff, x, y, z) {
+    return [
+      aff[0][0]*x + aff[0][1]*y + aff[0][2]*z + aff[0][3],
+      aff[1][0]*x + aff[1][1]*y + aff[1][2]*z + aff[1][3],
+      aff[2][0]*x + aff[2][1]*y + aff[2][2]*z + aff[2][3],
+    ];
+  }
+
+  function overlayColor(z, threshold, alphaScale) {
+    const a = Math.max(0, Math.min(1, alphaScale));
+    if (z >= threshold) {
+      const t = Math.max(0, Math.min(1, (z - threshold) / Math.max(1, 6 - threshold)));
+      return [255, Math.round(135 * (1 - t)), 40, Math.round(255 * a)];
+    }
+    if (z <= -threshold) {
+      const t = Math.max(0, Math.min(1, (-z - threshold) / Math.max(1, 6 - threshold)));
+      return [40, Math.round(150 * (1 - t)), 255, Math.round(255 * a)];
+    }
+    return null;
+  }
+
+  function initViewer(root, bg, zvol) {
+    if (bg.nx !== zvol.nx || bg.ny !== zvol.ny || bg.nz !== zvol.nz) {
+      throw new Error(
+        `background/stat dimensions differ: ${bg.nx}×${bg.ny}×${bg.nz} vs ${zvol.nx}×${zvol.ny}×${zvol.nz}`
+      );
+    }
+
+    const state = {
+      xyz: [Math.floor(bg.nx/2), Math.floor(bg.ny/2), Math.floor(bg.nz/2)],
+      threshold: parseFloat(root.dataset.threshold || "2.3"),
+      opacity: 0.8,
+    };
+
+    // Start at the strongest absolute Z voxel.
+    let peak = -Infinity, peakIndex = 0;
+    for (let i = 0; i < zvol.data.length; i++) {
+      const a = Math.abs(zvol.data[i]);
+      if (Number.isFinite(a) && a > peak) {
+        peak = a;
+        peakIndex = i;
+      }
+    }
+    state.xyz[2] = Math.floor(peakIndex / (bg.nx * bg.ny));
+    const remainder = peakIndex - state.xyz[2] * bg.nx * bg.ny;
+    state.xyz[1] = Math.floor(remainder / bg.nx);
+    state.xyz[0] = remainder - state.xyz[1] * bg.nx;
+
+    const bgLo = percentileSample(bg.data, 0.02);
+    const bgHi = percentileSample(bg.data, 0.98);
+    const bgRange = Math.max(1e-8, bgHi - bgLo);
+
+    const sliders = [...root.querySelectorAll(".slice-slider")];
+    const canvases = [...root.querySelectorAll(".slice-canvas")];
+    const threshold = root.querySelector(".threshold");
+    const opacity = root.querySelector(".opacity");
+    const thresholdOut = root.querySelector(".threshold-value");
+    const opacityOut = root.querySelector(".opacity-value");
+    const coords = root.querySelector(".coord-readout");
+    const status = root.querySelector(".viewer-status");
+
+    const dims = [bg.nx, bg.ny, bg.nz];
+    sliders.forEach((slider, axis) => {
+      slider.max = String(dims[axis] - 1);
+      slider.value = String(state.xyz[axis]);
+      slider.addEventListener("input", () => {
+        state.xyz[axis] = parseInt(slider.value, 10);
+        renderAll();
+      });
+    });
+
+    threshold.max = String(Math.max(5, Math.ceil(peak)));
+    threshold.addEventListener("input", () => {
+      state.threshold = parseFloat(threshold.value);
+      thresholdOut.value = state.threshold.toFixed(1);
+      renderAll();
+    });
+
+    opacity.addEventListener("input", () => {
+      state.opacity = parseFloat(opacity.value);
+      opacityOut.value = state.opacity.toFixed(2);
+      renderAll();
+    });
+
+    function clampVoxel(value, size) {
+      return Math.max(0, Math.min(size - 1, Math.round(value)));
+    }
+
+    function pointerToPlaneVoxel(canvas, axis, event) {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+
+      // Convert CSS/display coordinates back to the canvas bitmap. The current
+      // renderer only flips the vertical axis, so horizontal coordinates map
+      // directly while vertical coordinates are inverted here.
+      const uDisplay =
+        (event.clientX - rect.left) * canvas.width / rect.width;
+      const vDisplay =
+        (event.clientY - rect.top) * canvas.height / rect.height;
+
+      const u = clampVoxel(uDisplay, canvas.width);
+      const v = clampVoxel(
+        canvas.height - 1 - vDisplay,
+        canvas.height,
+      );
+
+      if (axis === 0) {
+        // Sagittal plane: x is fixed; pointer controls y and z.
+        return [state.xyz[0], u, v];
+      }
+      if (axis === 1) {
+        // Coronal plane: y is fixed; pointer controls x and z.
+        return [u, state.xyz[1], v];
+      }
+
+      // Axial plane: z is fixed; pointer controls x and y.
+      return [u, v, state.xyz[2]];
+    }
+
+    function moveCrosshairFromPointer(canvas, axis, event) {
+      const xyz = pointerToPlaneVoxel(canvas, axis, event);
+      if (xyz === null) return;
+
+      state.xyz[0] = clampVoxel(xyz[0], bg.nx);
+      state.xyz[1] = clampVoxel(xyz[1], bg.ny);
+      state.xyz[2] = clampVoxel(xyz[2], bg.nz);
+      renderAll();
+    }
+
+    canvases.forEach((canvas, axis) => {
+      let dragging = false;
+
+      canvas.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        dragging = true;
+        canvas.setPointerCapture(event.pointerId);
+        moveCrosshairFromPointer(canvas, axis, event);
+      });
+
+      canvas.addEventListener("pointermove", event => {
+        if (!dragging) return;
+        event.preventDefault();
+        moveCrosshairFromPointer(canvas, axis, event);
+      });
+
+      canvas.addEventListener("pointerup", event => {
+        if (!dragging) return;
+        dragging = false;
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      });
+
+      canvas.addEventListener("pointercancel", event => {
+        dragging = false;
+        if (canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      });
+
+      canvas.addEventListener("lostpointercapture", () => {
+        dragging = false;
+      });
+
+      canvas.addEventListener("wheel", event => {
+        event.preventDefault();
+        const delta = event.deltaY > 0 ? 1 : -1;
+        state.xyz[axis] = Math.max(
+          0,
+          Math.min(dims[axis] - 1, state.xyz[axis] + delta),
+        );
+        renderAll();
+      }, {passive:false});
+    });
+
+    function planeSize(axis) {
+      if (axis === 0) return [bg.ny, bg.nz];
+      if (axis === 1) return [bg.nx, bg.nz];
+      return [bg.nx, bg.ny];
+    }
+
+    function sample(axis, u, v) {
+      if (axis === 0) return [state.xyz[0], u, v];
+      if (axis === 1) return [u, state.xyz[1], v];
+      return [u, v, state.xyz[2]];
+    }
+
+    function crosshair(axis) {
+      if (axis === 0) return [state.xyz[1], state.xyz[2]];
+      if (axis === 1) return [state.xyz[0], state.xyz[2]];
+      return [state.xyz[0], state.xyz[1]];
+    }
+
+    function renderCanvas(canvas, axis) {
+      const [w, h] = planeSize(axis);
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      const img = ctx.createImageData(w, h);
+
+      for (let v = 0; v < h; v++) {
+        for (let u = 0; u < w; u++) {
+          const [x,y,z] = sample(axis, u, v);
+          const idx = voxelIndex(bg, x, y, z);
+          const g = Math.max(0, Math.min(255, Math.round(255 * (bg.data[idx] - bgLo) / bgRange)));
+
+          // Flip vertical axis for conventional radiological-looking display.
+          const outV = h - 1 - v;
+          const out = 4 * (u + w * outV);
+          img.data[out] = g;
+          img.data[out+1] = g;
+          img.data[out+2] = g;
+          img.data[out+3] = 255;
+
+          const c = overlayColor(zvol.data[idx], state.threshold, state.opacity);
+          if (c) {
+            const a = c[3] / 255;
+            img.data[out]   = Math.round(img.data[out]   * (1-a) + c[0] * a);
+            img.data[out+1] = Math.round(img.data[out+1] * (1-a) + c[1] * a);
+            img.data[out+2] = Math.round(img.data[out+2] * (1-a) + c[2] * a);
+          }
+        }
+      }
+
+      ctx.putImageData(img, 0, 0);
+
+      const [cu, cvRaw] = crosshair(axis);
+      const cv = h - 1 - cvRaw;
+      ctx.strokeStyle = "#00ff66";
+      ctx.lineWidth = Math.max(1, Math.round(Math.min(w,h) / 180));
+      ctx.beginPath();
+      ctx.moveTo(cu + 0.5, 0);
+      ctx.lineTo(cu + 0.5, h);
+      ctx.moveTo(0, cv + 0.5);
+      ctx.lineTo(w, cv + 0.5);
+      ctx.stroke();
+    }
+
+    function renderAll() {
+      canvases.forEach((canvas, axis) => renderCanvas(canvas, axis));
+      sliders.forEach((slider, axis) => slider.value = String(state.xyz[axis]));
+
+      const [x,y,z] = state.xyz;
+      const mm = world(bg.affine, x, y, z);
+      const zvalue = zvol.data[voxelIndex(zvol, x, y, z)];
+      coords.textContent =
+        `voxel [${x}, ${y}, ${z}] · mm [${mm.map(v => v.toFixed(1)).join(", ")}] · Z=${Number.isFinite(zvalue) ? zvalue.toFixed(3) : "n/a"}`;
+    }
+
+    status.textContent = `Interactive viewer ready · ${bg.nx}×${bg.ny}×${bg.nz}`;
+    status.classList.add("viewer-ready");
+    renderAll();
+  }
+
+  async function boot(root) {
+    try {
+      const [bgBuffer, zBuffer] = await Promise.all([
+        fetchBuffer(root.dataset.background),
+        fetchBuffer(root.dataset.overlay),
+      ]);
+      initViewer(root, parseNifti(bgBuffer), parseNifti(zBuffer));
+    } catch (error) {
+      showFileProtocolWarning(root, error.message || String(error));
+    }
+  }
+
+  document.querySelectorAll(".nv-lite").forEach(boot);
+})();
+</script>
+"""
+
+    html_text = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{html.escape(title)} — poststats</title>
+<style>
+body {{
+  font-family: Arial, sans-serif;
+  margin: 2rem auto;
+  max-width: 1220px;
+  line-height: 1.4;
+  color: #222;
+}}
+h1 {{
+  border-bottom: 3px solid #444;
+  padding-bottom: .35rem;
+}}
+h2 {{
+  border-bottom: 1px solid #bbb;
+  padding-bottom: .25rem;
+  margin-top: 2.2rem;
+}}
+img {{
+  max-width: 100%;
+  border: 1px solid #aaa;
+  background: #000;
+}}
+table {{
+  border-collapse: collapse;
+  width: 100%;
+  margin: .6rem 0 1.2rem;
+}}
+th, td {{
+  border: 1px solid #ccc;
+  padding: .35rem .55rem;
+  text-align: right;
+}}
+th:first-child, td:first-child {{
+  text-align: center;
+}}
+a {{ color: #0645ad; }}
+.meta {{
+  background: #f4f4f4;
+  padding: .8rem 1rem;
+  border: 1px solid #ddd;
+}}
+.muted, .viewer-help {{
+  color: #666;
+  font-size: .92rem;
+}}
+.warn, .viewer-error {{
+  color: #9b2c2c;
+  font-weight: bold;
+}}
+.viewer-ready {{
+  color: #176b37;
+  font-weight: bold;
+}}
+.nv-lite {{
+  border: 1px solid #bbb;
+  padding: .8rem;
+  background: #fafafa;
+  margin: .8rem 0 1rem;
+}}
+.viewer-controls {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: center;
+  margin: .6rem 0 .8rem;
+}}
+.viewer-controls label {{
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}}
+.coord-readout {{
+  font-family: monospace;
+  margin-left: auto;
+}}
+.orthogonal-grid {{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .8rem;
+}}
+.plane {{
+  min-width: 0;
+}}
+.plane-title {{
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: .25rem;
+}}
+.slice-canvas {{
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+  image-rendering: auto;
+  border: 1px solid #666;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}}
+.slice-slider {{
+  width: 100%;
+}}
+.static-fallback {{
+  margin: .8rem 0;
+}}
+.static-fallback summary {{
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: .4rem;
+}}
+@media (max-width: 800px) {{
+  .orthogonal-grid {{ grid-template-columns: 1fr; }}
+  .coord-readout {{ width: 100%; margin-left: 0; }}
+}}
+</style>
+</head>
+<body>
+<h1>{html.escape(title)}</h1>
+<div class="meta">
+<strong>FEAT directory:</strong> {html.escape(str(feat_dir))}<br>
+<strong>Background:</strong> {bg_text}<br>
+<strong>Initial display threshold:</strong> |Z| ≥ {z_threshold:g}<br>
+<strong>Generated:</strong> {datetime.now().isoformat(timespec="seconds")}<br>
+<strong>Design:</strong> {' · '.join(design_links) if design_links else 'not available'}
+</div>
+{''.join(sections)}
+{interactive_js}
+</body>
+</html>
+"""
+
+    temporary = report_file.with_name(report_file.name + ".tmp")
+    temporary.write_text(html_text, encoding="utf-8")
+    temporary.replace(report_file)
+    return report_file
+
+
+
+def _write_gfeat_report_index(
+    gfeat_dir: Path,
+    *,
+    title: str | None = None,
+) -> Path:
+    """Create a visual contrast browser for a FEAT ``.gfeat`` directory.
+
+    The index auto-discovers ``contrast-*.feat`` children. Each card links to
+    ``report_poststats.html`` and uses ``report_poststats_files/zstat1.png`` as
+    a preview when available. A small advisory lock makes repeated/concurrent
+    refreshes safe when level-2/level-3 contrasts finish in parallel.
+    """
+    from datetime import datetime
+    import html
+
+    gfeat_dir = Path(gfeat_dir).resolve()
+    if not gfeat_dir.is_dir():
+        raise click.ClickException(
+            f"Cannot create gfeat report index; directory does not exist: "
+            f"{gfeat_dir}"
+        )
+
+    index_file = gfeat_dir / "index.html"
+    lock_file = gfeat_dir / ".report_index.lock"
+
+    def _contrast_name(feat_dir: Path) -> str:
+        name = feat_dir.name
+        if name.startswith("contrast-") and name.endswith(".feat"):
+            return name[len("contrast-"):-len(".feat")]
+        return feat_dir.stem
+
+    def _natural_key(value: str) -> list[object]:
+        return [
+            int(part) if part.isdigit() else part.lower()
+            for part in re.split(r"(\d+)", value)
+        ]
+
+    with open(lock_file, "a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            contrast_dirs = sorted(
+                (
+                    path
+                    for path in gfeat_dir.glob("contrast-*.feat")
+                    if path.is_dir()
+                ),
+                key=lambda path: _natural_key(_contrast_name(path)),
+            )
+
+            cards: list[str] = []
+            ready_count = 0
+
+            for feat_dir in contrast_dirs:
+                contrast_name = _contrast_name(feat_dir)
+                report = feat_dir / "report_poststats.html"
+                preview = (
+                    feat_dir
+                    / "report_poststats_files"
+                    / "zstat1.png"
+                )
+
+                report_rel = os.path.relpath(report, gfeat_dir)
+                preview_rel = os.path.relpath(preview, gfeat_dir)
+
+                if report.is_file():
+                    ready_count += 1
+                    status = "<span class='status ready'>Interactive report</span>"
+                    action = (
+                        f"<a class='button' href='{html.escape(report_rel)}'>"
+                        "Open report <span aria-hidden='true'>→</span></a>"
+                    )
+                    card_class = "contrast-card"
+                else:
+                    status = "<span class='status pending'>Report pending</span>"
+                    action = (
+                        "<span class='button disabled'>Report unavailable</span>"
+                    )
+                    card_class = "contrast-card unavailable"
+
+                if preview.is_file():
+                    media = (
+                        f"<a class='preview-link' href='{html.escape(report_rel)}'>"
+                        f"<img loading='lazy' src='{html.escape(preview_rel)}' "
+                        f"alt='Z-stat preview for {html.escape(contrast_name)}'>"
+                        "</a>"
+                        if report.is_file()
+                        else (
+                            f"<div class='preview-link'>"
+                            f"<img loading='lazy' src='{html.escape(preview_rel)}' "
+                            f"alt='Z-stat preview for {html.escape(contrast_name)}'>"
+                            "</div>"
+                        )
+                    )
+                else:
+                    media = (
+                        "<div class='preview-placeholder'>"
+                        "<span>No preview yet</span>"
+                        "</div>"
+                    )
+
+                # Add a small semantic tag without imposing experiment-specific
+                # assumptions on the ordering.
+                if "minus" in contrast_name.lower():
+                    kind = "Difference"
+                else:
+                    kind = "Contrast"
+
+                cards.append(
+                    f"""
+<article class="{card_class}" data-name="{html.escape(contrast_name.lower())}">
+  {media}
+  <div class="card-body">
+    <div class="card-topline">
+      <span class="kind">{kind}</span>
+      {status}
+    </div>
+    <h2>{html.escape(contrast_name)}</h2>
+    {action}
+  </div>
+</article>
+"""
+                )
+
+            display_title = (
+                title.strip()
+                if title and title.strip()
+                else gfeat_dir.name.removesuffix(".gfeat")
+            )
+
+            html_text = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(display_title)} — FEAT contrasts</title>
+<style>
+:root {{
+  color-scheme: light;
+  --page: #f4f6f8;
+  --surface: #ffffff;
+  --surface-soft: #f8fafb;
+  --text: #17202a;
+  --muted: #68737d;
+  --border: #d8dee4;
+  --accent: #2457a6;
+  --accent-dark: #173d78;
+  --ready: #1b6f42;
+  --ready-bg: #e9f7ef;
+  --pending: #8a5a00;
+  --pending-bg: #fff6dd;
+  --shadow: 0 4px 16px rgba(22, 32, 42, 0.08);
+}}
+* {{ box-sizing: border-box; }}
+body {{
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--text);
+}}
+header {{
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}}
+.header-inner,
+main {{
+  width: min(1500px, calc(100% - 40px));
+  margin: 0 auto;
+}}
+.header-inner {{
+  padding: 30px 0 24px;
+}}
+.eyebrow {{
+  margin: 0 0 7px;
+  color: var(--accent);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}}
+h1 {{
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.35rem);
+  line-height: 1.15;
+}}
+.summary {{
+  margin-top: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}}
+main {{
+  padding: 28px 0 48px;
+}}
+.toolbar {{
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 22px;
+}}
+.search {{
+  width: min(460px, 100%);
+  padding: 11px 13px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}}
+.grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 20px;
+}}
+.contrast-card {{
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}}
+.contrast-card.hidden {{
+  display: none;
+}}
+.preview-link {{
+  display: block;
+  aspect-ratio: 16 / 8.3;
+  overflow: hidden;
+  background: #101214;
+  border-bottom: 1px solid var(--border);
+}}
+.preview-link img {{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .18s ease;
+}}
+.contrast-card:not(.unavailable) .preview-link:hover img {{
+  transform: scale(1.015);
+}}
+.preview-placeholder {{
+  aspect-ratio: 16 / 8.3;
+  display: grid;
+  place-items: center;
+  color: #929aa1;
+  background:
+    linear-gradient(135deg, #171a1d 0%, #24282c 100%);
+  border-bottom: 1px solid var(--border);
+}}
+.card-body {{
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 16px;
+}}
+.card-topline {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}}
+.kind {{
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}}
+.status {{
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: .74rem;
+  font-weight: 700;
+}}
+.status.ready {{
+  color: var(--ready);
+  background: var(--ready-bg);
+}}
+.status.pending {{
+  color: var(--pending);
+  background: var(--pending-bg);
+}}
+.contrast-card h2 {{
+  margin: 12px 0 18px;
+  font-size: 1.16rem;
+  overflow-wrap: anywhere;
+}}
+.button {{
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}}
+.button:hover {{
+  background: var(--accent-dark);
+}}
+.button.disabled {{
+  background: #e4e8eb;
+  color: #818a92;
+  cursor: default;
+}}
+.empty {{
+  padding: 32px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}}
+footer {{
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: .85rem;
+}}
+@media (max-width: 600px) {{
+  .header-inner,
+  main {{
+    width: min(100% - 24px, 1500px);
+  }}
+}}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <p class="eyebrow">FEAT group results</p>
+    <h1>{html.escape(display_title)}</h1>
+    <div class="summary">
+      <span><strong>{len(contrast_dirs)}</strong> contrasts</span>
+      <span><strong>{ready_count}</strong> interactive reports ready</span>
+      <span>Generated {datetime.now().isoformat(timespec="seconds")}</span>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="toolbar">
+    <input
+      id="contrast-search"
+      class="search"
+      type="search"
+      placeholder="Filter contrasts…"
+      aria-label="Filter contrasts"
+    >
+  </div>
+  {
+      '<div class="grid" id="contrast-grid">' + ''.join(cards) + '</div>'
+      if cards
+      else '<div class="empty">No contrast-*.feat directories found.</div>'
+  }
+  <footer>
+    Click a preview or “Open report” to inspect the interactive Z-stat viewer.
+  </footer>
+</main>
+<script>
+(() => {{
+  const input = document.getElementById("contrast-search");
+  if (!input) return;
+
+  input.addEventListener("input", () => {{
+    const query = input.value.trim().toLowerCase();
+    document.querySelectorAll(".contrast-card").forEach(card => {{
+      const name = card.dataset.name || "";
+      card.classList.toggle("hidden", query && !name.includes(query));
+    }});
+  }});
+}})();
+</script>
+</body>
+</html>
+"""
+
+            temporary = index_file.with_name(
+                f".{index_file.name}.{os.getpid()}.tmp"
+            )
+            try:
+                temporary.write_text(html_text, encoding="utf-8")
+                temporary.replace(index_file)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    return index_file
+
+
+def _maybe_write_gfeat_report_index(
+    feat_dir: Path,
+) -> Path | None:
+    """Refresh the parent .gfeat visual index when applicable."""
+    gfeat_dir = Path(feat_dir).resolve().parent
+    if gfeat_dir.suffix != ".gfeat":
+        return None
+
+    try:
+        index = _write_gfeat_report_index(gfeat_dir)
+        click.echo(f"Group report index: {index}")
+        return index
+    except Exception as error:
+        click.echo(
+            f"[WARN] Could not refresh group report index for {gfeat_dir}: "
+            f"{error}",
+            err=True,
+        )
+        return None
+
+
+def _maybe_write_poststats_report(
+    feat_dir: Path,
+    *,
+    title: str,
+    contrast_names: list[str] | None,
+    enabled: bool,
+    z_threshold: float,
+    background: Path | None = None,
+) -> Path | None:
+    if not enabled:
+        return None
+
+    try:
+        report = _write_poststats_report(
+            feat_dir,
+            title=title,
+            contrast_names=contrast_names,
+            z_threshold=z_threshold,
+            background=background,
+        )
+        click.echo(f"Poststats report: {report}")
+
+        index = _maybe_write_gfeat_report_index(feat_dir)
+
+        if index is not None:
+            gfeat_dir = Path(feat_dir).resolve().parent
+            click.echo(
+                "  To browse all contrast reports:\n"
+                f"    cd {gfeat_dir}\n"
+                "    python -m http.server 8000\n"
+                "  Then visit: http://localhost:8000/"
+            )
+        else:
+            click.echo(
+                "  To view the interactive report:\n"
+                f"    cd {feat_dir}\n"
+                "    python -m http.server 8000\n"
+                f"  Then visit: http://localhost:8000/{report.name}"
+            )
+
+        return report
+    except Exception as error:
+        click.echo(
+            f"[WARN] Could not generate poststats report for {feat_dir}: {error}",
+            err=True,
+        )
+        return None
+
+
+
+def _group_contrast_names(specs: tuple[str, ...]) -> list[str]:
+    """Return group-contrast names in the same order used for output COPEs."""
+    if not specs:
+        return ["GroupMean"]
+
+    names: list[str] = []
+    for spec in specs:
+        name = str(spec).split(";", 1)[0].strip()
+        if not name:
+            raise click.ClickException(
+                f"Invalid --group-contrast specification with empty name: {spec!r}"
+            )
+        names.append(name)
+    return names
+
+
+def _records_from_existing_group_output(
+    *,
+    rows: pd.DataFrame,
+    input_level: int,
+    output_dir: Path,
+    session: str,
+    task: str,
+    canonical_name: str,
+    runmode: str,
+    group_contrast_specs: tuple[str, ...],
+    registration_mode: str,
+    registered_subdir: str,
+) -> list[dict[str, Any]]:
+    """Reconstruct level-3 manifest records from an existing group FEAT output.
+
+    This is deliberately strict about the statistical outputs needed to prove
+    that the analysis completed. Existing directories that are incomplete are
+    reported as errors instead of being silently entered into the manifest.
+    """
+    stats_dir = output_dir / "stats"
+    if not stats_dir.is_dir():
+        raise click.ClickException(
+            f"Existing group output is incomplete; missing stats directory: {stats_dir}"
+        )
+
+    number_of_subjects = int(rows["subject"].nunique())
+    number_of_inputs = int(len(rows))
+    contrast_names = _group_contrast_names(group_contrast_specs)
+
+    records: list[dict[str, Any]] = []
+
+    for index, group_contrast in enumerate(contrast_names, start=1):
+        cope = stats_dir / f"cope{index}.nii.gz"
+        varcope = stats_dir / f"varcope{index}.nii.gz"
+        tstat = stats_dir / f"tstat{index}.nii.gz"
+        zstat = stats_dir / f"zstat{index}.nii.gz"
+
+        required = [cope, tstat, zstat]
+        missing = [str(path) for path in required if not path.is_file()]
+        if missing:
+            raise click.ClickException(
+                "Existing group output is incomplete; missing mandatory file(s): "
+                + ", ".join(missing)
+            )
+
+        records.append(
+            {
+                "session": session,
+                "task": task,
+                "canonical_name": canonical_name,
+                "group_contrast": group_contrast,
+                "input_level": input_level,
+                "runmode": runmode,
+                "registration_mode": registration_mode,
+                "registered_subdir": registered_subdir,
+                "number_of_inputs": number_of_inputs,
+                "number_of_subjects": number_of_subjects,
+                "group_dir": str(output_dir),
+                "cope_file": str(cope),
+                "varcope_file": str(varcope) if varcope.is_file() else "",
+                "tstat_file": str(tstat),
+                "zstat_file": str(zstat),
+            }
+        )
+
+    return records
+

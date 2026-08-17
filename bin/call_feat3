@@ -28,94 +28,14 @@ import pandas as pd
 from fmriproc.fsl import (
     detect_manifest_level,
     _entity_text,
+    _maybe_write_poststats_report,
     _normalize_selector,
+    resolve_group_reference,
     run_cross_subject_analysis,
     _safe_label,
+    _group_contrast_names,
+    _records_from_existing_group_output
 )
-
-
-def _group_contrast_names(specs: tuple[str, ...]) -> list[str]:
-    """Return group-contrast names in the same order used for output COPEs."""
-    if not specs:
-        return ["GroupMean"]
-
-    names: list[str] = []
-    for spec in specs:
-        name = str(spec).split(";", 1)[0].strip()
-        if not name:
-            raise click.ClickException(
-                f"Invalid --group-contrast specification with empty name: {spec!r}"
-            )
-        names.append(name)
-    return names
-
-
-def _records_from_existing_group_output(
-    *,
-    rows: pd.DataFrame,
-    input_level: int,
-    output_dir: Path,
-    session: str,
-    task: str,
-    canonical_name: str,
-    runmode: str,
-    group_contrast_specs: tuple[str, ...],
-    registration_mode: str,
-    registered_subdir: str,
-) -> list[dict[str, Any]]:
-    """Reconstruct level-3 manifest records from an existing group FEAT output.
-
-    This is deliberately strict about the statistical outputs needed to prove
-    that the analysis completed. Existing directories that are incomplete are
-    reported as errors instead of being silently entered into the manifest.
-    """
-    stats_dir = output_dir / "stats"
-    if not stats_dir.is_dir():
-        raise click.ClickException(
-            f"Existing group output is incomplete; missing stats directory: {stats_dir}"
-        )
-
-    number_of_subjects = int(rows["subject"].nunique())
-    number_of_inputs = int(len(rows))
-    contrast_names = _group_contrast_names(group_contrast_specs)
-
-    records: list[dict[str, Any]] = []
-
-    for index, group_contrast in enumerate(contrast_names, start=1):
-        cope = stats_dir / f"cope{index}.nii.gz"
-        varcope = stats_dir / f"varcope{index}.nii.gz"
-        tstat = stats_dir / f"tstat{index}.nii.gz"
-        zstat = stats_dir / f"zstat{index}.nii.gz"
-
-        required = [cope, tstat, zstat]
-        missing = [str(path) for path in required if not path.is_file()]
-        if missing:
-            raise click.ClickException(
-                "Existing group output is incomplete; missing mandatory file(s): "
-                + ", ".join(missing)
-            )
-
-        records.append(
-            {
-                "session": session,
-                "task": task,
-                "canonical_name": canonical_name,
-                "group_contrast": group_contrast,
-                "input_level": input_level,
-                "runmode": runmode,
-                "registration_mode": registration_mode,
-                "registered_subdir": registered_subdir,
-                "number_of_inputs": number_of_inputs,
-                "number_of_subjects": number_of_subjects,
-                "group_dir": str(output_dir),
-                "cope_file": str(cope),
-                "varcope_file": str(varcope) if varcope.is_file() else "",
-                "tstat_file": str(tstat),
-                "zstat_file": str(zstat),
-            }
-        )
-
-    return records
 
 
 @click.command(
@@ -350,6 +270,25 @@ def _records_from_existing_group_output(
     ),
 )
 @click.option(
+    "--report/--no-report",
+    default=True,
+    show_default=True,
+    help=(
+        "Create an interactive report_poststats.html in each level-3 contrast "
+        ".feat directory. The template background is resolved from the input manifest."
+    ),
+)
+@click.option(
+    "--report-z-threshold",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=2.3,
+    show_default=True,
+    help=(
+        "Initial absolute Z threshold for the report viewer and descriptive "
+        "cluster tables. The interactive viewer can change threshold live."
+    ),
+)
+@click.option(
     "--overwrite",
     is_flag=True,
     help=(
@@ -379,6 +318,8 @@ def main(
     registration_mode: str,
     registered_subdir: str,
     manifest_out: Path | None,
+    report: bool,
+    report_z_threshold: float,
     overwrite: bool,
     dry_run: bool,
 ) -> None:
@@ -484,6 +425,12 @@ def main(
             continue
 
         try:
+            group_reference = (
+                resolve_group_reference(rows, detected_level)
+                if report and not dry_run
+                else None
+            )
+
             if group_output.exists() and not overwrite and not dry_run:
                 click.echo(
                     f"Reusing existing group output: {group_output}"
@@ -500,6 +447,18 @@ def main(
                     registration_mode=registration_mode,
                     registered_subdir=registered_subdir,
                 )
+                report_file = _maybe_write_poststats_report(
+                    group_output,
+                    title=f"{group_label} — {canonical_name}",
+                    contrast_names=_group_contrast_names(group_contrast_specs),
+                    enabled=report,
+                    z_threshold=report_z_threshold,
+                    background=group_reference,
+                )
+                if report_file is not None:
+                    for record in records:
+                        record["report_file"] = str(report_file)
+
                 group_records.extend(records)
                 reused += 1
                 continue
@@ -528,6 +487,19 @@ def main(
                     "number_of_subjects",
                     int(rows["subject"].nunique()),
                 )
+
+            if not dry_run:
+                report_file = _maybe_write_poststats_report(
+                    group_output,
+                    title=f"{group_label} — {canonical_name}",
+                    contrast_names=_group_contrast_names(group_contrast_specs),
+                    enabled=report,
+                    z_threshold=report_z_threshold,
+                    background=group_reference,
+                )
+                if report_file is not None:
+                    for record in records:
+                        record["report_file"] = str(report_file)
 
             group_records.extend(records)
             completed += 1
