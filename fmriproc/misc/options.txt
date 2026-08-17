@@ -1,4 +1,5 @@
 --abc
+--abc
 --abd
 --avg
 --affine
@@ -22,6 +23,7 @@
 --direct
 --docker
 --dog
+--dry-run
 --fast
 --fd
 --fit

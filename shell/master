@@ -166,7 +166,7 @@ ANAT_DEPTH=""             # all anatomical steps
 INT_LOWER=""              # lower bound for call_winsorize
 INT_UPPER=""              # upper bound for call_winsorize
 FAST_LBLS="${DIR_DATA_DERIV}/fmriprep" # spinoza_extractregions
-
+dry_run=""
 # use long options in bash:
 # https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
 declare -a array
@@ -255,6 +255,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         docker)
           DOCKER_FLAG="--docker"
           ;;
+        dry-run)
+          dry_run="--dry-run"
+          ;;          
         fix-hrf)
           FIX_FLAG="--fix-hrf"
           ;;
@@ -2856,6 +2859,7 @@ if [[ $? -eq 0 ]]; then
   fi
 
   [[ -n ${run_local:-} ]] && cmd+=(--local)
+  [[ -n ${dry_run:-} ]] && cmd+=(--dry-run)
 
   # Project root is the final spinoza_singletrials argument before '--'.
   cmd+=("$singletrials_project_root")
