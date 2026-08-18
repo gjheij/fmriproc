@@ -14,21 +14,50 @@ Usage:
   spinoza_decoding [arguments] [options] <project root> -- [PANIC/call_panic-style arguments]
 
 Arguments:
-  -s <subject>    subject ID, e.g. 001 or sub-001. Can be comma-separated.
-  -j <n_cpus>     number of CPUs per subject/job. Default = 4
-  -q <queue>      SLURM queue/partition. Default = \$SGE_QUEUE_LONG
-  -m <n_jobs>     maximum number of subjects running simultaneously. Default = 10
-  -d <source>     derivative source directory. Default = halfpipe
-  -r <roi_base>   the ROI-directory is based on <project root>/derivatives/rois/<subject>/<roi_base>.
-                  If --searchlight is passed, 'searchlight' is appended. This can be changed with
-                  the '-r' flag.
+  -s <subject>    Subject ID, e.g. 001 or sub-001. Can be comma-separated.
+                  Default: all sub-* directories found under
+                  <project root>/derivatives/<source>.
+  -j <n_cpus>     Number of CPUs per subject/job.
+                  Default: 4.
+  -q <queue>      SLURM queue/partition.
+                  Default: \$SGE_QUEUE_LONG, or "main" if unset.
+  -m <n_jobs>     Maximum number of subjects running simultaneously.
+                  Default: 10.
+  -d <source>     Derivative source directory.
+                  Default: halfpipe.
+  -r <roi_base>   ROI base directory under:
+                  <project root>/derivatives/rois/<subject>/<roi_base>
+                  When --searchlight is passed, this directory is used for
+                  searchlight ROIs.
+                  Default: searchlight.
+
 Options:
-  -h|--help       print help
-  --local         run subjects sequentially via call_panic
-  --dry-run       print commands but do not submit/run
-  --overwrite     whether to overwrite existing outputs. Default: False. If True,
-                  existing outputs will be overwritten; if False, existing outputs will
-                  be preserved and the corresponding subject/job will be skipped.
+  -h|--help       Print help.
+  --local         Run subjects sequentially via call_panic.
+                  Default: disabled.
+  --dry-run       Print commands but do not submit/run.
+                  Default: disabled.
+  --overwrite     Overwrite existing PANIC outputs.
+                  Default: disabled / False.
+  --lsa           Use LSA beta estimates.
+                  Default: LSA.
+  --lss           Use LSS beta estimates instead of LSA.
+  --searchlight   Run searchlight decoding.
+                  Default: disabled.
+
+PANIC defaults injected by this launcher:
+  Unless overridden with --set/-x or removed with --unset, the launcher sets:
+
+    general_settings.project_dir=<project root>
+    general_settings.save_dir=<project root>/derivatives/panic
+    decoding_settings.parallel.n_jobs=<n_cpus>
+    general_settings.source=<source>
+    general_settings.method=LSA
+    roi_dict=<project root>/derivatives/rois/<subject>
+    general_settings.overwrite=False
+
+  With --searchlight:
+    roi_dict=<project root>/derivatives/rois/<subject>/<roi_base>
 
 Pass-through:
   After '--', supports call_panic-style -f, -x, --searchlight, --lsa, --lss,
