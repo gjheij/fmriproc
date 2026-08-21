@@ -1,0 +1,1199 @@
+#!/usr/bin/env python3
+"""Dataset-level discovery, normalization and group orchestration for randomise."""
+
+from __future__ import annotations
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+import os
+import re
+import shlex
+import shutil
+import subprocess
+
+import click
+import pandas as pd
+
+from fmriproc.fsl import (
+    _write_randomise_report_index,
+    filter_manifest_rows,
+    load_randomise_manifest,
+)
+
+
+CONTEXT_SETTINGS = {
+    "help_option_names": ["-h", "--help"],
+    "ignore_unknown_options": True,
+    "allow_extra_args": True,
+}
+
+
+def _panic_dirs(path: Path) -> list[Path]:
+    path = path.resolve()
+    if path.name == "panic" and path.parent.name == "derivatives":
+        return [path]
+    direct = path / "derivatives" / "panic"
+    if direct.is_dir():
+        return [direct.resolve()]
+    return sorted(
+        p.resolve()
+        for p in path.rglob("panic")
+        if p.is_dir() and p.parent.name == "derivatives"
+    )
+
+
+def _path_entities(parts: list[str]) -> dict[str, str]:
+    """Extract arbitrary key-value entities from path components.
+
+    Examples
+    --------
+    ``sub-015/model-LSA/source-halfpipe/roi-brain/searchlight`` becomes::
+
+        {
+            "sub": "015",
+            "model": "LSA",
+            "source": "halfpipe",
+            "roi": "brain",
+        }
+
+    Components without a hyphen (e.g. ``searchlight``) are ignored. The first
+    occurrence of an entity wins so deeper implementation directories cannot
+    silently overwrite acquisition/analysis metadata.
+    """
+    entities: dict[str, str] = {}
+
+    for part in parts:
+        if "-" not in part:
+            continue
+
+        key, value = part.split("-", 1)
+        key = key.strip()
+        value = value.strip()
+
+        if not key or not value:
+            continue
+
+        entities.setdefault(key, value)
+
+    return entities
+
+
+def _subject_from_path(path: Path) -> str:
+    for part in path.parts:
+        match = re.fullmatch(r"sub-([^/]+)", part)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _session_from_path(path: Path) -> str:
+    for part in path.parts:
+        match = re.fullmatch(r"ses-([^/]+)", part)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _find_transform(
+    *,
+    xfm_dir: Path,
+    subject: str,
+    session: str,
+    tpl_space: str,
+) -> Path:
+    subject_token = f"sub-{subject}"
+    session_token = f"ses-{session}" if session else ""
+
+    candidates = []
+    for path in xfm_dir.rglob(
+        f"*from-T1w_to-{tpl_space}_mode-image_xfm.h5"
+    ):
+        text = str(path)
+        if subject_token not in text:
+            continue
+        if session_token and session_token not in text:
+            continue
+        candidates.append(path.resolve())
+
+    candidates = sorted(set(candidates))
+    if not candidates:
+        raise click.ClickException(
+            f"No T1w→{tpl_space} H5 transform found for sub-{subject}"
+            + (f" ses-{session}" if session else "")
+            + f" under {xfm_dir}"
+        )
+    if len(candidates) > 1:
+        raise click.ClickException(
+            f"Multiple T1w→{tpl_space} transforms found for sub-{subject}"
+            + (f" ses-{session}" if session else "")
+            + ":\n  " + "\n  ".join(map(str, candidates))
+        )
+    return candidates[0]
+
+
+def _template_candidate(
+    tpl_home: Path,
+    tpl_space: str,
+    tpl_res: int,
+    *,
+    suffix: str,
+) -> Path:
+    root = tpl_home / f"tpl-{tpl_space}"
+    res = f"{tpl_res:02d}"
+    preferred = [
+        root / f"tpl-{tpl_space}_res-{res}_desc-brain_{suffix}.nii.gz",
+        root / f"tpl-{tpl_space}_res-{res}_{suffix}.nii.gz",
+        root / f"tpl-{tpl_space}_res-{tpl_res}_desc-brain_{suffix}.nii.gz",
+        root / f"tpl-{tpl_space}_res-{tpl_res}_{suffix}.nii.gz",
+    ]
+    for path in preferred:
+        if path.is_file():
+            return path.resolve()
+
+    matches = sorted(root.glob(f"tpl-{tpl_space}_res-*_{suffix}.nii.gz"))
+    if len(matches) == 1:
+        return matches[0].resolve()
+
+    raise click.ClickException(
+        f"Could not resolve TemplateFlow {suffix} for "
+        f"{tpl_space}:res-{tpl_res} under {tpl_home}"
+    )
+
+
+def _registered_output(map_file: Path, tpl_space: str, tpl_res: int) -> Path:
+    name = map_file.name
+    if name.endswith(".nii.gz"):
+        stem = name[:-7]
+    else:
+        stem = map_file.stem
+    return map_file.with_name(
+        f"{stem}_space-{tpl_space}_res-{tpl_res:02d}.nii.gz"
+    )
+
+
+def rebuild_manifest(
+    *,
+    panic_dir: Path,
+    map_name: str,
+    xfm_dir: Path | None,
+    tpl_space: str,
+    tpl_res: int,
+    search_root: Path | None = None,
+) -> Path:
+    panic_dir = panic_dir.resolve()
+    dataset_dir = panic_dir.parent.parent
+    default_xfm_dir = dataset_dir / "derivatives" / "fmriprep"
+    xfm_root = (xfm_dir or default_xfm_dir).resolve()
+
+    discovery_root = (
+        Path(search_root).resolve()
+        if search_root is not None
+        else panic_dir
+    )
+
+    try:
+        discovery_root.relative_to(panic_dir)
+    except ValueError as error:
+        raise click.ClickException(
+            f"--manifest-path must be inside the panic directory:\n"
+            f"  panic: {panic_dir}\n"
+            f"  path:  {discovery_root}"
+        ) from error
+
+    maps = sorted(
+        path.resolve()
+        for path in discovery_root.rglob(map_name)
+        if "randomise" not in path.parts
+    )
+    if not maps:
+        raise click.ClickException(
+            f"No {map_name!r} files found below {discovery_root}"
+        )
+
+    records = []
+    for map_file in maps:
+        relative = map_file.relative_to(panic_dir)
+        parts = list(relative.parts)
+        analysis = parts[0] if parts else ""
+
+        # Parse every BIDS-like key-value path component rather than assuming
+        # a fixed vocabulary such as method/source/roi. This preserves
+        # model-LSA, classifier-SVM, fold-01, metric-accuracy, etc.
+        path_entities = _path_entities(parts[:-1])
+
+        subject = (
+            path_entities.pop("sub", "")
+            or _subject_from_path(map_file)
+        )
+        session = (
+            path_entities.pop("ses", "")
+            or _session_from_path(map_file)
+        )
+        if not subject:
+            click.echo(
+                f"[WARN] Could not infer subject from {map_file}; skipping.",
+                err=True,
+            )
+            continue
+
+        transform = _find_transform(
+            xfm_dir=xfm_root,
+            subject=subject,
+            session=session,
+            tpl_space=tpl_space,
+        )
+
+        record = {
+            "subject": subject,
+            "session": session,
+            "analysis": analysis,
+            **path_entities,
+            "map_type": map_file.name.removesuffix(".nii.gz"),
+            "map_file": str(map_file),
+            "input_space": "T1w",
+            "transform_file": str(transform),
+            "template_space": tpl_space,
+            "template_res": str(tpl_res),
+            "registered_file": str(
+                _registered_output(map_file, tpl_space, tpl_res)
+            ),
+            "dataset": dataset_dir.name,
+            "dataset_dir": str(dataset_dir),
+            "panic_dir": str(panic_dir),
+            "xfm_dir": str(xfm_root),
+        }
+        records.append(record)
+
+    if not records:
+        raise click.ClickException(
+            f"No usable randomise inputs were discovered below {panic_dir}"
+        )
+
+    manifest = panic_dir / "randomise_manifest.tsv"
+    table = pd.DataFrame.from_records(records)
+    preferred_sort = [
+        "analysis",
+        "model",
+        "method",
+        "source",
+        "roi",
+        "task",
+        "subject",
+        "session",
+    ]
+    sort_columns = [
+        column
+        for column in preferred_sort
+        if column in table.columns
+    ]
+    extra_entity_columns = [
+        column
+        for column in table.columns
+        if column not in sort_columns
+        and column not in {
+            "map_type",
+            "map_file",
+            "input_space",
+            "transform_file",
+            "template_space",
+            "template_res",
+            "registered_file",
+            "dataset",
+            "dataset_dir",
+            "panic_dir",
+            "xfm_dir",
+        }
+    ]
+    table = table.sort_values(
+        sort_columns + extra_entity_columns,
+        kind="stable",
+    )
+    temporary = panic_dir / f".randomise_manifest.{os.getpid()}.tmp"
+    table.to_csv(temporary, sep="\t", index=False)
+    temporary.replace(manifest)
+
+    click.echo(
+        f"Rebuilt randomise manifest: {manifest} "
+        f"({len(table)} map(s), {table['subject'].nunique()} subject(s))"
+    )
+    return manifest
+
+
+def register_rows(
+    table: pd.DataFrame,
+    *,
+    tpl_home: Path,
+    tpl_space: str,
+    tpl_res: int,
+    max_running: int,
+    dry_run: bool,
+) -> pd.DataFrame:
+    template = _template_candidate(
+        tpl_home.resolve(),
+        tpl_space,
+        tpl_res,
+        suffix="T1w",
+    )
+
+    command_name = shutil.which("call_antsapplytransforms")
+    if command_name is None:
+        raise click.ClickException(
+            "Required command not found on PATH: call_antsapplytransforms"
+        )
+
+    table = table.copy()
+
+    def one(index: int):
+        row = table.loc[index]
+        source = Path(row["map_file"]).resolve()
+        transform = Path(row["transform_file"]).resolve()
+        target_text = str(row.get("registered_file", "")).strip()
+        target = (
+            Path(target_text).resolve()
+            if target_text
+            else _registered_output(source, tpl_space, tpl_res)
+        )
+
+        if target.is_file():
+            return index, str(target), "reused"
+
+        command = [
+            command_name,
+            str(template),
+            str(source),
+            str(target),
+            str(transform),
+        ]
+        click.echo(" ".join(shlex.quote(item) for item in command))
+        if not dry_run:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(command, check=True)
+        return index, str(target), "created"
+
+    workers = max(1, int(max_running))
+    results = []
+    if workers == 1:
+        for index in table.index:
+            results.append(one(index))
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(one, index) for index in table.index]
+            for future in as_completed(futures):
+                results.append(future.result())
+
+    for index, target, _status in results:
+        table.at[index, "registered_file"] = target
+        table.at[index, "template_space"] = tpl_space
+        table.at[index, "template_res"] = str(tpl_res)
+
+    return table
+
+
+def _safe(value: str) -> str:
+    value = re.sub(r"[^A-Za-z0-9._+-]+", "-", str(value).strip())
+    return value.strip("-") or "unknown"
+
+
+def _analysis_groups(
+    table: pd.DataFrame,
+    group_by: tuple[str, ...],
+) -> list[tuple[dict[str, str], pd.DataFrame]]:
+    """Split a manifest into independent randomise analyses.
+
+    Explicit ``--group-by`` columns are used verbatim. Otherwise all
+    non-subject path/entity columns are considered, while filesystem,
+    registration, template and provenance columns are excluded.
+
+    Entity columns are retained even when constant (e.g. source=halfpipe,
+    roi=brain), so output names remain self-describing. Columns that are empty
+    for every row are ignored.
+    """
+    if group_by:
+        columns = list(group_by)
+    else:
+        reserved = {
+            "subject",
+            "session",
+            "map_file",
+            "registered_file",
+            "transform_file",
+            "input_space",
+            "template_space",
+            "template_res",
+            "dataset",
+            "dataset_dir",
+            "panic_dir",
+            "xfm_dir",
+            "manifest_source",
+        }
+
+        columns = []
+        if "analysis" in table.columns:
+            columns.append("analysis")
+
+        for column in table.columns:
+            if column == "analysis" or column in reserved:
+                continue
+
+            values = table[column].astype(str).str.strip()
+            if not values.ne("").any():
+                continue
+
+            # map_type identifies the map product rather than an acquisition
+            # entity, but should separate analyses when multiple map products
+            # are actually present.
+            if column == "map_type" and values.nunique(dropna=False) <= 1:
+                continue
+
+            columns.append(column)
+
+    missing = [column for column in columns if column not in table.columns]
+    if missing:
+        raise click.ClickException(
+            "Missing --group-by column(s): " + ", ".join(missing)
+        )
+
+    if not columns:
+        return [({}, table.copy())]
+
+    groups = []
+    for key, rows in table.groupby(columns, sort=True, dropna=False):
+        if not isinstance(key, tuple):
+            key = (key,)
+        groups.append(
+            (dict(zip(columns, map(str, key))), rows.copy())
+        )
+
+    return groups
+
+
+@click.command(
+    context_settings=CONTEXT_SETTINGS,
+    epilog=(
+        "Resource governance:\n\n"
+        "\b\n"
+        "  spinoza_randomise has two independent levels of concurrency:\n"
+        "    1. analysis-level concurrency, controlled by -m/--max-running;\n"
+        "    2. optional permutation-fragment concurrency inside each analysis,\n"
+        "       controlled by --parallel-jobs when --parallel-randomise is used.\n\n"
+
+        "\b\n"
+        "  By default, independent analyses are submitted as a throttled SLURM\n"
+        "  array. If -m is omitted, the maximum number of simultaneously running\n"
+        "  analysis jobs defaults to the number of unique analysis groups in the\n"
+        "  filtered manifest. For example, 12 groups with -m 4 are submitted\n"
+        "  effectively as an array 0-11%4.\n\n"
+
+        "\b\n"
+        "  --local disables SLURM submission of analysis groups and instead runs\n"
+        "  up to -m analyses concurrently on the current host. Registration uses\n"
+        "  the same -m ceiling for concurrent transforms.\n\n"
+
+        "\b\n"
+        "  With --parallel-randomise, each analysis may additionally launch an\n"
+        "  inner fsl_sub array through FSL randomise_parallel. --parallel-jobs\n"
+        "  limits the number of simultaneously running permutation fragments per\n"
+        "  analysis. Therefore an approximate upper bound on active permutation\n"
+        "  jobs is:\n\n"
+        "\b\n"
+        "      max-running x parallel-jobs\n\n"
+
+        "\b\n"
+        "  For example, -m 3 --parallel-randomise --parallel-jobs 8 can allow\n"
+        "  approximately 24 permutation-fragment jobs to run concurrently, in\n"
+        "  addition to short-lived launcher/defragmentation jobs.\n\n"
+
+        "\b\n"
+        "  Outer analysis jobs use --queue and repeatable --slurm-arg options.\n"
+        "  Inner randomise_parallel jobs use --parallel-queue, --parallel-ram,\n"
+        "  --parallel-time, --parallel-resource and --parallel-extra. These are\n"
+        "  passed to the scheduler configured for fsl_sub. Resource governance\n"
+        "  for the two levels is intentionally separate.\n\n"
+
+        "\b\n"
+        "  If randomise reports fewer unique permutations/sign-flips than the\n"
+        "  requested permutation count, parallel execution is not useful and the\n"
+        "  analysis falls back to ordinary exhaustive randomise.\n\n"
+
+        "Examples:\n\n"
+
+        "\b\n"
+        "  Typical dataset run:\n"
+        "    spinoza_randomise /data/study \\\n"
+        "      --rebuild-manifest \\\n"
+        "      --tpl-home /mnt/d/fMRI/.templateflow \\\n"
+        "      --tpl-space MNI152NLin2009cAsym \\\n"
+        "      --tpl-res 2 \\\n"
+        "      -m 4\n\n"
+
+        "\b\n"
+        "  SLURM resource limits for independent analyses:\n"
+        "    spinoza_randomise /data/study \\\n"
+        "      -m 4 \\\n"
+        "      --queue main \\\n"
+        "      --slurm-arg=--mem=8G \\\n"
+        "      --slurm-arg=--time=04:00:00\n\n"
+
+        "\b\n"
+        "  Parallelise permutations within each analysis:\n"
+        "    spinoza_randomise /data/study \\\n"
+        "      -m 3 \\\n"
+        "      --parallel-randomise \\\n"
+        "      --parallel-jobs 8 \\\n"
+        "      --parallel-ram 8000 \\\n"
+        "      --parallel-time 240 \\\n"
+        "      --parallel-queue main\n\n"
+
+        "\b\n"
+        "  Aggregate multiple datasets:\n"
+        "    spinoza_randomise /data/all_sites \\\n"
+        "      --manifest /data/all_sites \\\n"
+        "      --separate-entities \\\n"
+        "      --filter desc=ENIGMA \\\n"
+        "      --output-dir /data/all_sites/randomise\n"
+    ),
+)
+@click.argument(
+    "path",
+    type=click.Path(path_type=Path, exists=True),
+    default=Path("."),
+)
+@click.option(
+    "--manifest",
+    "manifest_path",
+    type=click.Path(path_type=Path, exists=True),
+    default=None,
+    help=(
+        "Manifest TSV or directory to recursively aggregate. Directory mode "
+        "searches derivatives/panic/randomise_manifest.tsv."
+    ),
+)
+@click.option(
+    "--rebuild-manifest",
+    is_flag=True,
+    help="Rebuild randomise_manifest.tsv from searchlight delta maps.",
+)
+@click.option(
+    "--manifest-only",
+    is_flag=True,
+    help=(
+        "Stop after rebuilding randomise_manifest.tsv. No registration or "
+        "randomise analyses are performed."
+    ),
+)
+@click.option(
+    "--manifest-path",
+    "manifest_path_scope",
+    type=click.Path(path_type=Path, exists=True),
+    default=None,
+    help=(
+        "Optional subtree below derivatives/panic to scan when rebuilding the "
+        "manifest (for example panic/SVM_CSm_v_CSpu). The canonical output is "
+        "still derivatives/panic/randomise_manifest.tsv."
+    ),
+)
+@click.option(
+    "--map-name",
+    default="searchlight_delta.nii.gz",
+    show_default=True,
+)
+@click.option(
+    "--separate-entities",
+    is_flag=True,
+    help=(
+        "Split the dataset folder preceding derivatives/panic into key-value "
+        "columns such as site, pi, sample and desc."
+    ),
+)
+@click.option(
+    "--delimiter",
+    default="_",
+    show_default=True,
+)
+@click.option(
+    "--xfm-dir",
+    type=click.Path(path_type=Path, exists=True, file_okay=False),
+    default=None,
+    help="Directory to search recursively for T1w-to-template H5 transforms. Defaults to derivatives/fmriprep.",
+)
+@click.option(
+    "--tpl-home",
+    type=click.Path(path_type=Path, exists=True, file_okay=False),
+    envvar="TEMPLATEFLOW_HOME",
+    default=None,
+    help="TemplateFlow home directory. Defaults to $TEMPLATEFLOW_HOME.",
+)
+@click.option("--tpl-space", default="MNI152NLin2009cAsym", show_default=True)
+@click.option("--tpl-res", type=int, default=1, show_default=True)
+@click.option(
+    "--register/--no-register",
+    default=True,
+    show_default=True,
+    help="Apply each row's T1w-to-template H5 transform before grouping.",
+)
+@click.option(
+    "-m",
+    "--max-running",
+    type=click.IntRange(min=1),
+    default=None,
+    show_default="number of randomise analysis groups",
+    help=(
+        "Maximum number of independent analysis groups allowed to run "
+        "concurrently. Also limits concurrent registration transforms. "
+        "For SLURM execution this becomes the array throttle (%%N); for "
+        "--local it limits the local worker pool. If omitted, defaults to "
+        "the number of unique analysis groups in the filtered manifest. "
+        "This does not limit randomise_parallel fragments; use "
+        "--parallel-jobs for that."
+    ),
+)
+@click.option(
+    "--local",
+    is_flag=True,
+    help=(
+        "Run independent call_randomise analyses locally instead of submitting "
+        "them as a throttled SLURM array. Local analysis concurrency and "
+        "registration concurrency are both limited by -m/--max-running."
+    ),
+)
+@click.option(
+    "-q",
+    "--queue",
+    default=None,
+    help=(
+        "SLURM partition for outer randomise analysis jobs. This does not "
+        "control the queue used by inner randomise_parallel/fsl_sub jobs; "
+        "use --parallel-queue for those."
+    ),
+)
+@click.option(
+    "--slurm-arg",
+    "slurm_args",
+    multiple=True,
+    help=(
+        "Additional sbatch argument for outer analysis-group jobs, e.g. "
+        "--slurm-arg=--mem=8G or --slurm-arg=--time=04:00:00. Repeatable. "
+        "These resources apply to call_randomise launcher/ordinary-randomise "
+        "jobs, not inner randomise_parallel fragments."
+    ),
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help="Exact manifest filter COLUMN=VALUE. Repeatable.",
+)
+@click.option(
+    "--group-by",
+    multiple=True,
+    help="Manifest column defining independent randomise analyses. Repeatable.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Randomise output root. Defaults to <panic>/randomise for a single dataset.",
+)
+@click.option(
+    "--covariates-file",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+)
+@click.option("--covariate", "covariates", multiple=True)
+@click.option(
+    "--demean-covariates/--no-demean-covariates",
+    default=True,
+    show_default=True,
+)
+@click.option("--group-contrast", "group_contrasts", multiple=True)
+@click.option(
+    "--parallel-randomise/--no-parallel-randomise",
+    default=False,
+    show_default=True,
+    help=(
+        "Use FSL randomise_parallel within each analysis. Permutation "
+        "fragments are submitted through the scheduler configured for fsl_sub. "
+        "Outer analysis-group concurrency remains controlled by "
+        "-m/--max-running; inner fragment concurrency is controlled separately "
+        "by --parallel-jobs. call_randomise waits for the fsl_sub "
+        "defragmentation job before post-processing and report generation. "
+        "When the available unique permutation/sign-flip space is smaller "
+        "than the requested permutation count, ordinary exhaustive randomise "
+        "is used instead."
+    ),
+)
+@click.option(
+    "--parallel-jobs",
+    type=click.IntRange(min=1),
+    default=None,
+    metavar="N",
+    help=(
+        "Maximum number of randomise_parallel permutation fragments allowed "
+        "to run concurrently within each analysis. Maps to fsl_sub "
+        "-x/--array_limit. Approximate maximum active fragment jobs are "
+        "max-running x parallel-jobs. Only applies with --parallel-randomise."
+    ),
+)
+@click.option(
+    "--parallel-ram",
+    type=click.IntRange(min=1),
+    default=None,
+    metavar="MB",
+    help=(
+        "RAM requested for each inner randomise_parallel/fsl_sub job, in MB. "
+        "Maps to fsl_sub -R/--jobram. Does not set memory for the outer SLURM "
+        "analysis job; use --slurm-arg=--mem=... for that."
+    ),
+)
+@click.option(
+    "--parallel-time",
+    type=click.IntRange(min=1),
+    default=None,
+    metavar="MINUTES",
+    help=(
+        "Requested runtime for each inner permutation-fragment job, in "
+        "minutes. Passed through the randomise_parallel/fsl_sub submission "
+        "machinery. Only applies with --parallel-randomise."
+    ),
+)
+@click.option(
+    "--parallel-queue",
+    default=None,
+    metavar="QUEUE",
+    help=(
+        "Queue/partition for inner randomise_parallel jobs submitted through "
+        "fsl_sub. Independent of the outer --queue used for analysis-group "
+        "SLURM jobs."
+    ),
+)
+@click.option(
+    "--parallel-resource",
+    "parallel_resources",
+    multiple=True,
+    metavar="RESOURCE",
+    help=(
+        "Repeatable fsl_sub -r/--resource request for inner "
+        "randomise_parallel jobs. Use for scheduler resource/constraint "
+        "expressions understood by the configured fsl_sub backend."
+    ),
+)
+@click.option(
+    "--parallel-extra",
+    multiple=True,
+    metavar="ARG",
+    help=(
+        "Repeatable scheduler-native argument forwarded through fsl_sub "
+        "--extra for inner randomise_parallel jobs. This is separate from "
+        "--slurm-arg, which configures the outer analysis-group jobs."
+    ),
+)
+@click.option("--overwrite", is_flag=True)
+@click.option("--dry-run", is_flag=True)
+@click.pass_context
+def main(
+    ctx: click.Context,
+    path: Path,
+    manifest_path: Path | None,
+    rebuild_manifest: bool,
+    manifest_only: bool,
+    manifest_path_scope: Path | None,
+    map_name: str,
+    separate_entities: bool,
+    delimiter: str,
+    xfm_dir: Path | None,
+    tpl_home: Path,
+    tpl_space: str,
+    tpl_res: int,
+    register: bool,
+    max_running: int | None,
+    local: bool,
+    queue: str | None,
+    slurm_args: tuple[str, ...],
+    filters: tuple[str, ...],
+    group_by: tuple[str, ...],
+    output_dir: Path | None,
+    covariates_file: Path | None,
+    covariates: tuple[str, ...],
+    demean_covariates: bool,
+    group_contrasts: tuple[str, ...],
+    parallel_randomise: bool,
+    parallel_jobs: int | None,
+    parallel_ram: int | None,
+    parallel_time: int | None,
+    parallel_queue: str | None,
+    parallel_resources: tuple[str, ...],
+    parallel_extra: tuple[str, ...],
+    overwrite: bool,
+    dry_run: bool,
+) -> None:
+    panic_dirs = _panic_dirs(path)
+
+    rebuilt = []
+    if rebuild_manifest:
+        if not panic_dirs:
+            raise click.ClickException(
+                f"No derivatives/panic directories found under {path}"
+            )
+        click.echo("Rebuilding manifest")
+        for panic_dir in panic_dirs:
+            rebuilt.append(
+                globals()["rebuild_manifest"](
+                    panic_dir=panic_dir,
+                    map_name=map_name,
+                    xfm_dir=xfm_dir,
+                    tpl_space=tpl_space,
+                    tpl_res=tpl_res,
+                    search_root=manifest_path_scope,
+                )
+            )
+
+    if manifest_only:
+        if not rebuild_manifest:
+            raise click.ClickException(
+                "--manifest-only requires --rebuild-manifest."
+            )
+        click.echo("Manifest-only mode: registration and randomise were not run.")
+        for rebuilt_manifest in rebuilt:
+            click.echo(f"  {rebuilt_manifest}")
+        return
+
+    if manifest_path is None:
+        if len(rebuilt) == 1:
+            manifest_path = rebuilt[0]
+        elif len(panic_dirs) == 1:
+            manifest_path = panic_dirs[0] / "randomise_manifest.tsv"
+        elif rebuilt:
+            manifest_path = path
+        else:
+            manifest_path = path
+
+    table = load_randomise_manifest(
+        manifest_path,
+        separate_entities=separate_entities,
+        delimiter=delimiter,
+    )
+    table = filter_manifest_rows(table, filters)
+
+    if table.empty:
+        raise click.ClickException("No randomise inputs remain after filtering.")
+
+    # Grouping depends only on manifest entities, so determine the number of
+    # independent randomise tasks before registration. When -m/--max-running
+    # is omitted, allow every unique analysis group to run concurrently.
+    groups = _analysis_groups(table, group_by)
+    if not groups:
+        raise click.ClickException("No randomise analysis groups were prepared.")
+    if max_running is None:
+        max_running = len(groups)
+        click.echo(
+            f"--max-running not specified; using {max_running} "
+            f"(number of randomise analysis groups)."
+        )
+
+    template = _template_candidate(
+        tpl_home.resolve(),
+        tpl_space,
+        tpl_res,
+        suffix="T1w",
+    )
+    mask = _template_candidate(
+        tpl_home.resolve(),
+        tpl_space,
+        tpl_res,
+        suffix="mask",
+    )
+
+    if register:
+        table = register_rows(
+            table,
+            tpl_home=tpl_home,
+            tpl_space=tpl_space,
+            tpl_res=tpl_res,
+            max_running=max_running,
+            dry_run=dry_run,
+        )
+
+        # Persist updated registration paths back to a single source manifest.
+        if Path(manifest_path).is_file() and not dry_run:
+            target = Path(manifest_path).resolve()
+            temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+            table.to_csv(temporary, sep="\t", index=False)
+            temporary.replace(target)
+
+    click.echo(f"Prepared {len(groups)} randomise analysis group(s).")
+
+    if output_dir is None:
+        source_panics = sorted(set(table.get("panic_dir", pd.Series(dtype=str))))
+        source_panics = [value for value in source_panics if str(value).strip()]
+        if len(source_panics) == 1:
+            randomise_root = Path(source_panics[0]) / "randomise"
+        elif len(panic_dirs) == 1:
+            randomise_root = panic_dirs[0] / "randomise"
+        else:
+            randomise_root = path.resolve() / "randomise"
+    else:
+        randomise_root = output_dir.resolve()
+
+    call_randomise = shutil.which("call_randomise")
+    if call_randomise is None:
+        raise click.ClickException("Required command not found on PATH: call_randomise")
+
+    randomise_root.mkdir(parents=True, exist_ok=True)
+
+    def prepare_group(item):
+        entities, rows = item
+        analysis = entities.get(
+            "analysis",
+            rows["analysis"].iloc[0] if "analysis" in rows.columns else "analysis",
+        )
+        group_dir = randomise_root / _safe(analysis)
+
+        extras = [
+            (key, value)
+            for key, value in entities.items()
+            if key != "analysis" and str(value).strip()
+        ]
+        if extras:
+            group_dir = group_dir / "_".join(
+                f"{_safe(key)}-{_safe(value)}"
+                for key, value in extras
+            )
+
+        fragment = randomise_root / ".manifests" / (
+            "_".join(
+                [f"{_safe(k)}-{_safe(v)}" for k, v in entities.items()]
+            ) or "analysis"
+        )
+        fragment = fragment.with_suffix(".tsv")
+        fragment.parent.mkdir(parents=True, exist_ok=True)
+        rows.to_csv(fragment, sep="\t", index=False)
+
+        command = [
+            call_randomise,
+            "--manifest", str(fragment),
+            "--output-dir", str(group_dir),
+            "--input-column", "registered_file",
+            "--mask", str(mask),
+            "--background", str(template),
+            "--title", str(analysis),
+        ]
+
+        if covariates_file:
+            command += ["--covariates-file", str(covariates_file)]
+        for covariate in covariates:
+            command += ["--covariate", covariate]
+        if not demean_covariates:
+            command += ["--no-demean-covariates"]
+        for contrast in group_contrasts:
+            command += ["--group-contrast", contrast]
+        if parallel_randomise:
+            command += ["--parallel-randomise"]
+        if parallel_jobs is not None:
+            command += ["--parallel-jobs", str(parallel_jobs)]
+        if parallel_ram is not None:
+            command += ["--parallel-ram", str(parallel_ram)]
+        if parallel_time is not None:
+            command += ["--parallel-time", str(parallel_time)]
+        if parallel_queue:
+            command += ["--parallel-queue", parallel_queue]
+        for resource in parallel_resources:
+            command += ["--parallel-resource", resource]
+        for extra in parallel_extra:
+            command += ["--parallel-extra", extra]
+        if overwrite:
+            command += ["--overwrite"]
+        if dry_run:
+            command += ["--dry-run"]
+
+        command += list(ctx.args)
+        return entities, group_dir, command
+
+    prepared_groups = [prepare_group(group) for group in groups]
+
+    for entities, _group_dir, command in prepared_groups:
+        click.echo("")
+        click.echo("Randomise group:")
+        for key, value in entities.items():
+            click.echo(f"  {key:16s} {value}")
+        click.echo(
+            "  command          "
+            + " ".join(shlex.quote(x) for x in command)
+        )
+
+    group_workers = min(max_running, len(prepared_groups))
+
+    if local:
+        if len(prepared_groups) > 1:
+            click.echo(
+                f"Running randomise groups locally with maximum concurrency: "
+                f"{group_workers}"
+            )
+
+        def run_local_group(item):
+            entities, group_dir, command = item
+            if not dry_run:
+                subprocess.run(command, check=True)
+            return entities, group_dir
+
+        if group_workers <= 1:
+            for item in prepared_groups:
+                entities, group_dir = run_local_group(item)
+                label = ", ".join(
+                    f"{key}={value}" for key, value in entities.items()
+                ) or group_dir.name
+                click.echo(f"Completed randomise group: {label}")
+        else:
+            with ThreadPoolExecutor(
+                max_workers=group_workers,
+                thread_name_prefix="randomise-group",
+            ) as pool:
+                future_to_group = {
+                    pool.submit(run_local_group, item): item
+                    for item in prepared_groups
+                }
+                try:
+                    for future in as_completed(future_to_group):
+                        try:
+                            entities, group_dir = future.result()
+                        except Exception:
+                            for pending in future_to_group:
+                                if pending is not future:
+                                    pending.cancel()
+                            raise
+                        label = ", ".join(
+                            f"{key}={value}"
+                            for key, value in entities.items()
+                        ) or group_dir.name
+                        click.echo(f"Completed randomise group: {label}")
+                finally:
+                    pool.shutdown(wait=True, cancel_futures=True)
+
+        if not dry_run:
+            index = _write_randomise_report_index(
+                randomise_root,
+                title=f"{randomise_root.parent.name} randomise analyses",
+            )
+            click.echo("")
+            click.echo(f"Randomise report index: {index}")
+            click.echo("  To browse reports:")
+            click.echo(f"    cd {randomise_root}")
+            click.echo("    python -m http.server 8000")
+            click.echo("  Then visit: http://localhost:8000/")
+        return
+
+    # ------------------------------------------------------------------
+    # SLURM execution (default)
+    # ------------------------------------------------------------------
+    sbatch = shutil.which("sbatch")
+    if sbatch is None and not dry_run:
+        raise click.ClickException(
+            "SLURM submission requested but 'sbatch' was not found on PATH. "
+            "Use --local to execute call_randomise directly."
+        )
+    sbatch = sbatch or "sbatch"
+
+    slurm_dir = randomise_root / ".slurm"
+    log_dir = randomise_root / "logs"
+    slurm_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    commands_file = slurm_dir / "randomise_commands.sh"
+    runner_file = slurm_dir / "run_randomise_array.sh"
+
+    command_lines = [
+        " ".join(shlex.quote(token) for token in command)
+        for _entities, _group_dir, command in prepared_groups
+    ]
+    commands_file.write_text("\n".join(command_lines) + "\n", encoding="utf-8")
+
+    runner_file.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        f"commands_file={shlex.quote(str(commands_file))}\n"
+        "line=$((SLURM_ARRAY_TASK_ID + 1))\n"
+        "cmd=$(sed -n \"${line}p\" \"${commands_file}\")\n"
+        "if [[ -z ${cmd} ]]; then\n"
+        "  echo \"ERROR: no randomise command for array index ${SLURM_ARRAY_TASK_ID}\" >&2\n"
+        "  exit 1\n"
+        "fi\n"
+        "echo \"[${SLURM_ARRAY_TASK_ID}] ${cmd}\"\n"
+        "exec bash -lc \"${cmd}\"\n",
+        encoding="utf-8",
+    )
+    runner_file.chmod(0o755)
+
+    array_spec = f"0-{len(prepared_groups) - 1}%{group_workers}"
+
+    log_file = log_dir / "randomise_%A_%a.log"
+
+    submit = [
+        sbatch,
+        "--parsable",
+        f"--array={array_spec}",
+        "--job-name=randomise",
+        f"--output={log_file}",
+        f"--error={log_file}",
+    ]
+    if queue:
+        submit += ["--partition", queue]
+    submit += list(slurm_args)
+    submit.append(str(runner_file))
+
+    click.echo("")
+    click.echo(
+        f"Submitting {len(prepared_groups)} randomise group(s) to SLURM "
+        f"with maximum concurrency {group_workers}:"
+    )
+    click.echo("  " + " ".join(shlex.quote(x) for x in submit))
+
+    if dry_run:
+        click.echo("DRY RUN: SLURM jobs were not submitted.")
+        return
+
+    submitted = subprocess.run(
+        submit,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    array_job_id = submitted.stdout.strip().split(";", 1)[0]
+    if not array_job_id:
+        raise click.ClickException("sbatch did not return a randomise array job ID.")
+    click.echo(f"Randomise array job: {array_job_id}")
+
+    # Build the card index only after every array element succeeds.
+    index_python = (
+        "from pathlib import Path; "
+        "from fmriproc.fsl import _write_randomise_report_index; "
+        f"p=Path({str(randomise_root)!r}); "
+        f"r=_write_randomise_report_index(p, title={f'{randomise_root.parent.name} randomise analyses'!r}); "
+        "print(f'Randomise report index: {r}')"
+    )
+    index_submit = [
+        sbatch,
+        "--parsable",
+        f"--dependency=afterok:{array_job_id}",
+        "--job-name=randomise_index",
+        f"--output={log_dir}/randomise_index_%j.log",
+        f"--error={log_dir}/randomise_index_%j.log",
+    ]
+    if queue:
+        index_submit += ["--partition", queue]
+    index_submit += list(slurm_args)
+    index_submit += ["--wrap", f"python -c {shlex.quote(index_python)}"]
+
+    click.echo("Submitting dependent report-index job:")
+    click.echo("  " + " ".join(shlex.quote(x) for x in index_submit))
+    index_result = subprocess.run(
+        index_submit,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    index_job_id = index_result.stdout.strip().split(";", 1)[0]
+    click.echo(f"Report-index job:    {index_job_id}")
+    click.echo(f"SLURM logs:          {log_dir}")
+
+
+if __name__ == "__main__":
+    main()

@@ -3032,3 +3032,172 @@ if [[ $? -eq 0 ]]; then
   print_module_end "${module}"
 
 fi
+#-------------------------------------------------------------------------------------
+# STEP 31: Randomise
+module=31
+
+# Check whether the module should be executed
+echo ${FLAG_executeModule} | grep -q ${module}
+
+if [[ $? -eq 0 ]]; then
+
+  if [[ ${HELP} -eq 1 ]]; then
+    spinoza_randomise --help
+    exit 0
+  fi
+
+  # print module intro
+  print_module_start \
+    "${module}" \
+    "Group-level permutation testing with FSL's randomise"
+
+  # spinoza_randomise handles:
+  #
+  #   - discovery/rebuilding of derivatives/panic/randomise_manifest.tsv
+  #   - optional aggregation of manifests across datasets
+  #   - T1w -> template registration of subject maps
+  #   - grouping analyses by manifest entities
+  #   - call_randomise execution
+  #   - HTML report/index generation
+  #
+  # master mappings used by this module:
+  #
+  #   -p <project>   -> project/dataset root positional argument
+  #   -j <N>         -> spinoza_randomise -m/--max-running
+  #   -l <N>         -> legacy fallback for -m/--max-running
+  #   -q <queue>     -> SLURM partition
+  #   --local        -> execute randomise groups locally instead of SLURM
+  #   -o             -> --overwrite
+  #   -x '<args>'    -> additional spinoza_randomise arguments and/or
+  #                    FSL randomise arguments
+  #
+  # master -m is already the module selector. For this module, master -j
+  # controls spinoza_randomise -m/--max-running (independent randomise groups).
+  # master -l is retained as a backward-compatible fallback when -j is absent.
+  #
+  # spinoza_randomise accepts unknown arguments and forwards them to
+  # call_randomise/FSL randomise. Therefore both wrapper arguments and
+  # randomise arguments may be supplied through master -x.
+  #
+  # Examples:
+  #
+  #   Rebuild the dataset manifest, normalize maps, and run TFCE:
+  #
+  #     master \
+  #       -m 31 \
+  #       -p /mnt/d/fMRI/SC2F \
+  #       -j 4 \
+  #       -x '--rebuild-manifest
+  #           --tpl-home /mnt/d/fMRI/.templateflow
+  #           --tpl-space MNI152NLin2009cAsym
+  #           --tpl-res 2
+  #           -n 5000 -T -v 5'
+  #
+  #   Aggregate manifests below a common parent:
+  #
+  #     master \
+  #       -m 31 \
+  #       -p /mnt/d/fMRI \
+  #       -j 4 \
+  #       -x '--manifest /mnt/d/fMRI
+  #           --separate-entities
+  #           --filter desc=ENIGMA
+  #           --tpl-home /mnt/d/fMRI/.templateflow
+  #           --tpl-space MNI152NLin2009cAsym
+  #           --tpl-res 2
+  #           -n 5000 -T'
+  #
+  #   Select a particular decoding analysis:
+  #
+  #     master \
+  #       -m 31 \
+  #       -p /mnt/d/fMRI/SC2F \
+  #       -x '--filter analysis=SVM_CSm_v_CSpu
+  #           --filter method=LSA
+  #           --filter source=halfpipe
+  #           --filter roi=amygdala
+  #           --tpl-home /mnt/d/fMRI/.templateflow
+  #           -n 5000 -T'
+
+  # --------------------------------------------------------------------------
+  # Project/dataset root
+
+  if [[ -n ${P_KWARGS:-} ]]; then
+    randomise_project_root="${P_KWARGS}"
+  else
+    randomise_project_root="${DIR_DATA_HOME}"
+  fi
+
+  cmd=(
+    spinoza_randomise
+  )
+
+  # --------------------------------------------------------------------------
+  # spinoza_randomise wrapper-level arguments
+
+  # master -m is the module selector. Use master -j for the module's
+  # maximum number of simultaneously running SLURM array elements (or local
+  # call_randomise processes with --local). Retain master -l as a fallback.
+  if [[ -n ${jobs_flag:-} ]]; then
+    jobs_value=${jobs_flag#-j }
+    cmd+=(-m "$jobs_value")
+  elif [[ -n ${WHICH_MOD:-} ]]; then
+    cmd+=(-m "$WHICH_MOD")
+  fi
+
+  if [[ -n ${SGE_QUEUE:-} ]]; then
+    queue_value=${SGE_QUEUE#-q }
+    cmd+=(-q "$queue_value")
+  fi
+
+  [[ -n ${run_local:-} ]] && cmd+=(--local)
+  [[ -n ${OW:-} ]]        && cmd+=(--overwrite)
+
+  # Project/dataset root is the positional argument.
+  cmd+=("$randomise_project_root")
+
+  # --------------------------------------------------------------------------
+  # Additional spinoza_randomise / FSL randomise arguments
+  #
+  # Do NOT insert '--' here. Known options such as --manifest,
+  # --rebuild-manifest, --filter and --tpl-home must still be parsed by
+  # spinoza_randomise, while unknown options such as -n/-T/-v are retained
+  # and forwarded to call_randomise/FSL randomise.
+
+  if [[ -n ${X_KWARGS:-} ]]; then
+    # Parse the master -x string as shell words so quoted contrast/covariate
+    # specifications remain single arguments.
+    eval "randomise_extra=( ${X_KWARGS} )"
+    cmd+=("${randomise_extra[@]}")
+  fi
+
+  # --------------------------------------------------------------------------
+  # debug / execute
+
+  if [[ -n ${DEBUG:-} ]]; then
+    for i in "${!cmd[@]}"; do
+      printf 'cmd[%2d] = <%q>\n' "$i" "${cmd[$i]}"
+    done
+    echo
+  fi
+
+  print_cmd "${cmd[@]}"
+  start_timer "FSL's randomise"
+  
+  "${cmd[@]}"
+
+  if [[ $? -ne 0 ]]; then
+    echo
+    print_line -
+    print_error_msg "$(basename ${0})" "${cmd[0]}"
+    exit 1
+  fi
+
+  
+  #-----------------------------------------------------------------------------
+  # outro
+  end_timer
+
+  print_module_end "${module}"
+
+fi

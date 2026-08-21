@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -5021,15 +5022,23 @@ def _write_poststats_report(
     contrast_names: list[str] | None = None,
     z_threshold: float = 2.3,
     background: Path | None = None,
+    viewer_overlays: dict[int, Sequence[dict[str, Any]]] | None = None,
 ) -> Path:
     """Create an interactive FEAT poststats-style HTML QC report.
 
     The report contains:
     - an in-browser orthogonal NIfTI viewer with slice navigation;
-    - live positive/negative Z thresholding and opacity controls;
+    - live thresholding and opacity controls;
+    - optional selectable overlays for workflows such as ``randomise``;
     - voxel and world-coordinate readout;
     - a static PNG fallback;
     - descriptive connected-component cluster tables.
+
+    ``viewer_overlays`` is keyed by one-based statistic/contrast index. Each
+    value is a sequence of dictionaries with at least ``label`` and ``path``.
+    Optional fields include ``kind`` (``signed``, ``positive`` or ``pvalue``),
+    threshold settings and a value label. If omitted, FEAT keeps its ordinary
+    single Z-statistic overlay.
 
     The connected components are *not* cluster-corrected inference.
     """
@@ -5370,20 +5379,94 @@ def _write_poststats_report(
         )
 
         if background_url is not None:
+            overlay_specs: list[dict[str, Any]] = []
+            supplied_overlays = (
+                viewer_overlays.get(index, ())
+                if viewer_overlays is not None
+                else ()
+            )
+
+            for spec in supplied_overlays:
+                path_value = spec.get("path")
+                if path_value is None:
+                    continue
+                overlay_path = Path(path_value)
+                if not overlay_path.is_absolute():
+                    overlay_path = feat_dir / overlay_path
+                if not overlay_path.is_file():
+                    continue
+
+                overlay_specs.append(
+                    {
+                        "label": str(spec.get("label", overlay_path.name)),
+                        "url": rel(overlay_path),
+                        "kind": str(spec.get("kind", "signed")),
+                        "threshold": float(spec.get("threshold", z_threshold)),
+                        "threshold_label": str(
+                            spec.get("threshold_label", "Z threshold")
+                        ),
+                        "threshold_min": float(spec.get("threshold_min", 0.0)),
+                        "threshold_max": (
+                            None
+                            if spec.get("threshold_max") is None
+                            else float(spec["threshold_max"])
+                        ),
+                        "threshold_step": float(spec.get("threshold_step", 0.1)),
+                        "value_label": str(spec.get("value_label", "Z")),
+                    }
+                )
+
+            if not overlay_specs:
+                overlay_specs = [
+                    {
+                        "label": "Z statistic",
+                        "url": rel(z_file),
+                        "kind": "signed",
+                        "threshold": float(z_threshold),
+                        "threshold_label": "Z threshold",
+                        "threshold_min": 0.0,
+                        "threshold_max": None,
+                        "threshold_step": 0.1,
+                        "value_label": "Z",
+                    }
+                ]
+
+            overlay_json = html.escape(
+                json.dumps(overlay_specs, separators=(",", ":")),
+                quote=True,
+            )
+            initial_overlay = overlay_specs[0]
+
+            overlay_selector = ""
+            if len(overlay_specs) > 1:
+                options = "".join(
+                    f"<option value='{overlay_index}'>"
+                    f"{html.escape(spec['label'])}</option>"
+                    for overlay_index, spec in enumerate(overlay_specs)
+                )
+                overlay_selector = (
+                    "<label>Overlay "
+                    f"<select class='overlay-select'>{options}</select>"
+                    "</label>"
+                )
+
             viewer_html = f"""
 <div
   class="nv-lite"
   id="viewer-{index}"
   data-background="{html.escape(background_url)}"
-  data-overlay="{html.escape(rel(z_file))}"
-  data-threshold="{z_threshold:g}"
+  data-overlays="{overlay_json}"
 >
   <div class="viewer-status">Loading interactive NIfTI viewer…</div>
   <div class="viewer-controls">
-    <label>Z threshold
-      <input class="threshold" type="range" min="0" max="10" step="0.1"
-             value="{z_threshold:g}">
-      <output class="threshold-value">{z_threshold:g}</output>
+    {overlay_selector}
+    <label><span class="threshold-label">{html.escape(initial_overlay['threshold_label'])}</span>
+      <input class="threshold" type="range"
+             min="{initial_overlay['threshold_min']:g}"
+             max="{(initial_overlay['threshold_max'] if initial_overlay['threshold_max'] is not None else 10):g}"
+             step="{initial_overlay['threshold_step']:g}"
+             value="{initial_overlay['threshold']:g}">
+      <output class="threshold-value">{initial_overlay['threshold']:g}</output>
     </label>
     <label>Overlay opacity
       <input class="opacity" type="range" min="0" max="1" step="0.05"
@@ -5599,45 +5682,80 @@ def _write_poststats_report(
     ];
   }
 
-  function overlayColor(z, threshold, alphaScale) {
+  function overlayColor(value, threshold, alphaScale, kind, scaleMax) {
     const a = Math.max(0, Math.min(1, alphaScale));
-    if (z >= threshold) {
-      const t = Math.max(0, Math.min(1, (z - threshold) / Math.max(1, 6 - threshold)));
+    const safeMax = Number.isFinite(scaleMax) ? scaleMax : threshold + 1;
+
+    if (kind === "pvalue") {
+      if (!Number.isFinite(value) || value > threshold) return null;
+      const t = Math.max(0, Math.min(1, (threshold - value) / Math.max(1e-8, threshold)));
+      return [255, Math.round(190 * (1 - t)), 40, Math.round(255 * a)];
+    }
+
+    if (kind === "positive") {
+      if (!Number.isFinite(value) || value < threshold) return null;
+      const t = Math.max(0, Math.min(1, (value - threshold) / Math.max(1e-8, safeMax - threshold)));
+      return [255, Math.round(190 * (1 - t)), 40, Math.round(255 * a)];
+    }
+
+    if (value > threshold) {
+      const t = Math.max(0, Math.min(1, (value - threshold) / Math.max(1e-8, safeMax - threshold)));
       return [255, Math.round(135 * (1 - t)), 40, Math.round(255 * a)];
     }
-    if (z <= -threshold) {
-      const t = Math.max(0, Math.min(1, (-z - threshold) / Math.max(1, 6 - threshold)));
+    if (value < -threshold) {
+      const t = Math.max(0, Math.min(1, (-value - threshold) / Math.max(1e-8, safeMax - threshold)));
       return [40, Math.round(150 * (1 - t)), 255, Math.round(255 * a)];
     }
     return null;
   }
 
-  function initViewer(root, bg, zvol) {
-    if (bg.nx !== zvol.nx || bg.ny !== zvol.ny || bg.nz !== zvol.nz) {
+  function checkGeometry(bg, vol) {
+    if (bg.nx !== vol.nx || bg.ny !== vol.ny || bg.nz !== vol.nz) {
       throw new Error(
-        `background/stat dimensions differ: ${bg.nx}×${bg.ny}×${bg.nz} vs ${zvol.nx}×${zvol.ny}×${zvol.nz}`
+        `background/stat dimensions differ: ${bg.nx}×${bg.ny}×${bg.nz} vs ${vol.nx}×${vol.ny}×${vol.nz}`
       );
     }
+  }
 
-    const state = {
-      xyz: [Math.floor(bg.nx/2), Math.floor(bg.ny/2), Math.floor(bg.nz/2)],
-      threshold: parseFloat(root.dataset.threshold || "2.3"),
-      opacity: 0.8,
-    };
-
-    // Start at the strongest absolute Z voxel.
+  function strongestVoxel(vol, kind) {
     let peak = -Infinity, peakIndex = 0;
-    for (let i = 0; i < zvol.data.length; i++) {
-      const a = Math.abs(zvol.data[i]);
-      if (Number.isFinite(a) && a > peak) {
-        peak = a;
+    for (let i = 0; i < vol.data.length; i++) {
+      const value = vol.data[i];
+      if (!Number.isFinite(value)) continue;
+      const score =
+        kind === "pvalue" ? -value :
+        kind === "positive" ? value :
+        Math.abs(value);
+      if (score > peak) {
+        peak = score;
         peakIndex = i;
       }
     }
-    state.xyz[2] = Math.floor(peakIndex / (bg.nx * bg.ny));
-    const remainder = peakIndex - state.xyz[2] * bg.nx * bg.ny;
-    state.xyz[1] = Math.floor(remainder / bg.nx);
-    state.xyz[0] = remainder - state.xyz[1] * bg.nx;
+    return peakIndex;
+  }
+
+  function initViewer(root, bg, initialVol, overlaySpecs) {
+    checkGeometry(bg, initialVol);
+
+    let overlayVol = initialVol;
+    let currentSpec = overlaySpecs[0];
+
+    const state = {
+      xyz: [Math.floor(bg.nx/2), Math.floor(bg.ny/2), Math.floor(bg.nz/2)],
+      threshold: Number(currentSpec.threshold ?? 2.3),
+      opacity: 0.8,
+      scaleMax: 1,
+    };
+
+    function setPeakLocation() {
+      const peakIndex = strongestVoxel(overlayVol, currentSpec.kind || "signed");
+      state.xyz[2] = Math.floor(peakIndex / (bg.nx * bg.ny));
+      const remainder = peakIndex - state.xyz[2] * bg.nx * bg.ny;
+      state.xyz[1] = Math.floor(remainder / bg.nx);
+      state.xyz[0] = remainder - state.xyz[1] * bg.nx;
+    }
+
+    setPeakLocation();
 
     const bgLo = percentileSample(bg.data, 0.02);
     const bgHi = percentileSample(bg.data, 0.98);
@@ -5645,12 +5763,42 @@ def _write_poststats_report(
 
     const sliders = [...root.querySelectorAll(".slice-slider")];
     const canvases = [...root.querySelectorAll(".slice-canvas")];
+    const overlaySelect = root.querySelector(".overlay-select");
     const threshold = root.querySelector(".threshold");
     const opacity = root.querySelector(".opacity");
+    const thresholdLabel = root.querySelector(".threshold-label");
     const thresholdOut = root.querySelector(".threshold-value");
     const opacityOut = root.querySelector(".opacity-value");
     const coords = root.querySelector(".coord-readout");
     const status = root.querySelector(".viewer-status");
+
+    function finiteAbsMax(data) {
+      let maximum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const value = data[i];
+        if (Number.isFinite(value)) maximum = Math.max(maximum, Math.abs(value));
+      }
+      return maximum;
+    }
+
+    function configureOverlayControls() {
+      const dataMax = finiteAbsMax(overlayVol.data);
+      state.scaleMax = Math.max(Number(currentSpec.threshold ?? 0) + 1e-8, dataMax);
+      state.threshold = Number(currentSpec.threshold ?? 0);
+
+      threshold.min = String(Number(currentSpec.threshold_min ?? 0));
+      threshold.max = String(
+        currentSpec.threshold_max == null
+          ? Math.max(state.threshold, state.scaleMax)
+          : Number(currentSpec.threshold_max)
+      );
+      threshold.step = String(Number(currentSpec.threshold_step ?? 0.1));
+      threshold.value = String(state.threshold);
+      thresholdOut.value = String(state.threshold);
+      thresholdLabel.textContent = currentSpec.threshold_label || "Threshold";
+    }
+
+    configureOverlayControls();
 
     const dims = [bg.nx, bg.ny, bg.nz];
     sliders.forEach((slider, axis) => {
@@ -5662,10 +5810,11 @@ def _write_poststats_report(
       });
     });
 
-    threshold.max = String(Math.max(5, Math.ceil(peak)));
     threshold.addEventListener("input", () => {
       state.threshold = parseFloat(threshold.value);
-      thresholdOut.value = state.threshold.toFixed(1);
+      const step = Number(threshold.step || 0.1);
+      const decimals = step < 0.01 ? 3 : (step < 0.1 ? 2 : 1);
+      thresholdOut.value = state.threshold.toFixed(decimals);
       renderAll();
     });
 
@@ -5805,7 +5954,13 @@ def _write_poststats_report(
           img.data[out+2] = g;
           img.data[out+3] = 255;
 
-          const c = overlayColor(zvol.data[idx], state.threshold, state.opacity);
+          const c = overlayColor(
+            overlayVol.data[idx],
+            state.threshold,
+            state.opacity,
+            currentSpec.kind || "signed",
+            state.scaleMax,
+          );
           if (c) {
             const a = c[3] / 255;
             img.data[out]   = Math.round(img.data[out]   * (1-a) + c[0] * a);
@@ -5835,23 +5990,64 @@ def _write_poststats_report(
 
       const [x,y,z] = state.xyz;
       const mm = world(bg.affine, x, y, z);
-      const zvalue = zvol.data[voxelIndex(zvol, x, y, z)];
+      const overlayValue = overlayVol.data[voxelIndex(overlayVol, x, y, z)];
+      const valueLabel = currentSpec.value_label || currentSpec.label || "value";
       coords.textContent =
-        `voxel [${x}, ${y}, ${z}] · mm [${mm.map(v => v.toFixed(1)).join(", ")}] · Z=${Number.isFinite(zvalue) ? zvalue.toFixed(3) : "n/a"}`;
+        `voxel [${x}, ${y}, ${z}] · mm [${mm.map(v => v.toFixed(1)).join(", ")}] · ${valueLabel}=${Number.isFinite(overlayValue) ? overlayValue.toFixed(3) : "n/a"}`;
     }
 
-    status.textContent = `Interactive viewer ready · ${bg.nx}×${bg.ny}×${bg.nz}`;
+    async function switchOverlay(index) {
+      const nextSpec = overlaySpecs[index];
+      if (!nextSpec) return;
+
+      status.textContent = `Loading overlay: ${nextSpec.label}…`;
+      status.classList.remove("viewer-ready");
+      status.classList.remove("viewer-error");
+
+      try {
+        const nextVol = parseNifti(await fetchBuffer(nextSpec.url));
+        checkGeometry(bg, nextVol);
+        currentSpec = nextSpec;
+        overlayVol = nextVol;
+        configureOverlayControls();
+        setPeakLocation();
+        renderAll();
+        status.textContent =
+          `Interactive viewer ready · ${bg.nx}×${bg.ny}×${bg.nz} · ${currentSpec.label}`;
+        status.classList.add("viewer-ready");
+      } catch (error) {
+        showFileProtocolWarning(root, error.message || String(error));
+      }
+    }
+
+    if (overlaySelect) {
+      overlaySelect.addEventListener("change", () => {
+        switchOverlay(parseInt(overlaySelect.value, 10));
+      });
+    }
+
+    status.textContent =
+      `Interactive viewer ready · ${bg.nx}×${bg.ny}×${bg.nz} · ${currentSpec.label}`;
     status.classList.add("viewer-ready");
     renderAll();
   }
 
   async function boot(root) {
     try {
-      const [bgBuffer, zBuffer] = await Promise.all([
+      const overlaySpecs = JSON.parse(root.dataset.overlays || "[]");
+      if (!overlaySpecs.length) throw new Error("no viewer overlays were configured");
+
+      const [bgBuffer, overlayBuffer] = await Promise.all([
         fetchBuffer(root.dataset.background),
-        fetchBuffer(root.dataset.overlay),
+        fetchBuffer(overlaySpecs[0].url),
       ]);
-      initViewer(root, parseNifti(bgBuffer), parseNifti(zBuffer));
+
+      initViewer(
+        root,
+        parseNifti(bgBuffer),
+        parseNifti(overlayBuffer),
+        overlaySpecs,
+      );
     } catch (error) {
       showFileProtocolWarning(root, error.message || String(error));
     }
@@ -5937,6 +6133,10 @@ a {{ color: #0645ad; }}
   display: flex;
   align-items: center;
   gap: .45rem;
+}}
+.viewer-controls select {{
+  max-width: 18rem;
+  padding: .2rem .35rem;
 }}
 .coord-readout {{
   font-family: monospace;
@@ -6556,3 +6756,1337 @@ def _records_from_existing_group_output(
 
     return records
 
+
+
+# ---------------------------------------------------------------------------
+# Manifest-driven FSL randomise helpers
+# ---------------------------------------------------------------------------
+
+def _link_or_copy_report_asset(source: Path, destination: Path) -> Path:
+    """Expose a source image at a stable report-local path without needless copies."""
+    source = Path(source).resolve()
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    def same_file() -> bool:
+        try:
+            return destination.exists() and os.path.samefile(destination, source)
+        except OSError:
+            return False
+
+    if destination.is_symlink():
+        try:
+            if destination.resolve() == source:
+                return destination
+        except OSError:
+            pass
+        destination.unlink(missing_ok=True)
+    elif destination.exists():
+        if same_file():
+            return destination
+        destination.unlink()
+
+    try:
+        target = os.path.relpath(str(source), str(destination.parent.resolve()))
+        destination.symlink_to(target)
+        if destination.exists():
+            return destination
+    except OSError:
+        pass
+
+    if destination.is_symlink():
+        destination.unlink(missing_ok=True)
+
+    try:
+        os.link(source, destination)
+        return destination
+    except OSError:
+        shutil.copy2(source, destination)
+        return destination
+
+
+def load_randomise_manifest(
+    manifest: Path,
+    *,
+    separate_entities: bool = False,
+    delimiter: str = "_",
+) -> pd.DataFrame:
+    """Load one randomise manifest or recursively aggregate dataset manifests.
+
+    Directory input searches recursively for exactly
+    ``derivatives/panic/randomise_manifest.tsv``. Each source dataset receives a
+    ``dataset`` column containing the folder immediately preceding ``derivatives``.
+    With ``separate_entities=True``, BIDS-like ``key-value`` tokens in that folder
+    name are additionally expanded into columns using ``delimiter``.
+    """
+    manifest = Path(manifest).resolve()
+
+    if manifest.is_file():
+        paths = [manifest]
+    elif manifest.is_dir():
+        paths = sorted(
+            path
+            for path in manifest.rglob("randomise_manifest.tsv")
+            if path.parent.name == "panic"
+            and path.parent.parent.name == "derivatives"
+        )
+        if not paths:
+            raise click.ClickException(
+                "No derivatives/panic/randomise_manifest.tsv files found under "
+                f"{manifest}"
+            )
+    else:
+        raise click.ClickException(f"Manifest path does not exist: {manifest}")
+
+    tables: list[pd.DataFrame] = []
+
+    for path in paths:
+        try:
+            table = pd.read_csv(
+                path,
+                sep="\t",
+                dtype=str,
+                keep_default_na=False,
+            )
+        except pd.errors.EmptyDataError:
+            click.echo(f"[WARN] Ignoring empty randomise manifest: {path}", err=True)
+            continue
+
+        if path.parent.name == "panic" and path.parent.parent.name == "derivatives":
+            dataset_dir = path.parent.parent.parent
+            dataset_name = dataset_dir.name
+        else:
+            dataset_dir = path.parent
+            dataset_name = dataset_dir.name
+
+        table = table.copy()
+        if "dataset" not in table.columns:
+            table["dataset"] = dataset_name
+        else:
+            table["dataset"] = table["dataset"].replace("", dataset_name)
+
+        if "dataset_dir" not in table.columns:
+            table["dataset_dir"] = str(dataset_dir)
+        else:
+            table["dataset_dir"] = table["dataset_dir"].replace(
+                "",
+                str(dataset_dir),
+            )
+
+        if "panic_dir" not in table.columns:
+            table["panic_dir"] = str(path.parent)
+
+        table["manifest_source"] = str(path)
+
+        if separate_entities:
+            if not delimiter:
+                raise click.ClickException("--delimiter cannot be empty.")
+
+            entity_values: dict[str, str] = {}
+            for token in dataset_name.split(delimiter):
+                if "-" not in token:
+                    continue
+                key, value = token.split("-", 1)
+                key = key.strip()
+                value = value.strip()
+                if key and value:
+                    entity_values[key] = value
+
+            for key, value in entity_values.items():
+                if key not in table.columns:
+                    table[key] = value
+                else:
+                    table[key] = table[key].replace("", value)
+
+        tables.append(table)
+
+    if not tables:
+        raise click.ClickException("No non-empty randomise manifests were loaded.")
+
+    merged = pd.concat(tables, ignore_index=True, sort=False)
+    return merged.fillna("").astype(str)
+
+
+def filter_manifest_rows(
+    table: pd.DataFrame,
+    filters: Sequence[str],
+) -> pd.DataFrame:
+    """Apply repeatable ``COLUMN=VALUE`` exact-match filters to a manifest."""
+    filtered = table.copy()
+
+    for specification in filters:
+        if "=" not in specification:
+            raise click.ClickException(
+                f"Invalid --filter {specification!r}; expected COLUMN=VALUE."
+            )
+
+        column, value = specification.split("=", 1)
+        column = column.strip()
+        value = value.strip()
+
+        if not column:
+            raise click.ClickException(
+                f"Invalid --filter {specification!r}; column is empty."
+            )
+        if column not in filtered.columns:
+            raise click.ClickException(
+                f"Manifest has no column {column!r}. Available columns: "
+                + ", ".join(filtered.columns)
+            )
+
+        filtered = filtered.loc[
+            filtered[column].astype(str) == value
+        ].copy()
+
+    return filtered
+
+
+def verify_image_geometry(
+    images: Sequence[Path],
+    *,
+    reference: Path | None = None,
+    atol: float = 1e-4,
+) -> Path:
+    """Require all NIfTI inputs to share one 3D grid and affine."""
+    images = [Path(path).resolve() for path in images]
+    if not images:
+        raise click.ClickException("No images were supplied for geometry validation.")
+
+    missing = [str(path) for path in images if not path.is_file()]
+    if missing:
+        raise click.ClickException(
+            "Missing randomise input image(s):\n  " + "\n  ".join(missing)
+        )
+
+    reference_path = Path(reference).resolve() if reference else images[0]
+    ref_img = nib.load(str(reference_path))
+    ref_shape = ref_img.shape[:3]
+
+    for path in images:
+        img = nib.load(str(path))
+        if img.shape[:3] != ref_shape or not np.allclose(
+            img.affine,
+            ref_img.affine,
+            rtol=0.0,
+            atol=atol,
+        ):
+            raise click.ClickException(
+                "Randomise inputs do not share one voxel grid and affine:\n"
+                f"  reference: {reference_path}\n"
+                f"  mismatch:  {path}"
+            )
+
+    return reference_path
+
+
+def _prepare_governed_randomise_parallel(
+    executable: Path,
+    *,
+    output_dir: Path,
+    parallel_jobs: int | None,
+    parallel_ram: int | None,
+    parallel_queue: str | None,
+    parallel_resources: Sequence[str],
+    parallel_extra: Sequence[str],
+) -> Path:
+    """Create an analysis-local ``randomise_parallel`` with governed ``fsl_sub``.
+
+    The upstream FSL launcher hard-codes its calls to ``$FSLDIR/bin/fsl_sub``
+    and does not expose ``fsl_sub`` array/resource controls. This helper copies
+    the launcher into the analysis directory and injects those controls without
+    modifying the FSL installation. ``parallel_jobs`` is applied only to the
+    fragment array because ``fsl_sub -x`` is array-only; queue, RAM, resource,
+    and scheduler-extra requests are applied to both fragment and defragment jobs.
+    """
+    executable = Path(executable).resolve()
+    output_dir = Path(output_dir).resolve()
+    text = executable.read_text(encoding="utf-8")
+
+    common: list[str] = []
+    if parallel_ram is not None:
+        common += ["-R", str(parallel_ram)]
+    if parallel_queue:
+        common += ["-q", parallel_queue]
+    for resource in parallel_resources:
+        common += ["-r", resource]
+    for extra in parallel_extra:
+        common += ["--extra", extra]
+
+    fragment = list(common)
+    if parallel_jobs is not None:
+        fragment += ["-x", str(parallel_jobs)]
+
+    def shell_words(values: Sequence[str]) -> str:
+        return " ".join(shlex.quote(str(value)) for value in values)
+
+    fragment_words = shell_words(fragment)
+    common_words = shell_words(common)
+    generate_marker = 'GENERATE_ID=$("$FSLDIR/bin/fsl_sub" '
+    defragment_marker = 'fsl_sub -j $GENERATE_ID '
+
+    if generate_marker not in text or defragment_marker not in text:
+        raise click.ClickException(
+            "Installed randomise_parallel has an unexpected fsl_sub invocation "
+            f"layout and cannot be resource-governed safely: {executable}"
+        )
+    if fragment_words:
+        text = text.replace(generate_marker, generate_marker + fragment_words + " ", 1)
+    if common_words:
+        text = text.replace(
+            defragment_marker,
+            "fsl_sub " + common_words + " -j $GENERATE_ID ",
+            1,
+        )
+
+    governed = output_dir / ".randomise_parallel_governed.sh"
+    governed.write_text(text, encoding="utf-8")
+    governed.chmod(0o755)
+    return governed
+
+def run_randomise_analysis(
+    *,
+    rows: pd.DataFrame,
+    output_dir: Path,
+    input_column: str,
+    mask_file: Path,
+    background: Path | None,
+    common_mask: bool = True,
+    covariates_file: Path | None,
+    covariate_names: Sequence[str],
+    demean_covariates: bool,
+    group_contrast_specs: Sequence[str],
+    randomise_args: Sequence[str],
+    parallel_randomise: bool = False,
+    parallel_jobs: int | None = None,
+    parallel_ram: int | None = None,
+    parallel_time: int | None = None,
+    parallel_queue: str | None = None,
+    parallel_resources: Sequence[str] = (),
+    parallel_extra: Sequence[str] = (),
+    overwrite: bool,
+    dry_run: bool,
+    title: str,
+    report: bool = True,
+    report_threshold: float = 2.3,
+) -> dict[str, Any]:
+    """Run one manifest-backed cross-subject analysis with FSL ``randomise``.
+
+    This is the execution primitive behind :command:`call_randomise`. The CLI
+    wrapper parses arguments and delegates the complete analysis here: manifest
+    validation, subject ordering, image-geometry checks, design construction,
+    input merging, mask construction, ordinary versus parallel randomise
+    execution, post-processing, provenance, and HTML reporting.
+
+    The input is intentionally map-type agnostic. ``rows`` may describe
+    decoding deltas, accuracies, correlations, parameter estimates, contrast
+    images, or any other scalar image for which exactly one independent map is
+    available per subject after filtering. Dataset semantics remain in the
+    manifest and ``analysis.json`` rather than being encoded in output names.
+
+    By default, ``mask_file`` is treated as a bounding/template mask rather
+    than the final statistical mask. The merged subject image is converted to
+    non-zero support with ``fslmaths -abs -bin`` and ``-Tmin`` retains only
+    voxels represented in every subject. That common support is intersected
+    with ``mask_file`` and written to ``mask.nii.gz``. Set ``common_mask=False``
+    to use the supplied mask directly. Common-support derivation assumes that
+    zero denotes missing/out-of-support data.
+
+    When ``parallel_randomise`` is false, one ordinary FSL ``randomise``
+    process is executed. When true, FSL ``randomise_parallel`` is used and its
+    fragment jobs are submitted through the scheduler configured for
+    ``fsl_sub``. ``parallel_jobs`` limits simultaneous permutation fragments;
+    the RAM, time, queue, resource, and scheduler-extra parameters govern the
+    corresponding inner ``fsl_sub`` jobs.
+
+    Before using ``randomise_parallel``, ``randomise -Q`` is queried. If the
+    requested permutation count exceeds the available unique permutation or
+    sign-flip space, the analysis transparently falls back to ordinary
+    exhaustive ``randomise`` because the installed parallel launcher cannot
+    safely defragment that case. For a genuine parallel run, this function
+    waits for the dependent defragmentation job before any post-processing or
+    report generation, so callers receive a completed analysis rather than an
+    asynchronous submission.
+
+    ``-i/-o/-d/-t/-m`` are owned by this function and cannot be supplied in
+    ``randomise_args``. All other arguments are forwarded verbatim.
+
+    The analysis directory uses generic names::
+
+        inputs.nii.gz
+        mask.nii.gz
+        design.mat
+        design.con
+        subjects.tsv
+        manifest.tsv
+        mean.nii.gz
+        randomise_*
+        analysis.json
+        report_poststats.html
+
+    Corrected TFCE probability images are additionally converted to a binary
+    corrected-significance mask, corrected p, ``-log10(p)``, and a
+    significance-masked T image. The HTML report exposes available derivatives
+    through a selectable overlay control.
+
+    Returns
+    -------
+    dict[str, Any]
+        Paths and metadata for the completed analysis. ``merged_file`` is kept
+        as a compatibility alias for ``input_file``.
+    """
+    output_dir = Path(output_dir).resolve()
+    mask_file = Path(mask_file).resolve()
+    background = Path(background).resolve() if background else None
+
+    if input_column not in rows.columns:
+        raise click.ClickException(
+            f"Manifest lacks input column {input_column!r}."
+        )
+    if "subject" not in rows.columns:
+        raise click.ClickException(
+            "Randomise manifest requires a 'subject' column."
+        )
+
+    rows = rows.copy()
+    rows["subject"] = rows["subject"].astype(str)
+
+    duplicate_subjects = sorted(
+        rows.loc[
+            rows["subject"].duplicated(keep=False),
+            "subject",
+        ].unique()
+    )
+    if duplicate_subjects:
+        raise click.ClickException(
+            "Randomise requires one independent map per subject after filtering. "
+            "Duplicate subjects: " + ", ".join(duplicate_subjects)
+        )
+
+    rows = rows.sort_values("subject", kind="stable").reset_index(drop=True)
+    subjects = rows["subject"].tolist()
+    if len(subjects) < 2:
+        raise click.ClickException(
+            "Randomise group analysis requires at least two subjects."
+        )
+
+    input_files = [
+        Path(value).resolve()
+        for value in rows[input_column].astype(str)
+        if str(value).strip()
+    ]
+    if len(input_files) != len(rows):
+        raise click.ClickException(
+            f"Some manifest rows have empty {input_column!r} values."
+        )
+
+    if output_dir.exists():
+        if overwrite:
+            click.echo(f"Removing existing randomise output: {output_dir}")
+            if not dry_run:
+                shutil.rmtree(output_dir)
+        else:
+            raise click.ClickException(
+                f"Randomise output already exists: {output_dir}. "
+                "Use --overwrite to replace it."
+            )
+
+    if not dry_run:
+        output_dir.mkdir(parents=True, exist_ok=False)
+
+    verify_image_geometry(
+        input_files,
+        reference=background if background and background.is_file() else None,
+    )
+
+    if not mask_file.is_file():
+        raise click.ClickException(
+            f"Randomise bounding mask does not exist: {mask_file}"
+        )
+
+    verify_image_geometry(
+        [*input_files, mask_file],
+        reference=background if background and background.is_file() else None,
+    )
+
+    (
+        design_columns,
+        design_matrix,
+        contrast_names,
+        contrast_matrix,
+        subject_table,
+    ) = prepare_group_design(
+        subjects=subjects,
+        covariates_file=covariates_file,
+        covariate_names=covariate_names,
+        demean_covariates=demean_covariates,
+        group_contrast_specs=group_contrast_specs,
+    )
+
+    click.echo(f"Subjects: {len(subjects)}")
+    click.echo("Design columns: " + ", ".join(design_columns))
+    click.echo("Group contrasts:")
+    for index, (name, weights) in enumerate(
+        zip(contrast_names, contrast_matrix),
+        start=1,
+    ):
+        click.echo(
+            f"  {index:2d}. {name}: "
+            + ", ".join(f"{weight:g}" for weight in weights)
+        )
+
+    fslmerge = _require_fsl_command("fslmerge")
+    fslmaths = _require_fsl_command("fslmaths")
+    randomise = _require_fsl_command("randomise")
+    randomise_parallel_executable = (
+        _require_fsl_command("randomise_parallel")
+        if parallel_randomise
+        else None
+    )
+
+    input_file = output_dir / "inputs.nii.gz"
+    design_file = output_dir / "design.mat"
+    contrast_file = output_dir / "design.con"
+    local_mask = output_dir / "mask.nii.gz"
+    prefix = output_dir / "randomise"
+
+    cwd = output_dir if not dry_run else output_dir.parent
+
+    click.echo("Merging subject maps:")
+    run_command(
+        [fslmerge, "-t", str(input_file), *map(str, input_files)],
+        cwd=cwd,
+        dry_run=dry_run,
+    )
+
+    if not dry_run:
+        _write_vest_matrix(design_file, design_matrix)
+        _write_vest_contrast(
+            contrast_file,
+            contrast_names,
+            contrast_matrix,
+        )
+        subject_table.to_csv(
+            output_dir / "subjects.tsv",
+            sep="\t",
+            index=False,
+        )
+
+        inputs_table = rows.copy()
+        inputs_table["randomise_input"] = [
+            str(path) for path in input_files
+        ]
+        inputs_table.to_csv(
+            output_dir / "manifest.tsv",
+            sep="\t",
+            index=False,
+        )
+
+    if common_mask:
+        support_mask = output_dir / ".common_support_mask.nii.gz"
+        click.echo("Building common-voxel mask:")
+        run_command(
+            [
+                fslmaths,
+                str(input_file),
+                "-abs",
+                "-bin",
+                "-Tmin",
+                str(support_mask),
+            ],
+            cwd=cwd,
+            dry_run=dry_run,
+        )
+        run_command(
+            [
+                fslmaths,
+                str(support_mask),
+                "-mas",
+                str(mask_file),
+                str(local_mask),
+            ],
+            cwd=cwd,
+            dry_run=dry_run,
+        )
+        if not dry_run:
+            support_mask.unlink(missing_ok=True)
+    else:
+        click.echo("Using supplied mask directly:")
+        if dry_run:
+            click.echo(f"  {mask_file} -> {local_mask}")
+        else:
+            _link_or_copy_report_asset(mask_file, local_mask)
+
+    # ``-i/-o/-d/-t/-m`` are controlled here. Everything else is forwarded.
+    controlled = {
+        "-i", "--in",
+        "-o", "--out",
+        "-d", "--design",
+        "-t", "--tcon",
+        "-m", "--mask",
+    }
+    forbidden = [
+        token
+        for token in randomise_args
+        if (
+            token in controlled
+            or any(
+                token.startswith(name + "=")
+                for name in controlled
+                if name.startswith("--")
+            )
+        )
+    ]
+    if forbidden:
+        raise click.ClickException(
+            "These randomise arguments are managed by run_randomise_analysis "
+            "and cannot be passed through: " + ", ".join(forbidden)
+        )
+
+    base_randomise_args = [
+        "-i", str(input_file),
+        "-o", str(prefix),
+        "-d", str(design_file),
+        "-t", str(contrast_file),
+        "-m", str(local_mask),
+        *map(str, randomise_args),
+    ]
+
+    use_parallel = parallel_randomise
+
+    # randomise_parallel cannot safely defragment a request larger than the
+    # available permutation/sign-flip space. Query the actual design first.
+    if parallel_randomise and not dry_run:
+        query = subprocess.run(
+            [randomise, *base_randomise_args, "-Q"],
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        fields = query.stdout.strip().split()
+        try:
+            available_permutations = int(fields[0])
+        except (IndexError, ValueError) as error:
+            raise click.ClickException(
+                "Could not parse permutation count from randomise -Q output: "
+                + query.stdout.strip()
+            ) from error
+
+        requested_permutations: int | None = None
+        forwarded = list(map(str, randomise_args))
+        for arg_index, token in enumerate(forwarded):
+            if token in {"-n", "--numperm"} and arg_index + 1 < len(forwarded):
+                try:
+                    requested_permutations = int(forwarded[arg_index + 1])
+                except ValueError:
+                    pass
+            elif token.startswith("--numperm="):
+                try:
+                    requested_permutations = int(token.split("=", 1)[1])
+                except ValueError:
+                    pass
+
+        if (
+            requested_permutations is not None
+            and available_permutations < requested_permutations
+        ):
+            click.echo(
+                "[WARN] randomise_parallel disabled for this analysis: "
+                f"{available_permutations} unique permutations/sign-flips are "
+                f"available but {requested_permutations} were requested. "
+                "Running ordinary exhaustive randomise instead.",
+                err=True,
+            )
+            use_parallel = False
+
+    if use_parallel:
+        if randomise_parallel_executable is None:
+            raise click.ClickException(
+                "randomise_parallel was requested but was not found."
+            )
+        parallel_executable = (
+            Path(randomise_parallel_executable)
+            if dry_run
+            else _prepare_governed_randomise_parallel(
+                Path(randomise_parallel_executable),
+                output_dir=output_dir,
+                parallel_jobs=parallel_jobs,
+                parallel_ram=parallel_ram,
+                parallel_queue=parallel_queue,
+                parallel_resources=parallel_resources,
+                parallel_extra=parallel_extra,
+            )
+        )
+    else:
+        parallel_executable = None
+
+    command = [
+        str(parallel_executable) if use_parallel else randomise,
+        *base_randomise_args,
+    ]
+
+    click.echo(
+        "Running randomise_parallel:"
+        if use_parallel
+        else "Running randomise:"
+    )
+    if use_parallel:
+        click.echo(
+            "Parallel resources: "
+            f"max fragments="
+            f"{parallel_jobs if parallel_jobs is not None else 'fsl_sub default'}, "
+            f"RAM="
+            f"{str(parallel_ram) + ' MB' if parallel_ram is not None else 'fsl_sub default'}, "
+            f"time="
+            f"{str(parallel_time) + ' min' if parallel_time is not None else 'randomise_parallel default'}, "
+            f"queue={parallel_queue or 'fsl_sub default'}"
+        )
+
+    if not use_parallel or dry_run:
+        run_command(
+            command,
+            cwd=cwd,
+            dry_run=dry_run,
+        )
+    else:
+        # randomise_parallel exits after scheduler submission. Capture the
+        # defragmentation job, submit a dependent sentinel, and block here so
+        # post-processing cannot race the inner scheduler jobs.
+        parallel_env = os.environ.copy()
+        if parallel_time is not None:
+            parallel_env["REQUESTED_TIME"] = str(parallel_time)
+
+        completed = subprocess.run(
+            command,
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+            text=True,
+            env=parallel_env,
+        )
+
+        if completed.stdout:
+            click.echo(completed.stdout.rstrip())
+        if completed.stderr:
+            click.echo(completed.stderr.rstrip(), err=True)
+
+        lines = [
+            line.strip()
+            for line in completed.stdout.splitlines()
+            if line.strip()
+        ]
+        if not lines:
+            raise click.ClickException(
+                "randomise_parallel did not return a defragment job ID."
+            )
+
+        defragment_job_id = lines[-1].split()[0]
+        fsl_sub = _require_fsl_command("fsl_sub")
+
+        sentinel = output_dir / ".randomise_parallel.done"
+        sentinel.unlink(missing_ok=True)
+
+        sentinel_command = [
+            fsl_sub,
+            "-j", defragment_job_id,
+            "-N", "randomise.wait",
+            "bash", "-lc",
+            f"touch {shlex.quote(str(sentinel))}",
+        ]
+        waiter = subprocess.run(
+            sentinel_command,
+            cwd=str(cwd),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        waiter_id = (
+            waiter.stdout.strip().splitlines()[-1]
+            if waiter.stdout.strip()
+            else ""
+        )
+        click.echo(
+            f"Waiting for randomise_parallel defragment job "
+            f"{defragment_job_id}"
+            + (
+                f" (sentinel job {waiter_id})"
+                if waiter_id
+                else ""
+            )
+            + "..."
+        )
+
+        while not sentinel.exists():
+            time.sleep(10)
+
+        sentinel.unlink(missing_ok=True)
+
+    results: dict[str, Any] = {
+        "output_dir": str(output_dir),
+        "input_file": str(input_file),
+        "merged_file": str(input_file),  # compatibility alias
+        "design_file": str(design_file),
+        "contrast_file": str(contrast_file),
+        "mask_file": str(local_mask),
+        "number_of_subjects": len(subjects),
+        "contrast_names": contrast_names,
+    }
+
+    if dry_run:
+        return results
+
+    mean_file = output_dir / "mean.nii.gz"
+    run_command(
+        [
+            fslmaths,
+            str(input_file),
+            "-Tmean",
+            str(mean_file),
+        ],
+        cwd=output_dir,
+        dry_run=False,
+    )
+    results["mean_file"] = str(mean_file)
+
+    def statistic_number(path: Path) -> int:
+        match = re.search(
+            r"tstat(\d+)\.nii(?:\.gz)?$",
+            path.name,
+        )
+        return int(match.group(1)) if match else 0
+
+    tstats = sorted(
+        output_dir.glob("randomise_tstat*.nii.gz"),
+        key=statistic_number,
+    )
+    corrps = sorted(
+        output_dir.glob("randomise_tfce_corrp_tstat*.nii.gz"),
+        key=statistic_number,
+    )
+
+    derived: list[dict[str, str]] = []
+    for index, tstat in enumerate(tstats, start=1):
+        record: dict[str, str] = {
+            "contrast": (
+                contrast_names[index - 1]
+                if index - 1 < len(contrast_names)
+                else f"Contrast{index}"
+            ),
+            "tstat": str(tstat),
+        }
+
+        corrp = next(
+            (
+                path
+                for path in corrps
+                if statistic_number(path) == index
+            ),
+            None,
+        )
+
+        if corrp is not None:
+            sig_file = output_dir / f"sig_tfce_tstat{index}.nii.gz"
+            tstat_sig_file = (
+                output_dir / f"tstat{index}_sig_tfce.nii.gz"
+            )
+            p_corr_file = output_dir / f"p_corr_tstat{index}.nii.gz"
+            neglogp_file = (
+                output_dir / f"neglogp_corr_tstat{index}.nii.gz"
+            )
+
+            run_command(
+                [
+                    fslmaths,
+                    str(corrp),
+                    "-thr", "0.95",
+                    "-bin",
+                    str(sig_file),
+                ],
+                cwd=output_dir,
+                dry_run=False,
+            )
+            run_command(
+                [
+                    fslmaths,
+                    str(tstat),
+                    "-mas",
+                    str(sig_file),
+                    str(tstat_sig_file),
+                ],
+                cwd=output_dir,
+                dry_run=False,
+            )
+            run_command(
+                [
+                    fslmaths,
+                    str(corrp),
+                    "-mul", "-1",
+                    "-add", "1",
+                    str(p_corr_file),
+                ],
+                cwd=output_dir,
+                dry_run=False,
+            )
+            run_command(
+                [
+                    fslmaths,
+                    str(p_corr_file),
+                    "-log",
+                    "-div", "2.302585093",
+                    str(neglogp_file),
+                ],
+                cwd=output_dir,
+                dry_run=False,
+            )
+
+            record.update(
+                {
+                    "corrp": str(corrp),
+                    "sig_mask": str(sig_file),
+                    "tstat_sig": str(tstat_sig_file),
+                    "p_corr": str(p_corr_file),
+                    "neglogp_corr": str(neglogp_file),
+                }
+            )
+
+        derived.append(record)
+
+    results["statistics"] = derived
+
+    metadata = {
+        "title": title,
+        "number_of_subjects": len(subjects),
+        "input_column": input_column,
+        "input_file": str(input_file),
+        "mean_file": str(mean_file),
+        "design_columns": design_columns,
+        "contrast_names": contrast_names,
+        "randomise_args": list(randomise_args),
+        "parallel_randomise": parallel_randomise,
+        "parallel_randomise_used": use_parallel,
+        "parallel_jobs": parallel_jobs,
+        "parallel_ram_mb": parallel_ram,
+        "parallel_time_minutes": parallel_time,
+        "parallel_queue": parallel_queue or "",
+        "parallel_resources": list(parallel_resources),
+        "parallel_extra": list(parallel_extra),
+        "mask_file": str(local_mask),
+        "mask_strategy": (
+            "common-input-support-intersect-bounding-mask"
+            if common_mask
+            else "supplied-mask"
+        ),
+        "bounding_mask_file": str(mask_file),
+        "background": str(background) if background else "",
+    }
+    (output_dir / "analysis.json").write_text(
+        json.dumps(metadata, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    if report and tstats:
+        report_file = _write_randomise_report(
+            output_dir,
+            title=title,
+            background=background or local_mask,
+            tstats=tstats,
+            contrast_names=contrast_names,
+            threshold=report_threshold,
+            metadata=metadata,
+        )
+        results["report_file"] = str(report_file)
+
+    return results
+
+
+def _write_randomise_report(
+    output_dir: Path,
+    *,
+    title: str,
+    background: Path,
+    tstats: Sequence[Path],
+    contrast_names: Sequence[str],
+    threshold: float = 2.3,
+    metadata: dict[str, Any] | None = None,
+) -> Path:
+    """Reuse the interactive FEAT report renderer for randomise T statistics.
+
+    The report renderer expects ``stats/zstat*.nii.gz``. Stable report-only
+    aliases are therefore created for the randomise T statistics and the final
+    HTML labels are changed from Z to T. This deliberately reuses the same
+    offline NIfTI viewer, crosshair interaction, static previews, and cluster
+    tables as FEAT reports.
+    """
+    output_dir = Path(output_dir).resolve()
+    stats_dir = output_dir / "stats"
+    stats_dir.mkdir(parents=True, exist_ok=True)
+
+    mean_file = next(
+        (
+            candidate
+            for candidate in (
+                output_dir / "mean.nii.gz",
+                output_dir / "mean_delta.nii.gz",
+            )
+            if candidate.is_file()
+        ),
+        None,
+    )
+    if mean_file is not None:
+        _link_or_copy_report_asset(mean_file, stats_dir / "cope1.nii.gz")
+
+    for index, tstat in enumerate(tstats, start=1):
+        _link_or_copy_report_asset(tstat, stats_dir / f"tstat{index}.nii.gz")
+        _link_or_copy_report_asset(tstat, stats_dir / f"zstat{index}.nii.gz")
+
+    viewer_overlays: dict[int, list[dict[str, Any]]] = {}
+
+    for index, tstat in enumerate(tstats, start=1):
+        overlays: list[dict[str, Any]] = [
+            {
+                "label": "T statistic",
+                "path": tstat,
+                "kind": "signed",
+                "threshold": threshold,
+                "threshold_label": "T threshold",
+                "threshold_step": 0.1,
+                "value_label": "T",
+            }
+        ]
+
+        if mean_file is not None:
+            overlays.append(
+                {
+                    "label": "Mean input",
+                    "path": mean_file,
+                    "kind": "signed",
+                    "threshold": 0.0,
+                    "threshold_label": "Mean threshold",
+                    "threshold_step": 0.01,
+                    "value_label": "Mean",
+                }
+            )
+
+        def first_existing(*names: str) -> Path | None:
+            return next(
+                (
+                    output_dir / name
+                    for name in names
+                    if (output_dir / name).is_file()
+                ),
+                None,
+            )
+
+        corrp = first_existing(
+            f"randomise_tfce_corrp_tstat{index}.nii.gz",
+            f"delta_tfce_tfce_corrp_tstat{index}.nii.gz",
+        )
+        if corrp is not None:
+            overlays.append(
+                {
+                    "label": "TFCE corrected 1-p",
+                    "path": corrp,
+                    "kind": "positive",
+                    "threshold": 0.95,
+                    "threshold_label": "Corrected 1-p",
+                    "threshold_min": 0.0,
+                    "threshold_max": 1.0,
+                    "threshold_step": 0.01,
+                    "value_label": "1-p",
+                }
+            )
+
+        p_corr = first_existing(f"p_corr_tstat{index}.nii.gz")
+        if p_corr is not None:
+            overlays.append(
+                {
+                    "label": "Corrected p",
+                    "path": p_corr,
+                    "kind": "pvalue",
+                    "threshold": 0.05,
+                    "threshold_label": "Corrected p",
+                    "threshold_min": 0.0,
+                    "threshold_max": 1.0,
+                    "threshold_step": 0.01,
+                    "value_label": "p",
+                }
+            )
+
+        neglogp = first_existing(f"neglogp_corr_tstat{index}.nii.gz")
+        if neglogp is not None:
+            overlays.append(
+                {
+                    "label": "-log10 corrected p",
+                    "path": neglogp,
+                    "kind": "positive",
+                    "threshold": 1.30103,
+                    "threshold_label": "-log10(p)",
+                    "threshold_min": 0.0,
+                    "threshold_step": 0.05,
+                    "value_label": "-log10(p)",
+                }
+            )
+
+        significant_t = first_existing(f"tstat{index}_sig_tfce.nii.gz")
+        if significant_t is not None:
+            overlays.append(
+                {
+                    "label": "TFCE-significant T",
+                    "path": significant_t,
+                    "kind": "signed",
+                    "threshold": 0.0,
+                    "threshold_label": "T threshold",
+                    "threshold_min": 0.0,
+                    "threshold_step": 0.1,
+                    "value_label": "T",
+                }
+            )
+
+        viewer_overlays[index] = overlays
+
+    report = _write_poststats_report(
+        output_dir,
+        title=title,
+        contrast_names=list(contrast_names),
+        z_threshold=threshold,
+        background=background,
+        viewer_overlays=viewer_overlays,
+    )
+
+    html_text = report.read_text(encoding="utf-8")
+    replacements = {
+        "Z threshold": "T threshold",
+        "|Z|": "|T|",
+        "Peak Z": "Peak T",
+        "Z ≥": "T ≥",
+        "Z ≤": "T ≤",
+        "Z=": "T=",
+        "Z-stat": "T-stat",
+    }
+    for old, new in replacements.items():
+        html_text = html_text.replace(old, new)
+
+    if metadata:
+        extra = [
+            "<div class='meta randomise-meta'>",
+            "<strong>Inference:</strong> FSL randomise<br>",
+            f"<strong>Subjects:</strong> {html.escape(str(metadata.get('number_of_subjects', '')))}<br>",
+            f"<strong>Design columns:</strong> {html.escape(', '.join(metadata.get('design_columns', [])))}<br>",
+            f"<strong>Randomise arguments:</strong> {html.escape(' '.join(metadata.get('randomise_args', [])))}",
+            "</div>",
+        ]
+        marker = "</div>\n<section>"
+        if marker in html_text:
+            html_text = html_text.replace(
+                marker,
+                "</div>\n" + "\n".join(extra) + "\n<section>",
+                1,
+            )
+
+    report.write_text(html_text, encoding="utf-8")
+    return report
+
+
+def _write_randomise_report_index(
+    randomise_root: Path,
+    *,
+    title: str = "Randomise analyses",
+) -> Path:
+    """Create a card-based index for randomise reports below ``randomise_root``."""
+    from datetime import datetime
+
+    randomise_root = Path(randomise_root).resolve()
+    randomise_root.mkdir(parents=True, exist_ok=True)
+    index_file = randomise_root / "index.html"
+    lock_file = randomise_root / ".report_index.lock"
+
+    with open(lock_file, "a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            reports = sorted(
+                randomise_root.rglob("report_poststats.html"),
+                key=lambda path: str(path.relative_to(randomise_root)).lower(),
+            )
+
+            cards = []
+            for report in reports:
+                analysis_dir = report.parent
+                relative_dir = analysis_dir.relative_to(randomise_root)
+                name = str(relative_dir).replace(os.sep, " / ")
+                preview = (
+                    analysis_dir
+                    / "report_poststats_files"
+                    / "zstat1.png"
+                )
+                report_rel = os.path.relpath(report, randomise_root)
+                preview_rel = os.path.relpath(preview, randomise_root)
+
+                metadata: dict[str, Any] = {}
+                metadata_file = analysis_dir / "analysis.json"
+                if metadata_file.is_file():
+                    try:
+                        payload = json.loads(
+                            metadata_file.read_text(encoding="utf-8")
+                        )
+                        if isinstance(payload, dict):
+                            metadata = payload
+                    except (OSError, json.JSONDecodeError):
+                        metadata = {}
+
+                if preview.is_file():
+                    media = (
+                        f"<a class='preview' href='{html.escape(report_rel)}'>"
+                        f"<img loading='lazy' src='{html.escape(preview_rel)}' "
+                        f"alt='{html.escape(name)} preview'></a>"
+                    )
+                else:
+                    media = "<div class='placeholder'>No preview</div>"
+
+                subjects = metadata.get("number_of_subjects", "")
+                input_column = str(metadata.get("input_column", "")).strip()
+                mask_strategy = str(metadata.get("mask_strategy", "")).strip()
+                contrast_names = metadata.get("contrast_names", [])
+
+                chips: list[str] = []
+                if subjects != "":
+                    chips.append(f"<span class='chip'>n={html.escape(str(subjects))}</span>")
+                if input_column:
+                    chips.append(
+                        f"<span class='chip'>{html.escape(input_column)}</span>"
+                    )
+                if isinstance(contrast_names, list) and contrast_names:
+                    chips.append(
+                        f"<span class='chip'>{len(contrast_names)} contrast"
+                        f"{'' if len(contrast_names) == 1 else 's'}</span>"
+                    )
+                if mask_strategy:
+                    mask_label = (
+                        "common-voxel mask"
+                        if mask_strategy.startswith("common-input-support")
+                        else mask_strategy
+                    )
+                    chips.append(
+                        f"<span class='chip'>{html.escape(mask_label)}</span>"
+                    )
+
+                parallel_requested = bool(
+                    metadata.get("parallel_randomise", False)
+                )
+                parallel_used = bool(
+                    metadata.get("parallel_randomise_used", False)
+                )
+                if parallel_requested:
+                    chips.append(
+                        "<span class='chip'>"
+                        + (
+                            "randomise_parallel"
+                            if parallel_used
+                            else "parallel→exhaustive"
+                        )
+                        + "</span>"
+                    )
+
+                parallel_jobs = metadata.get("parallel_jobs")
+                if parallel_used and parallel_jobs not in (None, ""):
+                    chips.append(
+                        f"<span class='chip'>≤{html.escape(str(parallel_jobs))} fragments</span>"
+                    )
+
+                searchable = " ".join(
+                    [
+                        name,
+                        str(subjects),
+                        input_column,
+                        mask_strategy,
+                        "randomise_parallel" if parallel_requested else "randomise",
+                        str(parallel_jobs or ""),
+                        " ".join(map(str, contrast_names))
+                        if isinstance(contrast_names, list)
+                        else str(contrast_names),
+                    ]
+                ).lower()
+
+                cards.append(
+                    f"""
+<article class="card" data-name="{html.escape(searchable)}">
+  {media}
+  <div class="body">
+    <span class="tag">randomise</span>
+    <h2>{html.escape(name)}</h2>
+    <div class="chips">{''.join(chips)}</div>
+    <a class="button" href="{html.escape(report_rel)}">Open report →</a>
+  </div>
+</article>
+"""
+                )
+
+            page = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{html.escape(title)}</title>
+<style>
+:root {{
+  --page:#f4f6f8; --surface:#fff; --text:#17202a; --muted:#68737d;
+  --border:#d8dee4; --accent:#2457a6; --accent-dark:#173d78;
+  --shadow:0 4px 16px rgba(22,32,42,.08);
+}}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--page); color:var(--text); }}
+header {{ background:var(--surface); border-bottom:1px solid var(--border); }}
+.wrap {{ width:min(1500px,calc(100% - 40px)); margin:0 auto; }}
+header .wrap {{ padding:30px 0 24px; }}
+.eyebrow {{ margin:0 0 7px; color:var(--accent); font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }}
+h1 {{ margin:0; font-size:clamp(1.6rem,3vw,2.35rem); }}
+.summary {{ margin-top:12px; color:var(--muted); }}
+main.wrap {{ padding:28px 0 48px; }}
+.search {{ width:min(460px,100%); padding:11px 13px; border:1px solid var(--border); border-radius:8px; font:inherit; margin-bottom:22px; }}
+.grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:20px; }}
+.card {{ overflow:hidden; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); }}
+.card.hidden {{ display:none; }}
+.preview,.placeholder {{ display:block; aspect-ratio:16/8.3; overflow:hidden; background:#101214; border-bottom:1px solid var(--border); }}
+.preview img {{ width:100%; height:100%; object-fit:cover; display:block; }}
+.placeholder {{ display:grid; place-items:center; color:#929aa1; }}
+.body {{ display:flex; flex:1; flex-direction:column; padding:16px; }}
+.tag {{ color:var(--muted); font-size:.76rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }}
+h2 {{ margin:10px 0 12px; font-size:1.12rem; overflow-wrap:anywhere; }}
+.chips {{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 16px; }}
+.chip {{ display:inline-flex; align-items:center; min-height:25px; padding:4px 8px; border:1px solid var(--border); border-radius:999px; background:#f7f9fb; color:var(--muted); font-size:.74rem; font-weight:600; }}
+.button {{ margin-top:auto; display:block; text-align:center; padding:10px 12px; border-radius:7px; background:var(--accent); color:#fff; font-weight:700; text-decoration:none; }}
+.button:hover {{ background:var(--accent-dark); }}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <p class="eyebrow">FSL permutation inference</p>
+  <h1>{html.escape(title)}</h1>
+  <div class="summary"><strong>{len(reports)}</strong> reports · generated {datetime.now().isoformat(timespec="seconds")}</div>
+</div></header>
+<main class="wrap">
+  <input id="search" class="search" type="search" placeholder="Filter analyses…" aria-label="Filter analyses">
+  <div class="grid">{''.join(cards)}</div>
+</main>
+<script>
+(() => {{
+  const input=document.getElementById("search");
+  input.addEventListener("input",()=>{{
+    const q=input.value.trim().toLowerCase();
+    document.querySelectorAll(".card").forEach(card=>{{
+      card.classList.toggle("hidden",q && !(card.dataset.name||"").includes(q));
+    }});
+  }});
+}})();
+</script>
+</body></html>
+"""
+            temporary = randomise_root / f".index.{os.getpid()}.tmp"
+            try:
+                temporary.write_text(page, encoding="utf-8")
+                temporary.replace(index_file)
+            finally:
+                temporary.unlink(missing_ok=True)
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    return index_file

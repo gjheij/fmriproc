@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""Manifest-backed wrapper around FSL randomise."""
+
+from __future__ import annotations
+
+from pathlib import Path
+import json
+
+import click
+import pandas as pd
+
+from fmriproc.fsl import (
+    _write_randomise_report_index,
+    filter_manifest_rows,
+    load_randomise_manifest,
+    run_randomise_analysis,
+)
+
+
+CONTEXT_SETTINGS = {
+    "help_option_names": ["-h", "--help"],
+    "ignore_unknown_options": True,
+    "allow_extra_args": True,
+}
+
+
+DEFAULT_RANDOMISE_ARGS = ("-n", "5000", "-T", "-v", "5")
+
+
+def _with_default_randomise_args(args: tuple[str, ...]) -> list[str]:
+    """Add conventional randomise defaults without overriding user choices.
+
+    Defaults:
+      - ``-n 5000`` permutations
+      - ``-T`` TFCE
+      - ``-v 5`` verbosity
+
+    A user-supplied equivalent suppresses the corresponding default. Unknown
+    arguments are otherwise preserved verbatim.
+    """
+    result = list(args)
+
+    has_n = any(
+        token == "-n"
+        or token == "--numperm"
+        or token.startswith("--numperm=")
+        for token in result
+    )
+    has_tfce = any(
+        token == "-T"
+        for token in result
+    )
+    has_v = any(
+        token == "-v"
+        or token == "--verbose"
+        or token.startswith("--verbose=")
+        for token in result
+    )
+
+    defaults: list[str] = []
+    if not has_n:
+        defaults += ["-n", "5000"]
+    if not has_tfce:
+        defaults += ["-T"]
+    if not has_v:
+        defaults += ["-v", "5"]
+
+    return result + defaults
+
+
+@click.command(
+    context_settings=CONTEXT_SETTINGS,
+    epilog=(
+        "Examples:\n\n"
+        "\b\n"
+        "  One-sample TFCE analysis:\n"
+        "    call_randomise --manifest randomise_manifest.tsv \\\n"
+        "      --output-dir derivatives/panic/randomise/SVM_CSm_v_CSpu \\\n"
+        "      --filter analysis=SVM_CSm_v_CSpu \\\n"
+        "      --input-column registered_file \\\n"
+        "      --mask template_mask.nii.gz \\\n"
+        "      --background template_T1w.nii.gz \\\n"
+        "      -n 5000 -T -v 5\n\n"
+
+        "\b\n"
+        "  Add a demeaned age covariate:\n"
+        "    call_randomise ... \\\n"
+        "      --covariates-file participants.tsv \\\n"
+        "      --covariate age \\\n"
+        "      --group-contrast 'GroupMean;1,0' \\\n"
+        "      --group-contrast 'Age;0,1' \\\n"
+        "      -n 5000 -T\n\n"
+
+        "\b\n"
+        "Unknown options are passed through to FSL randomise. The wrapper manages\n"
+        "-i/-o/-d/-t/-m itself.\n"
+    ),
+)
+@click.option(
+    "--manifest",
+    "manifest_path",
+    type=click.Path(path_type=Path, exists=True),
+    required=True,
+    help=(
+        "Randomise manifest TSV, or a directory recursively containing "
+        "derivatives/panic/randomise_manifest.tsv files."
+    ),
+)
+@click.option(
+    "--separate-entities",
+    is_flag=True,
+    help=(
+        "When --manifest is a directory, split dataset folder names into "
+        "key-value columns (e.g. site-, pi-, sample-, desc-)."
+    ),
+)
+@click.option(
+    "--delimiter",
+    default="_",
+    show_default=True,
+    help="Dataset-folder entity delimiter used with --separate-entities.",
+)
+@click.option(
+    "--filter",
+    "filters",
+    multiple=True,
+    help="Exact manifest filter COLUMN=VALUE. Repeat as needed.",
+)
+@click.option(
+    "--input-column",
+    default="registered_file",
+    show_default=True,
+    help="Manifest column containing the subject maps passed to randomise.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Output directory for this randomise analysis.",
+)
+@click.option(
+    "--mask",
+    "mask_file",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    required=True,
+    help=(
+        "Bounding/template-space binary mask. By default the final analysis "
+        "mask is common non-zero support across all subject inputs intersected "
+        "with this mask."
+    ),
+)
+@click.option(
+    "--common-mask/--no-common-mask",
+    default=True,
+    show_default=True,
+    help=(
+        "Derive mask.nii.gz from voxels with non-zero support in every subject "
+        "and intersect it with --mask. Use --no-common-mask to pass the "
+        "supplied mask directly to randomise. Common-support derivation assumes "
+        "zero denotes missing/out-of-support data."
+    ),
+)
+@click.option(
+    "--background",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Template/background image used for geometry validation and HTML report.",
+)
+@click.option(
+    "--covariates-file",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Tab-separated subject-level covariates file.",
+)
+@click.option(
+    "--covariate",
+    "covariates",
+    multiple=True,
+    help="Covariate column to include. Repeatable.",
+)
+@click.option(
+    "--demean-covariates/--no-demean-covariates",
+    default=True,
+    show_default=True,
+)
+@click.option(
+    "--group-contrast",
+    "group_contrasts",
+    multiple=True,
+    help="Group T contrast as 'Name;w1,w2,...'. Repeatable.",
+)
+@click.option(
+    "--title",
+    default=None,
+    help="Report title. Defaults to output directory name.",
+)
+@click.option(
+    "--report/--no-report",
+    default=True,
+    show_default=True,
+)
+@click.option(
+    "--report-threshold",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=2.3,
+    show_default=True,
+    help="Initial absolute T threshold used for report display.",
+)
+@click.option(
+    "--parallel-randomise/--no-parallel-randomise",
+    default=False,
+    show_default=True,
+    help=(
+        "Use FSL randomise_parallel, which fragments permutations through the "
+        "scheduler configured for fsl_sub. The wrapper waits for the dependent "
+        "defragment job before post-processing. If the requested permutation "
+        "count exceeds the unique permutation/sign-flip space, ordinary exhaustive "
+        "randomise is used automatically."
+    ),
+)
+@click.option("--parallel-jobs", type=click.IntRange(min=1), default=None, help="Maximum concurrent randomise_parallel fragments (fsl_sub -x).")
+@click.option("--parallel-ram", type=click.IntRange(min=1), default=None, metavar="MB", help="RAM per inner fsl_sub job in MB (fsl_sub -R).")
+@click.option("--parallel-time", type=click.IntRange(min=1), default=None, metavar="MINUTES", help="Requested time per permutation fragment in minutes.")
+@click.option("--parallel-queue", default=None, help="Queue/partition for inner fsl_sub jobs (fsl_sub -q).")
+@click.option("--parallel-resource", "parallel_resources", multiple=True, help="Repeatable fsl_sub resource request (-r).")
+@click.option("--parallel-extra", multiple=True, help="Repeatable scheduler-native argument via fsl_sub --extra.")
+@click.option("--overwrite", is_flag=True)
+@click.option("--dry-run", is_flag=True)
+@click.pass_context
+def main(
+    ctx: click.Context,
+    manifest_path: Path,
+    separate_entities: bool,
+    delimiter: str,
+    filters: tuple[str, ...],
+    input_column: str,
+    output_dir: Path,
+    mask_file: Path,
+    common_mask: bool,
+    background: Path | None,
+    covariates_file: Path | None,
+    covariates: tuple[str, ...],
+    demean_covariates: bool,
+    group_contrasts: tuple[str, ...],
+    title: str | None,
+    report: bool,
+    report_threshold: float,
+    parallel_randomise: bool,
+    parallel_jobs: int | None,
+    parallel_ram: int | None,
+    parallel_time: int | None,
+    parallel_queue: str | None,
+    parallel_resources: tuple[str, ...],
+    parallel_extra: tuple[str, ...],
+    overwrite: bool,
+    dry_run: bool,
+) -> None:
+    table = load_randomise_manifest(
+        manifest_path,
+        separate_entities=separate_entities,
+        delimiter=delimiter,
+    )
+    table = filter_manifest_rows(table, filters)
+
+    if table.empty:
+        raise click.ClickException("No manifest rows remain after filtering.")
+
+    output_dir = output_dir.resolve()
+    title = title or output_dir.name
+
+    result = run_randomise_analysis(
+        rows=table,
+        output_dir=output_dir,
+        input_column=input_column,
+        mask_file=mask_file,
+        background=background,
+        common_mask=common_mask,
+        covariates_file=covariates_file,
+        covariate_names=covariates,
+        demean_covariates=demean_covariates,
+        group_contrast_specs=group_contrasts,
+        randomise_args=_with_default_randomise_args(tuple(ctx.args)),
+        parallel_randomise=parallel_randomise,
+        parallel_jobs=parallel_jobs,
+        parallel_ram=parallel_ram,
+        parallel_time=parallel_time,
+        parallel_queue=parallel_queue,
+        parallel_resources=parallel_resources,
+        parallel_extra=parallel_extra,
+        overwrite=overwrite,
+        dry_run=dry_run,
+        title=title,
+        report=report,
+        report_threshold=report_threshold,
+    )
+
+    click.echo("")
+    click.echo("Randomise output:")
+    for key in ("output_dir", "merged_file", "design_file", "contrast_file", "report_file"):
+        if key in result:
+            click.echo(f"  {key:16s} {result[key]}")
+
+    if not dry_run and report and result.get("report_file"):
+        root = output_dir.parent
+        index = _write_randomise_report_index(root)
+        click.echo(f"Report index:     {index}")
+
+
+if __name__ == "__main__":
+    main()
