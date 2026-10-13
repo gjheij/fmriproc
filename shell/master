@@ -1795,10 +1795,9 @@ if [[ $? -eq 0 ]]; then
   fi
 
   if [[ -n ${SES:-} ]]; then
-    cmd+=(-n "$SES")
-  elif [[ -n ${SESSION:-} ]]; then
-    # Preserve your default session behavior if needed.
-    cmd+=(-n 1)
+    if [[ ${SES} != "none" ]]; then
+      cmd+=(-n "$SES")
+    fi
   fi
 
   if [[ -n ${confFile:-} ]]; then
