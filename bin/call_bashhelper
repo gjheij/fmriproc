@@ -1460,10 +1460,10 @@ function check_function {
 }
 
 detect_scheduler() {
-  if command -v qsub >/dev/null 2>&1; then
-    echo "soge"
-  elif command -v sbatch >/dev/null 2>&1; then
+  if command -v sbatch >/dev/null 2>&1; then
     echo "slurm"
+  elif command -v qsub >/dev/null 2>&1; then
+    echo "soge"
   else
     echo "Error: Neither SoGE (qsub) nor SLURM (sbatch) detected. Remove --sge flag from call" >&2
     return 1
