@@ -273,7 +273,7 @@ start_timer "Denoising functional data with fMRIPrep confounds using Pybest"
 #-----------------------------------------------------------------------------
 # loop through subjects
 for subID in ${search}; do
-
+  
   if [[ ${subID} != *"html"* ]]; then
 
     #-----------------------------------------------------------------------------
@@ -387,7 +387,7 @@ for subID in ${search}; do
         # full path is needed for qsub
         cmd=(
           "${job}"
-          -s "${sub}"
+          -s $(get_id "${sub_name}" "${SUBJECT_PREFIX}")
           "${ses_flag}"
           -o "${DENOISE}"
           -r "${PYBEST_SPACE}"
