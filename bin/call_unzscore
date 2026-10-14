@@ -155,7 +155,7 @@ def write_pickle(data, fname):
     pickle.dump(data, f)
     f.close()
 
-@utils.validate_cli_inputs(required_keys=["subject", "session", "task"])
+@utils.validate_cli_inputs(required_keys=["subject", "task"])
 def main(context):
 
     r"""
@@ -173,10 +173,10 @@ See 'call_prf' docs for more information.
 
 Mandatory (required input):
   -s|--sub        subject ID (e.g., "008")
-  -n|--ses        session ID  (e.g., "1")
   -t|--task       task ID (e.g., "2R" or "pRF")
 
 Optional (flags with defaults):
+  -n|--ses        session ID  (e.g., "1")
   -f|--fprep      path to fMRIPrep root folder (e.g., derivatives/fmriprep). Default is the 
                   environmental variable `DIR_DATA_DERIV/fmriprep`
   -o|--out        path to pybest output. Default is the environmental variable `DIR_DATA_DERIV/
