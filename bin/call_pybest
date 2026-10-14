@@ -618,13 +618,14 @@ for task_id in ${task_ids[@]}; do
             -type f \
             -name "*task-${task_id}*" \
             -name "*run-${run_id}*" \
+            "${space_filter[@]}" \
             -name "*desc-brain_mask.nii.gz" \
             2>/dev/null | sort
         ))
 
         # double check existence
         if [[ ${#this_mask[@]} -ne 1 ]]; then
-          echo -e "${BOLD_RED}WARNING${RESET}: Expected 1 mask for task=${task_id}, run=${run_id} in ${func_dir}; found ${#this_mask[@]}"
+          echo -e "${BOLD_RED}WARNING${RESET}: Expected 1 mask for task=${task_id}, run=${run_id} [space filter: ${space_filter[*]}] in ${func_dir}; found ${#this_mask[@]}"
           continue
         fi
 
