@@ -26,6 +26,13 @@ import click
 import pandas as pd
 
 from fmriproc.fsl import (
+    FEAT_ENTITY_LABELS,
+    analysis_entity_label,
+    shared_analysis_entities,
+    analysis_provenance,
+    merge_analysis_manifest,
+    verify_analysis_provenance,
+    write_analysis_provenance,
     detect_manifest_level,
     _entity_text,
     _maybe_write_poststats_report,
@@ -293,7 +300,8 @@ from fmriproc.fsl import (
     is_flag=True,
     help=(
         "Replace existing group output directories. Without this flag, complete "
-        "existing outputs are reused and entered into the output manifest."
+        "existing outputs with matching input and model provenance are reused "
+        "and entered into the output manifest."
     ),
 )
 @click.option(
@@ -403,11 +411,6 @@ def main(
         group_label = "_".join(group_label_parts)
 
         contrast_label = _safe_label(canonical_name)
-        group_output = (
-            output_dir
-            / f"{group_label}_group.gfeat"
-            / f"contrast-{contrast_label}.feat"
-        )
 
         click.echo("")
         click.echo(
@@ -424,7 +427,24 @@ def main(
             skipped += 1
             continue
 
+        provenance_settings = {
+            "input_level": detected_level,
+            "canonical_name": canonical_name,
+            "runmode": runmode,
+            "covariates_file": covariates_file,
+            "covariate_names": covariate_names,
+            "demean_covariates": demean_covariates,
+            "group_contrast_specs": group_contrast_specs,
+            "registration_mode": registration_mode,
+            "registered_subdir": registered_subdir,
+        }
+
         try:
+            group_entities = shared_analysis_entities(rows)
+            group_label += analysis_entity_label(group_entities)
+            group_output = (
+                output_dir / f"{group_label}_group.gfeat" / f"contrast-{contrast_label}.feat"
+            )
             group_reference = (
                 resolve_group_reference(rows, detected_level)
                 if report and not dry_run
@@ -434,6 +454,9 @@ def main(
             if group_output.exists() and not overwrite and not dry_run:
                 click.echo(
                     f"Reusing existing group output: {group_output}"
+                )
+                verify_analysis_provenance(
+                    group_output, analysis_provenance(rows, **provenance_settings)
                 )
                 records = _records_from_existing_group_output(
                     rows=rows,
@@ -459,6 +482,8 @@ def main(
                     for record in records:
                         record["report_file"] = str(report_file)
 
+                for record in records:
+                    record.update(group_entities)
                 group_records.extend(records)
                 reused += 1
                 continue
@@ -479,9 +504,15 @@ def main(
                 dry_run=dry_run,
             )
 
+            if not dry_run:
+                write_analysis_provenance(
+                    group_output, analysis_provenance(rows, **provenance_settings)
+                )
+
             # Keep the manifest schema informative and consistent for both
             # newly-computed and reused outputs.
             for record in records:
+                record.update(group_entities)
                 record.setdefault("number_of_inputs", int(len(rows)))
                 record.setdefault(
                     "number_of_subjects",
@@ -525,9 +556,10 @@ def main(
         output_manifest.parent.mkdir(parents=True, exist_ok=True)
 
         table = pd.DataFrame.from_records(group_records)
-        temporary = output_manifest.with_name(output_manifest.name + ".tmp")
-        table.to_csv(temporary, sep="\t", index=False)
-        temporary.replace(output_manifest)
+        merge_analysis_manifest(
+            output_manifest, table,
+            ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset"]
+        )
 
         label = "Group manifest fragment" if manifest_out is not None else "Group manifest"
         click.echo(f"\n{label}: {output_manifest}")
@@ -538,8 +570,8 @@ def main(
     )
 
     # Reused valid outputs count as successful work because their manifest
-    # records were reconstructed and written. Only genuine failures make the
-    # invocation fail when no successful/reused analysis remains.
+    # records were reconstructed and written. Any genuine failure makes the
+    # invocation fail, including when other analyses succeeded.
     if failed > 0 or (completed + reused) == 0:
         raise SystemExit(1)
 

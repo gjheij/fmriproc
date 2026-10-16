@@ -54,6 +54,19 @@ ENIGMA_CONFOUND_SUBTYPES = [
 ]
 
 
+FEAT_ENTITY_LABELS = {
+    "acquisition": "acq",
+    "direction": "dir",
+    "echo": "echo",
+    "reconstruction": "rec",
+    "part": "part",
+    "space": "space",
+    "resolution": "res",
+    "density": "den",
+    "desc": "desc",
+}
+
+
 LEVEL1_HINT_COLUMNS = {"run", "run_label", "contrast_name", "feat_dir"}
 LEVEL2_HINT_COLUMNS = {"number_of_inputs", "second_level_dir"}
 
@@ -152,7 +165,7 @@ def entity_label(entities: dict[str, Any]) -> str:
     Construct a human-readable BIDS-style label from run entities.
 
     The label always contains subject and task entities and conditionally includes
-    session, acquisition, direction, echo, and run entities when those values are
+    session, run, and the analysis entities in ``FEAT_ENTITY_LABELS`` when values are
     present. The result is intended primarily for logging, run identification, and
     manifest bookkeeping.
 
@@ -185,19 +198,78 @@ def entity_label(entities: dict[str, Any]) -> str:
 
     parts.append(f"task-{entities['task']}")
 
-    if entities.get("acquisition") is not None:
-        parts.append(f"acq-{entities['acquisition']}")
-
-    if entities.get("direction") is not None:
-        parts.append(f"dir-{entities['direction']}")
-
-    if entities.get("echo") is not None:
-        parts.append(f"echo-{entities['echo']}")
+    values = normalize_analysis_entities(entities)
+    for entity in ("acquisition", "direction", "echo"):
+        if values[entity]:
+            parts.append(f"{FEAT_ENTITY_LABELS[entity]}-{values[entity]}")
 
     if entities.get("run") is not None:
         parts.append(f"run-{entities['run']}")
 
+    for entity in ("reconstruction", "part", "space", "resolution", "density", "desc"):
+        if values[entity]:
+            parts.append(f"{FEAT_ENTITY_LABELS[entity]}-{values[entity]}")
+
     return "_".join(parts)
+
+
+def normalize_analysis_entities(entities: dict[str, Any]) -> dict[str, str]:
+    """Use PyBIDS entity names while accepting res/den filename aliases."""
+    result = {}
+    for entity in (*FEAT_ENTITY_LABELS, "source_dataset"):
+        value = entities.get(entity)
+        value = "" if value is None or pd.isna(value) else str(value)
+        alias = {"resolution": "res", "density": "den"}.get(entity)
+        if alias and entities.get(alias) is not None:
+            alias_value = "" if pd.isna(entities[alias]) else str(entities[alias])
+            if value and alias_value and value != alias_value:
+                raise click.ClickException(f"Conflicting {entity}/{alias} entity values.")
+            value = value or alias_value
+        result[entity] = value
+    return result
+
+
+def shared_analysis_entities(rows: pd.DataFrame) -> dict[str, str]:
+    """Require compatible analysis entities before combining runs or subjects.
+
+    Missing values remain unknown rather than being inferred from image shape.
+    A known value cannot be silently combined with an unknown value. Legacy
+    manifests without entity columns remain readable.
+    """
+    if rows.empty:
+        raise click.ClickException("No analysis inputs were supplied.")
+    normalized = pd.DataFrame([
+        normalize_analysis_entities(record)
+        for record in rows.to_dict(orient="records")
+    ])
+    result = {}
+    for entity in (*FEAT_ENTITY_LABELS, "source_dataset"):
+        values = normalized[entity].drop_duplicates().tolist()
+        if len(values) != 1:
+            raise click.ClickException(
+                f"Cannot combine inputs with different {entity} values: {values}. "
+                "Select compatible inputs in the manifest or analyze them separately."
+            )
+        result[entity] = values[0]
+    return result
+
+
+def analysis_entity_label(entities: dict[str, Any]) -> str:
+    """Return analysis entity suffixes shared by a higher-level output."""
+    values = normalize_analysis_entities(entities)
+    return "".join(
+        f"_{prefix}-{values[entity]}"
+        for entity, prefix in FEAT_ENTITY_LABELS.items()
+        if values[entity]
+    )
+
+
+def source_dataset(bold_file: str) -> str:
+    """Find the closest dataset description owning the selected derivative."""
+    for directory in Path(bold_file).resolve().parents:
+        if (directory / "dataset_description.json").is_file():
+            return str(directory)
+    return ""
 
 
 def query_shared_entities(
@@ -856,6 +928,9 @@ def filter_estimable_contrasts(
 
     Notes
     -----
+    This checks condition availability rather than matrix estimability. The
+    generated design is checked separately by `verify_first_level_design`.
+
     The function permits a common contrast specification to be applied across
     runs that do not necessarily contain identical event sets, while preventing
     invalid contrast vectors from reaching FEAT.
@@ -1177,6 +1252,13 @@ def _normalize_contrast_manifest_table(table: pd.DataFrame) -> pd.DataFrame:
         "acquisition",
         "direction",
         "echo",
+        "reconstruction",
+        "part",
+        "space",
+        "resolution",
+        "density",
+        "desc",
+        "source_dataset",
         "run_label",
         "cope",
         "contrast_name",
@@ -1391,9 +1473,7 @@ def write_contrast_manifest(
                 "session": "" if entities.get("session") is None else str(entities["session"]),
                 "task": str(entities["task"]),
                 "run": "" if entities.get("run") is None else str(entities["run"]),
-                "acquisition": "" if entities.get("acquisition") is None else str(entities["acquisition"]),
-                "direction": "" if entities.get("direction") is None else str(entities["direction"]),
-                "echo": "" if entities.get("echo") is None else str(entities["echo"]),
+                **normalize_analysis_entities(entities),
                 "run_label": label,
                 "cope": cope_number,
                 "contrast_name": str(name),
@@ -1631,6 +1711,165 @@ def load_confounds(
     ]
 
     return columns, regressors
+
+
+def validate_censor_options(
+    columns: Sequence[str],
+    thresholds: Sequence[float],
+) -> None:
+    """Require one finite, non-negative threshold per censoring column."""
+    if len(columns) != len(thresholds):
+        raise click.UsageError(
+            "Specify one --censor-threshold for each --censor-column, in the same order."
+        )
+    if len(set(columns)) != len(columns) or any(not column.strip() for column in columns):
+        raise click.UsageError("Censoring column names must be nonempty and unique.")
+    if any(not np.isfinite(value) or value < 0 for value in thresholds):
+        raise click.UsageError("Censoring thresholds must be finite and >= 0.")
+
+
+def make_censor_regressors(
+    confounds_file: str,
+    *,
+    columns: Sequence[str],
+    thresholds: Sequence[float],
+    expected_rows: int,
+) -> tuple[list[str], list[list[float]], dict[str, Any]]:
+    """Create one impulse regressor per volume exceeding any threshold.
+
+    Criteria read the original primary table independently of nuisance-column
+    selection. Comparisons are strictly greater than the supplied threshold.
+    A missing first-volume value is permitted for difference-based measures
+    such as FD and DVARS and does not flag that volume. Other missing values
+    and infinities are errors. Volume indices in names and provenance are
+    zero-based. Volumes are retained in the BOLD data and task model.
+    """
+    validate_censor_options(columns, thresholds)
+    path = Path(confounds_file).resolve()
+    table = pd.read_csv(path, sep="\t", na_values=["n/a", "NA", "NaN"])
+    if len(table) != expected_rows or expected_rows < 1:
+        raise click.ClickException(
+            f"Censoring file has {len(table)} rows but the BOLD image has "
+            f"{expected_rows} volumes: {path}"
+        )
+    flagged = np.zeros(expected_rows, dtype=bool)
+    criteria = []
+    for column, threshold in zip(columns, thresholds):
+        if column not in table.columns:
+            raise click.ClickException(f"Censoring column {column!r} is missing from {path}")
+        values = pd.to_numeric(table[column], errors="raise").to_numpy(dtype=float, copy=True)
+        if np.isnan(values[0]):
+            click.echo(f"[WARN] Ignoring undefined first-volume {column} for censoring.", err=True)
+            values[0] = 0.0
+        if not np.isfinite(values).all():
+            raise click.ClickException(
+                f"Censoring column {column!r} has missing or non-finite values beyond "
+                f"an optional first-volume NaN: {path}"
+            )
+        exceedances = values > threshold
+        flagged |= exceedances
+        criteria.append({
+            "column": column,
+            "threshold": float(threshold),
+            "comparison": ">",
+            "volumes": np.flatnonzero(exceedances).tolist(),
+        })
+    volumes = np.flatnonzero(flagged).tolist()
+    if len(volumes) == expected_rows:
+        raise click.ClickException("Censoring would flag every BOLD volume.")
+    names = [f"censor_volume_{volume:04d}" for volume in volumes]
+    regressors = []
+    for volume in volumes:
+        regressor = [0.0] * expected_rows
+        regressor[volume] = 1.0
+        regressors.append(regressor)
+    stat = path.stat()
+    provenance = {
+        "kind": "censoring",
+        "file": str(path),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
+        "criteria": criteria,
+        "volumes": volumes,
+        "index_base": 0,
+        "regressor_names": names,
+    }
+    click.echo(f"Censoring: {len(volumes)}/{expected_rows} volumes flagged.")
+    return names, regressors, provenance
+
+
+def resolve_additional_confound_file(
+    specification: str,
+    entities: dict[str, Any],
+) -> str:
+    """Resolve an explicit additional TSV path for the current BOLD run.
+
+    Literal paths are shared by all selected runs. Entity placeholders permit
+    independent run-specific paths without relying on filename glob ordering.
+    """
+    values = {key: str(value) for key, value in entities.items() if value is not None}
+    try:
+        filename = specification.format_map(values)
+    except (KeyError, ValueError, AttributeError, IndexError) as error:
+        raise click.ClickException(
+            f"Cannot resolve additional confound path {specification!r} "
+            f"for this run: {error}"
+        ) from error
+    path = Path(filename).expanduser().resolve()
+    if not path.is_file():
+        raise click.ClickException(f"Additional confound file does not exist: {path}")
+    return str(path)
+
+
+def load_confound_sources(
+    sources: Sequence[dict[str, Any]],
+    *,
+    expected_rows: int,
+    require_all_regexes: bool,
+) -> tuple[list[str], list[list[float]], list[dict[str, Any]]]:
+    """Append independently selected, volume-aligned confound tables.
+
+    Each source specifies its file, column-selection regexes, and an optional
+    regressor-name prefix. Row validation, non-finite value handling, and
+    constant-column removal use the same rules as the primary confound file.
+    Duplicate sources and regressor names are rejected. Returned provenance
+    records the selected columns, naming, and source file identity.
+    """
+    names: list[str] = []
+    regressors: list[list[float]] = []
+    provenance: list[dict[str, Any]] = []
+    seen_files: set[Path] = set()
+    for source in sources:
+        path = Path(source["file"]).resolve()
+        if path in seen_files:
+            raise click.ClickException(f"Confound file was specified more than once: {path}")
+        seen_files.add(path)
+        columns, values = load_confounds(
+            str(path),
+            regexes=source["regexes"],
+            expected_rows=expected_rows,
+            require_all_regexes=require_all_regexes,
+        )
+        prefix = source.get("prefix", "")
+        source_names = [prefix + column for column in columns]
+        duplicates = set(names) & set(source_names)
+        if duplicates:
+            raise click.ClickException(
+                "Duplicate confound regressor names: " + ", ".join(sorted(duplicates))
+            )
+        names.extend(source_names)
+        regressors.extend(values)
+        stat = path.stat()
+        provenance.append({
+            "file": str(path),
+            "size": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+            "regexes": source["regexes"],
+            "columns": columns,
+            "regressor_names": source_names,
+        })
+        click.echo(f"Confound source: {path} ({len(columns)} regressors)")
+    return names, regressors, provenance
 
 
 def patch_fsf(
@@ -2053,7 +2292,7 @@ def update_existing_feat_contrasts(
     dry_run: bool,
 ) -> None:
     """
-    Update contrasts in an existing first-level FEAT analysis without refitting the design.
+    Update contrasts in an existing first-level FEAT analysis while preserving the design matrix.
 
     The existing design specification is copied into a dedicated update working
     directory, contrast definitions are replaced, and ``feat_model`` regenerates
@@ -2145,6 +2384,8 @@ def update_existing_feat_contrasts(
 
     generated_mat = design_root.with_suffix(".mat")
     generated_con = design_root.with_suffix(".con")
+
+    verify_first_level_design(design_root)
 
     click.echo("Comparing generated design.mat against original...")
     verify_design_matrices_equal(existing_mat, generated_mat)
@@ -2384,7 +2625,7 @@ def rerun_film_with_updated_contrasts(
     Notes
     -----
     This operation intentionally preserves the original design matrix while
-    recomputing only contrast-dependent statistical products.
+    rerunning FILM estimation and contrast-dependent post-statistics.
     """    
     click.echo("Preparing FILM re-fit")
     click.echo(f"FEAT directory   : {feat_dir}")
@@ -2966,6 +3207,31 @@ def read_fsl_matrix(path: Path) -> np.ndarray:
     ]
 
     return np.asarray(rows, dtype=float)
+
+
+def verify_first_level_design(design_root: Path) -> None:
+    """Check finite design values, residual DOF, and T-contrast estimability.
+
+    A contrast must lie in the row space of the generated design matrix.
+    Checking condition names alone cannot detect collinear or zero EVs.
+    Rank-deficient designs remain valid when their requested contrasts are
+    estimable and residual degrees of freedom remain positive.
+    """
+    matrix = read_fsl_matrix(design_root.with_suffix(".mat"))
+    contrasts = read_fsl_matrix(design_root.with_suffix(".con"))
+    if not np.isfinite(matrix).all() or not np.isfinite(contrasts).all():
+        raise click.ClickException("First-level design and contrasts must contain finite values.")
+    if matrix.shape[1] != contrasts.shape[1]:
+        raise click.ClickException("First-level contrast width does not match the design.")
+    if matrix.shape[0] <= np.linalg.matrix_rank(matrix):
+        raise click.ClickException("First-level design has no residual degrees of freedom.")
+    coefficients = np.linalg.lstsq(matrix.T, contrasts.T, rcond=None)[0]
+    projected = (matrix.T @ coefficients).T
+    for index, (contrast, estimate) in enumerate(zip(contrasts, projected), 1):
+        if not np.any(contrast) or not np.allclose(contrast, estimate, rtol=1e-7, atol=1e-8):
+            raise click.ClickException(
+                f"First-level T contrast {index} is not estimable from the generated design."
+            )
 
 
 def verify_design_matrices_equal(
@@ -3666,7 +3932,7 @@ def _read_first_level_dof(feat_dir: Path) -> float:
             value = float(token)
         except ValueError:
             continue
-        if value <= 0:
+        if not np.isfinite(value) or value <= 0:
             raise click.ClickException(f"Invalid DOF {value:g} in {dof_file}")
         return value
     raise click.ClickException(f"No numeric DOF found in {dof_file}")
@@ -3697,6 +3963,132 @@ def _run(command: Sequence[str], cwd: Path, dry_run: bool) -> None:
     click.echo("  " + shlex.join([str(v) for v in command]))
     if not dry_run:
         subprocess.run([str(v) for v in command], check=True, cwd=str(cwd))
+
+
+def analysis_provenance(
+    rows: pd.DataFrame,
+    **settings: Any,
+) -> dict[str, Any]:
+    """Record selected inputs, file identities, and higher-level model settings.
+
+    File size and nanosecond modification time detect replaced statistical
+    inputs without hashing large NIfTI images. Resolved paths also distinguish
+    different input datasets. Reuse requires an exact provenance match.
+    """
+    table = rows.fillna("").astype(str)
+    columns = sorted(column for column in table.columns if not column.startswith("_"))
+    records = table.loc[:, columns].to_dict(orient="records")
+    records.sort(key=lambda record: json.dumps(record, sort_keys=True))
+    paths: set[Path] = set()
+    for record in records:
+        for column in ("cope_file", "varcope_file"):
+            if record.get(column):
+                paths.add(Path(record[column]).resolve())
+        if record.get("source_dataset"):
+            paths.add(Path(record["source_dataset"]) / "dataset_description.json")
+        directory = record.get("second_level_dir") or record.get("feat_dir")
+        if not directory and record.get("cope_file"):
+            directory = str(Path(record["cope_file"]).resolve().parent.parent)
+        if directory:
+            analysis_dir = Path(directory).resolve()
+            for pattern in ("mask.nii*", "stats/dof", "design.*"):
+                paths.update(analysis_dir.glob(pattern))
+            registered = analysis_dir / str(settings.get("registered_subdir", "reg_standard"))
+            paths.update(registered.glob("mask.nii*"))
+            cope = int(float(record.get("cope") or 1))
+            for stem in ("cope", "varcope"):
+                paths.update((registered / "stats").glob(f"{stem}{cope}.nii*"))
+    covariates_file = settings.get("covariates_file")
+    if covariates_file:
+        paths.add(Path(covariates_file).resolve())
+
+    files = []
+    for path in sorted(paths):
+        stat = path.stat()
+        files.append({
+            "path": str(path),
+            "size": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+        })
+    return {
+        "inputs": records,
+        "files": files,
+        "settings": json.loads(json.dumps(settings, default=str)),
+    }
+
+
+def verify_analysis_provenance(output_dir: Path, provenance: dict[str, Any]) -> None:
+    """Refuse reuse when the original inputs or model cannot be verified."""
+    path = output_dir / "provenance.json"
+    if not path.is_file():
+        raise click.ClickException(
+            f"Existing output has no verifiable provenance: {output_dir}. "
+            "Use --overwrite to recompute it."
+        )
+    try:
+        existing = json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as error:
+        raise click.ClickException(f"Cannot read analysis provenance: {path}") from error
+    if existing != provenance:
+        raise click.ClickException(
+            f"Existing output inputs or model settings differ: {output_dir}. "
+            "Use --overwrite to recompute it."
+        )
+
+
+def write_analysis_provenance(output_dir: Path, provenance: dict[str, Any]) -> None:
+    """Save provenance only after statistical estimation succeeds."""
+    (output_dir / "provenance.json").write_text(
+        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def merge_analysis_manifest(
+    path: Path,
+    table: pd.DataFrame,
+    keys: Sequence[str],
+) -> None:
+    """Merge completed analyses under a lock using atomic replacement.
+
+    All contrasts belonging to an updated analysis are replaced together. Rows
+    from analyses outside the current invocation are retained.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_name(f".{path.name}.lock")
+    with open(lock_path, "a+", encoding="utf-8") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            if path.is_file() and path.stat().st_size:
+                try:
+                    existing = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+                except pd.errors.EmptyDataError:
+                    existing = pd.DataFrame()
+                if not existing.empty:
+                    for entity in (*FEAT_ENTITY_LABELS, "source_dataset"):
+                        if entity in keys and entity not in existing.columns:
+                            existing[entity] = ""
+                    missing = set(keys) - set(existing.columns)
+                    if missing:
+                        raise click.ClickException(
+                            f"Existing manifest lacks analysis keys {sorted(missing)}: {path}"
+                        )
+                    updated = set(map(tuple, table.loc[:, keys].fillna("").astype(str).values))
+                    keep = [
+                        tuple(row) not in updated
+                        for row in existing.loc[:, keys].fillna("").astype(str).values
+                    ]
+                    table = pd.concat([existing.loc[keep], table], ignore_index=True)
+            fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+            os.close(fd)
+            temporary = Path(name)
+            try:
+                table.to_csv(temporary, sep="\t", index=False)
+                temporary.replace(path)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def run_fixed_effects_group(
@@ -3746,9 +4138,21 @@ def run_fixed_effects_group(
     All observations are assigned to one variance group and receive a fixed-effect
     design value of one.
     """    
+    shared_analysis_entities(rows)
     fslmerge = _require_command("fslmerge")
     fslmaths = _require_command("fslmaths")
     flameo = _require_command("flameo")
+
+    cope_files = [_existing_nifti(Path(v)) for v in rows["cope_file"]]
+    varcope_files = [_existing_nifti(Path(v)) for v in rows["varcope_file"]]
+    if "feat_dir" in rows.columns:
+        feat_dirs = [Path(v).resolve() for v in rows["feat_dir"]]
+    else:
+        feat_dirs = [p.parent.parent for p in cope_files]
+
+    masks = [_existing_nifti(feat_dir / "mask") for feat_dir in feat_dirs]
+    verify_group_geometry(cope_files, varcope_files, masks)
+    dofs = [_read_first_level_dof(feat_dir) for feat_dir in feat_dirs]
 
     if output_dir.exists():
         if overwrite:
@@ -3762,13 +4166,6 @@ def run_fixed_effects_group(
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=False)
     cwd = output_dir if not dry_run else output_dir.parent
-
-    cope_files = [_existing_nifti(Path(v)) for v in rows["cope_file"]]
-    varcope_files = [_existing_nifti(Path(v)) for v in rows["varcope_file"]]
-    if "feat_dir" in rows.columns:
-        feat_dirs = [Path(v).resolve() for v in rows["feat_dir"]]
-    else:
-        feat_dirs = [p.parent.parent for p in cope_files]
 
     n_inputs = len(cope_files)
     click.echo(f"Inputs: {n_inputs}")
@@ -3793,7 +4190,7 @@ def run_fixed_effects_group(
 
     dof_images: list[Path] = []
     for i, (varcope, feat_dir) in enumerate(zip(varcope_files, feat_dirs), 1):
-        dof = _read_first_level_dof(feat_dir)
+        dof = dofs[i - 1]
         root = output_dir / f"dofvarcope_input_{i:03d}"
         click.echo(f"Creating DOF image {i}: dof={dof:g}")
         _run([fslmaths, str(varcope), "-mul", "0", "-add", f"{dof:g}", str(root)], cwd, dry_run)
@@ -3802,7 +4199,6 @@ def run_fixed_effects_group(
     click.echo("Merging DOF images:")
     _run([fslmerge, "-t", str(dof_4d), *map(str, dof_images)], cwd, dry_run)
 
-    masks = [_existing_nifti(feat_dir / "mask") for feat_dir in feat_dirs]
     click.echo("Creating intersection mask:")
     _run([fslmerge, "-t", str(mask_4d), *map(str, masks)], cwd, dry_run)
     _run([fslmaths, str(mask_4d), "-Tmin", "-bin", str(mask)], cwd, dry_run)
@@ -4079,6 +4475,11 @@ def parse_group_contrast(
             + ", ".join(column_names)
         )
 
+    if not np.isfinite(weights).all():
+        raise click.ClickException(
+            f"Group contrast {name!r} contains a non-finite weight."
+        )
+
     if not any(weight != 0 for weight in weights):
         raise click.ClickException(
             f"Group contrast {name!r} is all zero."
@@ -4231,6 +4632,19 @@ def prepare_group_design(
                 design_matrix[row_index].append(float(value))
 
             subject_table[covariate_name] = values
+
+    matrix = np.asarray(design_matrix, dtype=float)
+    if matrix.ndim != 2 or not np.isfinite(matrix).all():
+        raise click.ClickException("Group design must contain finite values.")
+    rank = np.linalg.matrix_rank(matrix)
+    if rank != matrix.shape[1]:
+        raise click.ClickException(
+            "Group design is rank deficient; check covariates for collinearity."
+        )
+    if matrix.shape[0] <= rank:
+        raise click.ClickException(
+            "Group design has no residual degrees of freedom."
+        )
 
     if group_contrast_specs:
         parsed = [
@@ -4445,24 +4859,9 @@ def run_cross_subject_analysis(
     The function also writes reproducibility tables and ``analysis.json`` during
     a real run.
     """    
+    shared_analysis_entities(rows)
     fslmerge = _require_fsl_command("fslmerge")
     flameo = _require_fsl_command("flameo")
-
-    if output_dir.exists():
-        if overwrite:
-            click.echo(f"Removing existing group output: {output_dir}")
-            if not dry_run:
-                shutil.rmtree(output_dir)
-        else:
-            raise click.ClickException(
-                f"Group output already exists: {output_dir}. "
-                "Use --overwrite to replace it."
-            )
-
-    if not dry_run:
-        output_dir.mkdir(parents=True, exist_ok=False)
-
-    command_cwd = output_dir if not dry_run else output_dir.parent
 
     rows = rows.copy()
     rows["subject"] = rows["subject"].astype(str)
@@ -4539,6 +4938,22 @@ def run_cross_subject_analysis(
         demean_covariates=demean_covariates,
         group_contrast_specs=group_contrast_specs,
     )
+
+    if output_dir.exists():
+        if overwrite:
+            click.echo(f"Removing existing group output: {output_dir}")
+            if not dry_run:
+                shutil.rmtree(output_dir)
+        else:
+            raise click.ClickException(
+                f"Group output already exists: {output_dir}. "
+                "Use --overwrite to replace it."
+            )
+
+    if not dry_run:
+        output_dir.mkdir(parents=True, exist_ok=False)
+
+    command_cwd = output_dir if not dry_run else output_dir.parent
 
     click.echo(f"Subjects: {len(subjects)}")
     click.echo("Design columns: " + ", ".join(design_columns))
@@ -4911,6 +5326,9 @@ def verify_group_geometry(
     """
     if not cope_files:
         raise click.ClickException("No group inputs were supplied.")
+
+    if not (len(cope_files) == len(varcope_files) == len(mask_files)):
+        raise click.ClickException("COPE, VARCOPE, and mask counts differ.")
 
     for cope_file, varcope_file, mask_file in zip(
         cope_files,

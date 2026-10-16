@@ -11,6 +11,7 @@ System dependency:
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -32,7 +33,8 @@ from fmriproc.fsl import (
     entity_label,
     find_single_file,
     filter_estimable_contrasts,
-    load_confounds,
+    load_confound_sources,
+    make_censor_regressors,
     load_contrasts,
     next_contrast_update_dir,
     normalize_subject,
@@ -41,7 +43,11 @@ from fmriproc.fsl import (
     query_shared_entities,
     rebuild_contrast_manifest,
     resolve_confound_regexes,
+    resolve_additional_confound_file,
     update_existing_feat_contrasts,
+    verify_first_level_design,
+    validate_censor_options,
+    source_dataset,
     write_contrast_manifest
 )
 
@@ -138,7 +144,20 @@ from fmriproc.fsl import (
         "\b\n"
         "  No convolution:\n"
         "    call_feat ... \\\n"
-        "      --basis none"
+        "      --basis none\n\n"
+
+        "\b\n"
+        "  Add FD-based volume censoring to the selected confounds:\n"
+        "    call_feat ... --censor-column framewise_displacement --censor-threshold 0.9\n\n"
+
+        "\b\n"
+        "  ENIGMA confounds plus run-matched physiological regressors:\n"
+        "    call_feat ... --confound-subtype ENIGMA --additional-confounds-suffix physio\n\n"
+
+        "\b\n"
+        "  ENIGMA confounds plus a separate TSV per run:\n"
+        "    call_feat ... --confound-subtype ENIGMA \\\n"
+        "      --additional-confounds '/data/sub-{subject}/run-{run}_physio.tsv'"
     ),
 )
 @click.option(
@@ -318,8 +337,8 @@ from fmriproc.fsl import (
     "--no-confounds",
     is_flag=True,
     help=(
-        "Do not add nuisance regressors. Use only when the BOLD data have "
-        "already been denoised appropriately or nuisance modeling is intentionally omitted."
+        "Skip the primary nuisance-regressor file. Explicit additional "
+        "confound files or suffixes are still included."
     ),
 )
 @click.option(
@@ -351,6 +370,54 @@ from fmriproc.fsl import (
         "Additional regular expression used to select confound columns. May be "
         "repeated and is combined with --confound-subtype. Available only for "
         "--confounds-suffix timeseries."
+    ),
+)
+@click.option(
+    "--additional-confounds",
+    "additional_confound_files",
+    multiple=True,
+    metavar="FILE",
+    help=(
+        "Append all non-constant numeric columns from a volume-aligned TSV "
+        "with a header. Repeat for multiple files. Paths may contain run-entity "
+        "placeholders such as {subject}, {session}, {task}, and {run}. A literal "
+        "path is used for every selected run. Columns are prefixed additional_N_."
+    ),
+)
+@click.option(
+    "--additional-confounds-suffix",
+    "additional_confound_suffixes",
+    multiple=True,
+    help=(
+        "Append a run-matched BIDS TSV in addition to the primary confounds "
+        "(for example physio). Repeat for multiple suffixes. Each file must "
+        "have a header and exactly one row per BOLD volume; all non-constant "
+        "numeric columns are included. Raw physiological recordings must "
+        "first be converted to volume-aligned regressors."
+    ),
+)
+@click.option(
+    "--censor-column",
+    "--sensor-column",
+    "censor_columns",
+    multiple=True,
+    help=(
+        "Primary confound-table column used to generate one impulse regressor "
+        "per flagged volume, independently of the selected ENIGMA/regex columns. "
+        "For example framewise_displacement or std_dvars. Repeat with matching "
+        "--censor-threshold options; volumes flagged by any criterion are combined."
+    ),
+)
+@click.option(
+    "--censor-threshold",
+    "--sensor-threshold",
+    "censor_thresholds",
+    multiple=True,
+    type=click.FloatRange(min=0.0),
+    help=(
+        "Flag volumes strictly above this threshold in the column's own units. "
+        "Specify one per --censor-column, in the same order. An undefined first "
+        "value is ignored; other missing/non-finite values fail validation."
     ),
 )
 @click.option(
@@ -453,6 +520,10 @@ def run_firstlevel(
     confounds_suffix: str,
     confound_subtype: str,
     confound_regexes_extra: tuple[str, ...],
+    additional_confound_files: tuple[str, ...],
+    additional_confound_suffixes: tuple[str, ...],
+    censor_columns: tuple[str, ...],
+    censor_thresholds: tuple[float, ...],
     require_all_confounds: bool,
     disable_feat_preprocessing: bool,
     update_contrasts: bool,
@@ -479,6 +550,12 @@ def run_firstlevel(
         raise click.UsageError(
             "--task is required unless --rebuild-contrast-manifest is used."
         )
+
+    validate_censor_options(censor_columns, censor_thresholds)
+    if censor_columns and no_confounds:
+        raise click.UsageError("Censoring requires the primary confound file; omit --no-confounds.")
+    if censor_columns and update_contrasts:
+        raise click.UsageError("Censoring changes the model and cannot be used with --update-contrasts.")
 
     bids_dir = bids_dir.resolve()
     deriv_dir.mkdir(parents=True, exist_ok=True)
@@ -562,12 +639,24 @@ def run_firstlevel(
             f"  runs={selected_runs or 'all'}"
         )
 
+    output_labels: dict[str, str] = {}
+    for filename in bold_files:
+        label = entity_label(layout.parse_file_entities(filename))
+        if label in output_labels:
+            raise click.ClickException(
+                f"BOLD files map to the same output label {label!r}: "
+                f"{output_labels[label]} and {filename}. Select a single derivative dataset."
+            )
+        output_labels[label] = filename
+
     completed = 0
     skipped = 0
+    failed = 0
 
     for bold_file in bold_files:
         bold_file = os.path.abspath(bold_file)
         entities = layout.parse_file_entities(bold_file)
+        entities["source_dataset"] = source_dataset(bold_file)
         label = entity_label(entities)
 
         click.echo(f"\n[{label}]")
@@ -828,6 +917,7 @@ def run_firstlevel(
                 ],
             }
 
+            confound_sources: list[dict[str, Any]] = []
             if not no_confounds:
                 confound_query = dict(shared)
                 confound_query.update(
@@ -849,12 +939,54 @@ def run_firstlevel(
                 )
                 assert confounds_file is not None
 
-                regressor_names, regressors = load_confounds(
-                    confounds_file,
-                    regexes=confound_regexes,
+                confound_sources.append({
+                    "file": confounds_file,
+                    "regexes": confound_regexes,
+                    "prefix": "",
+                })
+
+            additional_files = [
+                resolve_additional_confound_file(specification, entities)
+                for specification in additional_confound_files
+            ]
+            for suffix in additional_confound_suffixes:
+                filename = find_single_file(
+                    layout,
+                    description=f"additional confound file (suffix-{suffix})",
+                    suffix=suffix,
+                    extension=[".tsv", ".tsv.gz"],
+                    **shared,
+                )
+                assert filename is not None
+                additional_files.append(filename)
+
+            for index, filename in enumerate(additional_files, 1):
+                confound_sources.append({
+                    "file": filename,
+                    "regexes": None,
+                    "prefix": f"additional_{index}_",
+                })
+
+            confound_provenance: list[dict[str, Any]] = []
+            if confound_sources:
+                regressor_names, regressors, confound_provenance = load_confound_sources(
+                    confound_sources,
                     expected_rows=n_volumes,
                     require_all_regexes=require_all_confounds,
                 )
+
+                if censor_columns:
+                    censor_names, censor_regressors, censor_provenance = make_censor_regressors(
+                        confounds_file,
+                        columns=censor_columns,
+                        thresholds=censor_thresholds,
+                        expected_rows=n_volumes,
+                    )
+                    if set(regressor_names) & set(censor_names):
+                        raise click.ClickException("Generated censoring names conflict with existing confounds.")
+                    regressor_names.extend(censor_names)
+                    regressors.extend(censor_regressors)
+                    confound_provenance.append(censor_provenance)
 
                 subject_info_kwargs.update(
                     {
@@ -876,10 +1008,7 @@ def run_firstlevel(
             work_dir.mkdir(parents=True, exist_ok=True)
 
             if output_dir.exists():
-                if overwrite:
-                    click.echo(f"Removing existing output: {output_dir}")
-                    shutil.rmtree(output_dir)
-                else:
+                if not overwrite:
                     click.echo(
                         f"[WARN] Output exists; skipping: {output_dir}",
                         err=True,
@@ -926,17 +1055,6 @@ def run_firstlevel(
                 bold_file=bold_file,
                 disable_feat_preprocessing=disable_feat_preprocessing,
                 smoothing_fwhm=smoothing_fwhm,
-            )
-
-            write_contrast_manifest(
-                work_dir=work_dir,
-                deriv_dir=deriv_dir,
-                entities=entities,
-                label=label,
-                output_dir=output_dir,
-                contrasts=run_contrasts,
-                canonical_names=canonical_names,
-                dry_run=dry_run
             )
 
             resolved_basis_name = next(iter(bases))
@@ -1004,13 +1122,50 @@ def run_firstlevel(
                 )
 
             if dry_run:
+                click.echo("DRY RUN: design-matrix estimability validation deferred until feat_model runs.")
                 click.echo(f"DRY RUN: feat {fsf_path}")
             else:
+                design_root = Path(fsf_path).with_suffix("")
+                subprocess.run(
+                    ["feat_model", str(design_root)],
+                    check=True,
+                    cwd=str(level1_dir),
+                )
+                verify_first_level_design(design_root)
+                if output_dir.exists() and overwrite:
+                    click.echo(f"Removing existing output: {output_dir}")
+                    shutil.rmtree(output_dir)
                 subprocess.run(
                     ["feat", fsf_path],
                     check=True,
                     cwd=str(level1_dir),
                 )
+                required_outputs = [
+                    output_dir / "stats" / f"{stem}{number}.nii.gz"
+                    for number in range(1, cope_number + 1)
+                    for stem in ("cope", "varcope", "tstat", "zstat")
+                ]
+                missing_outputs = [str(path) for path in required_outputs if not path.is_file()]
+                if missing_outputs:
+                    raise click.ClickException(
+                        "FEAT output is incomplete; missing " + ", ".join(missing_outputs)
+                    )
+
+            if not dry_run:
+                (work_dir / "confounds.json").write_text(
+                    json.dumps(confound_provenance, indent=2) + "\n", encoding="utf-8"
+                )
+
+            write_contrast_manifest(
+                work_dir=work_dir,
+                deriv_dir=deriv_dir,
+                entities=entities,
+                label=label,
+                output_dir=output_dir,
+                contrasts=run_contrasts,
+                canonical_names=canonical_names,
+                dry_run=dry_run
+            )
 
             completed += 1
 
@@ -1021,14 +1176,14 @@ def run_firstlevel(
             subprocess.CalledProcessError,
         ) as error:
             click.echo(f"[ERROR] {label}: {error}", err=True)
-            skipped += 1
+            failed += 1
 
     click.echo(
         f"\nFinished: {completed} run(s) prepared/executed; "
-        f"{skipped} run(s) skipped or failed."
+        f"{skipped} run(s) skipped; {failed} failed."
     )
 
-    if completed == 0:
+    if failed > 0 or completed == 0:
         raise SystemExit(1)
 
 

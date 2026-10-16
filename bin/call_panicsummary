@@ -1,0 +1,382 @@
+#!/usr/bin/env python
+
+from pathlib import Path
+import argparse
+
+import pandas as pd
+
+
+STRING_COLUMNS = {
+    "subject",
+    "analysis",
+    "analysis_type",
+    "analysis_id",
+    "roi",
+    "hemi",
+    "source",
+    "method",
+    "class_names",
+    "outer_cv_mode",
+    "outer_cv_name",
+    "inner_cv_name",
+    "estimator",
+    "scoring",
+}
+
+
+def summarize_analysis_completion(results):
+    """Summarize subject coverage per analysis/source/method combination."""
+    group_cols = [
+        "analysis",
+        "analysis_type",
+        "analysis_id",
+        "source",
+        "method",
+    ]
+
+    summary = (
+        results
+        .groupby(
+            group_cols,
+            dropna=False,
+        )
+        .agg(
+            n_subjects=("subject", "nunique"),
+            n_rois=("roi", "nunique"),
+            n_rows=("subject", "size"),
+        )
+        .reset_index()
+    )
+
+    return summary.sort_values(
+        group_cols,
+        kind="stable",
+    )
+
+
+def read_results(path):
+    """Read a PANIC results CSV while preserving identifier columns."""
+    path = Path(path)
+
+    header = pd.read_csv(path, nrows=0)
+
+    dtype = {
+        column: str
+        for column in STRING_COLUMNS
+        if column in header.columns
+    }
+
+    return pd.read_csv(
+        path,
+        dtype=dtype,
+    )
+
+
+def summarize_results(results):
+    """Create an ROI-level completion summary and identify missing subjects.
+
+    Each row represents one unique combination of analysis, analysis type,
+    source, method, ROI, and hemisphere. Completion is calculated relative
+    to the complete set of subjects represented in ``results``.
+
+    Parameters
+    ----------
+    results : pandas.DataFrame
+        Combined PANIC results table. Must contain at least ``subject``,
+        ``analysis``, ``analysis_type``, ``source``, ``method``, ``roi``,
+        and ``hemi``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        ROI-level completion table containing the number and percentage of
+        completed subjects, explicitly identified missing subjects, and
+        descriptive decoding/QC statistics.
+    """
+    required = {
+        "subject",
+        "analysis",
+        "analysis_type",
+        "source",
+        "method",
+        "roi",
+        "hemi",
+    }
+
+    missing = required - set(results.columns)
+
+    if missing:
+        raise ValueError(
+            "Results table is missing required columns: "
+            f"{sorted(missing)}"
+        )
+
+    # Complete expected subject population.
+    all_subjects = set(
+        results["subject"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
+
+    total_subjects = len(all_subjects)
+
+    group_cols = [
+        "analysis",
+        "analysis_type",
+        "source",
+        "method",
+        "roi",
+        "hemi",
+    ]
+
+    def missing_subjects(series):
+        present = set(
+            series.dropna().astype(str)
+        )
+
+        missing = sorted(
+            all_subjects - present
+        )
+
+        return ",".join(missing)
+
+    summary = (
+        results
+        .groupby(
+            group_cols,
+            dropna=False,
+        )
+        .agg(
+            n_subjects=("subject", "nunique"),
+            missing_subjects=(
+                "subject",
+                missing_subjects,
+            ),
+            mean_acc=("observed_acc", "mean"),
+            mean_delta=("delta", "mean"),
+            mean_p=("p_value", "mean"),
+            mean_n_features=("n_features", "mean"),
+            n_tiny_roi=(
+                "tiny_roi",
+                lambda x: int(
+                    pd.Series(x)
+                    .fillna(False)
+                    .astype(bool)
+                    .sum()
+                ),
+            ),
+        )
+        .reset_index()
+    )
+
+    summary["n_total_subjects"] = total_subjects
+
+    summary["n_missing"] = (
+        summary["n_total_subjects"]
+        - summary["n_subjects"]
+    )
+
+    summary["pct_complete"] = (
+        100.0
+        * summary["n_subjects"]
+        / summary["n_total_subjects"]
+    )
+
+    columns = [
+        "analysis",
+        "analysis_type",
+        "source",
+        "method",
+        "roi",
+        "hemi",
+        "n_subjects",
+        "n_total_subjects",
+        "n_missing",
+        "pct_complete",
+        "missing_subjects",
+        "mean_acc",
+        "mean_delta",
+        "mean_p",
+        "mean_n_features",
+        "n_tiny_roi",
+    ]
+
+    return (
+        summary[columns]
+        .sort_values(
+            [
+                "analysis",
+                "analysis_type",
+                "source",
+                "method",
+                "roi",
+                "hemi",
+            ],
+            kind="stable",
+        )
+        .reset_index(drop=True)
+    )
+
+
+def collect_results(panic_dir):
+    """Collect cumulative PANIC result files into one dataframe.
+
+    Parameters
+    ----------
+    panic_dir : str or pathlib.Path
+        Root PANIC derivatives directory.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Combined results across all subjects and analyses.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no cumulative ``sub-*_desc-results.csv`` files are found.
+    """
+    panic_dir = Path(panic_dir)
+
+    if not panic_dir.is_dir():
+        raise NotADirectoryError(
+            f"PANIC directory does not exist: {panic_dir}"
+        )
+
+    files = sorted(
+        path
+        for path in panic_dir.rglob("sub-*_desc-results.csv")
+        if "_model-" not in path.name
+    )
+
+    if not files:
+        raise FileNotFoundError(
+            f"No cumulative result files found below '{panic_dir}'."
+        )
+
+    frames = []
+
+    for path in files:
+        df = read_results(path)
+
+        # Useful provenance when inspecting the combined output.
+        df["results_file"] = str(path)
+
+        frames.append(df)
+
+    results = pd.concat(
+        frames,
+        ignore_index=True,
+        sort=False,
+    )
+
+    # Stable, readable ordering.
+    sort_columns = [
+        column
+        for column in [
+            "subject",
+            "analysis",
+            "analysis_type",
+            "analysis_id",
+            "source",
+            "method",
+            "roi",
+            "hemi",
+        ]
+        if column in results.columns
+    ]
+
+    if sort_columns:
+        results = (
+            results
+            .sort_values(
+                sort_columns,
+                kind="stable",
+            )
+            .reset_index(drop=True)
+        )
+
+    return results
+
+
+def display_results(results):
+    """Display the complete results dataframe without truncation."""
+    with pd.option_context(
+        "display.max_rows", None,
+        "display.max_columns", None,
+        "display.width", None,
+        "display.max_colwidth", None,
+        "display.expand_frame_repr", False,
+    ):
+        print(results.to_string(index=False))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Collect and display cumulative PANIC "
+            "desc-results.csv files."
+        )
+    )
+
+    parser.add_argument(
+        "panic_dir",
+        help="Root PANIC derivatives directory.",
+    )
+
+    parser.add_argument(
+        "--save",
+        metavar="CSV",
+        help=(
+            "Optionally save the combined table to a CSV."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    results = collect_results(args.panic_dir)
+
+    summary = summarize_results(results)
+
+    incomplete = summary.loc[
+        summary["n_missing"] > 0
+    ].copy()
+
+    print("\n=== MISSING RESULTS ===")
+
+    if incomplete.empty:
+        print("None -- all expected ROI entries are complete.")
+    else:
+        print(
+            incomplete[
+                [
+                    "analysis",
+                    "analysis_type",
+                    "source",
+                    "method",
+                    "roi",
+                    "hemi",
+                    "n_subjects",
+                    "n_total_subjects",
+                    "pct_complete",
+                    "missing_subjects",
+                ]
+            ].to_string(index=False)
+    )
+
+    if args.save:
+        output = Path(args.save)
+
+        results.to_csv(
+            output,
+            index=False,
+        )
+
+        print(
+            f"\nCombined results written to: {output}"
+        )
+
+
+if __name__ == "__main__":
+    main()

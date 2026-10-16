@@ -2,7 +2,6 @@
 """Create within-subject second-level fixed-effects analyses from a call_feat manifest."""
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -10,6 +9,13 @@ import click
 import pandas as pd
 
 from fmriproc.fsl import (
+    FEAT_ENTITY_LABELS,
+    analysis_entity_label,
+    shared_analysis_entities,
+    analysis_provenance,
+    merge_analysis_manifest,
+    verify_analysis_provenance,
+    write_analysis_provenance,
     _entity_text,
     _maybe_write_gfeat_report_index,
     _normalize_selector,
@@ -68,7 +74,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 @click.option("--contrast", "canonical_contrasts", multiple=True, help="Canonical contrast name. Repeatable.")
 @click.option("--min-runs", type=click.IntRange(min=1), default=2, help="Minimum first-level inputs required per fixed-effects analysis.")
 @click.option("--rebuild-contrast-manifest", is_flag=True, help="Reconstruct contrast_manifest_level2.tsv from existing fixed-effects outputs without rerunning analyses. The first-level --manifest is used to recover grouping and input counts.")
-@click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories. Without this flag, complete existing outputs are reused and entered into the manifest.")
+@click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories. Without this flag, complete existing outputs with matching input provenance are reused and entered into the manifest.")
 @click.option("--dry-run", is_flag=True, help="Validate inputs and print FSL commands without writing outputs.")
 def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, rebuild_contrast_manifest: bool, overwrite: bool, dry_run: bool) -> None:
     manifest_path = manifest_path.resolve()
@@ -117,7 +123,6 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
             parts.append(f"ses-{session}")
         parts.append(f"task-{task}")
         group_label = "_".join(parts)
-        group_output = output_dir / f"{group_label}_fixedfx.gfeat" / f"contrast-{_safe_label(canonical_name)}.feat"
 
         click.echo("")
         click.echo(f"[{group_label}; canonical={canonical_name}; inputs={len(rows)}]")
@@ -126,6 +131,9 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
             skipped += 1
             continue
         try:
+            group_entities = shared_analysis_entities(rows)
+            group_label += analysis_entity_label(group_entities)
+            group_output = output_dir / f"{group_label}_fixedfx.gfeat" / f"contrast-{_safe_label(canonical_name)}.feat"
             output_exists = group_output.exists()
 
             if rebuild_contrast_manifest:
@@ -143,6 +151,9 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                 )
 
             if (output_exists and not overwrite and not dry_run) or rebuild_contrast_manifest:
+                verify_analysis_provenance(
+                    group_output, analysis_provenance(rows, canonical_name=canonical_name)
+                )
                 stats_dir = group_output / "stats"
                 cope_file = stats_dir / "cope1.nii.gz"
                 varcope_file = stats_dir / "varcope1.nii.gz"
@@ -215,6 +226,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                         "session": session,
                         "task": task,
                         "canonical_name": canonical_name,
+                        **group_entities,
                         "number_of_inputs": int(len(rows)),
                         "second_level_dir": str(group_output),
                         "cope_file": str(cope_file),
@@ -245,11 +257,17 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                 dry_run
             )
 
+            if not dry_run:
+                write_analysis_provenance(
+                    group_output, analysis_provenance(rows, canonical_name=canonical_name)
+                )
+
             records.append({
                 "subject": subject,
                 "session": session,
                 "task": task,
                 "canonical_name": canonical_name,
+                **group_entities,
                 **result,
             })
 
@@ -283,11 +301,6 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
 
         level2_manifest.parent.mkdir(parents=True, exist_ok=True)
 
-        # Use a process-specific temporary file so independent array tasks can
-        # safely write separate manifest fragments.
-        temp = level2_manifest.with_name(
-            f"{level2_manifest.name}.tmp-{os.getpid()}"
-        )
         table = pd.DataFrame.from_records(records)
 
         preferred = [
@@ -312,8 +325,10 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
         )
         table = table.loc[:, ordered]
 
-        table.to_csv(temp, sep="\t", index=False)
-        temp.replace(level2_manifest)
+        merge_analysis_manifest(
+            level2_manifest, table,
+            ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset"]
+        )
 
         label = (
             "Rebuilt second-level manifest"
