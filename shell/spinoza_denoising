@@ -325,6 +325,43 @@ for subID in ${search}; do
           execute_cmd=1
         fi
 
+        masked_dir="${DENOISE}/${base_path}/masked"
+        denoised_dir="${DENOISE}/${base_path}/denoising"
+
+        case "${PYBEST_SPACE}" in
+          fsnative|fsaverage*)
+            ext="npy"
+            ;;
+          *)
+            ext="nii.gz"
+            ;;
+        esac
+
+        # Prioritize masked over denoising
+        if [[ -d "${masked_dir}" ]]; then
+          searchdir="${masked_dir}"
+          desc="pybest"
+        else
+          searchdir="${denoised_dir}"
+          desc="denoised"
+        fi
+
+        # Check if execution is needed
+        if [[ ! -d "${searchdir}" ]]; then
+          execute_cmd=1
+        elif [[ -n "${task_flag}" ]]; then
+          execute_cmd=1
+        else
+          func_files=$(find "${searchdir}" \
+            -type f \
+            -name "*_desc-${desc}_bold.${ext}" \
+            -print -quit 2>/dev/null)
+
+          if [[ -z "${func_files}" ]]; then
+            execute_cmd=1
+          fi
+        fi
+
         # also check if there's files in the directories
         searchdir="${DENOISE}/${base_path}/denoising"
 
