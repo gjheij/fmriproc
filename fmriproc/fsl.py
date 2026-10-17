@@ -229,6 +229,31 @@ def normalize_analysis_entities(entities: dict[str, Any]) -> dict[str, str]:
     return result
 
 
+def filter_analysis_entities(
+    table: pd.DataFrame,
+    **selectors: Sequence[str],
+) -> pd.DataFrame:
+    """Normalize entity columns and apply optional higher-level stream filters.
+
+    Missing legacy entities remain empty, forming separate unknown streams.
+    Canonical resolution/density names accept res/den aliases in input tables.
+    Selector values are repeatable or comma-separated, matching other CLI
+    selectors. Filtering does not combine distinct entity values.
+    """
+    table = table.copy()
+    records = table.to_dict(orient="records")
+    normalized = [normalize_analysis_entities(record) for record in records]
+    for entity in (*FEAT_ENTITY_LABELS, "source_dataset"):
+        table[entity] = [record[entity] for record in normalized]
+    for entity, values in selectors.items():
+        if entity not in FEAT_ENTITY_LABELS:
+            raise click.ClickException(f"Unsupported analysis entity filter: {entity}")
+        selected = _normalize_selector(values)
+        if selected:
+            table = table.loc[table[entity].isin(selected)]
+    return table
+
+
 def shared_analysis_entities(rows: pd.DataFrame) -> dict[str, str]:
     """Require compatible analysis entities before combining runs or subjects.
 

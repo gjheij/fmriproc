@@ -28,6 +28,7 @@ import pandas as pd
 from fmriproc.fsl import (
     FEAT_ENTITY_LABELS,
     analysis_entity_label,
+    filter_analysis_entities,
     shared_analysis_entities,
     analysis_provenance,
     merge_analysis_manifest,
@@ -179,6 +180,89 @@ from fmriproc.fsl import (
     ),
 )
 @click.option(
+    "--acquisition",
+    "acquisitions",
+    multiple=True,
+    help=(
+        "Restrict to acquisition values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--direction",
+    "directions",
+    multiple=True,
+    help=(
+        "Restrict to direction values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--echo",
+    "echoes",
+    multiple=True,
+    help=(
+        "Restrict to echo values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--reconstruction",
+    "reconstructions",
+    multiple=True,
+    help=(
+        "Restrict to reconstruction values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--part",
+    "parts",
+    multiple=True,
+    help=(
+        "Restrict to part values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--space",
+    "spaces",
+    multiple=True,
+    help=(
+        "Restrict to space values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--resolution",
+    "--res",
+    "resolutions",
+    multiple=True,
+    help=(
+        "Restrict to resolution values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--density",
+    "--den",
+    "densities",
+    multiple=True,
+    help=(
+        "Restrict to density values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
+    "--desc",
+    "descriptions",
+    multiple=True,
+    help=(
+        "Restrict to desc values. May be repeated or comma-separated. "
+        "Distinct values are analyzed in separate streams when omitted."
+    ),
+)
+@click.option(
     "--contrast",
     "canonical_contrasts",
     multiple=True,
@@ -316,6 +400,15 @@ def main(
     subjects: tuple[str, ...],
     sessions: tuple[str, ...],
     tasks: tuple[str, ...],
+    acquisitions: tuple[str, ...],
+    directions: tuple[str, ...],
+    echoes: tuple[str, ...],
+    reconstructions: tuple[str, ...],
+    parts: tuple[str, ...],
+    spaces: tuple[str, ...],
+    resolutions: tuple[str, ...],
+    densities: tuple[str, ...],
+    descriptions: tuple[str, ...],
     canonical_contrasts: tuple[str, ...],
     runmode: str,
     min_subjects: int,
@@ -347,6 +440,19 @@ def main(
     click.echo(
         f"Input manifest: {manifest_path}\n"
         f"Detected input level: {detected_level}"
+    )
+
+    manifest = filter_analysis_entities(
+        manifest,
+        acquisition=acquisitions,
+        direction=directions,
+        echo=echoes,
+        reconstruction=reconstructions,
+        part=parts,
+        space=spaces,
+        resolution=resolutions,
+        density=densities,
+        desc=descriptions,
     )
 
     selected_subjects = _normalize_selector(subjects)
@@ -383,12 +489,14 @@ def main(
         "canonical_name",
         "cope_file",
         "varcope_file",
+        *FEAT_ENTITY_LABELS,
+        "source_dataset",
     ]
     manifest = manifest.drop_duplicates(
         subset=duplicate_subset
     ).copy()
 
-    grouping_columns = ["session", "task", "canonical_name"]
+    grouping_columns = ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS]
 
     completed = 0
     reused = 0
@@ -401,7 +509,7 @@ def main(
         sort=True,
         dropna=False,
     ):
-        session, task, canonical_name = map(_entity_text, group_key)
+        session, task, canonical_name = map(_entity_text, group_key[:3])
         number_of_subjects = rows["subject"].nunique()
 
         group_label_parts: list[str] = []
@@ -409,6 +517,8 @@ def main(
             group_label_parts.append(f"ses-{session}")
         group_label_parts.append(f"task-{task}")
         group_label = "_".join(group_label_parts)
+        stream_entities = dict(zip(FEAT_ENTITY_LABELS, group_key[3:]))
+        group_label += analysis_entity_label(stream_entities)
 
         contrast_label = _safe_label(canonical_name)
 
@@ -441,7 +551,6 @@ def main(
 
         try:
             group_entities = shared_analysis_entities(rows)
-            group_label += analysis_entity_label(group_entities)
             group_output = (
                 output_dir / f"{group_label}_group.gfeat" / f"contrast-{contrast_label}.feat"
             )

@@ -11,6 +11,7 @@ import pandas as pd
 from fmriproc.fsl import (
     FEAT_ENTITY_LABELS,
     analysis_entity_label,
+    filter_analysis_entities,
     shared_analysis_entities,
     analysis_provenance,
     merge_analysis_manifest,
@@ -34,7 +35,7 @@ REQUIRED_MANIFEST_COLUMNS = {
     help=(
         "Combine run-level call_feat outputs into within-subject fixed-effects "
         "second-level analyses. Rows are grouped by subject, session, task, "
-        "and canonical contrast name."
+        "canonical contrast name, and analysis entities (including desc and space)."
     ),
     epilog=(
         "Examples:\n\n"
@@ -71,12 +72,21 @@ REQUIRED_MANIFEST_COLUMNS = {
 @click.option("--session", "sessions", multiple=True, help="Session without ses-. Repeatable or comma-separated.")
 @click.option("--task", "tasks", multiple=True, help="Task without task-. Repeatable or comma-separated.")
 @click.option("--run", "runs", multiple=True, help="Run label. Repeatable or comma-separated.")
+@click.option("--acquisition", "acquisitions", multiple=True, help="Restrict to acquisition values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--direction", "directions", multiple=True, help="Restrict to direction values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--echo", "echoes", multiple=True, help="Restrict to echo values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--reconstruction", "reconstructions", multiple=True, help="Restrict to reconstruction values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--part", "parts", multiple=True, help="Restrict to part values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--space", "spaces", multiple=True, help="Restrict to space values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--resolution", "--res", "resolutions", multiple=True, help="Restrict to resolution values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--density", "--den", "densities", multiple=True, help="Restrict to density values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
+@click.option("--desc", "descriptions", multiple=True, help="Restrict to desc values. Repeatable or comma-separated; omitted values are analyzed in separate streams.")
 @click.option("--contrast", "canonical_contrasts", multiple=True, help="Canonical contrast name. Repeatable.")
 @click.option("--min-runs", type=click.IntRange(min=1), default=2, help="Minimum first-level inputs required per fixed-effects analysis.")
 @click.option("--rebuild-contrast-manifest", is_flag=True, help="Reconstruct contrast_manifest_level2.tsv from existing fixed-effects outputs without rerunning analyses. The first-level --manifest is used to recover grouping and input counts.")
 @click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories. Without this flag, complete existing outputs with matching input provenance are reused and entered into the manifest.")
 @click.option("--dry-run", is_flag=True, help="Validate inputs and print FSL commands without writing outputs.")
-def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, rebuild_contrast_manifest: bool, overwrite: bool, dry_run: bool) -> None:
+def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], acquisitions: tuple[str, ...], directions: tuple[str, ...], echoes: tuple[str, ...], reconstructions: tuple[str, ...], parts: tuple[str, ...], spaces: tuple[str, ...], resolutions: tuple[str, ...], densities: tuple[str, ...], descriptions: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, rebuild_contrast_manifest: bool, overwrite: bool, dry_run: bool) -> None:
     manifest_path = manifest_path.resolve()
     output_dir = output_dir.resolve()
 
@@ -93,6 +103,19 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
     if "feat_dir" not in manifest.columns:
         manifest["feat_dir"] = manifest["cope_file"].map(lambda v: str(Path(v).parent.parent))
 
+    manifest = filter_analysis_entities(
+        manifest,
+        acquisition=acquisitions,
+        direction=directions,
+        echo=echoes,
+        reconstruction=reconstructions,
+        part=parts,
+        space=spaces,
+        resolution=resolutions,
+        density=densities,
+        desc=descriptions,
+    )
+
     selectors = {
         "subject": _normalize_selector(subjects),
         "session": _normalize_selector(sessions),
@@ -106,7 +129,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
     if manifest.empty:
         raise click.ClickException("No manifest rows remain after filtering.")
 
-    manifest = manifest.drop_duplicates(subset=["run_label", "canonical_name", "cope_file", "varcope_file"]).copy()
+    manifest = manifest.drop_duplicates(subset=["run_label", "canonical_name", "cope_file", "varcope_file", *FEAT_ENTITY_LABELS, "source_dataset"]).copy()
     manifest["_run_numeric"] = pd.to_numeric(manifest["run"], errors="coerce")
     manifest = manifest.sort_values(
         ["subject", "session", "task", "canonical_name", "_run_numeric", "run", "run_label"],
@@ -115,14 +138,16 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
 
     records: list[dict[str, object]] = []
     completed = reused = skipped = failed = 0
-    group_cols = ["subject", "session", "task", "canonical_name"]
+    group_cols = ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS]
     for key, rows in manifest.groupby(group_cols, sort=True, dropna=False):
-        subject, session, task, canonical_name = map(_entity_text, key)
-        parts = [f"sub-{subject}"]
+        subject, session, task, canonical_name = map(_entity_text, key[:4])
+        label_parts = [f"sub-{subject}"]
         if session:
-            parts.append(f"ses-{session}")
-        parts.append(f"task-{task}")
-        group_label = "_".join(parts)
+            label_parts.append(f"ses-{session}")
+        label_parts.append(f"task-{task}")
+        group_label = "_".join(label_parts)
+        stream_entities = dict(zip(FEAT_ENTITY_LABELS, key[4:]))
+        group_label += analysis_entity_label(stream_entities)
 
         click.echo("")
         click.echo(f"[{group_label}; canonical={canonical_name}; inputs={len(rows)}]")
@@ -132,7 +157,6 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
             continue
         try:
             group_entities = shared_analysis_entities(rows)
-            group_label += analysis_entity_label(group_entities)
             group_output = output_dir / f"{group_label}_fixedfx.gfeat" / f"contrast-{_safe_label(canonical_name)}.feat"
             output_exists = group_output.exists()
 
@@ -210,12 +234,15 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                         not previous.empty
                         and required_keys.issubset(previous.columns)
                     ):
+                        previous = filter_analysis_entities(previous)
                         matched = previous.loc[
                             (previous["subject"] == subject)
                             & (previous["session"] == session)
                             & (previous["task"] == task)
                             & (previous["canonical_name"] == canonical_name)
                         ]
+                        for entity, value in group_entities.items():
+                            matched = matched.loc[matched[entity] == value]
                         if len(matched) == 1:
                             reused_record.update(matched.iloc[0].to_dict())
 
