@@ -1,4 +1,3 @@
----
 # fMRIproc repository
 
 [![Documentation Status](https://readthedocs.org/projects/fmriproc/badge/?version=latest)](https://fmriproc.readthedocs.io/en/latest/?badge=latest)
