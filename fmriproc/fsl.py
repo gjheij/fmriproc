@@ -22,7 +22,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Sequence, TextIO
 
 import click
 import nibabel as nib
@@ -80,6 +80,27 @@ COMMON_REQUIRED_COLUMNS = {
     "varcope_file",
 }
 
+
+
+def acquire_feat_run_lock(deriv_dir: Path, label: str) -> TextIO | None:
+    """Acquire a nonblocking run lock shared by independent first-level jobs.
+
+    The caller must close the returned file in a finally block. A busy run
+    returns None without touching its model or FEAT outputs. Lock files remain
+    on disk; closing the file releases ownership, including on process exit.
+    """
+    lock_dir = deriv_dir / ".locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock = open(lock_dir / f"{label}.lock", "a+", encoding="utf-8")
+    try:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.close()
+        return None
+    except OSError:
+        lock.close()
+        raise
+    return lock
 
 
 def next_contrast_update_dir(base_work_dir: Path) -> Path:

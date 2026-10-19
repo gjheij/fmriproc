@@ -27,6 +27,7 @@ from nipype.interfaces.base import Bunch
 from nipype.interfaces.fsl import Level1Design
 
 from fmriproc.fsl import (
+    acquire_feat_run_lock,
     build_level1_bases,
     check_executable,
     default_baseline_contrasts,
@@ -651,6 +652,7 @@ def run_firstlevel(
 
     completed = 0
     skipped = 0
+    existing_skipped = 0
     failed = 0
 
     for bold_file in bold_files:
@@ -661,7 +663,20 @@ def run_firstlevel(
 
         click.echo(f"\n[{label}]")
 
+        run_lock = None
         try:
+            run_lock = acquire_feat_run_lock(deriv_dir, label)
+            if run_lock is None:
+                click.echo(f"[WARN] Another job owns this run; skipping: {label}", err=True)
+                skipped += 1
+                continue
+            output_dir = deriv_dir / f"{label}.feat"
+            if output_dir.exists() and not overwrite and not update_contrasts:
+                click.echo(f"[WARN] Output exists; skipping: {output_dir}", err=True)
+                skipped += 1
+                existing_skipped += 1
+                continue
+
             image = nib.load(bold_file)
 
             if len(image.shape) != 4:
@@ -1014,6 +1029,7 @@ def run_firstlevel(
                         err=True,
                     )
                     skipped += 1
+                    existing_skipped += 1
                     continue
 
             modelspec = SpecifyModel(
@@ -1177,13 +1193,16 @@ def run_firstlevel(
         ) as error:
             click.echo(f"[ERROR] {label}: {error}", err=True)
             failed += 1
+        finally:
+            if run_lock is not None:
+                run_lock.close()
 
     click.echo(
         f"\nFinished: {completed} run(s) prepared/executed; "
         f"{skipped} run(s) skipped; {failed} failed."
     )
 
-    if failed > 0 or completed == 0:
+    if failed > 0 or (completed == 0 and existing_skipped == 0):
         raise SystemExit(1)
 
 

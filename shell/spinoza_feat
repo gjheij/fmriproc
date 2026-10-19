@@ -36,6 +36,8 @@ spinoza_feat
 SLURM-array/local queue wrapper for FEAT analyses using call_feat, call_feat2, and call_feat3.
 The wrapper limits the number of simultaneously running jobs; native call_feat* options are passed
 through unchanged after '--'.
+Each invocation writes its runner, queue, and logs to a unique directory under
+<project root>/code/logs/spinoza_feat_L<level>_submission.*.
 
 Usage:
   spinoza_feat [wrapper options] <project root> -- [call_feat* options]
@@ -189,8 +191,11 @@ else
   proj_dir="$(cd "$proj_dir" && pwd -P)"
 fi
 
-work_dir="${proj_dir}/code/logs"
-mkdir -p "$work_dir"
+logs_dir="${proj_dir}/code/logs"
+mkdir -p "$logs_dir"
+# Pending array tasks read their job list after submission. Never replace a
+# previous submission's runner, queue, merge script, or manifest fragments.
+work_dir="$(mktemp -d "${logs_dir}/spinoza_feat_L${level}_submission.XXXXXX")"
 job_name="${job_name:-featL${level}}"
 
 # Return success when an option exists in pass_args, supporting --opt value and --opt=value.
@@ -836,6 +841,7 @@ print_summary() {
   printf 'Max simultaneous: %s\n' "$max_running"
   printf 'CPUs/job:         %s\n' "$n_cpus"
   printf 'Queue:            %s\n' "$queue"
+  printf 'Submission dir:   %s\n' "$work_dir"
   printf 'Jobs file:        %s\n' "$jobs_file"
   printf 'Runner:           %s\n' "$runner"
 }
