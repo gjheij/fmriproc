@@ -2730,6 +2730,7 @@ if [[ $? -eq 0 ]]; then
   fi
 
   [[ -n ${run_local:-} ]] && cmd+=(--local)
+  [[ -n ${dry_run:-} ]] && cmd+=(--dry-run)
 
   # The project root is the final wrapper argument before '--'.
   cmd+=("$feat_project_root" --)
