@@ -6,39 +6,39 @@ generate_submission_command() {
   local queue="$1"
   local n_cpus="$2"
   local job_name="$3"
-  local workdir="$4"   # This can be either a directory or a file
+  local workdir="$4"
+  local n_gpus="${5:-0}"
 
   local system="unknown"
   local command=""
   local log_path=""
 
-  # Check scheduler type
-  system=$(detect_scheduler) || return 1  # Detect scheduler and exit on error
+  system=$(detect_scheduler) || return 1
 
-  # Determine if workdir is a file or a directory
   if [[ -d "$workdir" ]]; then
     if [[ "$system" == "slurm" ]]; then
-      # SLURM auto appends filename if only directory is given
       log_path="${workdir}/%x_%j.out"
     else
-      # SoGE requires explicit filename
       log_path="${workdir}/${job_name}.log"
     fi
   else
-    # Assume full file path is given
     log_path="$workdir"
   fi
 
-  # Build submission command
   if [[ "$system" == "soge" ]]; then
-      command="qsub -q ${queue} -pe smp ${n_cpus} -N ${job_name} -o ${log_path} -j Y -V"
+    command="qsub -q ${queue} -pe smp ${n_cpus} -N ${job_name} -o ${log_path} -j Y -V"
+
   elif [[ "$system" == "slurm" ]]; then
-      command="sbatch --partition=${queue} --cpus-per-task=${n_cpus} --job-name=${job_name} --output=${log_path} --export=ALL"
+    command="sbatch --partition=${queue} --cpus-per-task=${n_cpus} --job-name=${job_name} --output=${log_path} --export=ALL"
+
+    if (( n_gpus > 0 )); then
+      command+=" --gpus=${n_gpus}"
+    fi
   fi
 
-  # Output the result
   echo "$command"
 }
+
 
 determine_subjects() {
   local input_dir="$1"
@@ -66,9 +66,9 @@ decide_job_type() {
   local workdir="$4"
   local n_cpus="$5"
   local queue="$6"
+  local n_gpus="${7:-0}"  # Optional, defaults to 0 GPUs
 
   local job=""
-  local echo_cmd=1
   local call_=""
   local submit=""
   local QUEUE=""
@@ -76,27 +76,29 @@ decide_job_type() {
   if [[ ${run_local} -eq 1 ]]; then
     job="${script_name}"
   else
-    QUEUE="${queue:-$SGE_QUEUE_LONG}"  # Use SGE_QUEUE if set, otherwise fallback to SGE_QUEUE_LONG
-    
+    QUEUE="${queue:-$SGE_QUEUE_LONG}"
+
     if [[ "${script_name}" == *"/"* ]]; then
       call_="${script_name}"
     else
-      call_="$(which ${script_name})"
+      call_="$(command -v "${script_name}")"
     fi
 
     submit=$(
       generate_submission_command \
-      "${QUEUE}" \
-      "${n_cpus}" \
-      "${job_name}" \
-      "${workdir}"
-    )
+        "${QUEUE}" \
+        "${n_cpus}" \
+        "${job_name}" \
+        "${workdir}" \
+        "${n_gpus}"
+    ) || return 1
+
     job="${submit} ${call_}"
   fi
 
-  # Return job command and echo flag as global variables if needed
   echo "${job}"
 }
+
 
 check_python_package() {
   local package="$1"
