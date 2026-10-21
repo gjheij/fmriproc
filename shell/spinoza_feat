@@ -47,6 +47,8 @@ Wrapper options:
   -s, --subject <ids>    subjects to queue, comma/space separated (levels 1/2).
                          Native --subject after '--' is also supported and used for queue splitting.
   -m, --max-running <N>  maximum jobs running simultaneously. Default = 6
+                         Slurm submissions are auto-batched for array/quota limits.
+                         The wrapper waits for completion before merging manifests.
   -j, --cpus <N>         CPUs requested per SLURM job. Default = 1
   -q, --queue <name>     SLURM partition. Default = \$SGE_QUEUE_LONG, or 'main'
       --local             run through a local process queue instead of SLURM
@@ -627,7 +629,8 @@ if command -v call_bashhelper >/dev/null 2>&1; then
   source call_bashhelper
 fi
 
-job_value=\$(sed -n "\${SLURM_ARRAY_TASK_ID}p" $(printf '%q' "$jobs_file"))
+job_line=\$(( \${FEAT_BATCH_OFFSET:-0} + \${SLURM_ARRAY_TASK_ID} ))
+job_value=\$(sed -n "\${job_line}p" $(printf '%q' "$jobs_file"))
 if [[ -z "\${job_value}" ]]; then
   echo "ERROR: no queue value for SLURM_ARRAY_TASK_ID=\${SLURM_ARRAY_TASK_ID}" >&2
   exit 1
@@ -646,20 +649,26 @@ cmd+=(--subject "${job_value}")
 EOF
   elif [[ "$level" == 2 ]]; then
     cat <<EOF
-IFS=\$'\\t' read -r job_subject job_session job_task job_contrast <<< "\${job_value}"
+# Preserve empty TSV columns (Bash IFS read collapses adjacent tabs).
+job_subject=\${job_value%%\$'\\t'*}
+rest=\${job_value#*\$'\\t'}
+job_session=\${rest%%\$'\\t'*}
+rest=\${rest#*\$'\\t'}
+job_task=\${rest%%\$'\\t'*}
+job_contrast=\${rest#*\$'\\t'}
 
 cmd+=(--subject "\${job_subject}")
 [[ -z "\${job_session}" ]] || cmd+=(--session "\${job_session}")
 [[ -z "\${job_task}" ]] || cmd+=(--task "\${job_task}")
 cmd+=(--contrast "\${job_contrast}")
-cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${SLURM_ARRAY_TASK_ID}.tsv")
+cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${job_line}.tsv")
 EOF
   elif [[ "$level" == 3 ]]; then
     cat <<EOF
 IFS=\$'\\t' read -r job_task job_contrast <<< "\${job_value}"
 [[ -z "\${job_task}" ]] || cmd+=(--task "\${job_task}")
 cmd+=(--contrast "\${job_contrast}")
-cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${SLURM_ARRAY_TASK_ID}.tsv")
+cmd+=(--manifest-out "$(printf '%q' "${manifest_parts_dir}")/job-\${job_line}.tsv")
 EOF
   fi
 
@@ -673,6 +682,25 @@ fi
 EOF
 } > "$runner"
 
+# Slurm MaxArraySize is an exclusive upper bound for array indices.
+# Use indices starting at 1; the largest permissible index is MaxArraySize-1.
+slurm_array_max=100
+submit_limit=50
+if [[ "$run_local" -eq 0 ]] && command -v scontrol >/dev/null 2>&1; then
+  detected="$(scontrol show config 2>/dev/null | awk '$1=="MaxArraySize" {print $3; exit}')"
+  [[ "$detected" =~ ^[0-9]+$ ]] && (( detected > 1 )) && slurm_array_max="$detected"
+fi
+if [[ "$run_local" -eq 0 ]] && command -v sacctmgr >/dev/null 2>&1; then
+  # Association limits can be empty/unlimited. Take the smallest numeric limit
+  # for this user's association rows; avoid claiming a higher quota than exists.
+  detected="$(sacctmgr -n -P show assoc where user="$USER" format=MaxSubmitJobs 2>/dev/null | awk -F'|' '$1~/^[0-9]+$/ && $1>0 {if (!min || $1<min) min=$1} END{print min}')"
+  [[ "$detected" =~ ^[0-9]+$ ]] && (( detected > 0 )) && submit_limit="$detected"
+fi
+# Keep a small safety margin for unrelated jobs and merge submissions.
+batch_cap=$((slurm_array_max - 1))
+(( batch_cap > submit_limit )) && batch_cap="$submit_limit"
+(( batch_cap > 1 )) && batch_cap=$((batch_cap - 1))
+(( batch_cap >= 1 )) || { err "No valid Slurm array capacity"; exit 1; }
 array_spec="1-${n_jobs}%${max_running}"
 
 
@@ -859,7 +887,12 @@ if [[ "$dry_run" -eq 1 ]]; then
     if [[ "$level" == 1 ]]; then
       cmd+=(--subject "$value")
     elif [[ "$level" == 2 ]]; then
-      IFS=$'\t' read -r job_subject job_session job_task job_contrast <<< "$value"
+      job_subject="${value%%$'\t'*}"
+      rest="${value#*$'\t'}"
+      job_session="${rest%%$'\t'*}"
+      rest="${rest#*$'\t'}"
+      job_task="${rest%%$'\t'*}"
+      job_contrast="${rest#*$'\t'}"
       cmd+=(--subject "$job_subject")
       [[ -z "$job_session" ]] || cmd+=(--session "$job_session")
       [[ -z "$job_task" ]] || cmd+=(--task "$job_task")
@@ -876,8 +909,15 @@ if [[ "$dry_run" -eq 1 ]]; then
   done < "$jobs_file"
   if [[ "$run_local" -eq 0 ]]; then
     printf '\nWould submit:\n'
-    printf 'sbatch --partition=%q --array=%q --cpus-per-task=%q --job-name=%q --output=%q %q\n' \
-      "$queue" "$array_spec" "$n_cpus" "$job_name" "$work_dir/${job_name}_%A_%a.out" "$runner"
+    printf 'Slurm MaxArraySize=%s, MaxSubmitJobs=%s, maximum batch size=%s\n' "$slurm_array_max" "$submit_limit" "$batch_cap"
+    offset=0
+    while (( offset < n_jobs )); do
+      size=$((n_jobs-offset))
+      (( size > batch_cap )) && size="$batch_cap"
+      printf 'sbatch --partition=%q --array=%q --export=%q --cpus-per-task=%q --job-name=%q --output=%q %q\n' \
+        "$queue" "1-${size}%${max_running}" "ALL,FEAT_BATCH_OFFSET=${offset}" "$n_cpus" "$job_name" "$work_dir/${job_name}_%A_%a.out" "$runner"
+      offset=$((offset+size))
+    done
     if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
       printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
     elif [[ "$level" == 2 ]]; then
@@ -950,41 +990,91 @@ if [[ "$run_local" -eq 1 ]]; then
   exit 0
 fi
 
-submit_output="$(
-  sbatch \
+# The controller stays alive until every batch completes. Its progress is also
+# written to a durable log in the unique submission directory.
+submission_log="${work_dir}/submission.log"
+log_submission() {
+  printf '%s %s\n' "$(date '+%F %T')" "$*" | tee -a "$submission_log"
+}
+
+# squeue -r expands arrays into individual tasks, including pending tasks.
+active_slots() {
+  local used
+  used="$(squeue -r -h -u "$USER" -t PD,R,CF,CG,S -o '%i' 2>/dev/null | wc -l)" || return 1
+  printf '%s\n' "$used"
+}
+
+# Wait for a batch to leave the queue, then confirm *every* task completed.
+# Never treat disappearance from squeue alone as proof of success.
+wait_for_batch() {
+  local jid="$1" expected="$2" remaining records completed tries=0
+  while :; do
+    remaining="$(squeue -h -j "$jid" -o '%i' 2>/dev/null)" || {
+      err "Cannot query squeue for batch $jid"; return 1;
+    }
+    [[ -z "$remaining" ]] && break
+    sleep 20
+  done
+  while :; do
+    records="$(sacct -n -X -P -j "$jid" --format=JobIDRaw,State 2>/dev/null)" || {
+      err "Cannot query sacct for batch $jid"; return 1;
+    }
+    completed="$(awk -F'|' -v jid="$jid" '$1 ~ ("^" jid "_[0-9]+$") && $2 == "COMPLETED" {n++} END {print n+0}' <<< "$records")"
+    if (( completed == expected )); then
+      return 0
+    fi
+    ((tries+=1))
+    if (( tries >= 12 )); then
+      log_submission "ERROR batch $jid: expected $expected COMPLETED tasks, found $completed"
+      printf '%s\n' "$records" >> "$submission_log"
+      return 1
+    fi
+    sleep 10
+  done
+}
+
+log_submission "Starting FEAT level $level: $n_jobs jobs; MaxArraySize=$slurm_array_max; MaxSubmitJobs=$submit_limit; concurrency=$max_running"
+offset=0
+batch=0
+while (( offset < n_jobs )); do
+  used="$(active_slots)" || { err "Cannot determine current Slurm job usage"; exit 1; }
+  available=$((submit_limit - used - 1))
+  if (( available < 1 )); then
+    log_submission "Submission quota occupied ($used/$submit_limit); waiting for a free slot"
+    sleep 30
+    continue
+  fi
+  size=$((n_jobs-offset))
+  (( size > batch_cap )) && size="$batch_cap"
+  (( size > available )) && size="$available"
+  ((batch+=1))
+  log_submission "Submitting batch $batch: queue rows $((offset+1))-$((offset+size)), array 1-${size}%${max_running}"
+  submit_output="$(sbatch --parsable \
     --partition="$queue" \
-    --array="$array_spec" \
+    --array="1-${size}%${max_running}" \
+    --export="ALL,FEAT_BATCH_OFFSET=${offset}" \
     --cpus-per-task="$n_cpus" \
     --job-name="$job_name" \
     --output="$work_dir/${job_name}_%A_%a.out" \
-    "$runner"
-)"
-printf '%s\n' "$submit_output"
+    "$runner")" || { err "Batch $batch submission failed"; exit 1; }
+  array_job_id="${submit_output%%;*}"
+  [[ "$array_job_id" =~ ^[0-9]+$ ]] || { err "Unexpected sbatch output: $submit_output"; exit 1; }
+  log_submission "Submitted batch $batch as Slurm job $array_job_id"
+  if ! wait_for_batch "$array_job_id" "$size"; then
+    err "Batch $batch ($array_job_id) did not finish successfully; stopping before manifest merge"
+    exit 1
+  fi
+  log_submission "Batch $batch ($array_job_id) completed successfully ($size tasks)"
+  offset=$((offset+size))
+done
 
 if { [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]] || \
      [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; }; then
-
-  array_job_id="$(awk '{print $NF}' <<< "$submit_output")"
-  [[ "$array_job_id" =~ ^[0-9]+$ ]] || {
-    err "Could not parse SLURM array job ID from: $submit_output"
-    exit 1
-  }
-
-  merge_submit="$(
-    sbatch \
-      --partition="$queue" \
-      --dependency="afterok:${array_job_id}" \
-      --cpus-per-task=1 \
-      --job-name="${job_name}_merge" \
-      --output="$work_dir/${job_name}_merge_%j.out" \
-      "$merge_runner"
-  )"
-  printf '%s\n' "$merge_submit"
-
-elif [[ "$level" == 2 ]]; then
-  printf 'Level-2 call_feat2 dry run: no manifest merge job submitted.\n'
-elif [[ "$level" == 3 ]]; then
-  printf 'Level-3 call_feat3 dry run: no manifest merge job submitted.\n'
+  log_submission "All $n_jobs tasks succeeded; merging manifest"
+  bash "$merge_runner" 2>&1 | tee -a "$submission_log"
+  log_submission "Manifest merge finished"
+elif [[ "$level" == 2 || "$level" == 3 ]]; then
+  log_submission "Native FEAT dry-run active; skipping manifest merge"
 fi
 
 #-----------------------------------------------------------------------------
