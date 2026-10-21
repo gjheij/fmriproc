@@ -687,7 +687,7 @@ EOF
 slurm_array_max=100
 submit_limit=50
 if [[ "$run_local" -eq 0 ]] && command -v scontrol >/dev/null 2>&1; then
-  detected="$(scontrol show config 2>/dev/null | awk '$1=="MaxArraySize" {print $3; exit}')"
+  detected="$(scontrol show config 2>/dev/null | awk '$1=="MaxArraySize" {print $3}')"
   [[ "$detected" =~ ^[0-9]+$ ]] && (( detected > 1 )) && slurm_array_max="$detected"
 fi
 if [[ "$run_local" -eq 0 ]] && command -v sacctmgr >/dev/null 2>&1; then
@@ -919,11 +919,11 @@ if [[ "$dry_run" -eq 1 ]]; then
       offset=$((offset+size))
     done
     if [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]]; then
-      printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
+      printf 'then submit merge job with dependency=afterok:<final_array_job_id>: %q\n' "$merge_runner"
     elif [[ "$level" == 2 ]]; then
       printf 'call_feat2 --dry-run is active; no manifest merge job would be submitted.\n'
     elif [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; then
-      printf 'then submit merge job with dependency=afterok:<array_job_id>: %q\n' "$merge_runner"
+      printf 'then submit merge job with dependency=afterok:<final_array_job_id>: %q\n' "$merge_runner"
     elif [[ "$level" == 3 ]]; then
       printf 'call_feat3 --dry-run is active; no manifest merge job would be submitted.\n'
     fi
@@ -990,8 +990,8 @@ if [[ "$run_local" -eq 1 ]]; then
   exit 0
 fi
 
-# The controller stays alive until every batch completes. Its progress is also
-# written to a durable log in the unique submission directory.
+# Wait only between batches; return immediately after submitting the final
+# array and (when applicable) its dependent manifest merge job.
 submission_log="${work_dir}/submission.log"
 log_submission() {
   printf '%s %s\n' "$(date '+%F %T')" "$*" | tee -a "$submission_log"
@@ -1060,22 +1060,41 @@ while (( offset < n_jobs )); do
   array_job_id="${submit_output%%;*}"
   [[ "$array_job_id" =~ ^[0-9]+$ ]] || { err "Unexpected sbatch output: $submit_output"; exit 1; }
   log_submission "Submitted batch $batch as Slurm job $array_job_id"
-  if ! wait_for_batch "$array_job_id" "$size"; then
-    err "Batch $batch ($array_job_id) did not finish successfully; stopping before manifest merge"
-    exit 1
-  fi
-  log_submission "Batch $batch ($array_job_id) completed successfully ($size tasks)"
   offset=$((offset+size))
+  final_array_job_id="$array_job_id"
+  # Earlier batches must finish before we submit the next batch, so the
+  # account's submission quota and the requested concurrency are respected.
+  # The FINAL batch is different: Slurm owns it, so do not wait for it.
+  if (( offset < n_jobs )); then
+    if ! wait_for_batch "$array_job_id" "$size"; then
+      err "Batch $batch ($array_job_id) did not finish successfully; stopping before the next batch"
+      exit 1
+    fi
+    log_submission "Batch $batch ($array_job_id) completed successfully ($size tasks)"
+  fi
 done
 
 if { [[ "$level" == 2 && "$level2_write_manifest" -eq 1 ]] || \
      [[ "$level" == 3 && "$level3_write_manifest" -eq 1 ]]; }; then
-  log_submission "All $n_jobs tasks succeeded; merging manifest"
-  bash "$merge_runner" 2>&1 | tee -a "$submission_log"
-  log_submission "Manifest merge finished"
+  # afterok makes the merge independent of the submitting shell. It runs
+  # only when EVERY task in the final array completes successfully. All
+  # preceding batches have already been checked by wait_for_batch.
+  merge_output="$(sbatch --parsable \
+    --partition="$queue" \
+    --dependency="afterok:${final_array_job_id}" \
+    --cpus-per-task=1 \
+    --job-name="${job_name}Merge" \
+    --output="$work_dir/${job_name}_merge_%j.out" \
+    "$merge_runner")" || {
+      err "Final array $final_array_job_id was submitted, but manifest merge submission failed"
+      exit 1
+    }
+  merge_job_id="${merge_output%%;*}"
+  log_submission "Submitted manifest merge job $merge_job_id (afterok:$final_array_job_id)"
 elif [[ "$level" == 2 || "$level" == 3 ]]; then
   log_submission "Native FEAT dry-run active; skipping manifest merge"
 fi
+log_submission "All $n_jobs tasks submitted; final array $final_array_job_id continues under Slurm. Exiting without waiting."
 
 #-----------------------------------------------------------------------------
 # Calculate time spent using 'let'
