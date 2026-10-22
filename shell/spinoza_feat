@@ -48,7 +48,7 @@ Wrapper options:
                          Native --subject after '--' is also supported and used for queue splitting.
   -m, --max-running <N>  maximum jobs running simultaneously. Default = 6
                          Slurm submissions are auto-batched for array/quota limits.
-                         The wrapper waits for completion before merging manifests.
+                         Earlier batches are checked before later submissions; final array runs independently.
   -j, --cpus <N>         CPUs requested per SLURM job. Default = 1
   -q, --queue <name>     SLURM partition. Default = \$SGE_QUEUE_LONG, or 'main'
       --local             run through a local process queue instead of SLURM
@@ -65,7 +65,7 @@ Automatic defaults (only added when the corresponding native option is absent):
            --output-dir <project root>/derivatives/feat/level3
 
 Queue unit:
-  level 1: one call_feat job per subject, throttled by --max-running
+  level 1: one call_feat job per discovered subject/run, throttled by --max-running
   level 2: one call_feat2 job per eligible subject/session/task/canonical-contrast group,
            throttled by --max-running. Each task writes a private manifest fragment; fragments
            are merged into contrast_manifest_level2.tsv after all jobs complete.
@@ -484,6 +484,9 @@ jobs_file="${work_dir}/spinoza_feat_L${level}_jobs.txt"
 : > "$jobs_file"
 
 if [[ "$level" == 1 ]]; then
+  # --run is a selector for discovery, then one exact --run is passed to each task.
+  extract_repeatable_opt --run
+  native_runs=("${EXTRACTED[@]}")
   extract_repeatable_opt --subject
   native_subjects=("${EXTRACTED[@]}")
 
@@ -492,19 +495,106 @@ if [[ "$level" == 1 ]]; then
     exit 2
   fi
 
+  selected_subjects=""
   if [[ -n "$subjects_cli" ]]; then
-    normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++' > "$jobs_file"
+    selected_subjects="$(normalize_subjects "$subjects_cli" | awk 'NF && !seen[$0]++' | paste -sd, -)"
   elif [[ ${#native_subjects[@]} -gt 0 ]]; then
-    printf '%s\n' "${native_subjects[@]}" | sed 's/^sub-//' | awk 'NF && !seen[$0]++' > "$jobs_file"
-  else
-    bids_dir="$(get_opt_value --bids-dir)"
-    if [[ ! -d "$bids_dir" ]]; then
-      err "Cannot discover subjects: BIDS directory does not exist: $bids_dir"
-      exit 1
-    fi
-    find "$bids_dir" -maxdepth 1 -mindepth 1 \( -type d -o -type l \) -name 'sub-*' -printf '%f\n' 2>/dev/null \
-      | sed 's/^sub-//' | sort -V > "$jobs_file"
+    selected_subjects="$(printf '%s\n' "${native_subjects[@]}" | sed 's/^sub-//' | awk 'NF && !seen[$0]++' | paste -sd, -)"
   fi
+
+  # Discover actual BIDS preprocessed BOLD runs rather than queueing subjects.
+  # Keep the subject/run pairing as TSV; never assume four runs per subject.
+  bids_dir="$(get_opt_value --bids-dir)"
+  task_selector="$(get_opt_value --task)"
+  space_selector="$(get_opt_value --space)"
+  desc_selector="$(get_opt_value --desc)"
+  runs_selector="$(join_by_comma "${native_runs[@]}")"
+  python3 - "$bids_dir" "$jobs_file" "$selected_subjects" "$runs_selector" \
+    "$task_selector" "$space_selector" "$desc_selector" <<'PYDISCOVERY'
+import os
+import re
+import sys
+from pathlib import Path
+
+root, output, subjects_csv, runs_csv, task, space, desc = sys.argv[1:]
+root = Path(root)
+if not root.is_dir():
+    raise SystemExit(f"ERROR: BIDS directory does not exist: {root}")
+
+subjects = {x.removeprefix('sub-') for x in subjects_csv.split(',') if x}
+
+def expand_runs(value):
+    selected = set()
+    for item in value.replace('[', '').replace(']', '').split(','):
+        item = item.strip()
+        if not item:
+            continue
+        match = re.fullmatch(r'(\d+)-(\d+)', item)
+        if match:
+            a, b = map(int, match.groups())
+            if b < a or b - a > 10000:
+                raise SystemExit(f"ERROR: invalid --run range: {item}")
+            selected.update(str(n) for n in range(a, b + 1))
+        else:
+            selected.add(str(int(item)) if item.isdigit() else item)
+    return selected
+
+runs = expand_runs(runs_csv)
+
+def norm(x):
+    return str(int(x)) if x.isdigit() else x
+
+# Preprocessed BOLD images are the inputs to call_feat. Avoid scanning FEAT
+# outputs and generated analysis directories for unrelated NIfTI files.
+roots = [root / 'derivatives' / 'fmriprep', root / 'derivatives' / 'halfpipe',
+         root / 'derivatives' / 'func', root / 'derivatives' / 'preproc']
+# Also allow arbitrary derivative pipelines; limit matches to preproc BOLD.
+derivatives = root / 'derivatives'
+if derivatives.is_dir():
+    roots += [p for p in derivatives.iterdir() if p.is_dir() and
+              p.name not in {'feat', 'freesurfer'} and p not in roots]
+roots += [root]  # Support datasets with preprocessed images in the BIDS root.
+
+found = set()
+for base in roots:
+    if not base.is_dir():
+        continue
+    # For the project root, search only raw BIDS subject directories.
+    search_roots = ([p for p in base.glob('sub-*') if p.is_dir()]
+                    if base == root else [base])
+    for search_root in search_roots:
+        for pattern in ('*_bold.nii.gz', '*_bold.nii'):
+            for path in search_root.rglob(pattern):
+                name = path.name
+                if '_desc-' not in name or '_run-' not in name:
+                    continue
+                entities = dict(re.findall(r'(?:^|_)(sub|ses|task|run|space|desc)-([^_]+)', name))
+                sub, run = entities.get('sub'), entities.get('run')
+                if not sub or not run or (subjects and sub not in subjects):
+                    continue
+                if task and entities.get('task') != task:
+                    continue
+                if space and entities.get('space') != space:
+                    continue
+                if desc and entities.get('desc') != desc:
+                    continue
+                if runs and norm(run) not in runs:
+                    continue
+                found.add((sub, run))
+
+if not found:
+    raise SystemExit('ERROR: No matching preprocessed BOLD subject/run images found; '
+                     'check --bids-dir, --task, --space, --desc and --run')
+
+# Numeric sort for conventional BIDS subject/run labels.
+def key(pair):
+    return tuple((0, int(v)) if v.isdigit() else (1, v) for v in pair)
+
+with open(output, 'w', encoding='utf-8') as f:
+    for sub, run in sorted(found, key=key):
+        f.write(f'{sub}\t{run}\n')
+print(f'Discovered {len(found)} subject/run combinations for level-1 FEAT')
+PYDISCOVERY
 
 elif [[ "$level" == 2 ]]; then
   # Pull group-defining selectors out of pass_args. They are used once to
@@ -645,7 +735,9 @@ EOF
 
   if [[ "$level" == 1 ]]; then
     cat <<'EOF'
-cmd+=(--subject "${job_value}")
+job_subject=${job_value%%$'\t'*}
+job_run=${job_value#*$'\t'}
+cmd+=(--subject "${job_subject}" --run "${job_run}")
 EOF
   elif [[ "$level" == 2 ]]; then
     cat <<EOF
@@ -885,7 +977,9 @@ if [[ "$dry_run" -eq 1 ]]; then
     idx=$((idx+1))
     cmd=("$command_name" "${pass_args[@]}")
     if [[ "$level" == 1 ]]; then
-      cmd+=(--subject "$value")
+      job_subject="${value%%$'\t'*}"
+      job_run="${value#*$'\t'}"
+      cmd+=(--subject "$job_subject" --run "$job_run")
     elif [[ "$level" == 2 ]]; then
       job_subject="${value%%$'\t'*}"
       rest="${value#*$'\t'}"
