@@ -143,7 +143,7 @@ def wait_for_feat_completion(
     ]
     started = time.monotonic()
     completed_at: float | None = None
-    next_message = started
+    waiting_announced = False
     while True:
         now = time.monotonic()
         try:
@@ -174,9 +174,9 @@ def wait_for_feat_completion(
                 "Submitted jobs may still be running; inspect the FEAT logs and scheduler "
                 "before restarting or removing pending state."
             )
-        if now >= next_message:
-            click.echo(f"Waiting for FEAT completion ({int(now - started)} s): {report}")
-            next_message = now + 60.0
+        if not waiting_announced:
+            click.echo(f"Waiting for FEAT completion: {report}")
+            waiting_announced = True
         time.sleep(min(poll_interval, remaining, 60.0))
 
 
