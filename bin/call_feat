@@ -12,6 +12,7 @@ System dependency:
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -48,6 +49,8 @@ from fmriproc.fsl import (
     update_existing_feat_contrasts,
     verify_first_level_design,
     validate_censor_options,
+    wait_for_feat_completion,
+    run_logged_command,
     source_dataset,
     write_contrast_manifest
 )
@@ -480,6 +483,20 @@ from fmriproc.fsl import (
     ),
 )
 @click.option(
+    "--feat-wait-timeout",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=86400.0,
+    show_default=True,
+    help="Maximum seconds to wait for each FEAT analysis after its launcher returns.",
+)
+@click.option(
+    "--feat-poll-interval",
+    type=click.FloatRange(min=0.0, min_open=True),
+    default=15.0,
+    show_default=True,
+    help="Seconds between checks of FEAT's completion report. Does not poll SLURM.",
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help=(
@@ -531,6 +548,8 @@ def run_firstlevel(
     contrast_update_label: str,
     overwrite: bool,
     rebuild_contrast_manifest_flag: bool,
+    feat_wait_timeout: float,
+    feat_poll_interval: float,
     dry_run: bool,
     duration_overrides: tuple[str, ...],
 ) -> None:
@@ -553,6 +572,8 @@ def run_firstlevel(
         )
 
     validate_censor_options(censor_columns, censor_thresholds)
+    if not all(math.isfinite(value) for value in (feat_wait_timeout, feat_poll_interval)):
+        raise click.UsageError("FEAT wait timeout and poll interval must be finite.")
     if censor_columns and no_confounds:
         raise click.UsageError("Censoring requires the primary confound file; omit --no-confounds.")
     if censor_columns and update_contrasts:
@@ -671,6 +692,12 @@ def run_firstlevel(
                 skipped += 1
                 continue
             output_dir = deriv_dir / f"{label}.feat"
+            pending_file = deriv_dir / "work" / label / "feat_pending.json"
+            if pending_file.exists():
+                raise click.ClickException(
+                    f"FEAT submission has unconfirmed completion: {pending_file}. "
+                    "Confirm its jobs have stopped before removing this marker and rerunning."
+                )
             if output_dir.exists() and not overwrite and not update_contrasts:
                 click.echo(f"[WARN] Output exists; skipping: {output_dir}", err=True)
                 skipped += 1
@@ -1142,30 +1169,31 @@ def run_firstlevel(
                 click.echo(f"DRY RUN: feat {fsf_path}")
             else:
                 design_root = Path(fsf_path).with_suffix("")
-                subprocess.run(
+                run_logged_command(
                     ["feat_model", str(design_root)],
-                    check=True,
-                    cwd=str(level1_dir),
+                    cwd=level1_dir,
                 )
+                click.echo(f"[{label}] Validating first-level design and contrast estimability...")
                 verify_first_level_design(design_root)
+                click.echo(f"[{label}] First-level design validation passed.")
                 if output_dir.exists() and overwrite:
                     click.echo(f"Removing existing output: {output_dir}")
                     shutil.rmtree(output_dir)
-                subprocess.run(
-                    ["feat", fsf_path],
-                    check=True,
-                    cwd=str(level1_dir),
+                pending_file.write_text(
+                    json.dumps({"fsf": fsf_path, "feat_dir": str(output_dir)}, indent=2) + "\n",
+                    encoding="utf-8",
                 )
-                required_outputs = [
-                    output_dir / "stats" / f"{stem}{number}.nii.gz"
-                    for number in range(1, cope_number + 1)
-                    for stem in ("cope", "varcope", "tstat", "zstat")
-                ]
-                missing_outputs = [str(path) for path in required_outputs if not path.is_file()]
-                if missing_outputs:
-                    raise click.ClickException(
-                        "FEAT output is incomplete; missing " + ", ".join(missing_outputs)
-                    )
+                run_logged_command(
+                    ["feat", fsf_path],
+                    cwd=level1_dir,
+                )
+                wait_for_feat_completion(
+                    output_dir,
+                    cope_number,
+                    timeout=feat_wait_timeout,
+                    poll_interval=feat_poll_interval,
+                )
+                pending_file.unlink()
 
             if not dry_run:
                 (work_dir / "confounds.json").write_text(

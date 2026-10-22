@@ -13,6 +13,8 @@ fi
 
 err() {
   if declare -F print_error_msg >/dev/null 2>&1; then
+    echo
+    print_line -
     print_error_msg "$(basename "$0")" "input" "$*"
   else
     printf 'ERROR: %s\n' "$*" >&2
@@ -516,6 +518,7 @@ import re
 import sys
 from pathlib import Path
 
+print(f'Discovering preprocessed BOLD subject/run images in {sys.argv[1]} ...')
 root, output, subjects_csv, runs_csv, task, space, desc = sys.argv[1:]
 root = Path(root)
 if not root.is_dir():

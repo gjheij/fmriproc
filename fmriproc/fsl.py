@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Sequence, TextIO
 
@@ -80,6 +81,103 @@ COMMON_REQUIRED_COLUMNS = {
     "varcope_file",
 }
 
+
+
+def run_logged_command(command: Sequence[str], cwd: Path) -> None:
+    """Log command start/return while streaming subprocess output unchanged.
+
+    A returned launcher is distinct from completed FEAT analysis; callers must
+    still wait for FEAT completion when the launcher submits asynchronous jobs.
+    Nonzero exits and launch errors are logged and propagated to the caller.
+    """
+    arguments = [str(value) for value in command]
+    timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    click.echo(f"[{timestamp}] Running: {shlex.join(arguments)}")
+    click.echo(f"  Working directory: {cwd}")
+    started = time.monotonic()
+    try:
+        # Inherit stdout/stderr so FSL messages appear live in the terminal or
+        # SLURM log rather than being captured until the process exits.
+        subprocess.run(arguments, check=True, cwd=str(cwd))
+    except (subprocess.CalledProcessError, OSError) as error:
+        timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+        elapsed = time.monotonic() - started
+        click.echo(
+            f"[{timestamp}] Command failed after {elapsed:.1f} s: "
+            f"{shlex.join(arguments)} ({error})",
+            err=True,
+        )
+        raise
+    timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    elapsed = time.monotonic() - started
+    click.echo(
+        f"[{timestamp}] Command returned successfully after {elapsed:.1f} s: "
+        f"{arguments[0]}"
+    )
+
+
+def wait_for_feat_completion(
+    feat_dir: Path,
+    number_of_contrasts: int,
+    *,
+    timeout: float = 86400.0,
+    poll_interval: float = 15.0,
+) -> None:
+    """Wait for asynchronous FEAT stages before validating statistical outputs.
+
+    FEAT's main report replaces STILL RUNNING with Finished at when its final
+    stage completes. Neither a successful launcher exit nor early statistics
+    files establish that the entire analysis has finished. Polling reads local
+    files only and does not query the cluster controller. A short grace period
+    accommodates delayed output visibility after the report is finalized.
+    """
+    if not np.isfinite(timeout) or timeout <= 0:
+        raise click.ClickException("FEAT wait timeout must be finite and > 0.")
+    if not np.isfinite(poll_interval) or poll_interval <= 0:
+        raise click.ClickException("FEAT poll interval must be finite and > 0.")
+    report = feat_dir / "report.html"
+    required_outputs = [
+        feat_dir / "stats" / f"{stem}{number}.nii.gz"
+        for number in range(1, number_of_contrasts + 1)
+        for stem in ("cope", "varcope", "tstat", "zstat")
+    ]
+    started = time.monotonic()
+    completed_at: float | None = None
+    next_message = started
+    while True:
+        now = time.monotonic()
+        try:
+            contents = report.read_text(encoding="utf-8", errors="replace")
+        except FileNotFoundError:
+            contents = ""
+        text = html.unescape(re.sub(r"<[^>]*>", " ", contents))
+        finished = bool(re.search(r"\bFinished\s+at\b", text, re.IGNORECASE))
+        running = bool(re.search(r"\bSTILL\s+RUNNING\b", text, re.IGNORECASE))
+        missing = [str(path) for path in required_outputs if not path.is_file()]
+        if finished and not running:
+            if not missing:
+                click.echo(f"FEAT completed: {feat_dir}")
+                return
+            if completed_at is None:
+                completed_at = now
+            if now - completed_at >= 60.0:
+                raise click.ClickException(
+                    "FEAT reported completion but outputs are incomplete; missing "
+                    + ", ".join(missing)
+                )
+        else:
+            completed_at = None
+        remaining = timeout - (now - started)
+        if remaining <= 0:
+            raise click.ClickException(
+                f"Timed out waiting for FEAT completion: {report}. "
+                "Submitted jobs may still be running; inspect the FEAT logs and scheduler "
+                "before restarting or removing pending state."
+            )
+        if now >= next_message:
+            click.echo(f"Waiting for FEAT completion ({int(now - started)} s): {report}")
+            next_message = now + 60.0
+        time.sleep(min(poll_interval, remaining, 60.0))
 
 
 def acquire_feat_run_lock(deriv_dir: Path, label: str) -> TextIO | None:
@@ -2422,10 +2520,9 @@ def update_existing_feat_contrasts(
     )
 
     click.echo("Running feat_model...")
-    subprocess.run(
+    run_logged_command(
         ["feat_model", str(design_root)],
-        check=True,
-        cwd=str(work_dir),
+        cwd=work_dir,
     )
 
     generated_mat = design_root.with_suffix(".mat")
@@ -2725,10 +2822,9 @@ def rerun_film_with_updated_contrasts(
     )
 
     click.echo("Running film_gls...")
-    subprocess.run(
+    run_logged_command(
         command,
-        check=True,
-        cwd=str(feat_dir),
+        cwd=feat_dir,
     )
     click.echo("FILM completed successfully.")
 
