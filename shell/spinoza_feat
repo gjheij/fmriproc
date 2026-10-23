@@ -1113,7 +1113,7 @@ wait_for_batch() {
     sleep 20
   done
   while :; do
-    records="$(sacct -n -X -P -j "$jid" --format=JobIDRaw,State 2>/dev/null)" || {
+    records="$(sacct -n -X -P -j "$jid" --array --format=JobID%64,State%32 2>/dev/null)" || {
       err "Cannot query sacct for batch $jid"; return 1;
     }
     completed="$(awk -F'|' -v jid="$jid" '$1 ~ ("^" jid "_[0-9]+$") && $2 == "COMPLETED" {n++} END {print n+0}' <<< "$records")"

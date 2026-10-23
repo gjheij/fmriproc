@@ -1,158 +1,500 @@
 #!/usr/bin/env bash
-
-#-----------------------------------------------------------------------------
-# Get bash helper functions
-source call_bashhelper
+# Local bounded workers or a Slurm array; requires Bash 4.4+, GNU find/sort/xargs,
+# Python 3 (JSON sidecars), and FSL on each worker.
+set -euo pipefail
 
 #-----------------------------------------------------------------------------
 # Create help text
-function Usage {
-    cat <<USAGE
+usage() {
+    cat <<'USAGE'
 
 ---------------------------------------------------------------------------------------------------
 call_fprepmask
 
 Apply brain masks from fMRIPrep to their corresponding BOLD preprocessed images.
 
-This script multiplies each *_preproc_bold.nii.gz file with its corresponding brain_mask.nii.gz 
-file (usually found in the same directory). The resulting masked image is saved as 
-*masked_bold.nii.gz. This step is useful for excluding non-brain voxels prior to first-level 
+This script multiplies each *_preproc_bold.nii.gz file with its corresponding brain_mask.nii.gz
+file (usually found in the same directory). The resulting masked image is saved as
+*masked_bold.nii.gz. This step is useful for excluding non-brain voxels prior to first-level
 analysis or post-processing, especially if you're not using pybest or similar pipelines.
 
+Images can be processed locally with a worker limit, or submitted as a Slurm job array with
+limited concurrency. The default is local processing with one worker.
+
 Usage:
-  call_fprepmask <fmriprep_directory>
+  call_fprepmask [fmriprep_directory] [overwrite] [options]
 
 Positional:
-  <fprep_dir>     Directory containing fMRIPrep outputs. This can be:
-                    - A full fMRIPrep derivatives folder (default: \$DIR_DATA_DERIV/fmriprep)
-                    - A single subject folder (e.g., .../fmriprep/sub-01)
-  <overwrite>     If set to '1', 'ow', or 'overwrite', existing outputs will be overwritten
+  <fprep_dir>        Directory containing fMRIPrep outputs. This can be:
+                       - A full fMRIPrep derivatives folder (default: $DIR_DATA_DERIV/fmriprep)
+                       - A single subject folder (e.g., .../fmriprep/sub-01)
+  <overwrite>        If set to '1', 'ow', or 'overwrite', existing outputs will be overwritten
 
 Options:
-  help|--help     print this help text
+  --workers N        Maximum number of concurrent images, locally or in a Slurm array (default: 1)
+  --submit           Submit a Slurm job array and return after submission
+  --overwrite        Overwrite existing masked images (same as the positional overwrite argument)
+  --log-dir DIR      Parent directory for a unique run folder and per-image logs
+                       - Default: <fprep_dir>/.fprepmask
+  --setup FILE       Bash environment setup file to source on every worker (e.g., to load FSL)
+  --partition NAME   Slurm partition
+  --account NAME     Slurm account
+  --qos NAME         Slurm QOS (default: the selected association's default QOS)
+  --array-limit N    Additional cap on array tasks; also permits manual fallback if limit
+                     queries are unavailable (use a value valid for your account)
+  --time LIMIT       Slurm time limit per array task, including all its images (default: 00:30:00)
+  --mem SIZE         Slurm memory per array task (default: 4G)
+  --dry-run          List eligible inputs without processing images or submitting jobs
+  help|-h|--help     Print this help text
 
 Outputs:
   For each *_preproc_bold.nii.gz file, a new file is created named:
     *_masked_bold.nii.gz
 
+  When an input JSON sidecar is available, it is copied to:
+    *_masked_bold.json
+  with SkullStripped set to true.
+
+  Each invocation that processes or submits images creates a unique run folder containing:
+    - A snapshot of this script and a NUL-delimited input manifest
+    - Per-image task-<index>.log files (created when workers start)
+    - For Slurm submissions: an array script, job ID, and scheduler output/error logs
+
   The masking operation is performed using FSL's 'fslmaths' with the '-mas' flag.
 
 Examples:
   call_fprepmask
-    → run masking for all BOLD files in \$DIR_DATA_DERIV/fmriprep
+    → run masking for all BOLD files in $DIR_DATA_DERIV/fmriprep with one local worker
 
-  call_fprepmask /path/to/fmriprep/sub-01
-    → run masking for a single subject
+  call_fprepmask /path/to/fmriprep/sub-01 --workers 4
+    → run masking for a single subject with up to four local workers
+
+  call_fprepmask /path/to/fmriprep/sub-01 ow --workers 2
+    → overwrite existing masked images with up to two local workers
+
+  call_fprepmask /shared/fmriprep --submit --workers 8 --partition short --mem 4G
+    → submit a Slurm job array with up to eight images running concurrently
+
+  call_fprepmask /shared/fmriprep --submit --workers 8 --account myproject
+    → detect array and submission limits for myproject and group images to fit available slots
+
+  call_fprepmask /shared/fmriprep --submit --workers 8 --setup /shared/config/fsl_env.sh
+    → source the specified environment setup file on each Slurm worker before processing
+
+  call_fprepmask /path/to/fmriprep --dry-run
+    → list images that would be processed without starting workers or submitting jobs
 
   call_fprepmask help
     → show this help message
 
 Notes:
-  - This script assumes that the masks follow the BIDS-style naming convention and are
-    stored in the same directory as the corresponding preprocessed BOLD images.
-  - It will skip files for which no brain mask is found and print a warning.
+  - This script assumes that masks follow the BIDS-style naming convention and are stored
+    in the same directory as the corresponding preprocessed BOLD images.
+  - Files without a matching brain mask are skipped with a warning.
+  - Existing outputs are skipped unless overwrite is requested. Missing output JSON sidecars
+    are repaired from input sidecars without rerunning masking when the image already exists.
+  - Bash 4.4+, GNU find/sort/xargs, Python 3, and FSL are required. Each worker uses one CPU.
+  - Local mode waits for all workers and exits with an error if any image fails.
+  - Slurm mode requires sbatch and returns after submission; inspect the logs for job results.
+  - For Slurm, inputs, the run folder, and any setup file must be visible to compute nodes
+    at the same paths. Keep the run folder in place until all submitted jobs have finished.
+  - Submission detects MaxArraySize, max_array_tasks, association submission limits, and
+    job/partition QOS submission limits using scontrol, sacctmgr, and squeue.
+  - The selected account defaults to SBATCH_ACCOUNT (whoami), then your Slurm default account.
+    The selected partition and QOS honor SBATCH_PARTITION (\$SGE_QUEUE_SHORT) and SBATCH_QOS when set.
+  - Existing queued/running jobs are subtracted from detected submission limits. Images are
+    grouped into fewer tasks as needed; each task processes its assigned images sequentially.
+    The worker limit remains a cap on concurrent images across this one submitted array.
+  - Increase --time when tasks contain several images. Submission races, hidden accounting
+    records, and site-specific submission policies can still cause Slurm to reject a job.
+  - If accounting queries fail, submission stops unless --array-limit explicitly supplies
+    a manual cap. The detected limits and grouping plan are saved in slurm-plan.json.
+  - Output locks prevent concurrent writes. A forced termination may leave a .lock directory;
+    remove it only after confirming that no worker is still writing that output.
 
 ---------------------------------------------------------------------------------------------------
 
 USAGE
 }
 
-#-----------------------------------------------------------------------------
-# set path
-if [[ ${#@} -eq 0 ]]; then
-  fprep_dir=${DIR_DATA_DERIV}/fmriprep
-else
-  fprep_dir="${1}"
-  if [[ ${fprep_dir} == "help" || ${fprep_dir} == "--help" ]]; then
-    Usage && exit 0
-  fi
-fi
+export SBATCH_ACCOUNT="${SBATCH_ACCOUNT:-$(whoami)}"
 
-overwrite="${2}"
-if [[ ! -d "${fprep_dir}" ]]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" input "Could not find input directory ${BOLD_GREEN}${fprep_dir}${RESET}"
-  exit 1
-else
-  fprep_dir="$(readlink -f "${fprep_dir}")"
-fi
+default_partition="${SGE_QUEUE_SHORT:-}"
+export SBATCH_PARTITION="${SBATCH_PARTITION:-${default_partition##*:}}"
 
-#-----------------------------------------------------------------------------
-# find funcs
-funcs=(
-  $(
-    find "${fprep_dir}" \
-    -type f -name "*preproc_bold.nii.gz" | \
-    sort
-  )
+export SBATCH_QOS="${SBATCH_QOS:-}"
+
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+plan_slurm() {
+    python3 - "$@" <<'PY'
+import getpass, json, math, os, re, subprocess, sys
+
+nimages, account, partition, qos, workers, manual, destination = sys.argv[1:]
+nimages, workers = int(nimages), int(workers)
+manual = int(manual) if manual else None
+user = getpass.getuser()
+reasons = []
+
+def query(*args):
+    try:
+        result = subprocess.run(args, check=True, text=True, capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ValueError('Cannot query ' + args[0] + ': ' + str(exc)) from exc
+    return result.stdout
+
+def records(text, fields):
+    rows = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        values = [v.strip() for v in line.split('|')]
+        if len(values) != len(fields):
+            raise ValueError('Unexpected accounting output: ' + line)
+        rows.append(dict(zip(fields, values)))
+    return rows
+
+def finite(value):
+    if value.lower() in ('', '-1', 'unlimited', 'none', 'n/a'):
+        return None
+    if not value.isdigit():
+        raise ValueError('Unrecognized limit: ' + value)
+    return int(value)
+
+def cap(label, maximum, used=0):
+    maximum = finite(str(maximum))
+    if maximum is not None:
+        available = max(0, maximum - used)
+        reasons.append(dict(source=label, limit=maximum, used=used, available=available))
+
+try:
+    config = query('scontrol', 'show', 'config')
+    def setting(name):
+        match = re.search(r'^\s*' + name + r'\s*=\s*(\S+)', config, re.M)
+        if not match:
+            raise ValueError('Missing Slurm setting: ' + name)
+        return match.group(1)
+    cluster = setting('ClusterName')
+    cap('MaxArraySize', setting('MaxArraySize'))
+    match = re.search(r'(?:^|[=,\s])max_array_tasks=(\d+)', config)
+    if match:
+        cap('max_array_tasks', match.group(1))
+
+    if not account:
+        defaults = query('sacctmgr', '-nP', 'show', 'user', 'where', 'name=' + user,
+                         'format=DefaultAccount%200').strip().splitlines()
+        if len(defaults) != 1 or not defaults[0].strip():
+            raise ValueError('Cannot resolve default account; supply --account')
+        account = defaults[0].strip()
+
+    partitions = []
+    for line in query('scontrol', '--oneliner', 'show', 'partition').splitlines():
+        partitions.append(dict(re.findall(r'(\w+)=([^\s]+)', line)))
+    if not partition:
+        defaults = [p['PartitionName'] for p in partitions if p.get('Default') == 'YES']
+        if len(defaults) != 1:
+            raise ValueError('Cannot resolve default partition; supply --partition')
+        partition = defaults[0]
+    if ',' in partition:
+        raise ValueError('Use one partition for account-aware submission')
+    selected = [p for p in partitions if p.get('PartitionName') == partition]
+    if len(selected) != 1:
+        raise ValueError('Partition not found: ' + partition)
+
+    fields = ['Account', 'User', 'Partition', 'ParentName', 'MaxSubmitJobs',
+              'GrpSubmitJobs', 'DefaultQOS']
+    associations = records(query('sacctmgr', '-nP', 'show', 'assoc', 'where',
+                                'cluster=' + cluster,
+                                'format=' + ','.join(f + '%200' for f in fields)), fields)
+    applicable = [r for r in associations if r['Account'] == account and
+                  r['User'] == user and r['Partition'] in ('', partition)]
+    if not applicable:
+        raise ValueError('No visible association for user/account/partition')
+    # Partition-specific associations take precedence when present.
+    assoc = next((r for r in applicable if r['Partition'] == partition), applicable[0])
+    qos = qos or assoc['DefaultQOS']
+    if not qos:
+        raise ValueError('Cannot resolve default QOS; supply --qos')
+
+    # -r expands pending array tasks so each consumes one submission slot.
+    jobs = records(query('squeue', '--local', '-r', '-h', '-o', '%u|%a|%q|%P'),
+                   ['User', 'Account', 'QOS', 'Partition'])
+    parents = {r['Account']: r['ParentName'] for r in associations if not r['User']}
+    def ancestors(name):
+        seen = set()
+        while name and name not in seen:
+            seen.add(name)
+            name = parents.get(name, '')
+        return seen
+    chain = ancestors(account)
+    account_jobs = [j for j in jobs if j['Account'] == account]
+    user_jobs = [j for j in account_jobs if j['User'] == user and
+                 (not assoc['Partition'] or j['Partition'] == partition)]
+    cap('association MaxSubmitJobs', assoc['MaxSubmitJobs'], len(user_jobs))
+    cap('association GrpSubmitJobs', assoc['GrpSubmitJobs'], len(user_jobs))
+    for row in associations:
+        if row['User'] or row['Account'] not in chain or row['Partition'] not in ('', partition):
+            continue
+        # Parent MaxSubmitJobs is a per-user inherited limit, not an account-wide quota.
+        # sacctmgr resolves inherited MaxSubmitJobs on the selected user association.
+        if row['Account'] != 'root':
+            used = sum(row['Account'] in ancestors(j['Account']) for j in jobs)
+            cap(row['Account'] + ' GrpSubmitJobs', row['GrpSubmitJobs'], used)
+
+    qfields = ['Name', 'MaxSubmitJobsPU', 'MaxSubmitJobsPA', 'GrpSubmitJobs']
+    qrows = records(query('sacctmgr', '-nP', 'show', 'qos',
+                         'format=' + ','.join(f + '%200' for f in qfields)), qfields)
+    partition_qos = selected[0].get('QoS', selected[0].get('QOS', ''))
+    qnames = {qos}
+    if partition_qos.lower() not in ('', 'n/a', 'none', '(null)'):
+        qnames.add(partition_qos)
+    for name in qnames:
+        rows = [r for r in qrows if r['Name'] == name]
+        if len(rows) != 1:
+            raise ValueError('Cannot read QOS limits: ' + name)
+        row = rows[0]
+        # Count all jobs in a partition for its QOS, and all jobs carrying a job QOS.
+        # The union is conservative if a QOS is used in both roles.
+        matching_partitions = {p['PartitionName'] for p in partitions
+                               if p.get('QoS', p.get('QOS', '')) == name}
+        qjobs = [j for j in jobs if j['QOS'] == name or j['Partition'] in matching_partitions]
+        cap(name + ' MaxSubmitJobsPU', row['MaxSubmitJobsPU'],
+            sum(j['User'] == user for j in qjobs))
+        cap(name + ' MaxSubmitJobsPA', row['MaxSubmitJobsPA'],
+            sum(j['Account'] == account for j in qjobs))
+        cap(name + ' GrpSubmitJobs', row['GrpSubmitJobs'], len(qjobs))
+except ValueError as exc:
+    if manual is None:
+        sys.exit(str(exc) + '\nUse --array-limit N for an explicit manual fallback.')
+    print('WARNING: ' + str(exc) + '; using manual cap plus limits already detected.', file=sys.stderr)
+
+if manual is not None:
+    cap('explicit --array-limit', manual)
+tasks = min([nimages] + [r['available'] for r in reasons])
+if tasks < 1:
+    sys.exit('No submission slots available under detected limits; retry after jobs finish.')
+plan = dict(account=account, partition=partition, qos=qos, images=nimages,
+            array_tasks=tasks, workers=min(workers, tasks),
+            max_images_per_task=math.ceil(nimages / tasks), limits=reasons)
+with open(destination, 'w') as stream:
+    json.dump(plan, stream, indent=2)
+    stream.write('\n')
+PY
+}
+
+process_one() (
+    set -euo pipefail
+    f=$1; overwrite=$2; setup=$3
+    if [[ -n $setup ]]; then
+        # Environment/module scripts may not support nounset.
+        set +u
+        source "$setup"
+        set -euo pipefail
+    fi
+    export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+    command -v fslmaths >/dev/null || die 'fslmaths not found; load FSL or use --setup'
+    command -v python3 >/dev/null || die 'python3 not found'
+    base=${f%preproc_bold.nii.gz}
+    mask=${base}brain_mask.nii.gz
+    out=${base}masked_bold.nii.gz
+    [[ -f $mask ]] || die "Mask not found: $mask"
+
+    # Atomic lock prevents two invocations from writing the same output.
+    lock=${out}.lock
+    mkdir -- "$lock" || die "Output is locked: $out (check for another run)"
+    tmpdir=''
+    trap '[[ -z $tmpdir ]] || rm -rf -- "$tmpdir"; rmdir -- "$lock"' EXIT
+    if [[ ! -f $out || $overwrite == 1 ]]; then
+        tmpdir=$(mktemp -d "${base}mask-tmp.XXXXXX")
+        printf 'Processing: %s\n' "$f"
+        FSLOUTPUTTYPE=NIFTI_GZ fslmaths "$f" -mas "$mask" "$tmpdir/masked.nii.gz"
+        [[ -s $tmpdir/masked.nii.gz ]] || die "fslmaths produced no image for $f"
+        mv -f -- "$tmpdir/masked.nii.gz" "$out"
+    else
+        printf 'Image exists: %s\n' "$out"
+    fi
+
+    src_json=${f%.nii.gz}.json
+    dst_json=${out%.nii.gz}.json
+    if [[ -f $src_json ]]; then
+        python3 - "$src_json" "$dst_json" <<'PY'
+import json, os, sys, tempfile
+src, dst = sys.argv[1:]
+with open(src) as stream:
+    metadata = json.load(stream)
+metadata['SkullStripped'] = True
+fd, tmp = tempfile.mkstemp(prefix='.mask-json-', dir=os.path.dirname(dst))
+try:
+    with os.fdopen(fd, 'w') as stream:
+        json.dump(metadata, stream, indent=2)
+        stream.write('\n')
+    os.replace(tmp, dst)
+finally:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+PY
+    else
+        printf 'WARNING: No JSON sidecar: %s\n' "$src_json" >&2
+    fi
+    printf 'Done: %s\n' "$out"
 )
 
-if [ ${#funcs[@]} -eq 0 ]; then
-  echo
-  print_line -
-  print_error_msg "$(basename ${0})" "find" "Could not find files with \"*preproc_bold.nii.gz\" in ${BOLD_GREEN}${fprep_dir}${RESET}"
-  exit 1
+# Private entry point for a grouped Slurm task. Continue after individual failures
+# but return failure for the array task if any of its images failed.
+if [[ ${1:-} == --array-worker ]]; then
+    [[ $# == 7 ]] || die 'Invalid array worker invocation'
+    mapfile -d '' -t inputs < "$2"
+    task=$6; count=$7; failed=0
+    [[ $task =~ ^[0-9]+$ && $count =~ ^[1-9][0-9]*$ ]] || die 'Invalid array indices'
+    ((task < count)) || die 'Array index out of range'
+    for ((index=task; index<${#inputs[@]}; index+=count)); do
+        if ! bash "${BASH_SOURCE[0]}" --worker "$2" "$3" "$4" "$5" "$index"; then
+            printf 'FAILED image %d; see %s/task-%d.log\n' "$index" "$5" "$index" >&2
+            failed=1
+        fi
+    done
+    exit "$failed"
 fi
 
-#-----------------------------------------------------------------------------
-# loop through funcs
-echo -e "Input directory = ${BOLD_MAGENTA}${fprep_dir}${RESET} (${#funcs[@]} files)"
-ct=1
-for f in ${funcs[@]}; do
-  base_name="${f%preproc_bold.nii.gz}"
-  mask_file="${base_name}brain_mask.nii.gz"
-  if [[ -f "${mask_file}" ]]; then
-    
-    # define output
-    out="${base_name}masked_bold.nii.gz"
-    
-    if [[ ! -f "${out}" || ${overwrite} -eq 1 ]]; then
-      # define command
-      echo -e "(${ct}/${#funcs[@]}): processing ${BOLD_GREEN}${f}${RESET}"
-      cmd=(
-        "fslmaths"
-        "${f}"
-        -mas "${mask_file}"
-        "${out}"
-      )
+# Private entry point used by local xargs and individual image workers.
+if [[ ${1:-} == --worker ]]; then
+    [[ $# == 6 ]] || die 'Invalid worker invocation'
+    # --worker MANIFEST OVERWRITE SETUP LOGDIR INDEX
+    mapfile -d '' -t inputs < "$2"
+    index=$6
+    [[ $index =~ ^[0-9]+$ ]] || die 'Invalid worker index'
+    [[ $index -lt ${#inputs[@]} ]] || die 'Worker index out of range'
+    process_one "${inputs[index]}" "$3" "$4" > "$5/task-${index}.log" 2>&1
+    exit 0
+fi
 
-      # run
-      eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "fslmaths" 
-        exit 1
-      fi
-    else
-      echo -e "(${ct}/${#funcs[@]}): ${BOLD_GREEN}${out}${RESET} exists"
-    fi
-    
-    # copy json
-    new_json="${out/.nii.gz/.json}"
-    cp "${f/.nii.gz/.json}" "${new_json}" 2>/dev/null
-
-    if [[ -f "${new_json}" ]]; then
-      # set SkullStripped to True
-      cmd=(
-        call_json
-        "${out/.nii.gz/.json}"
-        "SkullStripped"
-        True
-      )
-
-      eval "${cmd[@]}"
-      if [[ $? -ne 0 ]]; then
-        echo
-        print_line -
-        print_error_msg "$(basename ${0})" "${cmd[0]}" 
-        exit 1
-      fi
-    fi
-
-    ((ct++))
-  else
-    echo "mask file (\"${mask_file}\") does not exist" "Failed with command: \"${cmd[@]}\""
-  fi
+fprep_dir=''; overwrite=0; workers=1; submit=0; dry_run=0
+log_parent=''; setup=''; partition=${SBATCH_PARTITION:-}; account=${SBATCH_ACCOUNT:-}
+qos=${SBATCH_QOS:-}; array_limit=''; time_limit=00:30:00; memory=4G
+while (($#)); do
+    case $1 in
+        help|-h|--help) usage; exit 0 ;;
+        --submit) submit=1; shift ;;
+        --overwrite|1|ow|overwrite) overwrite=1; shift ;;
+        --dry-run) dry_run=1; shift ;;
+        --workers|--log-dir|--setup|--partition|--account|--qos|--array-limit|--time|--mem)
+            (($# >= 2)) || die "Missing value for $1"
+            [[ -n $2 && $2 != --* ]] || die "Missing value for $1"
+            case $1 in
+                --workers) workers=$2 ;;
+                --log-dir) log_parent=$2 ;;
+                --setup) setup=$2 ;;
+                --partition) partition=$2 ;;
+                --account) account=$2 ;;
+                --qos) qos=$2 ;;
+                --array-limit) array_limit=$2 ;;
+                --time) time_limit=$2 ;;
+                --mem) memory=$2 ;;
+            esac
+            shift 2 ;;
+        --*) die "Unknown option: $1" ;;
+        *) [[ -z $fprep_dir ]] || die "Unexpected argument: $1"
+           fprep_dir=$1; shift ;;
+    esac
 done
+[[ $workers =~ ^[1-9][0-9]*$ ]] || die '--workers must be a positive integer'
+[[ -z $array_limit || $array_limit =~ ^[1-9][0-9]*$ ]] || die '--array-limit must be a positive integer'
+if [[ -z $fprep_dir ]]; then
+    [[ -n ${DIR_DATA_DERIV:-} ]] || die 'Supply an input directory or set DIR_DATA_DERIV'
+    fprep_dir=$DIR_DATA_DERIV/fmriprep
+fi
+[[ -d $fprep_dir ]] || die "Input directory not found: $fprep_dir"
+fprep_dir=$(realpath -- "$fprep_dir")
+if [[ -n $setup ]]; then
+    [[ -f $setup ]] || die "Setup file not found: $setup"
+    setup=$(realpath -- "$setup")
+fi
+if ((submit)); then
+    command -v sbatch >/dev/null || die 'sbatch not found; --submit requires Slurm'
+fi
+
+# NUL-delimited discovery preserves spaces and other filename characters.
+discovery=$(mktemp)
+trap 'rm -f -- "$discovery" "$discovery.plan" "$discovery.values"' EXIT
+find "$fprep_dir" -type f -name '*preproc_bold.nii.gz' -print0 |
+    sort -z > "$discovery"
+mapfile -d '' -t funcs < "$discovery"
+((${#funcs[@]})) || die "No preprocessed BOLD files found in $fprep_dir"
+inputs=(); missing=0; skipped=0
+for f in "${funcs[@]}"; do
+    base=${f%preproc_bold.nii.gz}
+    if [[ ! -f ${base}brain_mask.nii.gz ]]; then
+        printf 'WARNING: Mask missing for %s\n' "$f" >&2
+        missing=$((missing + 1))
+    elif [[ -f ${base}masked_bold.nii.gz && $overwrite == 0 &&
+            ( ! -f ${f%.nii.gz}.json || -f ${base}masked_bold.json ) ]]; then
+        skipped=$((skipped + 1))
+    else
+        inputs+=("$f")
+    fi
+done
+printf 'Discovered: %d; eligible: %d; existing: %d; missing masks: %d\n' \
+    "${#funcs[@]}" "${#inputs[@]}" "$skipped" "$missing"
+((${#inputs[@]})) || exit 0
+if ((submit)); then
+    plan_slurm "${#inputs[@]}" "$account" "$partition" "$qos" "$workers" \
+        "$array_limit" "$discovery.plan"
+    python3 - "$discovery.plan" > "$discovery.values" <<'PY'
+import json, sys
+with open(sys.argv[1]) as stream:
+    plan = json.load(stream)
+for key in ('account', 'partition', 'qos', 'array_tasks', 'workers', 'max_images_per_task'):
+    print(plan[key])
+PY
+    mapfile -t plan_values < "$discovery.values"
+    account=${plan_values[0]}; partition=${plan_values[1]}; qos=${plan_values[2]}
+    tasks=${plan_values[3]}; workers=${plan_values[4]}; per_task=${plan_values[5]}
+    printf 'Slurm plan: account=%s, partition=%s, QOS=%s; %s tasks, up to %s images/task, %s workers.\n' \
+        "$account" "$partition" "$qos" "$tasks" "$per_task" "$workers"
+fi
+if ((dry_run)); then
+    printf '%s\n' "${inputs[@]}"
+    exit 0
+fi
+
+log_parent=${log_parent:-$fprep_dir/.fprepmask}
+mkdir -p -- "$log_parent"
+log_parent=$(realpath -- "$log_parent")
+run_dir=$(mktemp -d "$log_parent/run-$(date +%Y%m%d-%H%M%S)-XXXXXX")
+manifest=$run_dir/inputs.nul
+printf '%s\0' "${inputs[@]}" > "$manifest"
+# Snapshot script so editing the installed version cannot change queued jobs.
+cp -- "$(realpath -- "${BASH_SOURCE[0]}")" "$run_dir/call_fprepmask"
+script=$run_dir/call_fprepmask
+printf 'Logs and input manifest: %s\n' "$run_dir"
+
+if ((submit)); then
+    cp -- "$discovery.plan" "$run_dir/slurm-plan.json"
+    # Generate a wrapper using Bash quoting, never eval.
+    {
+        printf '#!/usr/bin/env bash\nset -euo pipefail\n'
+        printf 'exec bash %q --array-worker %q %q %q %q "$SLURM_ARRAY_TASK_ID" %q\n' \
+            "$script" "$manifest" "$overwrite" "$setup" "$run_dir" "$tasks"
+    } > "$run_dir/array.sh"
+    args=(--parsable --export=ALL --job-name=fprepmask
+          --array="0-$((tasks - 1))%${workers}"
+          --nodes=1 --ntasks=1 --cpus-per-task=1
+          --time="$time_limit" --mem="$memory"
+          --output="$run_dir/slurm-%A_%a.out" --error="$run_dir/slurm-%A_%a.err")
+    [[ -z $partition ]] || args+=(--partition="$partition")
+    [[ -z $account ]] || args+=(--account="$account")
+    [[ -z $qos ]] || args+=(--qos="$qos")
+    job_id=$(sbatch "${args[@]}" "$run_dir/array.sh")
+    printf '%s\n' "$job_id" > "$run_dir/job-id.txt"
+    printf 'Submitted Slurm job %s; at most %s concurrent images.\n' "$job_id" "$workers"
+else
+    # xargs waits for all workers and returns nonzero if any worker fails.
+    if printf '%s\0' "${!inputs[@]}" |
+        xargs -0 -n 1 -P "$workers" bash -c \
+            'exec bash "$1" --worker "$2" "$3" "$4" "$5" "$6"' \
+            _ "$script" "$manifest" "$overwrite" "$setup" "$run_dir"; then
+        printf 'Completed %d images. Logs: %s\n' "${#inputs[@]}" "$run_dir"
+    else
+        die "One or more images failed; inspect task-*.log in $run_dir"
+    fi
+fi
