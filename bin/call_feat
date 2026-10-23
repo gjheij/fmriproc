@@ -271,10 +271,10 @@ from fmriproc.fsl import (
 )
 @click.option(
     "--high-pass",
-    type=click.FloatRange(min=0.0, min_open=True),
+    type=click.FloatRange(min=0.0),
     default=128.0,
     show_default=True,
-    help="High-pass filter cutoff in seconds.",
+    help="High-pass filter cutoff in seconds (0 disables filtering).",
 )
 @click.option(
     "--smoothing-fwhm",
