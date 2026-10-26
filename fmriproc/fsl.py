@@ -8768,7 +8768,7 @@ def _psc_reference_spec(settings: dict[str, str], duration: float, step: float) 
     version = version_file.read_text().strip() if version_file.is_file() else "unknown"
     generator = shutil.which("feat_model")
     return {
-        "method": "mumford-isolated-event-v1", "duration_seconds": duration,
+        "method": "mumford-isolated-event-v2", "duration_seconds": duration,
         "step_seconds": step, "hrf": canonical[0][1], "fsl_version": version,
         "generator_if_version_unknown": _psc_identity(Path(generator)) if version == "unknown" and generator else None,
         "height_definition": "unfiltered baseline-to-positive-peak",
@@ -8816,16 +8816,45 @@ def psc_reference_height(
             "con_orig1.1": "1", "con_real1.1": "1", "confoundevs": "0",
             **{f"{name}1": value for name, value in spec["hrf"].items()},
         }
+
+        replacements.update({
+            "conname_real.1": '"PSC reference"',
+            "conname_orig.1": '"PSC reference"',
+            "conpic_real.1": "0",
+            "conpic_orig.1": "0",
+            "con_mode": "orig",
+            "con_mode_old": "orig",
+            "conmask_zerothresh_yn": "0",
+            "conmask1_1": "0",
+        })
+
+        # Remove inherited indexed settings before inserting the one-EV model.
+        indexed = re.compile(
+            r"^(?:con_(?:real|orig)\d+\.\d+|"
+            r"ftest_(?:real|orig)\d+\.\d+|"
+            r"con(?:name|pic)_(?:real|orig)\.\d+|"
+            r"conmask\d+_\d+|ortho\d+\.\d+|"
+            r"(?:evtitle|shape|convolve|convolve_phase|tempfilt_yn|"
+            r"deriv_yn|custom|gammasigma|gammadelay)\d+)$"
+        )
+
         lines = []
         for line in fsf.read_text().splitlines():
             match = re.match(r'^\s*set\s+fmri\(([^)]+)\)', line)
-            if match and match[1] in replacements:
+            if match and (
+                match[1] in replacements
+                or indexed.fullmatch(match[1])
+            ):
                 continue
-            # A separate confound file would otherwise add columns to the dummy design.
             if re.match(r'^\s*set\s+confoundev_files', line):
                 continue
             lines.append(line)
-        lines.extend(f"set fmri({name}) {value}" for name, value in replacements.items())
+
+        lines.extend(
+            f"set fmri({name}) {value}"
+            for name, value in replacements.items()
+        )
+
         root = directory / "reference"
         root.with_suffix(".fsf").write_text("\n".join(lines) + "\n")
         run_logged_command(["feat_model", str(root)], directory)
