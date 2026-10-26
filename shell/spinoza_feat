@@ -1002,6 +1002,7 @@ wait_for_batch() {
 }
 
 log_submission "Starting FEAT level $level: $n_jobs jobs; MaxArraySize=$slurm_array_max; MaxSubmitJobs=$submit_limit; concurrency=$max_running"
+log_submission "Slurm log directory: $work_dir"
 offset=0
 batch=0
 while (( offset < n_jobs )); do
@@ -1063,6 +1064,7 @@ elif [[ "$level" == 2 || "$level" == 3 ]]; then
   log_submission "Native FEAT dry-run active; skipping manifest merge"
 fi
 log_submission "All $n_jobs tasks submitted; final array $final_array_job_id continues under Slurm. Exiting without waiting."
+log_submission "Slurm log directory: $work_dir"
 
 #-----------------------------------------------------------------------------
 # Calculate time spent using 'let'
