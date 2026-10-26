@@ -8732,8 +8732,17 @@ def _psc_fsf_settings(path: Path) -> dict[str, str]:
 
 
 def _psc_reference_spec(settings: dict[str, str], duration: float, step: float) -> dict[str, Any]:
-    if not np.isfinite([duration, step]).all() or duration <= 0 or step <= 0 or step > 0.1:
-        raise click.ClickException("PSC duration must be positive; reference step must be > 0 and <= 0.1 s.")
+    if (
+        not np.isfinite([duration, step]).all()
+        or duration < 0
+        or step <= 0
+        or step > 0.1
+    ):
+        raise click.ClickException(
+            "PSC duration must be >= 0; "
+            "reference step must be > 0 and <= 0.1 s."
+        )
+
     # Only a common canonical gamma/double-gamma basis has one scalar height.
     canonical = []
     real = 0
