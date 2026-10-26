@@ -27,6 +27,8 @@ import pandas as pd
 
 from fmriproc.fsl import (
     FEAT_ENTITY_LABELS,
+    FEAT_MEASURE_COLUMNS,
+    select_feat_units,
     analysis_entity_label,
     filter_analysis_entities,
     shared_analysis_entities,
@@ -120,6 +122,7 @@ from fmriproc.fsl import (
         "      --dry-run"
     ),
 )
+@click.option("--input-units", type=click.Choice(["raw", "psc"]), default="raw", show_default=True, help="Select raw or percent-signal-change inputs; higher levels never normalize again.")
 @click.option(
     "--manifest",
     "manifest_path",
@@ -394,6 +397,7 @@ from fmriproc.fsl import (
     help="Validate inputs and print FSL commands without writing outputs.",
 )
 def main(
+    input_units: str,
     manifest_path: Path,
     input_level: str,
     output_dir: Path,
@@ -482,6 +486,8 @@ def main(
             "No manifest rows remain after applying the requested filters."
         )
 
+    manifest = select_feat_units(manifest, input_units, detected_level)
+
     duplicate_subset = [
         "subject",
         "session",
@@ -496,7 +502,7 @@ def main(
         subset=duplicate_subset
     ).copy()
 
-    grouping_columns = ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS]
+    grouping_columns = ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS, *FEAT_MEASURE_COLUMNS]
 
     completed = 0
     reused = 0
@@ -519,6 +525,8 @@ def main(
         group_label = "_".join(group_label_parts)
         stream_entities = dict(zip(FEAT_ENTITY_LABELS, group_key[3:]))
         group_label += analysis_entity_label(stream_entities)
+        if input_units == "psc":
+            group_label += f"_units-psc_ref-{rows.iloc[0]['psc_reference_id']}"
 
         contrast_label = _safe_label(canonical_name)
 
@@ -667,7 +675,7 @@ def main(
         table = pd.DataFrame.from_records(group_records)
         merge_analysis_manifest(
             output_manifest, table,
-            ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset"]
+            ["session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset", *FEAT_MEASURE_COLUMNS]
         )
 
         label = "Group manifest fragment" if manifest_out is not None else "Group manifest"

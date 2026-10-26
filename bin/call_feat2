@@ -10,6 +10,8 @@ import pandas as pd
 
 from fmriproc.fsl import (
     FEAT_ENTITY_LABELS,
+    FEAT_MEASURE_COLUMNS,
+    select_feat_units,
     analysis_entity_label,
     filter_analysis_entities,
     shared_analysis_entities,
@@ -65,6 +67,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 
     ),
 )
+@click.option("--input-units", type=click.Choice(["raw", "psc"]), default="raw", show_default=True, help="Select raw or percent-signal-change inputs; higher levels never normalize again.")
 @click.option("--manifest", "manifest_path", required=True, type=click.Path(exists=True, dir_okay=False, path_type=Path), help="First-level contrast_manifest.tsv produced by call_feat.")
 @click.option("--output-dir", required=True, type=click.Path(file_okay=False, path_type=Path), help="Directory for subject-level fixed-effects outputs.")
 @click.option("--manifest-out", type=click.Path(dir_okay=False, path_type=Path), default=None, help="Output manifest path. Default = <output-dir>/contrast_manifest_level2.tsv. Useful for parallel jobs writing separate manifest fragments.")
@@ -86,7 +89,7 @@ REQUIRED_MANIFEST_COLUMNS = {
 @click.option("--rebuild-contrast-manifest", is_flag=True, help="Reconstruct contrast_manifest_level2.tsv from existing fixed-effects outputs without rerunning analyses. The first-level --manifest is used to recover grouping and input counts.")
 @click.option("--overwrite", is_flag=True, help="Replace existing second-level output directories. Without this flag, complete existing outputs with matching input provenance are reused and entered into the manifest.")
 @click.option("--dry-run", is_flag=True, help="Validate inputs and print FSL commands without writing outputs.")
-def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], acquisitions: tuple[str, ...], directions: tuple[str, ...], echoes: tuple[str, ...], reconstructions: tuple[str, ...], parts: tuple[str, ...], spaces: tuple[str, ...], resolutions: tuple[str, ...], densities: tuple[str, ...], descriptions: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, rebuild_contrast_manifest: bool, overwrite: bool, dry_run: bool) -> None:
+def main(input_units: str, manifest_path: Path, output_dir: Path, manifest_out: Path | None, subjects: tuple[str, ...], sessions: tuple[str, ...], tasks: tuple[str, ...], runs: tuple[str, ...], acquisitions: tuple[str, ...], directions: tuple[str, ...], echoes: tuple[str, ...], reconstructions: tuple[str, ...], parts: tuple[str, ...], spaces: tuple[str, ...], resolutions: tuple[str, ...], densities: tuple[str, ...], descriptions: tuple[str, ...], canonical_contrasts: tuple[str, ...], min_runs: int, rebuild_contrast_manifest: bool, overwrite: bool, dry_run: bool) -> None:
     manifest_path = manifest_path.resolve()
     output_dir = output_dir.resolve()
 
@@ -129,7 +132,9 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
     if manifest.empty:
         raise click.ClickException("No manifest rows remain after filtering.")
 
-    manifest = manifest.drop_duplicates(subset=["run_label", "canonical_name", "cope_file", "varcope_file", *FEAT_ENTITY_LABELS, "source_dataset"]).copy()
+    manifest = select_feat_units(manifest, input_units, "1")
+
+    manifest = manifest.drop_duplicates(subset=["run_label", "canonical_name", "cope_file", "varcope_file", *FEAT_ENTITY_LABELS, "source_dataset", *FEAT_MEASURE_COLUMNS]).copy()
     manifest["_run_numeric"] = pd.to_numeric(manifest["run"], errors="coerce")
     manifest = manifest.sort_values(
         ["subject", "session", "task", "canonical_name", "_run_numeric", "run", "run_label"],
@@ -138,7 +143,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
 
     records: list[dict[str, object]] = []
     completed = reused = skipped = failed = 0
-    group_cols = ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS]
+    group_cols = ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS, *FEAT_MEASURE_COLUMNS]
     for key, rows in manifest.groupby(group_cols, sort=True, dropna=False):
         subject, session, task, canonical_name = map(_entity_text, key[:4])
         label_parts = [f"sub-{subject}"]
@@ -148,6 +153,8 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
         group_label = "_".join(label_parts)
         stream_entities = dict(zip(FEAT_ENTITY_LABELS, key[4:]))
         group_label += analysis_entity_label(stream_entities)
+        if input_units == "psc":
+            group_label += f"_units-psc_ref-{rows.iloc[0]['psc_reference_id']}"
 
         click.echo("")
         click.echo(f"[{group_label}; canonical={canonical_name}; inputs={len(rows)}]")
@@ -234,7 +241,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
                         not previous.empty
                         and required_keys.issubset(previous.columns)
                     ):
-                        previous = filter_analysis_entities(previous)
+                        previous = select_feat_units(filter_analysis_entities(previous), input_units, "2")
                         matched = previous.loc[
                             (previous["subject"] == subject)
                             & (previous["session"] == session)
@@ -354,7 +361,7 @@ def main(manifest_path: Path, output_dir: Path, manifest_out: Path | None, subje
 
         merge_analysis_manifest(
             level2_manifest, table,
-            ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset"]
+            ["subject", "session", "task", "canonical_name", *FEAT_ENTITY_LABELS, "source_dataset", *FEAT_MEASURE_COLUMNS]
         )
 
         label = (

@@ -28,6 +28,8 @@ from nipype.interfaces.base import Bunch
 from nipype.interfaces.fsl import Level1Design
 
 from fmriproc.fsl import (
+    convert_feat_to_psc,
+    psc_only_from_manifest,
     acquire_feat_run_lock,
     build_level1_bases,
     check_executable,
@@ -271,10 +273,10 @@ from fmriproc.fsl import (
 )
 @click.option(
     "--high-pass",
-    type=click.FloatRange(min=0.0),
+    type=click.FloatRange(min=0.0, min_open=True),
     default=128.0,
     show_default=True,
-    help="High-pass filter cutoff in seconds (0 disables filtering).",
+    help="High-pass filter cutoff in seconds.",
 )
 @click.option(
     "--smoothing-fwhm",
@@ -442,6 +444,12 @@ from fmriproc.fsl import (
         "registration. This is recommended for already-preprocessed fMRIPrep BOLD images."
     ),
 )
+@click.option("--psc", is_flag=True, help="Create Mumford isolated-event percent signal change outputs after FEAT.")
+@click.option("--psc-only", is_flag=True, help="Convert existing manifest-backed GLMs to PSC without preparing or rerunning a GLM.")
+@click.option("--psc-duration", type=click.FloatRange(min=0, min_open=True), default=1.0, show_default=True, help="Duration in seconds of the isolated unit-amplitude reference event.")
+@click.option("--psc-reference-step", type=click.FloatRange(min=0, max=0.1, min_open=True), default=0.1, show_default=True, help="Reference-design sampling interval in seconds.")
+@click.option("--psc-divisor", "psc_divisors", multiple=True, help="Override a contrast divisor: CONTRAST=POSITIVE_NUMBER. Repeatable.")
+@click.option("--psc-overwrite", is_flag=True, help="Replace stale PSC outputs only; never replaces raw GLM outputs.")
 @click.option(
     "--update-contrasts",
     is_flag=True,
@@ -544,6 +552,12 @@ def run_firstlevel(
     censor_thresholds: tuple[float, ...],
     require_all_confounds: bool,
     disable_feat_preprocessing: bool,
+    psc: bool,
+    psc_only: bool,
+    psc_duration: float,
+    psc_reference_step: float,
+    psc_divisors: tuple[str, ...],
+    psc_overwrite: bool,
     update_contrasts: bool,
     contrast_update_label: str,
     overwrite: bool,
@@ -556,6 +570,21 @@ def run_firstlevel(
     """Generate first-level FEAT analyses for fMRIPrep BOLD runs."""
     deriv_dir = deriv_dir.resolve()
 
+    if (psc or psc_only) and not all(math.isfinite(value) for value in (psc_duration, psc_reference_step)):
+        raise click.UsageError("PSC duration and reference step must be finite.")
+    if (psc_divisors or psc_overwrite) and not (psc or psc_only):
+        raise click.UsageError("PSC divisor/overwrite options require --psc or --psc-only.")
+    if psc_only:
+        if update_contrasts or overwrite or rebuild_contrast_manifest_flag:
+            raise click.UsageError("--psc-only cannot be combined with --overwrite, --update-contrasts, or manifest rebuilding. Use --psc-overwrite to replace PSC outputs.")
+        psc_only_from_manifest(
+            deriv_dir, subjects=subjects, runs=runs, task=task_id, space=space,
+            desc=desc, duration=psc_duration, step=psc_reference_step,
+            divisors=psc_divisors, overwrite=psc_overwrite, dry_run=dry_run,
+        )
+        return
+    if psc and update_contrasts:
+        raise click.UsageError("Update contrasts first, then use --psc-only on the saved outputs.")
     if rebuild_contrast_manifest_flag:
         # Manifest-only maintenance mode: do not initialize BIDS, FEAT, model
         # settings, confounds, or any run-level analysis.
@@ -699,6 +728,16 @@ def run_firstlevel(
                     "Confirm its jobs have stopped before removing this marker and rerunning."
                 )
             if output_dir.exists() and not overwrite and not update_contrasts:
+                if psc:
+                    manifest_rows = pd.read_csv(deriv_dir / "contrast_manifest.tsv", sep="\t", dtype=str, keep_default_na=False)
+                    manifest_rows = manifest_rows.loc[manifest_rows["run_label"] == label]
+                    if manifest_rows.empty:
+                        raise click.ClickException("Existing GLM is absent from the manifest; rebuild the manifest before PSC conversion.")
+                    convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite, dry_run)
+                    if not dry_run:
+                        rebuild_contrast_manifest(deriv_dir)
+                    completed += 1
+                    continue
                 click.echo(f"[WARN] Output exists; skipping: {output_dir}", err=True)
                 skipped += 1
                 existing_skipped += 1
@@ -1062,7 +1101,7 @@ def run_firstlevel(
             modelspec = SpecifyModel(
                 input_units="secs",
                 time_repetition=this_tr,
-                high_pass_filter_cutoff=high_pass,
+                high_pass_filter_cutoff=math.inf if high_pass == 0 else high_pass,
                 functional_runs=[bold_file],
                 subject_info=[subject_info],
             )
@@ -1210,6 +1249,12 @@ def run_firstlevel(
                 canonical_names=canonical_names,
                 dry_run=dry_run
             )
+
+            if psc and not dry_run:
+                manifest_rows = pd.read_csv(deriv_dir / "contrast_manifest.tsv", sep="\t", dtype=str, keep_default_na=False)
+                manifest_rows = manifest_rows.loc[manifest_rows["run_label"] == label]
+                convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite)
+                rebuild_contrast_manifest(deriv_dir)
 
             completed += 1
 

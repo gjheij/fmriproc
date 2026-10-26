@@ -395,6 +395,12 @@ def shared_analysis_entities(rows: pd.DataFrame) -> dict[str, str]:
                 "Select compatible inputs in the manifest or analyze them separately."
             )
         result[entity] = values[0]
+    for column in FEAT_MEASURE_COLUMNS:
+        default = "raw" if column == "effect_units" else ""
+        values = rows[column].fillna(default).replace("", default).drop_duplicates().tolist() if column in rows else [default]
+        if len(values) != 1:
+            raise click.ClickException(f"Cannot combine inputs with different {column}: {values}")
+        result[column] = values[0]
     return result
 
 
@@ -1388,6 +1394,27 @@ def _normalize_contrast_manifest_table(table: pd.DataFrame) -> pd.DataFrame:
     Temporary numeric sort columns are discarded before returning. Numeric-aware
     sorting ensures, for example, that run 10 follows run 9 rather than run 1.
     """
+    psc_metadata = {}
+    enriched = []
+    for record in table.to_dict(orient="records"):
+        directory = str(record.get("feat_dir", ""))
+        if directory not in psc_metadata:
+            sidecar = Path(directory) / "psc" / "normalization.json"
+            try:
+                psc_metadata[directory] = json.loads(sidecar.read_text()) if directory and sidecar.is_file() else {}
+            except (OSError, ValueError):
+                click.echo(f"[WARN] Ignoring unreadable PSC provenance: {sidecar}", err=True)
+                psc_metadata[directory] = {}
+        for column in list(record):
+            if column.startswith("psc_"):
+                record[column] = ""
+        record.update(_psc_fields(record, psc_metadata[directory]))
+        enriched.append(record)
+    table = pd.DataFrame.from_records(enriched, columns=list(table.columns) + [
+        column for column in ("psc_cope_file", "psc_varcope_file", "psc_mask_file",
+                              "psc_provenance_file", "psc_reference_id", "psc_height",
+                              "psc_duration", "psc_divisor") if column not in table.columns
+    ])
     preferred_columns = [
         "subject",
         "session",
@@ -4118,12 +4145,14 @@ def analysis_provenance(
     different input datasets. Reuse requires an exact provenance match.
     """
     table = rows.fillna("").astype(str)
+    if "effect_units" in table and table["effect_units"].replace("", "raw").eq("raw").all():
+        table = table.drop(columns=[column for column in table if column.startswith("psc_") or column == "effect_units"])
     columns = sorted(column for column in table.columns if not column.startswith("_"))
     records = table.loc[:, columns].to_dict(orient="records")
     records.sort(key=lambda record: json.dumps(record, sort_keys=True))
     paths: set[Path] = set()
     for record in records:
-        for column in ("cope_file", "varcope_file"):
+        for column in ("cope_file", "varcope_file", "mask_file", "psc_provenance_file"):
             if record.get(column):
                 paths.add(Path(record[column]).resolve())
         if record.get("source_dataset"):
@@ -4136,10 +4165,12 @@ def analysis_provenance(
             for pattern in ("mask.nii*", "stats/dof", "design.*"):
                 paths.update(analysis_dir.glob(pattern))
             registered = analysis_dir / str(settings.get("registered_subdir", "reg_standard"))
-            paths.update(registered.glob("mask.nii*"))
+            stats_subdir = "psc" if Path(record.get("cope_file", "")).parent.name == "psc" else "stats"
+            paths.update((registered / "psc" if stats_subdir == "psc" else registered).glob("mask.nii*"))
+            paths.update((registered / stats_subdir).glob("registration.json"))
             cope = int(float(record.get("cope") or 1))
             for stem in ("cope", "varcope"):
-                paths.update((registered / "stats").glob(f"{stem}{cope}.nii*"))
+                paths.update((registered / stats_subdir).glob(f"{stem}{cope}.nii*"))
     covariates_file = settings.get("covariates_file")
     if covariates_file:
         paths.add(Path(covariates_file).resolve())
@@ -4206,9 +4237,9 @@ def merge_analysis_manifest(
                 except pd.errors.EmptyDataError:
                     existing = pd.DataFrame()
                 if not existing.empty:
-                    for entity in (*FEAT_ENTITY_LABELS, "source_dataset"):
+                    for entity in (*FEAT_ENTITY_LABELS, "source_dataset", *FEAT_MEASURE_COLUMNS):
                         if entity in keys and entity not in existing.columns:
-                            existing[entity] = ""
+                            existing[entity] = "raw" if entity == "effect_units" else ""
                     missing = set(keys) - set(existing.columns)
                     if missing:
                         raise click.ClickException(
@@ -4292,7 +4323,10 @@ def run_fixed_effects_group(
     else:
         feat_dirs = [p.parent.parent for p in cope_files]
 
-    masks = [_existing_nifti(feat_dir / "mask") for feat_dir in feat_dirs]
+    masks = [
+        _existing_nifti(Path(str(row.get("mask_file", ""))) if str(row.get("mask_file", "")) else feat_dir / "mask")
+        for (_, row), feat_dir in zip(rows.iterrows(), feat_dirs)
+    ]
     verify_group_geometry(cope_files, varcope_files, masks)
     dofs = [_read_first_level_dof(feat_dir) for feat_dir in feat_dirs]
 
@@ -5324,12 +5358,19 @@ def resolve_registered_input(
         If an on-demand registration command fails.
     """
     analysis_dir = analysis_dir_from_row(row, input_level)
+    stats_subdir = "psc" if Path(row["cope_file"]).parent.name == "psc" else "stats"
+    native_mask = Path(str(row.get("mask_file", ""))) if str(row.get("mask_file", "")) else analysis_dir / "mask"
+    if stats_subdir == "psc" and registration_mode == "featregapply":
+        raise click.ClickException(
+            "featregapply cannot register the PSC subdirectory. Use call_ants2featreg "
+            "--stats-subdir psc --apply-reg, then --registration-mode reg-standard."
+        )
 
     if registration_mode == "prealigned":
         return (
             _existing_nifti(Path(row["cope_file"])),
             _existing_nifti(Path(row["varcope_file"])),
-            _existing_nifti(analysis_dir / "mask"),
+            _existing_nifti(native_mask),
             analysis_dir,
         )
 
@@ -5343,6 +5384,8 @@ def resolve_registered_input(
         )
 
     registered_dir = analysis_dir / registered_subdir
+
+    registered_mask = registered_dir / "psc" / "mask" if stats_subdir == "psc" else registered_dir / "mask"
 
     cope_text = str(row.get("cope", "")).strip()
     if cope_text:
@@ -5358,16 +5401,29 @@ def resolve_registered_input(
 
     if dry_run and registration_mode == "featregapply":
         return (
-            registered_dir / "stats" / f"cope{cope_number}.nii.gz",
-            registered_dir / "stats" / f"varcope{cope_number}.nii.gz",
-            registered_dir / "mask.nii.gz",
+            registered_dir / stats_subdir / f"cope{cope_number}.nii.gz",
+            registered_dir / stats_subdir / f"varcope{cope_number}.nii.gz",
+            Path(str(registered_mask) + ".nii.gz"),
             analysis_dir,
         )
 
+    if stats_subdir == "psc":
+        marker = registered_dir / "psc" / "registration.json"
+        if not marker.is_file():
+            raise click.ClickException(f"Registered PSC provenance is missing: {marker}")
+        metadata = json.loads(marker.read_text())
+        identities = {item["path"]: item for item in metadata["inputs"]}
+        for value in (row["cope_file"], row["varcope_file"], str(native_mask), str(row.get("psc_provenance_file", ""))):
+            path = Path(value)
+            if not value or identities.get(str(path.resolve())) != _psc_identity(path):
+                raise click.ClickException(f"Registered PSC inputs are stale: {marker}")
+        for identity in [metadata["template"], *metadata["transforms"], *metadata["outputs"]]:
+            if _psc_identity(Path(identity["path"])) != identity:
+                raise click.ClickException(f"Registered PSC transforms/outputs changed: {marker}")
     return (
-        _existing_nifti(registered_dir / "stats" / f"cope{cope_number}"),
-        _existing_nifti(registered_dir / "stats" / f"varcope{cope_number}"),
-        _existing_nifti(registered_dir / "mask"),
+        _existing_nifti(registered_dir / stats_subdir / f"cope{cope_number}"),
+        _existing_nifti(registered_dir / stats_subdir / f"varcope{cope_number}"),
+        _existing_nifti(registered_mask),
         analysis_dir,
     )
 
@@ -8650,3 +8706,387 @@ h2 {{ margin:10px 0 12px; font-size:1.12rem; overflow-wrap:anywhere; }}
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
     return index_file
+
+
+# ---------------------------------------------------------------------------
+# Mumford isolated-event percent signal change
+# ---------------------------------------------------------------------------
+
+FEAT_MEASURE_COLUMNS = ("effect_units", "psc_reference_id")
+
+
+def _psc_identity(path: Path) -> dict[str, Any]:
+    """Identify a statistical input without hashing a large image."""
+    path = Path(path).resolve()
+    stat = path.stat()
+    return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+
+
+def _psc_fsf_settings(path: Path) -> dict[str, str]:
+    settings = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r'^\s*set\s+fmri\(([^)]+)\)\s+(.+?)\s*$', line)
+        if match:
+            settings[match[1]] = match[2].strip('"')
+    return settings
+
+
+def _psc_reference_spec(settings: dict[str, str], duration: float, step: float) -> dict[str, Any]:
+    if not np.isfinite([duration, step]).all() or duration <= 0 or step <= 0 or step > 0.1:
+        raise click.ClickException("PSC duration must be positive; reference step must be > 0 and <= 0.1 s.")
+    # Only a common canonical gamma/double-gamma basis has one scalar height.
+    canonical = []
+    real = 0
+    for ev in range(1, int(settings["evs_orig"]) + 1):
+        convolve = int(settings.get(f"convolve{ev}", "0"))
+        if convolve in (2, 3):
+            if settings.get(f"shape{ev}") != "3":
+                raise click.ClickException("PSC currently requires three-column task EVs.")
+            parameters = {name: settings.get(f"{name}{ev}", default) for name, default in (
+                ("convolve", "3"), ("convolve_phase", "0"),
+                ("gammasigma", "3"), ("gammadelay", "6"),
+            )}
+            canonical.append((real, parameters))
+            if any(float(value) != 0 for key, value in settings.items()
+                   if key.startswith(f"ortho{ev}.")):
+                raise click.ClickException("PSC does not support explicitly orthogonalized task EVs.")
+        elif convolve != 0:
+            raise click.ClickException("PSC supports canonical gamma/double-gamma task bases only.")
+        real += 1 + int(settings.get(f"deriv_yn{ev}", "0"))
+    if not canonical or any(item[1] != canonical[0][1] for item in canonical):
+        raise click.ClickException("PSC requires one common canonical HRF across task EVs.")
+    version_file = Path(os.environ.get("FSLDIR", "/nonexistent")) / "etc" / "fslversion"
+    version = version_file.read_text().strip() if version_file.is_file() else "unknown"
+    generator = shutil.which("feat_model")
+    return {
+        "method": "mumford-isolated-event-v1", "duration_seconds": duration,
+        "step_seconds": step, "hrf": canonical[0][1], "fsl_version": version,
+        "generator_if_version_unknown": _psc_identity(Path(generator)) if version == "unknown" and generator else None,
+        "height_definition": "unfiltered baseline-to-positive-peak",
+        "contrast_normalization": "unit-positive-and-negative-weight-sums",
+    }
+
+
+def psc_reference_height(
+    feat_dir: Path, cache_dir: Path, duration: float, step: float = 0.1,
+    dry_run: bool = False,
+) -> tuple[float, str, dict[str, Any]]:
+    """Generate and cache a fine-sampled isolated-event design using feat_model.
+
+    The saved FSF supplies FSL's exact canonical HRF settings. No BOLD image is
+    processed and no statistical model is estimated. Baseline is measured before
+    the event, avoiding the negative HRF undershoot and design demeaning.
+    """
+    import hashlib
+
+    fsf = feat_dir / "design.fsf"
+    settings = _psc_fsf_settings(fsf)
+    spec = _psc_reference_spec(settings, duration, step)
+    reference_id = hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:16]
+    directory = cache_dir / reference_id
+    if dry_run:
+        click.echo(f"DRY RUN: PSC reference {reference_id}: {duration:g} s event, {step:g} s sampling.")
+        return float("nan"), reference_id, spec
+    directory.mkdir(parents=True, exist_ok=True)
+    with open(directory / ".lock", "a+") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        metadata = directory / "reference.json"
+        if metadata.is_file() and all((directory / name).is_file() for name in ("event.txt", "reference.fsf", "reference.mat")):
+            saved = json.loads(metadata.read_text())
+            if saved["specification"] == spec and np.isfinite(saved["height"]) and saved["height"] > 0:
+                return float(saved["height"]), reference_id, spec
+        event = directory / "event.txt"
+        event.write_text(f"20 {duration:.12g} 1\n", encoding="utf-8")
+        replacements = {
+            "tr": f"{step:.12g}", "npts": str(int(np.ceil((duration + 120) / step))),
+            "ndelete": "0", "evs_orig": "1", "evs_real": "1", "evs_vox": "0",
+            "ncon_orig": "1", "ncon_real": "1", "nftests_orig": "0", "nftests_real": "0",
+            "temphp_yn": "0", "templp_yn": "0", "paradigm_hp": "-1",
+            "evtitle1": '"PSC reference"', "shape1": "3", "deriv_yn1": "0",
+            "tempfilt_yn1": "0", "custom1": f'"{event}"', "ortho1.0": "0", "ortho1.1": "0",
+            "con_orig1.1": "1", "con_real1.1": "1", "confoundevs": "0",
+            **{f"{name}1": value for name, value in spec["hrf"].items()},
+        }
+        lines = []
+        for line in fsf.read_text().splitlines():
+            match = re.match(r'^\s*set\s+fmri\(([^)]+)\)', line)
+            if match and match[1] in replacements:
+                continue
+            # A separate confound file would otherwise add columns to the dummy design.
+            if re.match(r'^\s*set\s+confoundev_files', line):
+                continue
+            lines.append(line)
+        lines.extend(f"set fmri({name}) {value}" for name, value in replacements.items())
+        root = directory / "reference"
+        root.with_suffix(".fsf").write_text("\n".join(lines) + "\n")
+        run_logged_command(["feat_model", str(root)], directory)
+        matrix = np.loadtxt(root.with_suffix(".mat").read_text().split("/Matrix", 1)[1].splitlines(), ndmin=2)
+        if matrix.shape[1] != 1 or not np.isfinite(matrix).all():
+            raise click.ClickException("Invalid isolated-event reference design.")
+        baseline = float(np.median(matrix[:max(1, int(10 / step)), 0]))
+        height = float(matrix[:, 0].max() - baseline)
+        if not np.isfinite(height) or height <= 0:
+            raise click.ClickException("PSC reference height must be finite and positive.")
+        metadata.write_text(json.dumps({"specification": spec, "height": height}, indent=2) + "\n")
+        return height, reference_id, spec
+
+
+def _psc_contrast_divisor(settings: dict[str, str], number: int, allow_unequal: bool = False) -> float:
+    """Normalize sums/mean differences, refusing ambiguous contrast definitions."""
+    canonical = set()
+    real = 0
+    for ev in range(1, int(settings["evs_orig"]) + 1):
+        if int(settings.get(f"convolve{ev}", "0")) in (2, 3):
+            canonical.add(real)
+        real += 1 + int(settings.get(f"deriv_yn{ev}", "0"))
+    weights = np.array([float(settings.get(f"con_real{number}.{i+1}", "0"))
+                        for i in range(int(settings["evs_real"]))])
+    if not np.isfinite(weights).all() or not np.any(weights):
+        raise click.ClickException(f"Invalid PSC contrast {number}.")
+    if any(weight != 0 and i not in canonical for i, weight in enumerate(weights)):
+        raise click.ClickException(f"PSC contrast {number} includes a derivative or nuisance coefficient.")
+    positive = float(weights[weights > 0].sum())
+    negative = float(-weights[weights < 0].sum())
+    if positive and negative and not np.isclose(positive, negative) and not allow_unequal:
+        raise click.ClickException(f"PSC contrast {number} has unequal positive/negative totals; supply --psc-divisor.")
+    return positive or negative
+
+
+def _psc_fields(record: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
+    number = str(int(float(record["cope"])))
+    item = saved.get("contrasts", {}).get(number)
+    if not item:
+        return {}
+    directory = Path(record["feat_dir"]) / "psc"
+    for key in ("mean_func", "source_mask", "design"):
+        identity = saved.get(key, {})
+        source = Path(identity.get("path", "/nonexistent"))
+        if not source.is_file() or _psc_identity(source) != identity:
+            return {}
+    # Stale source outputs must never be advertised as a valid PSC conversion.
+    for column in ("cope_file", "varcope_file"):
+        path = Path(record[column])
+        if not path.is_file() or _psc_identity(path) != item["inputs"][column]:
+            return {}
+    if not all((directory / name).is_file() for name in (f"cope{number}.nii.gz", f"varcope{number}.nii.gz", "mask.nii.gz")):
+        return {}
+    return {
+        "psc_cope_file": str(directory / f"cope{number}.nii.gz"),
+        "psc_varcope_file": str(directory / f"varcope{number}.nii.gz"),
+        "psc_mask_file": str(directory / "mask.nii.gz"),
+        "psc_provenance_file": str(directory / "normalization.json"),
+        "psc_reference_id": saved["reference_id"], "psc_height": saved["height"],
+        "psc_duration": saved["reference"]["duration_seconds"], "psc_divisor": item["divisor"],
+    }
+
+
+def convert_feat_to_psc(
+    rows: pd.DataFrame, cache_dir: Path, duration: float, step: float = 0.1,
+    divisors: Sequence[str] = (), overwrite: bool = False, dry_run: bool = False,
+) -> pd.DataFrame:
+    """Convert one completed run atomically, preserving its raw statistics.
+
+    Caller holds the first-level run lock. Mean/mask and source statistical file
+    identities make reuse conditional on both source data and normalization.
+    """
+    feat_dirs = rows["feat_dir"].drop_duplicates().tolist()
+    if len(feat_dirs) != 1:
+        raise click.ClickException("PSC conversion requires one FEAT directory at a time.")
+    feat_dir = Path(feat_dirs[0])
+    mean_file, mask_file = feat_dir / "mean_func.nii.gz", feat_dir / "mask.nii.gz"
+    overrides = {}
+    for value in divisors:
+        name, separator, divisor = value.partition("=")
+        try:
+            divisor = float(divisor)
+        except ValueError as error:
+            raise click.ClickException("--psc-divisor requires CONTRAST=POSITIVE_NUMBER.") from error
+        if not separator or not name or not np.isfinite(divisor) or divisor <= 0 or name in overrides:
+            raise click.ClickException("PSC divisors must be unique, finite, and positive.")
+        overrides[name] = divisor
+    settings = _psc_fsf_settings(feat_dir / "design.fsf")
+    height, reference_id, reference = psc_reference_height(feat_dir, cache_dir, duration, step, dry_run)
+    metadata = {
+        "reference_id": reference_id, "reference": reference, "height": height,
+        "mean_func": _psc_identity(mean_file), "source_mask": _psc_identity(mask_file),
+        "design": _psc_identity(feat_dir / "design.fsf"), "contrasts": {},
+        "cope_units": "percent", "varcope_units": "percent_squared",
+    }
+    for record in rows.to_dict(orient="records"):
+        number = str(int(float(record["cope"])))
+        name = str(record["contrast_name"])
+        divisor = _psc_contrast_divisor(settings, int(number), allow_unequal=name in overrides)
+        divisor = overrides.get(name, divisor)
+        metadata["contrasts"][number] = {"name": name, "divisor": divisor, "inputs": {
+            column: _psc_identity(Path(record[column])) for column in ("cope_file", "varcope_file")}}
+    if dry_run:
+        click.echo(f"DRY RUN: convert {len(rows)} COPE/VARCOPE pair(s) into {feat_dir / 'psc'}.")
+        return rows
+    destination = feat_dir / "psc"
+    if destination.exists():
+        saved_path = destination / "normalization.json"
+        if saved_path.is_file():
+            saved = json.loads(saved_path.read_text())
+            comparable = {key: value for key, value in saved.items() if key not in ("valid_voxels", "excluded_voxels")}
+            if comparable == metadata and all(_psc_fields(record, saved) for record in rows.to_dict(orient="records")):
+                click.echo(f"Reusing PSC conversion: {destination}")
+                return pd.DataFrame([{**record, **_psc_fields(record, saved)} for record in rows.to_dict(orient="records")])
+        if not overwrite:
+            raise click.ClickException(f"PSC outputs are incomplete or stale: {destination}. Use --psc-overwrite.")
+    mean_image, mask_image = nib.load(mean_file), nib.load(mask_file)
+    verify_matching_geometry(mean_file, mask_file, description="PSC mean/mask")
+    mean, mask = mean_image.get_fdata(), mask_image.get_fdata() > 0
+    valid = mask & np.isfinite(mean) & (mean > 0)
+    if not valid.any():
+        raise click.ClickException("No voxels have a finite, positive PSC denominator.")
+    # Use a common valid mask across all contrasts, including finite statistical inputs.
+    for record in rows.to_dict(orient="records"):
+        for column in ("cope_file", "varcope_file"):
+            path = Path(record[column])
+            verify_matching_geometry(mean_file, path, description=f"PSC {column}")
+            data = nib.load(path).get_fdata()
+            valid &= np.isfinite(data)
+            if column == "varcope_file":
+                valid &= data >= 0
+    if not valid.any():
+        raise click.ClickException("No valid voxels remain for PSC conversion.")
+    metadata.update(valid_voxels=int(valid.sum()), excluded_voxels=int((mask & ~valid).sum()))
+    temporary = Path(tempfile.mkdtemp(prefix=".psc.", dir=feat_dir))
+    backup = None
+    try:
+        for record in rows.to_dict(orient="records"):
+            number = str(int(float(record["cope"])))
+            divisor = metadata["contrasts"][number]["divisor"]
+            scale = np.zeros(mean.shape, dtype=np.float64)
+            scale[valid] = (100 * height / divisor) / mean[valid]
+            for column, stem, power in (("cope_file", "cope", 1), ("varcope_file", "varcope", 2)):
+                source = nib.load(record[column])
+                data = np.zeros(mean.shape, dtype=np.float64)
+                data[valid] = source.get_fdata()[valid] * scale[valid] ** power
+                if not np.isfinite(data).all() or np.max(np.abs(data)) > np.finfo(np.float32).max:
+                    raise click.ClickException("PSC conversion overflow; inspect the mean_func denominator.")
+                header = source.header.copy()
+                header.set_data_dtype(np.float32)
+                image = nib.Nifti1Image(data, source.affine, header)
+                image.header.set_intent("none")
+                nib.save(image, temporary / f"{stem}{number}.nii.gz")
+        nib.save(nib.Nifti1Image(valid.astype(np.uint8), mean_image.affine), temporary / "mask.nii.gz")
+        (temporary / "normalization.json").write_text(json.dumps(metadata, indent=2) + "\n")
+        if destination.exists():
+            backup = Path(tempfile.mkdtemp(prefix=".psc.backup.", dir=feat_dir))
+            backup.rmdir()
+            destination.replace(backup)
+        try:
+            temporary.replace(destination)
+        except BaseException:
+            if backup is not None:
+                backup.replace(destination)
+            raise
+        if backup is not None:
+            shutil.rmtree(backup)
+    finally:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+    click.echo(f"PSC: {destination}; h={height:.8g}; valid={metadata['valid_voxels']}; excluded={metadata['excluded_voxels']}")
+    return pd.DataFrame([{**record, **_psc_fields(record, metadata)} for record in rows.to_dict(orient="records")])
+
+
+def select_feat_units(table: pd.DataFrame, units: str, input_level: str) -> pd.DataFrame:
+    """Select explicit raw/PSC inputs; never silently fall back between units."""
+    table = table.copy()
+    if "effect_units" not in table:
+        table["effect_units"] = "raw"
+    table["effect_units"] = table["effect_units"].replace("", "raw").fillna("raw")
+    if input_level == "1" and units == "psc":
+        required = {"psc_cope_file", "psc_varcope_file", "psc_mask_file", "psc_reference_id", "psc_provenance_file"}
+        if not required.issubset(table.columns) or table[list(required)].fillna("").eq("").any().any():
+            raise click.ClickException("PSC inputs are missing; run call_feat --psc-only for the selected runs.")
+        for record in table.to_dict(orient="records"):
+            path = Path(record["psc_provenance_file"])
+            if not path.is_file():
+                raise click.ClickException(f"Missing PSC provenance: {path}")
+            fields = _psc_fields(record, json.loads(path.read_text()))
+            if not fields or any(str(fields[key]) != str(record[key]) for key in required):
+                raise click.ClickException(f"PSC conversion is stale or inconsistent for {record['run_label']}; rerun --psc-only --psc-overwrite.")
+        table["cope_file"] = table["psc_cope_file"]
+        table["varcope_file"] = table["psc_varcope_file"]
+        table["mask_file"] = table["psc_mask_file"]
+        table["effect_units"] = "psc"
+    else:
+        table = table.loc[table["effect_units"] == units].copy()
+    if table.empty:
+        raise click.ClickException(f"No {units} inputs remain; units are never converted at higher levels.")
+    if units == "raw":
+        table["psc_reference_id"] = ""
+    elif "psc_reference_id" not in table or not table["psc_reference_id"].str.fullmatch(r"[0-9a-f]{16}").all():
+        raise click.ClickException("PSC inputs have no reference identity.")
+    return table
+
+
+def psc_only_from_manifest(
+    deriv_dir: Path, *, subjects: Sequence[str], runs: Sequence[str], task: str | None,
+    space: str, desc: str, duration: float, step: float, divisors: Sequence[str],
+    overwrite: bool, dry_run: bool,
+) -> None:
+    """Convert existing manifest-backed analyses without initializing BIDS/FSL GLMs."""
+    path = deriv_dir / "contrast_manifest.tsv"
+    table = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    selected = table.copy()
+    runs = parse_run_selectors(tuple(runs))
+    for column, values in (("subject", subjects), ("run", runs)):
+        if values:
+            chosen = _normalize_selector(values)
+            if column == "subject":
+                chosen = {normalize_subject(value) for value in chosen}
+            # BIDS run/subject numeric padding should not change selection.
+            selected = selected.loc[selected[column].map(lambda value: value.lstrip("0") or "0").isin({value.lstrip("0") or "0" for value in chosen})]
+    for column, value in (("task", task), ("space", space), ("desc", desc)):
+        if value:
+            selected = selected.loc[selected[column] == value]
+    if selected.empty:
+        raise click.ClickException("No existing first-level analyses match --psc-only selectors.")
+    failures = 0
+    for label, rows in selected.groupby("run_label", sort=True):
+        lock = acquire_feat_run_lock(deriv_dir, str(label))
+        if lock is None:
+            raise click.ClickException(f"Another job owns run {label}.")
+        try:
+            if (deriv_dir / "work" / str(label) / "feat_pending.json").exists():
+                raise click.ClickException(f"FEAT completion is unconfirmed for {label}.")
+            converted = convert_feat_to_psc(rows, deriv_dir / ".psc_references", duration, step, divisors, overwrite, dry_run)
+            if not dry_run:
+                merge_analysis_manifest(path, converted, ["run_label", "cope"])
+        except (click.ClickException, OSError, ValueError, subprocess.CalledProcessError) as error:
+            click.echo(f"[ERROR] {label}: {error}", err=True)
+            failures += 1
+        finally:
+            lock.close()
+    if failures:
+        raise click.ClickException(f"PSC conversion failed for {failures} run(s).")
+
+
+def merge_feat_manifest_fragments(parts_dir: Path, output: Path, level: int) -> None:
+    """Merge array results without dropping other subjects, streams, or units."""
+    parts = sorted(parts_dir.glob("job-*.tsv"))
+    if not parts:
+        raise click.ClickException(f"No level-{level} manifest fragments in {parts_dir}")
+    table = pd.concat([pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+                       for path in parts], ignore_index=True).fillna("")
+    table = filter_analysis_entities(table)
+    if "effect_units" not in table:
+        table["effect_units"] = "raw"
+    table["effect_units"] = table["effect_units"].replace("", "raw")
+    if "psc_reference_id" not in table:
+        table["psc_reference_id"] = ""
+    table.loc[table["effect_units"] == "raw", "psc_reference_id"] = ""
+    if not table["effect_units"].isin(["raw", "psc"]).all():
+        raise click.ClickException("Manifest fragments contain unknown effect units.")
+    if table.loc[table["effect_units"] == "psc", "psc_reference_id"].eq("").any():
+        raise click.ClickException("PSC manifest fragments are missing reference identities.")
+    keys = (["subject"] if level == 2 else []) + [
+        "session", "task", "canonical_name", *FEAT_ENTITY_LABELS,
+        "source_dataset", *FEAT_MEASURE_COLUMNS,
+    ]
+    table = table.drop_duplicates().sort_values(keys, kind="stable")
+    merge_analysis_manifest(output, table, keys)
+    click.echo(f"Merged {len(parts)} fragment(s), {len(table)} row(s) -> {output}")

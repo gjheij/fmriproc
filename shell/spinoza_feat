@@ -805,69 +805,11 @@ if [[ "$level" == 2 ]]; then
 set -euo pipefail
 
 python3 - $(printf '%q' "$manifest_parts_dir") $(printf '%q' "$level2_manifest") <<'PY'
-import csv
 import sys
 from pathlib import Path
+from fmriproc.fsl import merge_feat_manifest_fragments
 
-parts_dir = Path(sys.argv[1])
-out_file = Path(sys.argv[2])
-parts = sorted(parts_dir.glob("job-*.tsv"))
-
-if not parts:
-    raise SystemExit(f"No level-2 manifest fragments found in {parts_dir}")
-
-rows = []
-fieldnames = []
-seen_fields = set()
-
-for part in parts:
-    with part.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        if not reader.fieldnames:
-            raise SystemExit(f"Manifest fragment has no header: {part}")
-
-        for field in reader.fieldnames:
-            if field not in seen_fields:
-                seen_fields.add(field)
-                fieldnames.append(field)
-
-        rows.extend(dict(row) for row in reader)
-
-if not fieldnames:
-    raise SystemExit("Level-2 manifest fragments contain no header")
-
-# Deduplicate deterministically. Normally every array task contributes one row.
-seen = set()
-unique = []
-key_fields = [x for x in ("subject", "session", "task", "canonical_name", "cope_file", "varcope_file") if x in fieldnames]
-for row in rows:
-    key = tuple(row.get(k, "") for k in key_fields)
-    if key in seen:
-        continue
-    seen.add(key)
-    unique.append(row)
-
-sort_fields = [x for x in ("subject", "session", "task", "canonical_name") if x in fieldnames]
-unique.sort(key=lambda row: tuple(row.get(k, "") for k in sort_fields))
-
-out_file.parent.mkdir(parents=True, exist_ok=True)
-tmp = out_file.with_name(out_file.name + ".tmp")
-with tmp.open("w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(
-        f,
-        fieldnames=fieldnames,
-        delimiter="\t",
-        lineterminator="\n",
-        extrasaction="ignore",
-    )
-    writer.writeheader()
-    writer.writerows(
-        {field: row.get(field, "") for field in fieldnames}
-        for row in unique
-    )
-tmp.replace(out_file)
-
-print(f"Merged {len(parts)} fragment(s), {len(unique)} row(s) -> {out_file}")
+merge_feat_manifest_fragments(Path(sys.argv[1]), Path(sys.argv[2]), 2)
 PY
 EOF
 fi
@@ -878,82 +820,11 @@ if [[ "$level" == 3 ]]; then
 set -euo pipefail
 
 python3 - $(printf '%q' "$manifest_parts_dir") $(printf '%q' "$level3_manifest") <<'PY'
-import csv
 import sys
 from pathlib import Path
+from fmriproc.fsl import merge_feat_manifest_fragments
 
-parts_dir = Path(sys.argv[1])
-out_file = Path(sys.argv[2])
-parts = sorted(parts_dir.glob("job-*.tsv"))
-
-if not parts:
-    raise SystemExit(f"No level-3 manifest fragments found in {parts_dir}")
-
-rows = []
-fieldnames = None
-
-for part in parts:
-    with part.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        if reader.fieldnames is None:
-            raise SystemExit(f"Manifest fragment has no header: {part}")
-
-        if fieldnames is None:
-            fieldnames = list(reader.fieldnames)
-        elif list(reader.fieldnames) != fieldnames:
-            raise SystemExit(f"Manifest columns differ in {part}")
-
-        rows.extend(reader)
-
-if not fieldnames:
-    raise SystemExit("Level-3 manifest fragments contain no header")
-
-# One row normally represents one group contrast result. Keep multiple
-# group_contrast rows for a canonical contrast, but remove exact duplicate
-# outputs deterministically.
-key_fields = [
-    x for x in (
-        "session",
-        "task",
-        "canonical_name",
-        "group_contrast",
-        "cope_file",
-        "varcope_file",
-        "tstat_file",
-        "zstat_file",
-    )
-    if x in fieldnames
-]
-
-seen = set()
-unique = []
-for row in rows:
-    key = tuple(row.get(k, "") for k in key_fields)
-    if key in seen:
-        continue
-    seen.add(key)
-    unique.append(row)
-
-sort_fields = [
-    x for x in ("task", "session", "canonical_name", "group_contrast")
-    if x in fieldnames
-]
-unique.sort(key=lambda row: tuple(row.get(k, "") for k in sort_fields))
-
-out_file.parent.mkdir(parents=True, exist_ok=True)
-tmp = out_file.with_name(out_file.name + ".tmp")
-with tmp.open("w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(
-        f,
-        fieldnames=fieldnames,
-        delimiter="\t",
-        lineterminator="\n",
-    )
-    writer.writeheader()
-    writer.writerows(unique)
-
-tmp.replace(out_file)
-print(f"Merged {len(parts)} fragment(s), {len(unique)} row(s) -> {out_file}")
+merge_feat_manifest_fragments(Path(sys.argv[1]), Path(sys.argv[2]), 3)
 PY
 EOF
 fi

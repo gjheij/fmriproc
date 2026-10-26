@@ -22,7 +22,7 @@ apply_one () {
     "$xfm"
   )
 
-  print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+  print_cmd "${cmd[@]}" && "${cmd[@]}"
 }
 
 #-----------------------------------------------------------------------------
@@ -68,7 +68,11 @@ Optional (flags with defaults):
                                    \$FSLDIR/data/standard/MNI152_T1_1mm_brain.nii.gz
   --feat-dir <dir>               FEAT directory that should receive the reg folder
   --update-featreg               Run updatefeatreg after copying/creating the reg folder
-  --apply-reg                    Run featregapply after updatefeatreg
+  --apply-reg                    Apply ANTs transforms after updatefeatreg
+                                 (--apply-featreg is retained as an alias)
+  --stats-subdir stats|psc|both   Select native statistics to register. Default: stats.
+                                 PSC outputs go to reg_standard/psc with their valid mask.
+                                 Level-2 PSC analyses keep their statistics in stats.
   --clean                        Remove temporary files after successful completion
 
 Caching:
@@ -195,6 +199,7 @@ template="${FSLDIR:-}/data/standard/MNI152_T1_1mm_brain.nii.gz"
 feat_dir=""
 update_featreg=false
 apply_featreg=false
+stats_subdir="stats"
 clean=false
 t1w_to_mni_h5=""
 tmp_transform_base=""
@@ -223,7 +228,9 @@ while [[ $# -gt 0 ]]; do
       feat_dir="$2"; shift 2 ;;
     --update-featreg)
       update_featreg=true; shift ;;
-    --apply-featreg)
+    --stats-subdir)
+      stats_subdir="$2"; shift 2 ;;
+    --apply-featreg|--apply-reg)
       update_featreg=true; 
       apply_featreg=true; 
       shift ;;      
@@ -235,6 +242,11 @@ while [[ $# -gt 0 ]]; do
       die "Unknown argument: $1" ;;
   esac
 done
+
+case "$stats_subdir" in
+  stats|psc|both) ;;
+  *) die "--stats-subdir must be stats, psc, or both" ;;
+esac
 
 if [[ -z "$out_dir" ]]; then
   if [[ -n "$feat_dir" ]]; then
@@ -286,7 +298,8 @@ need_cmd applywarp
 need_cmd ConvertTransformFile
 
 if [[ "$apply_featreg" == true ]]; then
-  need_cmd featregapply
+  need_cmd call_antsapplytransforms
+  need_cmd python3
   [[ -n "$feat_dir" ]] || die "--feat-dir is required when using --apply"
 fi
 
@@ -520,7 +533,7 @@ if [[ -n "$feat_dir" ]]; then
     print_line -
     echo "Running updatefeatreg"
     cmd=(updatefeatreg "$feat_dir")
-    print_cmd "${cmd[@]}" && eval "${cmd[@]}"
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
   fi
 
   if [[ "$apply_featreg" == true ]]; then
@@ -529,7 +542,12 @@ if [[ -n "$feat_dir" ]]; then
 
     mkdir -p "$feat_dir/reg_standard/stats" "$feat_dir/reg_standard/reg"
 
-    xfm_func2std="$t1w_to_mni_h5,$bold_to_t1w"
+    if [[ -n "$t1w_to_mni_h5" ]]; then
+      xfm_anat2std="$t1w_to_mni_h5"
+    else
+      xfm_anat2std="$t1w_to_mni_warp,$t1w_to_mni_affine"
+    fi
+    xfm_func2std="$xfm_anat2std,$bold_to_t1w"
 
     # func-space images to standard
     for img in mean_func example_func; do
@@ -549,21 +567,100 @@ if [[ -n "$feat_dir" ]]; then
     apply_one --lin \
       "$feat_dir/reg/highres.nii.gz" \
       "$feat_dir/reg_standard/reg/highres.nii.gz" \
-      "$t1w_to_mni_h5"
+      "$xfm_anat2std"
 
-    # stats images
-    for stat in cope varcope zstat; do
-      for z in "$feat_dir/stats/${stat}"*.nii.gz; do
-        [[ -e "$z" ]] || continue
-
-        base=$(basename "$z" .nii.gz)
-
-        apply_one --lin \
-          "$z" \
-          "$feat_dir/reg_standard/stats/${base}.nii.gz" \
-          "$xfm_func2std"
+    # Geometry is shared, but native PSC normalization and validity are distinct.
+    sources=("$stats_subdir")
+    [[ "$stats_subdir" != "both" ]] || sources=(stats psc)
+    for source_subdir in "${sources[@]}"; do
+      source_dir="$feat_dir/$source_subdir"
+      target_dir="$feat_dir/reg_standard/$source_subdir"
+      [[ -d "$source_dir" ]] || die "Statistics directory not found: $source_dir"
+      mkdir -p "$target_dir"
+      rm -f "$target_dir/registration.json"
+      if [[ "$source_subdir" == "psc" ]]; then
+        need_file "$source_dir/normalization.json"
+        need_file "$source_dir/mask.nii.gz"
+        apply_one --gen "$source_dir/mask.nii.gz" "$target_dir/mask.nii.gz" "$xfm_func2std"
+      fi
+      found=false
+      for stat in cope varcope; do
+        for image in "$source_dir/${stat}"*.nii.gz; do
+          [[ -e "$image" ]] || continue
+          found=true
+          base=$(basename "$image" .nii.gz)
+          number="${base#"$stat"}"
+          [[ "$number" =~ ^[0-9]+$ ]] || continue
+          need_file "$source_dir/cope${number}.nii.gz"
+          need_file "$source_dir/varcope${number}.nii.gz"
+          apply_one --lin "$image" "$target_dir/${base}.nii.gz" "$xfm_func2std"
+        done
       done
-    done    
+      [[ "$found" == true ]] || die "No COPE/VARCOPE pairs in $source_dir"
+      if [[ "$source_subdir" == "stats" ]]; then
+        for image in "$source_dir/"{tstat,zstat}*.nii.gz; do
+          [[ -e "$image" ]] || continue
+          apply_one --lin "$image" "$target_dir/$(basename "$image")" "$xfm_func2std"
+        done
+      fi
+      # Publish registration provenance only after every requested image succeeds.
+      python3 - "$source_dir" "$target_dir" "$template" "$xfm_func2std" <<'PYTHON'
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
+
+source, target, template = map(Path, sys.argv[1:4])
+def identity(path):
+    path = path.resolve()
+    stat = path.stat()
+    return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+
+inputs = sorted(source.glob("cope[0-9]*.nii.gz")) + sorted(source.glob("varcope[0-9]*.nii.gz"))
+for name in ("mask.nii.gz", "normalization.json"):
+    if (source / name).is_file():
+        inputs.append(source / name)
+transforms = [Path(value) for value in sys.argv[4].split(",") if value]
+units = "psc" if source.name == "psc" else "raw"
+reference_id = ""
+source_provenance = source / "normalization.json" if source.name == "psc" else source.parent / "provenance.json"
+if source_provenance.is_file():
+    saved = json.loads(source_provenance.read_text())
+    if source.name == "psc":
+        reference_id = saved["reference_id"]
+    else:
+        input_rows = saved.get("inputs", [])
+        known_units = {row.get("effect_units", "raw") for row in input_rows}
+        if len(known_units) > 1:
+            raise SystemExit("Source analysis mixes statistical units")
+        units = next(iter(known_units), "raw")
+        references = {row.get("psc_reference_id", "") for row in input_rows}
+        if units == "psc":
+            if len(references) != 1 or "" in references:
+                raise SystemExit("Source PSC analysis has inconsistent references")
+            reference_id = references.pop()
+    if source_provenance not in inputs:
+        inputs.append(source_provenance)
+metadata = {
+    "source_subdir": source.name, "effect_units": units, "psc_reference_id": reference_id,
+    "inputs": [identity(path) for path in inputs],
+    "template": identity(template),
+    "transforms": [identity(path) for path in transforms],
+    "interpolation": {"statistics": "linear", "mask": "genericLabel"},
+    "outputs": [identity(target / path.name) for path in inputs if path.suffix != ".json"],
+}
+fd, name = tempfile.mkstemp(prefix=".registration.", suffix=".json", dir=target)
+try:
+    with os.fdopen(fd, "w") as stream:
+        json.dump(metadata, stream, indent=2)
+        stream.write("\n")
+    os.replace(name, target / "registration.json")
+finally:
+    if os.path.exists(name):
+        os.unlink(name)
+PYTHON
+    done
   fi
 fi
 
