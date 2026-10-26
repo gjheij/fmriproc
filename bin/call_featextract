@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""Extract ROI statistics from FEAT manifest images, independent of analysis level.
+
+Requires numpy, scipy, nibabel. Resampling changes voxel grid only: ROI and
+statistical images MUST already use the same anatomical world coordinates.
+"""
+import argparse
+import csv
+import math
+import re
+import sys
+from pathlib import Path
+
+import nibabel as nib
+import numpy as np
+from nibabel.processing import resample_from_to
+
+STAT_COLUMNS = {'cope': 'cope_file', 'varcope': 'varcope_file',
+                'tstat': 'tstat_file', 'zstat': 'zstat_file'}
+
+
+
+class HelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                    argparse.RawDescriptionHelpFormatter):
+    """Keep default values visible and preserve example formatting."""
+
+
+EXAMPLES = r"""Examples:
+
+  Native first-level raw COPEs with a subject-specific T1w mask:
+    call_featextract \
+      --manifest /data/feat/level1/contrast_manifest.tsv \
+      --input-units raw --subject 01 --desc masked --space T1w \
+      --roi '/data/rois/{subject}/roi_T1w.nii.gz' --roi-type mask \
+      --conditions Axiom1_mag1 Axiom1_mag2 \
+      --output roi_raw.tsv --strict
+
+  Native first-level PSC, selecting subjects and runs:
+    call_featextract \
+      --manifest /data/feat/level1/contrast_manifest.tsv \
+      --input-units psc --desc masked --space T1w --subject 01,02 --run 01,02 \
+      --roi '/data/rois/{subject}/roi_T1w.nii.gz' --roi-type mask \
+      --output roi_run_psc.tsv --strict
+
+  Registered level-2 PSC with selected atlas labels and their union:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --roi /data/rois/atlas_MNI.nii.gz --roi-type labels \
+      --areas 1 2 --combine \
+      --output roi_subject_psc.tsv --strict
+
+  Select one PSC reference and contrast explicitly:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked \
+      --psc-reference-id 4354bdf9d9510816 \
+      --conditions Axiom1_mag1 --registration-mode reg-standard \
+      --roi /data/rois/roi_MNI.nii.gz --roi-type mask \
+      --output roi_reference_psc.tsv --strict
+
+  Level-3 group-mean PSC using group maps already in template space:
+    call_featextract \
+      --manifest /data/feat/level3/contrast_manifest_level3.tsv \
+      --input-units psc --desc masked --group-contrast GroupMean \
+      --roi /data/rois/roi_MNI.nii.gz --roi-type mask \
+      --stat cope --output roi_group_psc.tsv --strict
+
+  Probability-weighted extraction from a 3D probability map:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --roi /data/rois/probability_MNI.nii.gz --roi-type probabilistic \
+      --threshold 0.25 --weighted \
+      --output roi_weighted_psc.tsv --strict
+
+  Select zero-based volumes from a 4D probabilistic atlas:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --roi /data/rois/probabilistic_atlas_MNI.nii.gz \
+      --roi-type probabilistic --areas 0 3 --threshold 0.25 --weighted \
+      --output roi_atlas_psc.tsv --strict
+
+  Extract Z statistics instead of effect sizes:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --roi /data/rois/roi_MNI.nii.gz --roi-type mask \
+      --stat zstat --output roi_zstat.tsv --strict
+
+  Filter additional manifest columns (OR within a column, AND across columns):
+    call_featextract \
+      --manifest /data/feat/level3/contrast_manifest_level3.tsv \
+      --input-units psc --where desc=masked --where desc=preproc \
+      --where group_contrast=GroupMean \
+      --roi /data/rois/roi_MNI.nii.gz --roi-type mask \
+      --output roi_filtered.tsv --strict
+
+  Extract downloaded registered images using local path remapping:
+    call_featextract \
+      --manifest /local/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --image-root /local/level2 --path-anchor level2 \
+      --roi /local/rois/roi_MNI.nii.gz --roi-type mask \
+      --output roi_local_psc.tsv --strict
+
+  Require sufficient coverage and save the masks actually used:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --registration-mode reg-standard \
+      --roi /data/rois/roi_MNI.nii.gz --roi-type mask \
+      --min-voxels 20 --save-masks /data/qc/roi_masks \
+      --output roi_qc_psc.tsv --strict
+
+  Explicitly disable analysis-mask intersection for images without FEAT masks:
+    call_featextract \
+      --manifest /data/custom_manifest.tsv --input-units raw \
+      --roi /data/rois/roi.nii.gz --roi-type mask \
+      --no-analysis-mask --output roi_unmasked.tsv --strict
+
+Notes:
+  * ROI and statistical images must already share anatomical world coordinates.
+    Resampling changes the voxel grid; it does not perform anatomical registration.
+  * --registration-mode native/prealigned reads the selected manifest paths;
+    reg-standard selects existing registered files and never runs registration.
+  * First-level PSC uses psc/; level-2 PSC uses stats/ in its separate PSC analysis.
+  * --space filters the source manifest entity, not the registration target space.
+  * {subject} expands to sub-01, not 01. Other ROI placeholders retain manifest values.
+  * Entity filters accept repeated flags or comma-separated values. --conditions
+    accepts space-separated canonical names; --where values are exact strings.
+  * A 3D probability map needs no --areas. For a 4D map, --areas uses zero-based
+    volume indices. --threshold uses the atlas's original scale (e.g., 0-1 or 0-100).
+  * Analysis-mask intersection is enabled by default. n_voxels counts the sampled
+    ROI; n_valid_voxels counts voxels used after mask and finite-value checks.
+  * PSC COPE means are in percent; differences are percentage-point differences.
+    Mean VARCOPE values are in percent squared, not the variance of the ROI mean.
+    T/Z statistics are dimensionless even when the selected stream is PSC.
+  * Multiple PSC references require explicit --psc-reference-id selection.
+    Existing image paths take precedence over --image-root remapping.
+"""
+
+
+def arguments():
+    p = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=lambda prog: HelpFormatter(prog, width=120),
+        epilog=EXAMPLES,
+    )
+    p.add_argument('--manifest', required=True, type=Path)
+    p.add_argument('--roi', required=True, help='ROI NIfTI path, optionally containing {subject}, {session}, {run}, or other manifest columns')
+    p.add_argument('--roi-type', choices=['labels', 'mask', 'probabilistic'], default='labels')
+    p.add_argument('--areas', nargs='+', type=int, help='Label IDs for labels; zero-based 4D volume indices for probabilistic; omitted for mask or single 3D probability map')
+    p.add_argument('--combine', action='store_true', help='For labels, additionally extract the union of specified labels')
+    p.add_argument('--stat', choices=list(STAT_COLUMNS), default='cope', help='Voxel statistic to average; mean VARCOPE is not the variance of the ROI mean.')
+    p.add_argument('--output', required=True, type=Path)
+    p.add_argument('--conditions', nargs='+', help='Only these canonical_name values')
+    p.add_argument('--input-units', choices=['raw', 'psc'], help='Select raw or PSC estimates. Required when the selected manifest contains both units; legacy manifests default to raw.')
+    p.add_argument('--psc-reference-id', '--psc-reference', action='append', default=[], help='PSC reference ID. Repeatable or comma-separated.')
+    for entity in ('subject', 'session', 'task', 'run', 'desc', 'space', 'acquisition',
+                   'direction', 'echo', 'reconstruction', 'part', 'resolution', 'density', 'group-contrast'):
+        flags = ['--' + entity]
+        if entity in ('resolution', 'density'):
+            flags.append('--res' if entity == 'resolution' else '--den')
+        p.add_argument(*flags, action='append', default=[], help='Exact manifest filter; repeatable or comma-separated.')
+    p.add_argument('--where', action='append', default=[], metavar='COLUMN=VALUE', help='Additional exact filters. Repeated values for one column are OR; different columns are AND.')
+    p.add_argument('--registration-mode', choices=['native', 'prealigned', 'reg-standard'], default='native', help='Use manifest images directly, or resolve registered images in the FEAT directory. prealigned is an alias for native; this does not perform registration.')
+    p.add_argument('--registered-subdir', default='reg_standard', help='Directory containing registered stats/ and, for first-level PSC, psc/.')
+    p.add_argument('--analysis-mask', action=argparse.BooleanOptionalAction, default=True, help='Intersect the ROI with the selected analysis validity mask. Disable explicitly for manifest images without a FEAT mask.')
+    p.add_argument('--image-root', type=Path, help='Local root for remapping manifest image paths')
+    p.add_argument('--path-anchor', choices=['level1', 'level2', 'level3'], help='Directory component after which to append paths to --image-root; inferred if omitted')
+    p.add_argument('--threshold', type=float, default=0, help='Probability threshold in the original atlas scale')
+    p.add_argument('--weighted', action='store_true', help='Use probability-weighted mean (probabilistic ROIs only)')
+    p.add_argument('--min-voxels', type=int, default=1)
+    p.add_argument('--strict', action='store_true', help='Exit nonzero if any image/ROI is missing or ROI is empty')
+    p.add_argument('--save-masks', type=Path, help='Optional directory for masks of voxels actually included after analysis-mask and finite-value checks (QC)')
+    return p.parse_args()
+
+
+
+def selector_values(values):
+    return {item.strip() for value in values for item in value.split(',') if item.strip()}
+
+
+def normalized_selector(column, value):
+    value = str(value)
+    if column in ('subject', 'session', 'run'):
+        prefix = {'subject': 'sub-', 'session': 'ses-', 'run': 'run-'}[column]
+        value = value.removeprefix(prefix)
+        return str(int(value)) if value.isdigit() else value
+    return value
+
+
+def select_manifest_rows(rows, fields, args):
+    """Filter explicit streams and select PSC columns without falling back to raw."""
+    filters = {}
+    for column in ('subject', 'session', 'task', 'run', 'desc', 'space', 'acquisition',
+                   'direction', 'echo', 'reconstruction', 'part', 'resolution', 'density', 'group_contrast'):
+        values = selector_values(getattr(args, column))
+        if values:
+            if column not in fields:
+                raise ValueError(f'Manifest has no filter column: {column}')
+            filters[column] = {normalized_selector(column, value) for value in values}
+    exact = {}
+    for specification in args.where:
+        column, separator, value = specification.partition('=')
+        if not separator or not column or column not in fields:
+            raise ValueError(f'--where needs an existing COLUMN=VALUE: {specification}')
+        exact.setdefault(column, set()).add(value)
+    references = selector_values(args.psc_reference_id)
+    if references and 'psc_reference_id' not in fields:
+        raise ValueError('Manifest has no psc_reference_id column')
+    selected = []
+    for original in rows:
+        row = dict(original)
+        if any(normalized_selector(column, row.get(column, '')) not in values for column, values in filters.items()):
+            continue
+        if any(row.get(column, '') not in values for column, values in exact.items()):
+            continue
+        if args.conditions and row['canonical_name'] not in set(args.conditions):
+            continue
+        if references and row.get('psc_reference_id', '') not in references:
+            continue
+        first_level = bool(row.get('feat_dir')) and not row.get('second_level_dir') and not row.get('group_dir')
+        units = row.get('effect_units') or 'raw'
+        if units not in ('raw', 'psc'):
+            raise ValueError(f'Unknown effect_units: {units}')
+        if args.input_units == 'psc' and first_level and units == 'raw':
+            for column in ('cope_file', 'varcope_file', 'mask_file'):
+                source = 'psc_' + column
+                if not row.get(source):
+                    raise ValueError(f'Missing {source} for {row.get("run_label", "first-level analysis")}; run --psc-only first')
+                row[column] = row[source]
+            units = 'psc'
+        elif args.input_units is not None and units != args.input_units:
+            continue
+        row['effect_units'] = units
+        if units == 'psc' and not row.get('psc_reference_id'):
+            raise ValueError('PSC rows require a psc_reference_id')
+        selected.append(row)
+    if not selected:
+        raise ValueError('No matching manifest records')
+    units = {row['effect_units'] for row in selected}
+    if len(units) != 1:
+        raise ValueError('Selected rows mix raw and PSC units; specify --input-units raw or psc')
+    references = {row.get('psc_reference_id', '') for row in selected if row['effect_units'] == 'psc'}
+    if len(references) > 1 and not args.psc_reference_id:
+        raise ValueError(f'Multiple PSC references selected: {sorted(references)}; specify --psc-reference-id')
+    return selected
+
+
+def statistical_inputs(row, args):
+    """Resolve selected image and mask paths in native or existing registered space."""
+    source = row.get(STAT_COLUMNS[args.stat], '')
+    directory = row.get('group_dir') or row.get('second_level_dir') or row.get('feat_dir')
+    first_psc = row['effect_units'] == 'psc' and bool(row.get('feat_dir')) and not row.get('second_level_dir') and not row.get('group_dir')
+    if not directory:
+        if not source:
+            raise ValueError(f'Missing {STAT_COLUMNS[args.stat]}')
+        directory = str(Path(source).parent.parent)
+    directory = Path(directory)
+    if not source and row.get('feat_dir') and row.get('cope'):
+        number = int(float(row['cope']))
+        source = str(directory / 'stats' / f'{args.stat}{number}.nii.gz')
+    if not source:
+        raise ValueError(f'Missing {STAT_COLUMNS[args.stat]}')
+    mask = row.get('mask_file') or str(directory / 'mask.nii.gz')
+    if first_psc:
+        mask = row.get('psc_mask_file') or str(directory / 'psc' / 'mask.nii.gz')
+    if args.registration_mode == 'reg-standard':
+        registered = directory / args.registered_subdir
+        subdir = 'psc' if first_psc and args.stat in ('cope', 'varcope') else 'stats'
+        source = str(registered / subdir / Path(source).name)
+        mask = str(registered / 'psc' / 'mask.nii.gz') if first_psc else str(registered / 'mask.nii.gz')
+    stat = image_path(source, args.image_root, args.path_anchor)
+    mask = image_path(mask, args.image_root, args.path_anchor) if args.analysis_mask else None
+    return stat, mask
+
+
+def load_validity_mask(path, stat_img):
+    mask = load_3d(path)
+    if mask.shape != stat_img.shape or not np.allclose(mask.affine, stat_img.affine, rtol=0, atol=1e-5):
+        raise ValueError(f'Analysis mask does not match the statistical image grid: {path}')
+    values = np.asarray(mask.dataobj)
+    return np.isfinite(values) & (values > 0)
+
+def subject_name(value):
+    v = str(value).strip()
+    if not v:
+        return ''
+    return v if v.startswith('sub-') else 'sub-' + v
+
+
+def resolve_template(template, row):
+    values = {k: ('' if v is None else str(v)) for k, v in row.items()}
+    if values.get('subject'):
+        values['subject'] = subject_name(values['subject'])
+    try:
+        return Path(template.format_map(values)).expanduser()
+    except KeyError as e:
+        raise ValueError(f'ROI template needs missing manifest field: {e}') from e
+
+
+def image_path(raw, root, anchor):
+    path = Path(raw).expanduser()
+    if root is None or path.is_file():
+        return path
+    parts = path.parts
+    possible = [anchor] if anchor else ['level1', 'level2', 'level3']
+    indices = [i for i, part in enumerate(parts) if part in possible]
+    if not indices:
+        raise ValueError(f'Cannot remap image path without a level1/level2/level3 directory: {path}')
+    return root / Path(*parts[indices[-1] + 1:])
+
+
+def load_3d(path):
+    img = nib.load(str(path))
+    if len(img.shape) != 3:
+        raise ValueError(f'Expected 3D statistical image: {path} ({img.shape})')
+    return img
+
+
+def roi_definitions(args, roi_img):
+    if args.roi_type == 'labels':
+        if len(roi_img.shape) != 3:
+            raise ValueError('Label atlas must be 3D')
+        if not args.areas:
+            raise ValueError('--areas is required for label atlases')
+        ids = list(dict.fromkeys(args.areas))
+        if any(x < 0 for x in ids):
+            raise ValueError('Label IDs must be nonnegative')
+        definitions = [(str(x), [x], None) for x in ids]
+        if args.combine and len(ids) > 1:
+            definitions.append(('union_' + '_'.join(map(str, ids)), ids, None))
+        return definitions
+    if args.combine:
+        raise ValueError('--combine is supported only for label atlases')
+    if args.roi_type == 'mask':
+        if len(roi_img.shape) != 3:
+            raise ValueError('Binary mask must be 3D')
+        if args.areas:
+            raise ValueError('--areas is not used with --roi-type mask')
+        return [('mask', [], None)]
+    if len(roi_img.shape) == 3:
+        if args.areas:
+            raise ValueError('For a 3D probability map omit --areas')
+        return [('probability', [], None)]
+    if len(roi_img.shape) == 4:
+        indices = list(dict.fromkeys(args.areas or range(roi_img.shape[3])))
+        if any(i < 0 or i >= roi_img.shape[3] for i in indices):
+            raise ValueError(f'4D atlas index out of range 0..{roi_img.shape[3]-1}')
+        return [(str(i), [], i) for i in indices]
+    raise ValueError('Probability atlas must be 3D or 4D')
+
+
+def extract(roi_img, stat_img, args, definitions, validity_mask=None):
+    stat_data = np.asarray(stat_img.dataobj, dtype=np.float64)
+    if args.roi_type == 'probabilistic' and len(roi_img.shape) == 4:
+        volumes = [(name, ids, nib.Nifti1Image(np.asarray(roi_img.dataobj[..., idx]), roi_img.affine))
+                   for name, ids, idx in definitions]
+    else:
+        volumes = [(name, ids, roi_img) for name, ids, _ in definitions]
+    results = []
+    for name, ids, roi_volume in volumes:
+        order = 1 if args.roi_type == 'probabilistic' else 0
+        sampled = resample_from_to(roi_volume, (stat_img.shape, stat_img.affine),
+                                   order=order, mode='constant', cval=0)
+        values = np.asarray(sampled.dataobj, dtype=np.float64)
+        if args.roi_type == 'labels':
+            mask = np.isin(np.rint(values).astype(np.int64), ids)
+            weights = None
+        elif args.roi_type == 'mask':
+            mask = np.isfinite(values) & (values != 0)
+            weights = None
+        else:
+            if np.nanmin(values) < -1e-6:
+                raise ValueError('Probability atlas contains negative values')
+            weights = np.where(np.isfinite(values), np.maximum(values, 0), 0)
+            mask = weights > args.threshold
+        valid = mask & np.isfinite(stat_data)
+        if validity_mask is not None:
+            valid &= validity_mask
+        n_vox = int(mask.sum())
+        n_valid = int(valid.sum())
+        if n_valid >= args.min_voxels:
+            if args.weighted:
+                w = weights[valid]
+                estimate = float(np.average(stat_data[valid], weights=w)) if w.sum() > 0 else math.nan
+            else:
+                estimate = float(stat_data[valid].mean())
+        else:
+            estimate = math.nan
+        results.append((name, ids, n_vox, n_valid, estimate, valid))
+    return results
+
+
+def main():
+    args = arguments()
+    if args.min_voxels < 1:
+        raise SystemExit('--min-voxels must be >= 1')
+    if args.weighted and args.roi_type != 'probabilistic':
+        raise SystemExit('--weighted requires --roi-type probabilistic')
+    if args.roi_type != 'probabilistic' and args.threshold != 0:
+        raise SystemExit('--threshold requires --roi-type probabilistic')
+    if args.threshold < 0:
+        raise SystemExit('--threshold must be >= 0')
+    with args.manifest.open(newline='', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        fields = reader.fieldnames or []
+        required = {'canonical_name'}
+        if not required.issubset(fields):
+            raise SystemExit(f'Missing manifest columns: {sorted(required - set(fields))}')
+        rows = list(reader)
+    try:
+        rows = select_manifest_rows(rows, fields, args)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    # Preserve added unit fields and first-level PSC selections in the output.
+    fields = list(dict.fromkeys(fields + [key for row in rows for key in row]))
+    print(f"Selected {len(rows)} records; units={rows[0]['effect_units']}; "
+          f"registration={args.registration_mode}", file=sys.stderr)
+    output_fields = list(dict.fromkeys(fields + ['roi_id', 'roi_type', 'roi_file', 'statistic',
+        'stat_file', 'analysis_mask_file', 'estimate_units', 'registration_mode', 'mean_estimate', 'n_voxels', 'n_valid_voxels', 'status']))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.save_masks:
+        args.save_masks.mkdir(parents=True, exist_ok=True)
+    roi_cache = {}
+    issues = 0
+    written = 0
+    with args.output.open('w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=output_fields, delimiter='\t')
+        writer.writeheader()
+        for row_index, row in enumerate(rows):
+            roi_path = None
+            stat_path = None
+            mask_path = None
+            try:
+                roi_path = resolve_template(args.roi, row)
+                stat_path, mask_path = statistical_inputs(row, args)
+                if not roi_path.is_file():
+                    raise FileNotFoundError(roi_path)
+                if not stat_path.is_file():
+                    raise FileNotFoundError(stat_path)
+                if str(roi_path) not in roi_cache:
+                    roi_cache[str(roi_path)] = nib.load(str(roi_path))
+                roi_img = roi_cache[str(roi_path)]
+                definitions = roi_definitions(args, roi_img)
+                stat_img = load_3d(stat_path)
+                validity = load_validity_mask(mask_path, stat_img) if mask_path is not None else None
+                results = extract(roi_img, stat_img, args, definitions, validity)
+            except (OSError, ValueError, KeyError, nib.filebasedimages.ImageFileError) as exc:
+                issues += 1
+                print(f'WARNING row {row_index+1}: {exc}', file=sys.stderr)
+                # Emit a missing-data row rather than silently skipping a contrast.
+                results = [('', [], 0, 0, math.nan, None)]
+                error = 'missing_or_invalid_input'
+            else:
+                error = None
+            for roi_id, ids, n_vox, n_valid, estimate, mask in results:
+                status = error or ('ok' if math.isfinite(estimate) else 'empty_roi')
+                if status == 'empty_roi':
+                    issues += 1
+                    print(f'WARNING row {row_index+1} ROI {roi_id}: {n_valid} valid voxels', file=sys.stderr)
+                output = dict(row)
+                output.update(roi_id=roi_id, roi_type=args.roi_type,
+                    roi_file=str(roi_path) if roi_path else '', statistic=args.stat,
+                    stat_file=str(stat_path) if stat_path else '',
+                    analysis_mask_file=str(mask_path) if mask_path else '',
+                    estimate_units=('dimensionless' if args.stat in ('tstat', 'zstat') else
+                                    ('percent_squared' if args.stat == 'varcope' else 'percent')
+                                    if row['effect_units'] == 'psc' else
+                                    ('raw_squared' if args.stat == 'varcope' else 'raw')),
+                    registration_mode=args.registration_mode,
+                    mean_estimate=f'{estimate:.10g}' if math.isfinite(estimate) else '',
+                    n_voxels=n_vox, n_valid_voxels=n_valid, status=status)
+                writer.writerow(output)
+                written += 1
+                if args.save_masks and mask is not None:
+                    safe_roi = re.sub(r'[^a-zA-Z0-9_-]+', '_', roi_id)
+                    mask_file = args.save_masks / f'row-{row_index+1:05d}_roi-{safe_roi}.nii.gz'
+                    nib.save(nib.Nifti1Image(mask.astype(np.uint8), stat_img.affine), str(mask_file))
+    print(f'Wrote {written} rows to {args.output}; {issues} issues', file=sys.stderr)
+    if args.strict and issues:
+        raise SystemExit(1)
+
+
+if __name__ == '__main__':
+    main()
