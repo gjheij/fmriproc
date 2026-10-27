@@ -5,6 +5,7 @@ from lazyfmri import (
     plotting,
 )
 import os
+import re
 import json
 import datetime
 import numpy as np
@@ -171,6 +172,14 @@ class ExtractFromROIs():
             # try to read subject/run info from file
             subject = self.subject
             self.run = ix+1
+            if isinstance(func, str):
+                # FEAT stores the BIDS entities in the containing .feat folder.
+                # Prefer the filename, then the closest containing directory.
+                for component in reversed(os.path.normpath(func).split(os.sep)):
+                    match = re.search(r"(?:^|_)run-([A-Za-z0-9]+)(?=_|\.|$)", component)
+                    if match:
+                        self.run = match.group(1)
+                        break
 
             # load data
             if isinstance(func, str):
@@ -257,7 +266,7 @@ class ExtractFromROIs():
                 
                 try:
                     bids_comps = utils.split_bids_components(roi)
-                    for key in ["ses", "task", "run"]:
+                    for key in ["ses", "task"]:
                         if key in list(bids_comps.keys()):
                             setattr(self, key, bids_comps[key])
                 except Exception:
@@ -472,7 +481,7 @@ class ExtractSubjects(ExtractFromROIs):
     def read_tcs_file(self):
 
         utils.verbose(f"Reading file: {self.func}", self.verbose)
-        self.df_func = pd.read_csv(self.func, dtype={"subject": str}) # bit dodgy..
+        self.df_func = pd.read_csv(self.func, dtype={"subject": str, "run": str})
         self.df_func.set_index(["subject","run","t"], inplace=True)
 
         # read subject IDs from dataframe
@@ -676,7 +685,7 @@ def format_onsets(
             onset_df = pd.read_csv(tsv, sep='\t')
             selected_columns = onset_df[["onset", "trial_type"]]
             onset_df = selected_columns.copy()
-            onset_df['subject'], onset_df['run'] =  subj, int(run)
+            onset_df['subject'], onset_df['run'] =  subj, str(run)
             onset_df = onset_df.rename(columns={"trial_type": "event_type"})
             onset_df['onset'] = onset_df['onset'].astype(float)
             onset_df['event_type'] = onset_df['event_type'].astype(str)  
