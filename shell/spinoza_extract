@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Site setup is optional, as in the FEAT queue wrapper.
+if [[ -n "${SETUP_FILE:-}" && -f "${SETUP_FILE}" ]]; then
+  source "${SETUP_FILE}"
+fi
+
+exec python3 - "$(realpath "$0")" "$@" <<'SPINOZA_EXTRACT_PY'
+# BEGIN_EXTRACT_PYTHON
+"""Subject queue for call_extract; standard-library-only orchestration."""
+import argparse
+import concurrent.futures
+import datetime
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+def stamp(message, log=None):
+    line = f'{datetime.datetime.now().astimezone().isoformat(timespec="seconds")} {message}'
+    print(line, flush=True)
+    if log is not None:
+        with Path(log).open('a') as stream:
+            stream.write(line + '\n')
+
+
+def identity(path):
+    path = Path(path).resolve()
+    stat = path.stat()
+    return dict(path=str(path), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
+
+
+def canonical_subject(value):
+    value = value.removeprefix('sub-')
+    if not re.fullmatch(r'[A-Za-z0-9]+', value):
+        raise ValueError(f'Invalid BIDS subject: {value}')
+    return str(int(value)) if value.isdigit() else value
+
+
+def file_subject(path):
+    matches = set(re.findall(r'(?:^|[/_])sub-([A-Za-z0-9]+)(?=[_/\.]|$)', str(path)))
+    if len(matches) > 1:
+        raise ValueError(f'Conflicting subject entities in {path}')
+    return next(iter(matches), None)
+
+
+def values(items):
+    return [value for item in items for value in re.split(r'[,\s]+', item) if value]
+
+
+def natural(value):
+    return [(0, int(part)) if part.isdigit() else (1, part) for part in re.split(r'(\d+)', value)]
+
+
+def template(value, subject):
+    return value.replace('{subject}', 'sub-' + subject).replace('{subject_id}', subject)
+
+
+def native_options(arguments):
+    """Consume only options managed by the queue; preserve all other argv tokens."""
+    managed = {'-p': 'project', '--proj': 'project', '-f': 'input', '--ft': 'input',
+               '-o': 'output', '--out': 'output', '-b': 'base', '--base': 'base',
+               '-i': 'subjects', '--incl-sub': 'subjects', '-j': 'jobs', '--jobs': 'jobs',
+               '-r': 'rois', '--rois': 'rois'}
+    found, remaining = {}, []
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
+        key, separator, value = token.partition('=')
+        if key in ('--func', '--in-file'):
+            raise ValueError('--func/--in-file bypass subject discovery; use call_extract directly for those inputs.')
+        if key in ('--fprep', '--pybest'):
+            found['pipeline'] = 'fmriprep' if key == '--fprep' else 'pybest'
+        elif key in managed:
+            if not separator:
+                index += 1
+                if index >= len(arguments):
+                    raise ValueError(f'{key} requires a value')
+                value = arguments[index]
+            name = managed[key]
+            if name == 'subjects' and name in found:
+                value = found[name] + ',' + value
+            found[name] = value
+        else:
+            remaining.append(token)
+        index += 1
+    return found, remaining
+
+
+def get_native(arguments, names):
+    result = None
+    for index, token in enumerate(arguments):
+        key, separator, value = token.partition('=')
+        if key in names:
+            if not separator and index + 1 >= len(arguments):
+                raise ValueError(f'{key} requires a value')
+            result = value if separator else arguments[index + 1]
+    return result
+
+
+def discover(directory, native):
+    """Discover actual input files, not arbitrary subject-like output names."""
+    if directory.name == 'fmriprep':
+        pattern = '*desc-preproc_bold.nii.gz'
+    elif directory.name == 'pybest':
+        pattern = '*desc-pybest_bold.nii.gz'
+        space = get_native(native, ['--space'])
+        if space in ('fsaverage', 'fsnative'):
+            pattern = '*desc-denoised_bold.npy'
+    else:
+        pattern = 'filtered_func_data.nii.gz'
+    subjects = {}
+    for path in sorted(directory.rglob(pattern)):
+        if path.name.startswith('._') or not path.is_file():
+            continue
+        subject = file_subject(path.relative_to(directory))
+        if subject is not None:
+            subjects.setdefault(subject, []).append(str(path.resolve()))
+    return subjects
+
+
+def expected_files(directory, base, fit):
+    names = ['tcs.csv', 'settings.json']
+    if fit:
+        names += ['hrfs.csv', 'pars_run.csv', 'pars_avg.csv', 'pars_evs.csv', 'onsets.csv']
+    return [directory / f'{base}_desc-{name}' for name in names]
+
+
+def run_worker(config_path, index):
+    config = json.loads(Path(config_path).read_text())
+    job = config['jobs'][index]
+    subject = job['subject']
+    directory = Path(job['output'])
+    locks = Path(config['output_root']) / '.locks'
+    locks.mkdir(parents=True, exist_ok=True)
+    lock_path = locks / f'sub-{subject}.lock'
+    with lock_path.open('a+') as lock:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError(f'Another extraction owns sub-{subject}; no outputs modified.')
+        rois = template(config['rois'], subject)
+        roi_inputs = []
+        for value in rois.split(','):
+            path = Path(value).expanduser()
+            if not path.exists():
+                raise FileNotFoundError(f'ROI not found: {path}')
+            if path.is_dir():
+                roi_inputs.extend(identity(item) for item in sorted(path.rglob('*')) if item.is_file())
+            else:
+                roi_inputs.append(identity(path))
+        command = [config['command'], *[template(value, subject) for value in config['native']],
+                   '--proj', config['project'], '--ft', config['input'],
+                   '--rois', rois, '--base', config['base'], '--out', str(directory),
+                   '--incl-sub', 'sub-' + subject, '--jobs', '1']
+        inputs = [identity(path) for path in job['inputs']]
+        if config['fit']:
+            events = Path(config['project']) / ('sub-' + subject)
+            inputs += [identity(path) for path in sorted(events.rglob('*_events.tsv'))]
+        marker = directory / '.spinoza_extract.json'
+        provenance = dict(command=command, inputs=inputs, rois=roi_inputs,
+                          executable=identity(config['command']), cpus=config['cpus'], working_directory=config['working_directory'])
+        required = expected_files(directory, config['base'], config['fit'])
+        if marker.is_file() and not config['overwrite']:
+            saved = json.loads(marker.read_text())
+            if saved.get('provenance') == provenance and all(path.is_file() and path.stat().st_size for path in required):
+                if saved.get('outputs') == [identity(path) for path in required]:
+                    stamp(f'Reusing completed extraction: sub-{subject}: {directory}')
+                    return 0
+            raise ValueError(f'Incomplete or changed extraction: {directory}; use --overwrite to rerun this subject.')
+        if directory.exists() and any(directory.iterdir()) and not config['overwrite']:
+            raise ValueError(f'Output exists without matching completion provenance: {directory}; use --overwrite.')
+        directory.mkdir(parents=True, exist_ok=True)
+        marker.unlink(missing_ok=True)
+        environment = os.environ.copy()
+        environment['MPLBACKEND'] = 'Agg'
+        # The inner subject pool is one; allocated CPUs can serve numeric libraries.
+        for name in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
+            environment[name] = str(config['cpus'])
+        stamp('Running: ' + shlex.join(command))
+        subprocess.run(command, check=True, env=environment, cwd=config["working_directory"])
+        missing = [str(path) for path in required if not path.is_file() or not path.stat().st_size]
+        if missing:
+            raise ValueError('call_extract returned without required outputs: ' + ', '.join(missing))
+        fd, temporary = tempfile.mkstemp(prefix='.completion.', suffix='.json', dir=directory)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                json.dump(dict(provenance=provenance, outputs=[identity(path) for path in required]), stream, indent=2)
+                stream.write('\n')
+            os.replace(temporary, marker)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+        stamp(f'Completed extraction: sub-{subject}: {directory}')
+    return 0
+
+
+def arguments(argv):
+    if '--' in argv:
+        split = argv.index('--')
+        wrapper, native = argv[:split], argv[split + 1:]
+    else:
+        wrapper, native = argv, []
+    parser = argparse.ArgumentParser(
+        prog="spinoza_extract",
+        description='Throttled subject-wise wrapper for call_extract time-course extraction and HRF fitting.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=r'''Examples:
+  # Six local subjects at a time, shared ROI masks, extraction only:
+  spinoza_extract --local -m 6 /data/study -- \
+    --rois /data/rois/left.nii.gz,/data/rois/right.nii.gz \
+    --base choices --no-fit
+
+  # Slurm array with at most 20 running subject jobs:
+  spinoza_extract --sge -m 20 -j 1 -q intelsr_short /data/study -- \
+    --rois '/data/rois/{subject}/roi_T1w.nii.gz' \
+    --base choices --t1 --no-fit
+
+  # Select subjects, use fMRIPrep input, and inspect the generated plan:
+  spinoza_extract --dry-run -s 01,02 -m 2 /data/study -- \
+    --fprep --t1 --task aversivechoice \
+    --rois '/data/rois/{subject}/roi_T1w.nii.gz' --base choices
+
+  # Pass native arguments using the Spinoza -x convention:
+  spinoza_extract --sge -m 10 -b choices /data/study \
+    -x '--rois /data/rois/roi.nii.gz --no-fit --dec "interval=-2>25"'
+
+Notes:
+  One job processes all selected runs for one subject. --jobs is fixed at 1
+  inside call_extract, avoiding a nested subject pool. -j reserves CPUs per job
+  and caps numeric-library threads. -m bounds simultaneous subject jobs.
+  {subject} becomes sub-01; {subject_id} becomes 01.
+  Each subject writes <output-root>/sub-01/<base>_desc-*. Existing complete,
+  unchanged jobs are reused. --overwrite reruns only those selected subjects.
+  HRF fitting, if enabled, is per subject; no group fit or group plot is created.
+  --sge is a compatibility spelling for Slurm, not a qsub/SoGE backend.
+  The submitted array survives SSH disconnects; there is no login-side dispatcher.
+  For array or submission limits, select smaller subject subsets with -s.
+  This wraps call_extract, not the manifest-based call_featextract.
+''')
+    parser.add_argument('project', nargs='?', default=os.environ.get('DIR_DATA_HOME'))
+    parser.add_argument('-s', '--subject', action='append', default=[])
+    parser.add_argument('-m', '--max-running', type=int, default=6)
+    parser.add_argument('-j', '--cpus', type=int, default=1)
+    parser.add_argument('-q', '--queue', default=os.environ.get('SGE_QUEUE_LONG', 'main'))
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--sge', '--slurm', dest='slurm', action='store_true')
+    modes.add_argument('--local', action='store_true', help='Local worker pool (default).')
+    parser.add_argument('-f', '--input-dir', type=Path)
+    parser.add_argument('-o', '--output-dir', type=Path, help='Output root; each subject gets its own subdirectory.')
+    parser.add_argument('-b', '--base')
+    parser.add_argument('-x', '--extra', action='append', default=[], help='Shell-quoted call_extract arguments, parsed without eval.')
+    parser.add_argument('--mem', help='Optional Slurm memory per subject job; SBATCH_MEM_PER_NODE is also respected.')
+    parser.add_argument('--time', help='Optional Slurm wall time per subject job.')
+    parser.add_argument('--logs-dir', type=Path)
+    parser.add_argument('--job-name', default='roi_extract')
+    parser.add_argument('--overwrite', action='store_true')
+    parser.add_argument('--dry-run', action='store_true', help='Write an immutable plan and print commands without running or submitting extraction.')
+    args = parser.parse_args(wrapper)
+    if args.max_running < 1 or args.cpus < 1:
+        parser.error('--max-running and --cpus must be positive')
+    native = [item for value in args.extra for item in shlex.split(value)] + native
+    return args, native
+
+
+def main(argv, wrapper):
+    args, native = arguments(argv)
+    managed, native = native_options(native)
+    project = args.project or managed.get('project')
+    if not project:
+        raise ValueError('Provide a project root or set DIR_DATA_HOME.')
+    project = Path(project).expanduser().resolve()
+    if not project.is_dir():
+        raise ValueError(f'Project root does not exist: {project}')
+    if managed.get('project') and Path(managed['project']).expanduser().resolve() != project:
+        raise ValueError('Wrapper project and native --proj disagree.')
+    base = args.base or managed.get('base')
+    if not base or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', base) or base in ('.', '..'):
+        raise ValueError('Provide a simple output basename with --base, before or after --.')
+    rois = managed.get('rois')
+    if not rois:
+        raise ValueError('Provide --rois after -- or inside -x.')
+    directory = args.input_dir or managed.get('input')
+    if not directory:
+        pipeline = managed.get('pipeline')
+        directory = project / 'derivatives' / pipeline if pipeline else project / 'derivatives/feat/level1'
+    directory = Path(directory).expanduser().resolve()
+    if not directory.is_dir():
+        raise ValueError(f'Input directory does not exist: {directory}')
+    space_flags = ['--space', '--t1', '--fsl-mni', '--fprep-mni']
+    if directory.name in ('fmriprep', 'pybest') and not any(item.split('=')[0] in space_flags for item in native):
+        native += ['--space', 'func']
+    inputs = discover(directory, native)
+    all_subjects = set(inputs)
+    if not inputs:
+        raise ValueError(f'No subject BOLD inputs found in {directory}')
+    chosen = values(args.subject + ([managed['subjects']] if managed.get('subjects') else []))
+    if chosen:
+        wanted = {canonical_subject(value) for value in chosen}
+        found = {canonical_subject(value) for value in inputs}
+        missing = wanted - found
+        if missing:
+            raise ValueError(f'Requested subjects have no discovered inputs: {sorted(missing)}')
+        inputs = {key: value for key, value in inputs.items() if canonical_subject(key) in wanted}
+    for subject in inputs:
+        overlap = [other for other in all_subjects if other != subject and other.startswith(subject)]
+        if overlap:
+            raise ValueError(f'call_extract uses substring subject matching; sub-{subject} overlaps {overlap}. Use an isolated input directory to avoid mixing subjects.')
+    aliases = {}
+    for subject in inputs:
+        aliases.setdefault(canonical_subject(subject), []).append(subject)
+    if any(len(value) > 1 for value in aliases.values()):
+        raise ValueError('Ambiguous subject padding in inputs; use a single BIDS dataset.')
+    executable = shutil.which('call_extract')
+    if not executable and not args.dry_run:
+        raise ValueError('call_extract is not on PATH; activate the fmriproc environment.')
+    rois = ",".join(str(Path(value).expanduser().absolute()) for value in rois.split(","))
+    output_root = Path(args.output_dir or managed.get('output') or project / 'derivatives/roi_extract' / base).expanduser().resolve()
+    logs = Path(args.logs_dir or project / 'code/logs').expanduser().resolve()
+    logs.mkdir(parents=True, exist_ok=True)
+    submission = Path(tempfile.mkdtemp(prefix='spinoza_extract_submission.', dir=logs))
+    log = submission / 'submission.log'
+    jobs = [dict(subject=subject, inputs=inputs[subject], output=str(output_root / ('sub-' + subject)))
+            for subject in sorted(inputs, key=natural)]
+    config = dict(jobs=jobs, project=str(project), input=str(directory), base=base,
+                  rois=rois, native=native, cpus=args.cpus, output_root=str(output_root),
+                  fit='--no-fit' not in native, overwrite=args.overwrite, command=executable or 'call_extract',
+                  working_directory=str(Path.cwd()))
+    config_path = submission / 'jobs.json'
+    config_path.write_text(json.dumps(config, indent=2) + '\n')
+    source = wrapper.read_text().split('\n# BEGIN_EXTRACT_PYTHON\n', 1)[1].rsplit('\nSPINOZA_EXTRACT_PY', 1)[0]
+    worker = submission / 'worker.py'
+    worker.write_text(source + '\n')
+    runner = submission / 'runner.sh'
+    runner.write_text('#!/usr/bin/env bash\nset -euo pipefail\n'
+                      'if [[ -n "${SETUP_FILE:-}" && -f "${SETUP_FILE}" ]]; then source "${SETUP_FILE}"; fi\n'
+                      'index="${1:-${SLURM_ARRAY_TASK_ID:?Missing array task index}}"\n'
+                      'exec python3 ' + shlex.quote(str(worker)) + ' --_worker ' + shlex.quote(str(config_path)) + ' "$index"\n')
+    runner.chmod(0o755)
+    with (submission / 'subjects.tsv').open('w') as stream:
+        for index, job in enumerate(jobs):
+            stream.write(f'{index}\tsub-{job["subject"]}\n')
+    stamp(f'Extraction jobs: {len(jobs)}; concurrency={args.max_running}; CPUs/job={args.cpus}', log)
+    stamp(f'Output root: {output_root}', log)
+    stamp(f'Log directory: {submission}', log)
+    if args.dry_run:
+        for index, job in enumerate(jobs):
+            subject = job['subject']
+            command = [config['command'], *[template(value, subject) for value in native], '--proj', str(project),
+                       '--ft', str(directory), '--rois', template(rois, subject), '--base', base,
+                       '--out', job['output'], '--incl-sub', 'sub-' + subject, '--jobs', '1']
+            stamp(f'[{index}: sub-{subject}] {shlex.join(command)}', log)
+        stamp('Dry run: no extraction or Slurm submission performed.', log)
+        return 0
+    if args.slurm:
+        if not shutil.which('sbatch'):
+            raise ValueError('sbatch is not on PATH.')
+        # Array indices start at zero, allowing MaxArraySize entries in one array.
+        if shutil.which('scontrol'):
+            result = subprocess.run(['scontrol', 'show', 'config'], text=True, capture_output=True)
+            match = re.search(r'\bMaxArraySize\s*=\s*(\d+)', result.stdout)
+            if match and len(jobs) > int(match[1]):
+                raise ValueError(f'{len(jobs)} subjects exceed MaxArraySize={match[1]}; submit smaller -s subsets.')
+        command = ['sbatch', '--parsable', f'--partition={args.queue}',
+                   f'--array=0-{len(jobs)-1}%{args.max_running}', f'--cpus-per-task={args.cpus}',
+                   f'--job-name={args.job_name}', f'--output={submission}/extract_%A_%a.out', '--export=ALL',
+                   '--chdir=' + str(Path.cwd())]
+        if args.mem:
+            command += [f'--mem={args.mem}']
+        if args.time:
+            command += [f'--time={args.time}']
+        command.append(str(runner))
+        stamp('Submitting: ' + shlex.join(command), log)
+        result = subprocess.run(command, check=True, text=True, capture_output=True)
+        if result.stderr:
+            print(result.stderr, end='', file=sys.stderr)
+        job_id = result.stdout.strip().split(';')[0]
+        if not job_id.isdigit():
+            raise ValueError(f'Unexpected sbatch output: {result.stdout.strip()}')
+        stamp(f'Submitted Slurm array {job_id}; the array continues independently of this terminal.', log)
+        stamp(f'Log directory: {submission}', log)
+        return 0
+    def local(index):
+        path = submission / f'extract_sub-{jobs[index]["subject"]}.out'
+        stamp(f'Starting sub-{jobs[index]["subject"]}; log: {path}', log)
+        with path.open('w') as stream:
+            result = subprocess.run(['bash', str(runner), str(index)], stdout=stream, stderr=subprocess.STDOUT)
+        stamp(f'sub-{jobs[index]["subject"]}: exit={result.returncode}', log)
+        return result.returncode
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(args.max_running, len(jobs))) as pool:
+        statuses = list(pool.map(local, range(len(jobs))))
+    failures = sum(status != 0 for status in statuses)
+    stamp(f'Finished {len(jobs)} subject job(s); {failures} failed.', log)
+    stamp(f'Log directory: {submission}', log)
+    return int(failures > 0)
+
+
+if __name__ == '__main__':
+    try:
+        if sys.argv[1:2] == ['--_worker']:
+            sys.exit(run_worker(Path(sys.argv[2]), int(sys.argv[3])))
+        wrapper_path = Path(sys.argv.pop(1))
+        sys.exit(main(sys.argv[1:], wrapper_path))
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+        if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+            print(error.stderr, end='', file=sys.stderr)
+        print(f'ERROR: {error}', file=sys.stderr, flush=True)
+        sys.exit(1)
+SPINOZA_EXTRACT_PY
+
