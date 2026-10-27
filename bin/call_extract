@@ -49,6 +49,9 @@ Optional (flags with defaults):
                   (default = opj(proj_dir, "derivatives", "roi_extract"))
   -n|--vox        number of highest/lowest voxels to select from a stats/covariate image (de-
                   fault = 15 highest). To fetch "lowest" voxels, use "--loweset"
+  --bsl          baseline value passed to lazyfmri.utils.percent_change (default = 15).
+                  Uses the same baseline convention as roi.ExtractFromROIs.extract_data.
+                  Use "full" for PSC relative to the full time-series mean.
   -j|--jobs       number of jobs/cpus to use for timecourse extraction. Default is however many
                   subjects are included (generally about 8). 
                   If you're submitting this script to a cluster, the number of cores requested
@@ -58,8 +61,6 @@ Optional (flags with defaults):
                   to take everything it can find, but it's useful to have some control if you
                   have multiple distinct paradigms in your session (e.g., HRF mapper & pRF map-
                   per)
-  --bsl           baseline value passed to lazyfmri.utils.percent_change (default = 15).
-                  Uses the same baseline convention as roi.ExtractFromROIs.extract_data.
   --cmap          matplotlib colormap name to use for plotting, default = "Set1". If you want
                   custom colors, use the "--colors" flag. This function is used before
                   "--colors" in case both as specified.
@@ -397,11 +398,11 @@ if __name__ == "__main__":
             n_vox = int(arg)
         elif opt == "--bsl":
             try:
-                bsl = int(arg)
-                if bsl < 0:
+                bsl = "full" if arg.lower() == "full" else int(arg)
+                if bsl != "full" and bsl < 0:
                     raise ValueError()
             except ValueError:
-                sys.exit("ERROR: --bsl must be a nonnegative integer")
+                sys.exit("ERROR: --bsl must be 'full' or a nonnegative integer")
         elif opt in ("--verbose"):
             verbose = True 
         elif opt in ("--subjects"):

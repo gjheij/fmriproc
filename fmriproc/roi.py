@@ -303,8 +303,9 @@ class ExtractFromROIs():
         nr: int, optional
             number of voxels to extract from data in case the input is float, by default 15.
             if the input is binary, we will take the entire ROI.
-        bsl: int, optional
-            amount of time to use to calculate baseline for percent signal change conversion, by default 15s.
+        bsl: int or str, optional
+            Baseline passed to utils.percent_change, by default 15. Use "full"
+            for 100 * (tc - mean(tc)) / mean(tc) over the full time series.
         highest: bool, optional
             If True, we select *nr* HIGHEST voxels from roi. If False, we select the *nr* LOWEST. By default True
         psc: bool, optional
@@ -338,6 +339,11 @@ class ExtractFromROIs():
             psc = False
 
         if psc:
+            if isinstance(bsl, str) and bsl.lower() == "full":
+                baseline = tc.mean()
+                if not np.isfinite(baseline) or baseline <= 0:
+                    raise ValueError("Full time-series PSC requires a finite, positive mean signal")
+                return 100 * (tc - baseline) / baseline
             psc = utils.percent_change(
                 tc,
                 0,
