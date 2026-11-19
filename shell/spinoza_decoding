@@ -10,6 +10,10 @@ spinoza_decoding
 
 SLURM-array launcher for subject-wise PANIC jobs.
 
+Submission files are retained in a unique directory under
+<project root>/logs/panic_submissions. Remove a submission directory only
+after all of its jobs have finished.
+
 Usage:
   spinoza_decoding [arguments] [options] <project root> -- [PANIC/call_panic-style arguments]
 
@@ -205,7 +209,14 @@ while [[ $i -lt ${#panic_args[@]} ]]; do
   i=$((i + 1))
 done
 
-subject_file="${work_dir}/panic_subjects.txt"
+# Queued jobs read these files later. Atomically reserve a fresh directory
+# for every invocation, and retain it even after this launcher exits.
+submission_root="${work_dir}/panic_submissions"
+if ! mkdir -p "${submission_root}"; then
+  exit 1
+fi
+submission_dir=$(mktemp -d "${submission_root}/submission.XXXXXXXXXX") || exit 1
+subject_file="${submission_dir}/panic_subjects.txt"
 
 if [[ -n "${sub}" ]]; then
   : > "${subject_file}"
@@ -239,7 +250,7 @@ if [[ "${n_subjects}" -eq 0 ]]; then
   exit 1
 fi
 
-runner="${work_dir}/panic_array_runner.sh"
+runner="${submission_dir}/panic_array_runner.sh"
 
 cat > "${runner}" <<EOF_RUNNER
 #!/usr/bin/env bash
@@ -326,7 +337,10 @@ print_cmd "${cmd[@]}"
 "${cmd[@]}"
 EOF_RUNNER
 
-chmod +x "${runner}"
+# Finish all writes before submission; later invocations use a new directory.
+chmod 444 "${subject_file}" && chmod 555 "${runner}" || exit 1
+
+echo "Submission directory: ${submission_dir}"
 
 array_spec="1-${n_subjects}%${max_running}"
 
@@ -341,7 +355,7 @@ if [[ "${dry_run}" -eq 1 ]]; then
   cat "${runner}"
   echo
   echo "Would submit:"
-  echo "sbatch --partition=${SGE_QUEUE} --array=${array_spec} --cpus-per-task=${n_cpus} --job-name=panic --output=${work_dir}/panic_%A_%a.out ${runner}"
+  echo "sbatch --partition=${SGE_QUEUE} --array=${array_spec} --cpus-per-task=${n_cpus} --job-name=panic --output=${submission_dir}/panic_%A_%a.out ${runner}"
   exit 0
 fi
 
@@ -369,7 +383,7 @@ else
     --array="${array_spec}" \
     --cpus-per-task="${n_cpus}" \
     --job-name="panic" \
-    --output="${work_dir}/panic_%A_%a.out" \
+    --output="${submission_dir}/panic_%A_%a.out" \
     "${runner}"
 fi
 
