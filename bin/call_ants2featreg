@@ -34,7 +34,8 @@ usage() {
 call_ants2featreg
 
 Create an FSL FEAT-style reg directory from ANTs/fMRIPrep registration outputs. This script converts
-a T1w-to-MNI ANTs transform and a BOLD-to-T1w transform into the files expected by FEAT, including
+a T1w-to-MNI ANTs transform into FSL anatomical registration files. Optional BOLD inputs add
+functional registration files for FEAT, including
 highres2standard.mat, highres2standard_warp.nii.gz, example_func2highres.mat, and the corresponding
 resampled images.
 
@@ -43,8 +44,6 @@ Usage:
 
 Mandatory (required input):
   --t1w <image>                  T1w/highres image
-  --boldref <image>              FEAT example_func/BOLD reference image
-  --bold-to-t1w <transform>      BOLD-to-T1w affine transform; can be ANTs .txt or .mat
 
   Either provide:
   --t1w-to-mni-affine <mat>      ANTs T1w-to-MNI affine transform, e.g.,
@@ -55,6 +54,12 @@ Mandatory (required input):
   Or provide:
   --t1w-to-mni-h5 <h5>           Composite ANTs/fMRIPrep .h5 transform. This will be
                                  disassembled into affine and nonlinear warp components.
+
+Optional functional inputs (provide both together):
+  --boldref <image>              FEAT example_func/BOLD reference image
+  --bold-to-t1w <transform>      BOLD-to-T1w affine transform; ANTs .txt or .mat
+                                 Required with --feat-dir. Without either functional input or
+                                 --feat-dir, only anatomical registration files are created.
 
 Optional (flags with defaults):
   --out-dir <dir>                Output reg directory. If --feat-dir is provided and --out-dir is
@@ -73,6 +78,9 @@ Optional (flags with defaults):
   --stats-subdir stats|psc|both   Select native statistics to register. Default: stats.
                                  PSC outputs go to reg_standard/psc with their valid mask.
                                  Level-2 PSC analyses keep their statistics in stats.
+  --inverse                      Also create standard2highres.mat, standard2highres_warp.nii.gz,
+                                 and standard2highres.nii.gz (standard/template -> T1w).
+                                 These anatomical products also use --anat-cache-dir.
   --clean                        Remove temporary files after successful completion
 
 Caching:
@@ -97,14 +105,24 @@ Outputs:
 
     highres.nii.gz               Copy of the T1w image
     standard.nii.gz              Copy of the MNI template
-    example_func.nii.gz          Copy of the BOLD reference image
+    example_func.nii.gz          Copy of the BOLD reference image (functional mode only)
     highres2standard.mat         T1w-to-MNI affine converted to FSL format
     highres2standard_warp.nii.gz Combined T1w-to-MNI affine/nonlinear warp in FSL format
     highres2standard.nii.gz      T1w image resampled to standard space
-    example_func2highres.mat     BOLD-to-T1w affine converted to FSL format
-    example_func2highres.nii.gz  BOLD reference resampled to T1w space
+    standard2highres.mat         Inverse affine only (--inverse)
+    standard2highres_warp.nii.gz Complete inverse warp including affine (--inverse)
+    standard2highres.nii.gz      Standard template resampled to T1w space (--inverse)
+    example_func2highres.mat     BOLD-to-T1w affine converted to FSL format (functional mode only)
+    example_func2highres.nii.gz  BOLD reference resampled to T1w space (functional mode only)
 
 Example:
+  # Create anatomical FSL registration files without BOLD inputs or a FEAT directory
+  call_ants2featreg \\
+    --t1w sub-002_T1w.nii.gz \\
+    --t1w-to-mni-h5 sub-002_from-T1w_to-MNI152NLin2009cAsym_xfm.h5 \\
+    --template MNI152NLin2009cAsym_brain.nii.gz \\
+    --out-dir sub-002
+
   # Create a reg directory directly inside a FEAT directory
   call_ants2featreg \\
     --t1w sub-002_T1w.nii.gz \\
@@ -201,6 +219,7 @@ update_featreg=false
 apply_featreg=false
 stats_subdir="stats"
 clean=false
+create_inverse=false
 t1w_to_mni_h5=""
 tmp_transform_base=""
 
@@ -234,6 +253,8 @@ while [[ $# -gt 0 ]]; do
       update_featreg=true; 
       apply_featreg=true; 
       shift ;;      
+    --inverse)
+      create_inverse=true; shift ;;
     --clean)
       clean=true; shift ;;
     -h|--help)
@@ -295,7 +316,10 @@ need_cmd c3d_affine_tool
 need_cmd wb_command
 need_cmd convertwarp
 need_cmd applywarp
-need_cmd ConvertTransformFile
+if [[ "$create_inverse" == true ]]; then
+  need_cmd invwarp
+  need_cmd convert_xfm
+fi
 
 if [[ "$apply_featreg" == true ]]; then
   need_cmd call_antsapplytransforms
@@ -308,10 +332,27 @@ if [[ "$update_featreg" == true ]]; then
   [[ -n "$feat_dir" ]] || die "--feat-dir is required when using --update-featreg"
 fi
 
+# Functional inputs are optional only as a pair. A FEAT target needs the full
+# functional registration; a standalone out-dir may contain anatomy only.
+functional_mode=false
+if [[ -n "$boldref" || -n "$bold_to_t1w" || -n "$feat_dir" ]]; then
+  [[ -n "$boldref" ]] || die "--boldref is required with --bold-to-t1w or --feat-dir"
+  [[ -n "$bold_to_t1w" ]] || die "--bold-to-t1w is required with --boldref or --feat-dir"
+  functional_mode=true
+fi
+
 need_file "$t1w"
-need_file "$boldref"
-need_file "$bold_to_t1w"
 need_file "$template"
+if [[ "$functional_mode" == true ]]; then
+  need_file "$boldref"
+  need_file "$bold_to_t1w"
+  if [[ "$bold_to_t1w" == *.txt ]]; then
+    need_cmd ConvertTransformFile
+  fi
+  echo "Registration mode: anatomical and functional"
+else
+  echo "Registration mode: anatomical only"
+fi
 
 if [[ -n "$t1w_to_mni_h5" ]]; then
   need_cmd CompositeTransformUtil
@@ -451,6 +492,51 @@ else
   fi
 fi
 
+# Invert the complete affine/nonlinear FSL warp on the native T1w grid.
+# Keep this outside the forward-cache check so existing forward products can
+# gain inverse products without repeating the forward conversion.
+if [[ "$create_inverse" == true ]]; then
+  if [[ ! -f "${anat_dir}/standard2highres.mat" ]]; then
+    echo "Inverting T1w-to-standard affine"
+    cmd=(
+      convert_xfm
+      -omat "${anat_dir}/standard2highres.mat"
+      -inverse "${anat_dir}/highres2standard.mat"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/standard2highres.mat"
+  fi
+
+  if [[ ! -f "${anat_dir}/standard2highres_warp.nii.gz" ]]; then
+    echo "Inverting complete T1w-to-standard warp"
+    cmd=(
+      invwarp
+      --warp="${anat_dir}/highres2standard_warp.nii.gz"
+      --ref="${anat_dir}/highres.nii.gz"
+      --out="${anat_dir}/standard2highres_warp.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/standard2highres_warp.nii.gz"
+  fi
+
+  if [[ ! -f "${anat_dir}/standard2highres.nii.gz" ]]; then
+    echo "Resampling standard template to T1w space"
+    # The inverse warp already includes the inverse affine; do not apply it again.
+    cmd=(
+      applywarp
+      -i "${anat_dir}/standard.nii.gz"
+      -r "${anat_dir}/highres.nii.gz"
+      -w "${anat_dir}/standard2highres_warp.nii.gz"
+      -o "${anat_dir}/standard2highres.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing ${anat_dir}/standard2highres.nii.gz"
+  fi
+fi
+
 # A contrast-specific FEAT reg directory must still look complete to
 # updatefeatreg/FSL. Link the common anatomical products from the cache while
 # leaving example_func* products local to this analysis.
@@ -466,62 +552,72 @@ if [[ "${anat_dir}" != "${out_dir}" ]]; then
   done
 fi
 
-# Functional reference is always contrast/analysis-specific.
-if [[ ! -f "${out_dir}/example_func.nii.gz" || -L "${out_dir}/example_func.nii.gz" ]]; then
-  rm -f "${out_dir}/example_func.nii.gz" 2>/dev/null || true
-  cp "$boldref" "${out_dir}/example_func.nii.gz"
-else
-  echo "Reusing ${out_dir}/example_func.nii.gz"
+if [[ "$create_inverse" == true && "${anat_dir}" != "${out_dir}" ]]; then
+  for common in standard2highres.mat standard2highres_warp.nii.gz standard2highres.nii.gz; do
+    link_cached_file "${anat_dir}/${common}" "${out_dir}/${common}"
+  done
 fi
 
-echo "Preparing BOLD-to-T1w transform"
+if [[ "$functional_mode" == true ]]; then
+  # Functional reference is always contrast/analysis-specific.
+  if [[ ! -f "${out_dir}/example_func.nii.gz" || -L "${out_dir}/example_func.nii.gz" ]]; then
+    rm -f "${out_dir}/example_func.nii.gz" 2>/dev/null || true
+    cp "$boldref" "${out_dir}/example_func.nii.gz"
+  else
+    echo "Reusing ${out_dir}/example_func.nii.gz"
+  fi
 
-if [[ "$bold_to_t1w" == *.txt ]]; then
-  bold_to_t1w_mat="$out_dir/example_func2highres_ants.mat"
+  echo "Preparing BOLD-to-T1w transform"
 
-  if [[ ! -f "${bold_to_t1w_mat}" ]]; then
+  if [[ "$bold_to_t1w" == *.txt ]]; then
+    bold_to_t1w_mat="$out_dir/example_func2highres_ants.mat"
+
+    if [[ ! -f "${bold_to_t1w_mat}" ]]; then
+      cmd=(
+        ConvertTransformFile
+        3
+        "$bold_to_t1w"
+        "$bold_to_t1w_mat"
+        --convertToAffineType
+      )
+      print_cmd "${cmd[@]}" && "${cmd[@]}"
+    else
+      echo "Reusing ${bold_to_t1w_mat}"
+    fi
+  else
+    bold_to_t1w_mat="$bold_to_t1w"
+  fi
+
+  if [[ ! -f "$out_dir/example_func2highres.mat" ]]; then
+    echo "Converting BOLD-to-T1w affine to FSL format"
     cmd=(
-      ConvertTransformFile
-      3
-      "$bold_to_t1w"
-      "$bold_to_t1w_mat"
-      --convertToAffineType
+      c3d_affine_tool
+      -ref "$out_dir/highres.nii.gz"
+      -src "$out_dir/example_func.nii.gz"
+      -itk "$bold_to_t1w_mat"
+      -ras2fsl
+      -o "$out_dir/example_func2highres.mat"
     )
     print_cmd "${cmd[@]}" && "${cmd[@]}"
   else
-    echo "Reusing ${bold_to_t1w_mat}"
+    echo "Reusing $out_dir/example_func2highres.mat"
+  fi
+
+  if [[ ! -f "$out_dir/example_func2highres.nii.gz" ]]; then
+    echo "Applying BOLD-to-T1w transform"
+    cmd=(
+      applywarp
+      -i "$out_dir/example_func.nii.gz"
+      -r "$out_dir/highres.nii.gz"
+      --postmat="$out_dir/example_func2highres.mat"
+      -o "$out_dir/example_func2highres.nii.gz"
+    )
+    print_cmd "${cmd[@]}" && "${cmd[@]}"
+  else
+    echo "Reusing $out_dir/example_func2highres.nii.gz"
   fi
 else
-  bold_to_t1w_mat="$bold_to_t1w"
-fi
-
-if [[ ! -f "$out_dir/example_func2highres.mat" ]]; then
-  echo "Converting BOLD-to-T1w affine to FSL format"
-  cmd=(
-    c3d_affine_tool
-    -ref "$out_dir/highres.nii.gz"
-    -src "$out_dir/example_func.nii.gz"
-    -itk "$bold_to_t1w_mat"
-    -ras2fsl
-    -o "$out_dir/example_func2highres.mat"
-  )
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
-else
-  echo "Reusing $out_dir/example_func2highres.mat"
-fi
-
-if [[ ! -f "$out_dir/example_func2highres.nii.gz" ]]; then
-  echo "Applying BOLD-to-T1w transform"
-  cmd=(
-    applywarp
-    -i "$out_dir/example_func.nii.gz"
-    -r "$out_dir/highres.nii.gz"
-    --postmat="$out_dir/example_func2highres.mat"
-    -o "$out_dir/example_func2highres.nii.gz"
-  )
-  print_cmd "${cmd[@]}" && "${cmd[@]}"
-else
-  echo "Reusing $out_dir/example_func2highres.nii.gz"
+  echo "Skipping functional registration (no BOLD inputs supplied)"
 fi
 
 if [[ -n "$feat_dir" ]]; then
