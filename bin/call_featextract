@@ -50,6 +50,13 @@ EXAMPLES = r"""Examples:
       --areas 1 2 --combine \
       --output roi_subject_psc.tsv --strict
 
+  Extract CS and US contrasts with their distinct PSC reference durations:
+    call_featextract \
+      --manifest /data/feat/level2/contrast_manifest_level2.tsv \
+      --input-units psc --desc masked --space T1w \
+      --roi '/data/rois/{subject}/nextbrain/seg.nii.gz' --roi-type labels \
+      --areas 465 435 --stat cope --output roi_cs_us_psc.tsv --strict
+
   Select one PSC reference and contrast explicitly:
     call_featextract \
       --manifest /data/feat/level2/contrast_manifest_level2.tsv \
@@ -136,8 +143,11 @@ Notes:
   * PSC COPE means are in percent; differences are percentage-point differences.
     Mean VARCOPE values are in percent squared, not the variance of the ROI mean.
     T/Z statistics are dimensionless even when the selected stream is PSC.
-  * Multiple PSC references require explicit --psc-reference-id selection.
-    Existing image paths take precedence over --image-root remapping.
+  * Different contrasts or analysis streams may use different PSC references
+    (for example sustained CS and impulse US). Within one canonical contrast and
+    stream, subjects/runs must share a reference. --psc-reference-id remains an
+    optional exact filter; it does not bypass that consistency check.
+  * Existing image paths take precedence over --image-root remapping.
 """
 
 
@@ -156,7 +166,7 @@ def arguments():
     p.add_argument('--output', required=True, type=Path)
     p.add_argument('--conditions', nargs='+', help='Only these canonical_name values')
     p.add_argument('--input-units', choices=['raw', 'psc'], help='Select raw or PSC estimates. Required when the selected manifest contains both units; legacy manifests default to raw.')
-    p.add_argument('--psc-reference-id', '--psc-reference', action='append', default=[], help='PSC reference ID. Repeatable or comma-separated.')
+    p.add_argument('--psc-reference-id', '--psc-reference', action='append', default=[], help='Optional PSC reference filter. Repeatable or comma-separated. Different contrasts may use different references; each contrast/stream must remain consistent.')
     for entity in ('subject', 'session', 'task', 'run', 'desc', 'space', 'acquisition',
                    'direction', 'echo', 'reconstruction', 'part', 'resolution', 'density', 'group-contrast'):
         flags = ['--' + entity]
@@ -243,9 +253,28 @@ def select_manifest_rows(rows, fields, args):
     units = {row['effect_units'] for row in selected}
     if len(units) != 1:
         raise ValueError('Selected rows mix raw and PSC units; specify --input-units raw or psc')
-    references = {row.get('psc_reference_id', '') for row in selected if row['effect_units'] == 'psc'}
-    if len(references) > 1 and not args.psc_reference_id:
-        raise ValueError(f'Multiple PSC references selected: {sorted(references)}; specify --psc-reference-id')
+    # Reference duration/HRF is a contrast property, not a dataset-wide choice.
+    # Keep condition-specific references while refusing incomparable subject/run
+    # estimates for the same contrast in the same analysis stream.
+    stream_columns = ('canonical_name', 'task', 'session', 'desc', 'space',
+                      'acquisition', 'direction', 'echo', 'reconstruction',
+                      'part', 'resolution', 'density', 'group_contrast')
+    groups = {}
+    for row in selected:
+        if row['effect_units'] != 'psc':
+            continue
+        level = '3' if row.get('group_dir') else '2' if row.get('second_level_dir') else '1'
+        key = (level,) + tuple(normalized_selector(column, row.get(column, ''))
+                               for column in stream_columns)
+        groups.setdefault(key, set()).add(row['psc_reference_id'])
+    for key, references in groups.items():
+        if len(references) > 1:
+            stream = ', '.join(f'{column}={value}' for column, value in zip(stream_columns, key[1:]) if value)
+            raise ValueError(
+                f'Multiple PSC references within one contrast/analysis stream '
+                f'(level={key[0]}, {stream}): {sorted(references)}; '
+                'select one --psc-reference-id or use entity filters to select a consistent stream'
+            )
     return selected
 
 
@@ -419,6 +448,9 @@ def main():
     fields = list(dict.fromkeys(fields + [key for row in rows for key in row]))
     print(f"Selected {len(rows)} records; units={rows[0]['effect_units']}; "
           f"registration={args.registration_mode}", file=sys.stderr)
+    if rows[0]['effect_units'] == 'psc':
+        references = sorted({row['psc_reference_id'] for row in rows})
+        print(f"PSC references: {', '.join(references)}", file=sys.stderr)
     output_fields = list(dict.fromkeys(fields + ['roi_id', 'roi_type', 'roi_file', 'statistic',
         'stat_file', 'analysis_mask_file', 'estimate_units', 'registration_mode', 'mean_estimate', 'n_voxels', 'n_valid_voxels', 'status']))
     args.output.parent.mkdir(parents=True, exist_ok=True)
