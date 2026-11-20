@@ -683,10 +683,10 @@ if [[ -n "$feat_dir" ]]; then
       for stat in cope varcope; do
         for image in "$source_dir/${stat}"*.nii.gz; do
           [[ -e "$image" ]] || continue
-          found=true
           base=$(basename "$image" .nii.gz)
           number="${base#"$stat"}"
           [[ "$number" =~ ^[0-9]+$ ]] || continue
+          found=true
           need_file "$source_dir/cope${number}.nii.gz"
           need_file "$source_dir/varcope${number}.nii.gz"
           apply_one --lin "$image" "$target_dir/${base}.nii.gz" "$xfm_func2std"
@@ -713,10 +713,22 @@ def identity(path):
     stat = path.stat()
     return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
 
-inputs = sorted(source.glob("cope[0-9]*.nii.gz")) + sorted(source.glob("varcope[0-9]*.nii.gz"))
-for name in ("mask.nii.gz", "normalization.json"):
-    if (source / name).is_file():
-        inputs.append(source / name)
+images = []
+for stem in ("cope", "varcope"):
+    images.extend(path for path in sorted(source.glob(f"{stem}[0-9]*.nii.gz"))
+                  if path.name[len(stem):-len(".nii.gz")].isdigit())
+if source.name == "stats":
+    for stem in ("tstat", "zstat"):
+        images.extend(sorted(source.glob(f"{stem}*.nii.gz")))
+
+# Native FEAT statistics use the analysis-level brain mask. PSC statistics
+# have their own normalization-validity mask; both paths must match apply_one.
+mask_input = source / "mask.nii.gz" if source.name == "psc" else source.parent / "mask.nii.gz"
+mask_output = target / "mask.nii.gz" if source.name == "psc" else target.parent / "mask.nii.gz"
+inputs = images + [mask_input]
+outputs = [target / path.name for path in images] + [mask_output]
+if (source / "normalization.json").is_file():
+    inputs.append(source / "normalization.json")
 transforms = [Path(value) for value in sys.argv[4].split(",") if value]
 units = "psc" if source.name == "psc" else "raw"
 reference_id = ""
@@ -744,7 +756,7 @@ metadata = {
     "template": identity(template),
     "transforms": [identity(path) for path in transforms],
     "interpolation": {"statistics": "linear", "mask": "genericLabel"},
-    "outputs": [identity(target / path.name) for path in inputs if path.suffix != ".json"],
+    "outputs": [identity(path) for path in outputs],
 }
 fd, name = tempfile.mkstemp(prefix=".registration.", suffix=".json", dir=target)
 try:
