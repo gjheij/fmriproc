@@ -29,6 +29,7 @@ from nipype.interfaces.fsl import Level1Design
 
 from fmriproc.fsl import (
     convert_feat_to_psc,
+    parse_psc_event_durations,
     psc_only_from_manifest,
     acquire_feat_run_lock,
     build_level1_bases,
@@ -462,6 +463,14 @@ from fmriproc.fsl import (
     help="Reference-event duration in seconds; 0 requests an impulse.",
 )
 @click.option(
+    "--psc-event-duration", "psc_event_durations",
+    multiple=True,
+    help=("Reference duration by fitted EV name: EVENT_PATTERN=SECONDS. Repeatable; "
+          "shell wildcards are supported and exact names take priority. Unmatched events "
+          "use --psc-duration. Example: --psc-duration 0 --psc-event-duration 'CS_*=6'. "
+          "Does not change the fitted GLM. Mixed-duration contrasts are refused."),
+)
+@click.option(
     "--psc-reference-step",
     type=click.FloatRange(min=0, max=0.1, min_open=True),
     default=0.1,
@@ -583,6 +592,7 @@ def run_firstlevel(
     psc: bool,
     psc_only: bool,
     psc_duration: float,
+    psc_event_durations: tuple[str, ...],
     psc_reference_step: float,
     psc_divisors: tuple[str, ...],
     psc_overwrite: bool,
@@ -600,6 +610,10 @@ def run_firstlevel(
 
     if (psc or psc_only) and not all(math.isfinite(value) for value in (psc_duration, psc_reference_step)):
         raise click.UsageError("PSC duration and reference step must be finite.")
+    if psc_event_durations:
+        if not (psc or psc_only):
+            raise click.UsageError("--psc-event-duration requires --psc or --psc-only.")
+        parse_psc_event_durations(psc_event_durations)
     if (psc_divisors or psc_overwrite) and not (psc or psc_only):
         raise click.UsageError("PSC divisor/overwrite options require --psc or --psc-only.")
     if psc_only:
@@ -609,6 +623,7 @@ def run_firstlevel(
             deriv_dir, subjects=subjects, runs=runs, task=task_id, space=space,
             desc=desc, duration=psc_duration, step=psc_reference_step,
             divisors=psc_divisors, overwrite=psc_overwrite, dry_run=dry_run,
+            event_durations=psc_event_durations,
         )
         return
     if psc and update_contrasts:
@@ -761,7 +776,8 @@ def run_firstlevel(
                     manifest_rows = manifest_rows.loc[manifest_rows["run_label"] == label]
                     if manifest_rows.empty:
                         raise click.ClickException("Existing GLM is absent from the manifest; rebuild the manifest before PSC conversion.")
-                    convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite, dry_run)
+                    convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite, dry_run,
+                                        event_durations=psc_event_durations)
                     if not dry_run:
                         rebuild_contrast_manifest(deriv_dir)
                     completed += 1
@@ -1281,7 +1297,8 @@ def run_firstlevel(
             if psc and not dry_run:
                 manifest_rows = pd.read_csv(deriv_dir / "contrast_manifest.tsv", sep="\t", dtype=str, keep_default_na=False)
                 manifest_rows = manifest_rows.loc[manifest_rows["run_label"] == label]
-                convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite)
+                convert_feat_to_psc(manifest_rows, deriv_dir / ".psc_references", psc_duration, psc_reference_step, psc_divisors, psc_overwrite,
+                                    event_durations=psc_event_durations)
                 rebuild_contrast_manifest(deriv_dir)
 
             completed += 1

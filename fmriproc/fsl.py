@@ -12,6 +12,7 @@ System dependency:
 from __future__ import annotations
 
 import fcntl
+import fnmatch
 import html
 import json
 import shlex
@@ -8890,6 +8891,54 @@ def _psc_contrast_divisor(settings: dict[str, str], number: int, allow_unequal: 
     return positive or negative
 
 
+def parse_psc_event_durations(values: Sequence[str]) -> dict[str, float]:
+    """Parse explicit EV-name or shell-wildcard reference-duration rules."""
+    rules = {}
+    for value in values:
+        pattern, separator, text = value.partition("=")
+        try:
+            duration = float(text)
+        except ValueError as error:
+            raise click.ClickException("--psc-event-duration requires EVENT_PATTERN=SECONDS.") from error
+        if not separator or not pattern or pattern in rules or not np.isfinite(duration) or duration < 0:
+            raise click.ClickException("PSC event-duration rules must be unique with finite, nonnegative seconds.")
+        rules[pattern] = duration
+    return rules
+
+
+def _psc_contrast_duration(
+    settings: dict[str, str], number: int, default: float, rules: dict[str, float],
+) -> tuple[float, dict[str, float]]:
+    """Resolve each nonzero canonical EV; one scalar cannot scale mixed durations."""
+    if not rules:
+        return default, {}
+    resolved = {}
+    real = 0
+    for ev in range(1, int(settings["evs_orig"]) + 1):
+        weight = float(settings.get(f"con_real{number}.{real+1}", "0"))
+        if weight != 0:
+            name = settings.get(f"evtitle{ev}", "")
+            if not name:
+                raise click.ClickException(f"PSC event-duration selection requires evtitle{ev} in design.fsf.")
+            if name in rules:
+                duration = rules[name]
+            else:
+                matches = [pattern for pattern in rules if fnmatch.fnmatchcase(name, pattern)]
+                if len(matches) > 1:
+                    raise click.ClickException(f"Ambiguous PSC duration rules for {name}: {matches}.")
+                duration = rules[matches[0]] if matches else default
+            resolved[name] = duration
+        real += 1 + int(settings.get(f"deriv_yn{ev}", "0"))
+    durations = set(resolved.values())
+    if len(durations) != 1:
+        raise click.ClickException(
+            f"PSC contrast {number} combines different reference durations: {resolved}. "
+            "A single COPE/VARCOPE cannot be rescaled exactly in this case; "
+            "separate CS/US contrasts or recompute the scaled contrast with parameter covariance."
+        )
+    return next(iter(durations)), resolved
+
+
 def _psc_fields(record: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
     number = str(int(float(record["cope"])))
     item = saved.get("contrasts", {}).get(number)
@@ -8913,14 +8962,17 @@ def _psc_fields(record: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]
         "psc_varcope_file": str(directory / f"varcope{number}.nii.gz"),
         "psc_mask_file": str(directory / "mask.nii.gz"),
         "psc_provenance_file": str(directory / "normalization.json"),
-        "psc_reference_id": saved["reference_id"], "psc_height": saved["height"],
-        "psc_duration": saved["reference"]["duration_seconds"], "psc_divisor": item["divisor"],
+        "psc_reference_id": item.get("reference_id", saved["reference_id"]),
+        "psc_height": item.get("height", saved["height"]),
+        "psc_duration": item.get("reference", saved["reference"])["duration_seconds"],
+        "psc_divisor": item["divisor"],
     }
 
 
 def convert_feat_to_psc(
     rows: pd.DataFrame, cache_dir: Path, duration: float, step: float = 0.1,
     divisors: Sequence[str] = (), overwrite: bool = False, dry_run: bool = False,
+    event_durations: Sequence[str] = (),
 ) -> pd.DataFrame:
     """Convert one completed run atomically, preserving its raw statistics.
 
@@ -8943,13 +8995,29 @@ def convert_feat_to_psc(
             raise click.ClickException("PSC divisors must be unique, finite, and positive.")
         overrides[name] = divisor
     settings = _psc_fsf_settings(feat_dir / "design.fsf")
-    height, reference_id, reference = psc_reference_height(feat_dir, cache_dir, duration, step, dry_run)
+    rules = parse_psc_event_durations(event_durations)
     metadata = {
-        "reference_id": reference_id, "reference": reference, "height": height,
         "mean_func": _psc_identity(mean_file), "source_mask": _psc_identity(mask_file),
         "design": _psc_identity(feat_dir / "design.fsf"), "contrasts": {},
         "cope_units": "percent", "varcope_units": "percent_squared",
     }
+    durations, resolved_events = {}, {}
+    for record in rows.to_dict(orient="records"):
+        number = str(int(float(record["cope"])))
+        durations[number], resolved_events[number] = _psc_contrast_duration(settings, int(number), duration, rules)
+    references = {value: psc_reference_height(feat_dir, cache_dir, value, step, dry_run)
+                  for value in sorted(set(durations.values()))}
+    # Legacy scalar calls retain their existing sidecar layout and reuse behavior.
+    if len(references) == 1:
+        height, reference_id, reference = next(iter(references.values()))
+    else:
+        specs = {value[1]: value[2] for value in references.values()}
+        reference = {"method": "mumford-per-contrast-v1", "duration_seconds": None,
+                     "references": specs}
+        import hashlib
+        reference_id = hashlib.sha256(json.dumps(reference, sort_keys=True).encode()).hexdigest()[:16]
+        height = None
+    metadata.update(reference_id=reference_id, reference=reference, height=height)
     for record in rows.to_dict(orient="records"):
         number = str(int(float(record["cope"])))
         name = str(record["contrast_name"])
@@ -8957,6 +9025,12 @@ def convert_feat_to_psc(
         divisor = overrides.get(name, divisor)
         metadata["contrasts"][number] = {"name": name, "divisor": divisor, "inputs": {
             column: _psc_identity(Path(record[column])) for column in ("cope_file", "varcope_file")}}
+        if rules:
+            item_height, item_id, item_spec = references[durations[number]]
+            metadata["contrasts"][number].update(
+                reference_id=item_id, reference=item_spec, height=item_height,
+                event_durations=resolved_events[number],
+            )
     if dry_run:
         click.echo(f"DRY RUN: convert {len(rows)} COPE/VARCOPE pair(s) into {feat_dir / 'psc'}.")
         return rows
@@ -8996,7 +9070,8 @@ def convert_feat_to_psc(
             number = str(int(float(record["cope"])))
             divisor = metadata["contrasts"][number]["divisor"]
             scale = np.zeros(mean.shape, dtype=np.float64)
-            scale[valid] = (100 * height / divisor) / mean[valid]
+            item_height = metadata["contrasts"][number].get("height", height)
+            scale[valid] = (100 * item_height / divisor) / mean[valid]
             for column, stem, power in (("cope_file", "cope", 1), ("varcope_file", "varcope", 2)):
                 source = nib.load(record[column])
                 data = np.zeros(mean.shape, dtype=np.float64)
@@ -9025,7 +9100,8 @@ def convert_feat_to_psc(
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)
-    click.echo(f"PSC: {destination}; h={height:.8g}; valid={metadata['valid_voxels']}; excluded={metadata['excluded_voxels']}")
+    heights = ", ".join(f"{value:g}s: h={item[0]:.8g}" for value, item in references.items())
+    click.echo(f"PSC: {destination}; {heights}; valid={metadata['valid_voxels']}; excluded={metadata['excluded_voxels']}")
     return pd.DataFrame([{**record, **_psc_fields(record, metadata)} for record in rows.to_dict(orient="records")])
 
 
@@ -9064,7 +9140,7 @@ def select_feat_units(table: pd.DataFrame, units: str, input_level: str) -> pd.D
 def psc_only_from_manifest(
     deriv_dir: Path, *, subjects: Sequence[str], runs: Sequence[str], task: str | None,
     space: str, desc: str, duration: float, step: float, divisors: Sequence[str],
-    overwrite: bool, dry_run: bool,
+    overwrite: bool, dry_run: bool, event_durations: Sequence[str] = (),
 ) -> None:
     """Convert existing manifest-backed analyses without initializing BIDS/FSL GLMs."""
     path = deriv_dir / "contrast_manifest.tsv"
@@ -9091,7 +9167,8 @@ def psc_only_from_manifest(
         try:
             if (deriv_dir / "work" / str(label) / "feat_pending.json").exists():
                 raise click.ClickException(f"FEAT completion is unconfirmed for {label}.")
-            converted = convert_feat_to_psc(rows, deriv_dir / ".psc_references", duration, step, divisors, overwrite, dry_run)
+            converted = convert_feat_to_psc(rows, deriv_dir / ".psc_references", duration, step, divisors, overwrite, dry_run,
+                                             event_durations=event_durations)
             if not dry_run:
                 merge_analysis_manifest(path, converted, ["run_label", "cope"])
         except (click.ClickException, OSError, ValueError, subprocess.CalledProcessError) as error:
