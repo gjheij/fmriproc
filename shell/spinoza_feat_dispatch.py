@@ -110,9 +110,31 @@ def capacity(states, queue, config):
                       config['max_queued'] - pending))
 
 
+def failed_entries(state):
+    queued = {(entry['wave'], entry['task']) for entry in state.get('retry_queue', [])}
+    return [dict(wave=wave['id'], task=i, row=wave['offset'] + int(i), status=status)
+            for wave in state['waves'] for i, status in wave['terminal'].items()
+            if status != 'COMPLETED' and i not in wave.get('replacements', {})
+            and (wave['id'], i) not in queued]
+
+
 def failed_tasks(state):
-    return [f"{wave['id']}_{i}: {status}" for wave in state['waves']
-            for i, status in wave['terminal'].items() if status != 'COMPLETED']
+    return [f"{entry['wave']}_{entry['task']}: {entry['status']}" for entry in failed_entries(state)]
+
+
+def merge_dependencies(state):
+    dependencies = []
+    for wave in state['waves']:
+        pending = [i for i in range(1, wave['count'] + 1) if str(i) not in wave['terminal']]
+        if not pending:
+            continue
+        if any(status != 'COMPLETED' for status in wave['terminal'].values()):
+            # A failed parent array cannot become successful through replacement
+            # jobs. Depend only on its remaining good task IDs, plus retry arrays.
+            dependencies.extend(f"{wave['id']}_{i}" for i in pending)
+        else:
+            dependencies.append(wave['id'])
+    return dependencies
 
 
 def submit(state, state_path, argv, kind, **details):
@@ -125,10 +147,16 @@ def submit(state, state_path, argv, kind, **details):
     receipt = command(argv, env=env).strip().split(';', 1)[0]
     if not receipt.isdigit():
         raise RuntimeError('Unrecognized sbatch receipt; inspect pending_submission in ' + str(state_path))
-    if kind == 'wave':
+    if kind in ('wave', 'retry'):
         state['waves'].append(dict(id=receipt, count=details['count'],
-                                   offset=details['offset'], terminal={}))
-        state['offset'] += details['count']
+                                   offset=details['offset'], terminal={}, kind=kind))
+        if kind == 'wave':
+            state['offset'] += details['count']
+        else:
+            for index, entry in enumerate(details['replaces'], 1):
+                source = next(w for w in state['waves'] if w['id'] == entry['wave'])
+                source.setdefault('replacements', {})[entry['task']] = f'{receipt}_{index}'
+                state['retry_queue'].remove(entry)
     else:
         state['merge_id'] = receipt
     state.pop('pending_submission')
@@ -136,7 +164,7 @@ def submit(state, state_path, argv, kind, **details):
     return receipt
 
 
-def dispatch(state_path, cache_dir, poll=30):
+def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
     state_path = Path(state_path).resolve()
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -164,7 +192,9 @@ def dispatch(state_path, cache_dir, poll=30):
         if fingerprints(config) != current['fingerprints']:
             raise RuntimeError('Runner, job list or merge script changed; refusing to resume')
         folder = state_path.parent
-        if current.get('status') == 'submitted':
+        if retry_failed and current.get('merge_id'):
+            raise RuntimeError('A manifest merge was already submitted; inspect its state before retrying')
+        if current.get('status') == 'submitted' and not retry_failed and not current.get('retry_queue'):
             log(folder, 'All tasks already submitted; no new jobs queued')
             return
         log(folder, f"Dispatching {config['count']} FEAT tasks; concurrency={config['max_running']}; "
@@ -172,17 +202,35 @@ def dispatch(state_path, cache_dir, poll=30):
         log(folder, 'Log directory: ' + str(folder))
         log(folder, 'Resume command: spinoza_feat --resume-submission ' + str(folder))
         last_wait = None
+        retry_initialized = False
         while True:
             queue = queue_snapshot()
             refresh(states, queue)
             for state in states:
                 write_json(state['_path'], state)
+            if retry_failed and not retry_initialized:
+                current.setdefault('retry_queue', []).extend(failed_entries(current))
+                current['status'] = 'dispatching'
+                write_json(state_path, current)
+                log(folder, f"Retry requested for {len(current['retry_queue'])} failed task(s); original jobs are retained in history")
+                retry_initialized = True
             failures = failed_tasks(current)
             if failures:
                 raise RuntimeError('FEAT tasks failed; stopping further submissions: ' + '; '.join(failures))
-            if current['offset'] == config['count']:
+            retries = sorted(current.get('retry_queue', []), key=lambda entry: entry['row'])
+            if current['offset'] == config['count'] and not retries:
                 break
-            count = min(config['count'] - current['offset'], config['array_cap'],
+            if retries:
+                # A contiguous slice can use the unchanged snapshot runner.
+                contiguous = [retries[0]]
+                for entry in retries[1:]:
+                    if entry['row'] != contiguous[-1]['row'] + 1:
+                        break
+                    contiguous.append(entry)
+                remaining = len(contiguous)
+            else:
+                remaining = config['count'] - current['offset']
+            count = min(remaining, config['array_cap'],
                         capacity(states, queue, config))
             if not count:
                 summary = (current['offset'], len(queue))
@@ -191,19 +239,23 @@ def dispatch(state_path, cache_dir, poll=30):
                     last_wait = summary
                 time.sleep(poll)
                 continue
-            offset = current['offset']
+            offset = retries[0]['row'] - 1 if retries else current['offset']
             argv = ['sbatch', '--parsable', '--partition=' + config['queue'],
                     f'--array=1-{count}%{count}', f'--export=ALL,FEAT_BATCH_OFFSET={offset}',
                     '--cpus-per-task=' + str(config['cpus']), '--job-name=' + config['job_name'],
                     '--output=' + str(folder / (config['job_name'] + '_%A_%a.out')), config['runner']]
-            jid = submit(current, state_path, argv, 'wave', count=count, offset=offset)
-            log(folder, f"Submitted wave {len(current['waves'])}: rows {offset+1}-{offset+count}, "
+            kind = 'retry' if retries else 'wave'
+            details = dict(count=count, offset=offset)
+            if retries:
+                details['replaces'] = contiguous[:count]
+            jid = submit(current, state_path, argv, kind, **details)
+            log(folder, f"Submitted {kind} wave {len(current['waves'])}: rows {offset+1}-{offset+count}, "
                         f"array 1-{count}%{count}, Slurm job {jid}")
             last_wait = None
         if config.get('merge_runner') and not current.get('merge_id'):
             # Completed arrays have already passed accounting checks. All still
             # outstanding arrays must succeed before the final manifest merge.
-            dependencies = [w['id'] for w in current['waves'] if len(w['terminal']) < w['count']]
+            dependencies = merge_dependencies(current)
             argv = ['sbatch', '--parsable', '--partition=' + config['queue'],
                     '--cpus-per-task=1', '--job-name=' + config['job_name'] + 'Merge',
                     '--output=' + str(folder / (config['job_name'] + '_merge_%j.out'))]
@@ -220,6 +272,7 @@ def dispatch(state_path, cache_dir, poll=30):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--resume', type=Path)
+    parser.add_argument('--retry-failed', action='store_true', help='On resume, submit fresh replacements for recorded failed tasks')
     parser.add_argument('--work-dir', type=Path)
     parser.add_argument('--runner')
     parser.add_argument('--jobs-file')
@@ -235,11 +288,14 @@ def main(argv=None):
     cache = Path(os.environ.get('FMRIPROC_FEAT_STATE_DIR',
                                 str(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'fmriproc' / 'feat')))
     try:
+        if args.retry_failed and not args.resume:
+            raise ValueError('--retry-failed requires --resume')
         if args.resume:
             state_path = args.resume.resolve() / 'dispatch_state.json'
         else:
             config = vars(args).copy()
             config.pop('resume')
+            config.pop('retry_failed')
             folder = config.pop('work_dir').resolve()
             config['jobs_file'] = str(Path(config['jobs_file']).resolve())
             config['runner'] = str(Path(config['runner']).resolve())
@@ -258,7 +314,7 @@ def main(argv=None):
                 raise RuntimeError('Submission already initialized; use --resume')
             write_json(state_path, dict(config=config, fingerprints=fingerprints(config),
                                        offset=0, waves=[], status='dispatching'))
-        dispatch(state_path, cache)
+        dispatch(state_path, cache, retry_failed=args.retry_failed)
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print('ERROR: ' + str(error), file=sys.stderr)

@@ -56,6 +56,7 @@ Wrapper options:
       --max-queued <N>     maximum pending tasks (default: detected submission limit)
       --resume-submission <directory>
                          resume a saved Slurm dispatch without rebuilding its jobs
+      --retry-failed       with --resume-submission: replace failed tasks using new job IDs
       --local             run through a local process queue instead of SLURM
       --dry-run           print generated jobs/commands without running/submitting
       --job-name <name>   SLURM job name. Default = featL<level>
@@ -134,8 +135,10 @@ USAGE
 
 dispatch_helper="$(dirname "$(realpath "$0")")/spinoza_feat_dispatch.py"
 if [[ "${1:-}" == "--resume-submission" ]]; then
-  [[ $# -eq 2 ]] || { err "Use --resume-submission <directory> by itself"; exit 2; }
-  exec python "$dispatch_helper" --resume "$2"
+  [[ $# -eq 2 || ( $# -eq 3 && "$3" == "--retry-failed" ) ]] || { err "Use --resume-submission <directory> [--retry-failed]"; exit 2; }
+  resume_dir="$2"
+  shift 2
+  exec python "$dispatch_helper" --resume "$resume_dir" "$@"
 fi
 
 level=1
