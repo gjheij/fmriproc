@@ -2577,11 +2577,10 @@ if [[ $? -eq 0 ]]; then
     featreg_project_root="${DIR_DATA_HOME}"
   fi
 
+  feat_level="${WHICH_MOD:-1}"
   if [[ ! -z "$FOLDS_FLAG" ]]; then
     featreg_dir=$(echo "$FOLDS_FLAG" | sed 's/^-f //')
   else
-
-    feat_level="${WHICH_MOD:-1}"
     if [[ ! "${feat_level}" =~ ^[12]$ ]]; then
       echo
       print_line -
