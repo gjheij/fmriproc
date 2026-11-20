@@ -15,6 +15,22 @@ TERMINAL = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
             'NODE_FAIL', 'PREEMPTED', 'BOOT_FAIL', 'DEADLINE', 'REVOKED'}
 
 
+class SubmissionQuotaError(RuntimeError):
+    """Slurm explicitly rejected a submission because its submit quota is full."""
+
+
+def has_receipt(stdout):
+    return any(line.strip().split(';', 1)[0].isdigit() for line in (stdout or '').splitlines())
+
+
+def quota_rejection(error):
+    codes = ('AssocMaxSubmitJobLimit', 'AssocGrpSubmitJobsLimit',
+             'QOSMaxSubmitJobPerUserLimit', 'QOSMaxSubmitJobPerAccountLimit',
+             'QOSGrpSubmitJobsLimit')
+    return error.returncode > 0 and not has_receipt(error.stdout) and any(
+        code in (error.stderr or '') for code in codes)
+
+
 def write_json(path, value):
     path = Path(path)
     with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as stream:
@@ -144,7 +160,19 @@ def submit(state, state_path, argv, kind, **details):
     write_json(state_path, state)
     env = os.environ.copy()
     env.update(state['config'].get('sbatch_environment', {}))
-    receipt = command(argv, env=env).strip().split(';', 1)[0]
+    try:
+        receipt = command(argv, env=env).strip().split(';', 1)[0]
+    except subprocess.CalledProcessError as error:
+        state['pending_submission'].update(
+            returncode=error.returncode, stdout=error.stdout or '', stderr=error.stderr or '')
+        if quota_rejection(error):
+            rejected = state.pop('pending_submission')
+            rejected['resolution'] = 'explicit-slurm-quota-rejection'
+            state.setdefault('rejected_submissions', []).append(rejected)
+            write_json(state_path, state)
+            raise SubmissionQuotaError((error.stderr or '').strip()) from error
+        write_json(state_path, state)
+        raise
     if not receipt.isdigit():
         raise RuntimeError('Unrecognized sbatch receipt; inspect pending_submission in ' + str(state_path))
     if kind in ('wave', 'retry'):
@@ -164,7 +192,7 @@ def submit(state, state_path, argv, kind, **details):
     return receipt
 
 
-def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
+def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=False):
     state_path = Path(state_path).resolve()
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -184,7 +212,16 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
                 raise RuntimeError('Reservation state is missing; inspect ' + str(ledger) + ': ' + path)
             state = json.loads(Path(path).read_text())
             if state.get('pending_submission'):
-                raise RuntimeError('Uncertain sbatch submission; inspect squeue and pending_submission in ' + path)
+                if retry_rejected and str(Path(path).resolve()) == str(state_path):
+                    if has_receipt(state['pending_submission'].get('stdout')):
+                        raise RuntimeError('Submission has a possible job receipt; reconcile it before retrying')
+                    rejected = state.pop('pending_submission')
+                    rejected['resolution'] = 'explicitly-confirmed-rejected-on-resume'
+                    state.setdefault('rejected_submissions', []).append(rejected)
+                    state['status'] = 'dispatching'
+                    write_json(path, state)
+                else:
+                    raise RuntimeError('Uncertain sbatch submission; inspect squeue and pending_submission in ' + path)
             state['_path'] = path
             states.append(state)
         current = next(s for s in states if s['_path'] == str(state_path))
@@ -203,6 +240,7 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
         log(folder, 'Resume command: spinoza_feat --resume-submission ' + str(folder))
         last_wait = None
         retry_initialized = False
+        submission_cap = config['array_cap']
         while True:
             queue = queue_snapshot()
             refresh(states, queue)
@@ -230,7 +268,7 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
                 remaining = len(contiguous)
             else:
                 remaining = config['count'] - current['offset']
-            count = min(remaining, config['array_cap'],
+            count = min(remaining, config['array_cap'], submission_cap,
                         capacity(states, queue, config))
             if not count:
                 summary = (current['offset'], len(queue))
@@ -248,21 +286,48 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False):
             details = dict(count=count, offset=offset)
             if retries:
                 details['replaces'] = contiguous[:count]
-            jid = submit(current, state_path, argv, kind, **details)
-            log(folder, f"Submitted {kind} wave {len(current['waves'])}: rows {offset+1}-{offset+count}, "
+            try:
+                jid = submit(current, state_path, argv, kind, **details)
+            except SubmissionQuotaError as error:
+                submission_cap = max(1, count // 2)
+                summary = ('quota', count, str(error))
+                if summary != last_wait:
+                    log(folder, f'Slurm submission quota rejected {count} tasks; waiting {poll} s, '
+                                f'then trying at most {submission_cap}. No rows were assigned. {error}')
+                    last_wait = summary
+                time.sleep(poll)
+                continue
+            label = "retry wave" if kind == "retry" else "wave"
+            log(folder, f"Submitted {label} {len(current['waves'])}: rows {offset+1}-{offset+count}, "
                         f"array 1-{count}%{count}, Slurm job {jid}")
             last_wait = None
         if config.get('merge_runner') and not current.get('merge_id'):
-            # Completed arrays have already passed accounting checks. All still
-            # outstanding arrays must succeed before the final manifest merge.
-            dependencies = merge_dependencies(current)
-            argv = ['sbatch', '--parsable', '--partition=' + config['queue'],
-                    '--cpus-per-task=1', '--job-name=' + config['job_name'] + 'Merge',
-                    '--output=' + str(folder / (config['job_name'] + '_merge_%j.out'))]
-            if dependencies:
-                argv.append('--dependency=afterok:' + ':'.join(dependencies))
-            jid = submit(current, state_path, argv + [config['merge_runner']], 'merge')
-            log(folder, f'Submitted manifest merge job {jid}; dependencies={dependencies}')
+            last_merge_error = None
+            while True:
+                queue = queue_snapshot()
+                refresh(states, queue)
+                for state in states:
+                    write_json(state['_path'], state)
+                failures = failed_tasks(current)
+                if failures:
+                    raise RuntimeError('FEAT tasks failed before manifest merge: ' + '; '.join(failures))
+                # Failed originals replaced by retries require task-specific dependencies.
+                dependencies = merge_dependencies(current)
+                argv = ['sbatch', '--parsable', '--partition=' + config['queue'],
+                        '--cpus-per-task=1', '--job-name=' + config['job_name'] + 'Merge',
+                        '--output=' + str(folder / (config['job_name'] + '_merge_%j.out'))]
+                if dependencies:
+                    argv.append('--dependency=afterok:' + ':'.join(dependencies))
+                try:
+                    jid = submit(current, state_path, argv + [config['merge_runner']], 'merge')
+                except SubmissionQuotaError as error:
+                    if str(error) != last_merge_error:
+                        log(folder, f'Slurm submission quota full; waiting {poll} s before manifest merge. {error}')
+                        last_merge_error = str(error)
+                    time.sleep(poll)
+                    continue
+                log(folder, f'Submitted manifest merge job {jid}; dependencies={dependencies}')
+                break
         current['status'] = 'submitted'
         write_json(state_path, current)
         log(folder, f"All {config['count']} tasks submitted across {len(current['waves'])} waves; "
@@ -273,6 +338,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--resume', type=Path)
     parser.add_argument('--retry-failed', action='store_true', help='On resume, submit fresh replacements for recorded failed tasks')
+    parser.add_argument('--retry-rejected', action='store_true', help='On resume, acknowledge that the saved uncertain submission was rejected, not accepted')
     parser.add_argument('--work-dir', type=Path)
     parser.add_argument('--runner')
     parser.add_argument('--jobs-file')
@@ -288,14 +354,15 @@ def main(argv=None):
     cache = Path(os.environ.get('FMRIPROC_FEAT_STATE_DIR',
                                 str(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'fmriproc' / 'feat')))
     try:
-        if args.retry_failed and not args.resume:
-            raise ValueError('--retry-failed requires --resume')
+        if (args.retry_failed or args.retry_rejected) and not args.resume:
+            raise ValueError('--retry-failed and --retry-rejected require --resume')
         if args.resume:
             state_path = args.resume.resolve() / 'dispatch_state.json'
         else:
             config = vars(args).copy()
             config.pop('resume')
             config.pop('retry_failed')
+            config.pop('retry_rejected')
             folder = config.pop('work_dir').resolve()
             config['jobs_file'] = str(Path(config['jobs_file']).resolve())
             config['runner'] = str(Path(config['runner']).resolve())
@@ -314,10 +381,15 @@ def main(argv=None):
                 raise RuntimeError('Submission already initialized; use --resume')
             write_json(state_path, dict(config=config, fingerprints=fingerprints(config),
                                        offset=0, waves=[], status='dispatching'))
-        dispatch(state_path, cache, retry_failed=args.retry_failed)
+        dispatch(state_path, cache, retry_failed=args.retry_failed, retry_rejected=args.retry_rejected)
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print('ERROR: ' + str(error), file=sys.stderr)
+        if isinstance(error, subprocess.CalledProcessError):
+            if error.stdout:
+                print(error.stdout.strip(), file=sys.stderr)
+            if error.stderr:
+                print(error.stderr.strip(), file=sys.stderr)
         print('Already submitted Slurm jobs have not been canceled.', file=sys.stderr)
         return 1
 
