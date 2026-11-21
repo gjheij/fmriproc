@@ -86,6 +86,8 @@ Options:
                             --additional-confounds files remain available.
                             Unless -c is explicitly set, CPUs default to 1
 
+  --drop-invalid           Explicitly exclude out-of-grid GLMsingle events;
+                            save their original timing and exclusion reasons.
   --stim-duration <sec>     Common GLMsingle stimulus duration. Default = 0
   --event-duration <rule>   Repeatable PATTERN=SECONDS validation; mixed durations
                             are unsupported by the GLMsingle API.
@@ -169,6 +171,7 @@ evs=()
 stim_duration="0"
 event_durations=()
 additional_confounds=()
+drop_invalid=0
 fd_threshold="0.2"
 gm_threshold="0.5"
 tsnr_regress_poly="2"
@@ -288,6 +291,11 @@ while [[ $# -gt 0 ]]; do
 
     --clean)
       clean_run=1
+      shift
+      ;;
+
+    --drop-invalid)
+      drop_invalid=1
       shift
       ;;
 
@@ -546,6 +554,7 @@ for sub_id in ${subjects}; do
     --tsnr-regress-poly "${tsnr_regress_poly}"
   )
 
+  [[ "${drop_invalid}" -eq 0 ]] || cmd+=(--drop-invalid)
   for rule in "${event_durations[@]}"; do cmd+=(--event-duration "$rule"); done
   for template in "${additional_confounds[@]}"; do cmd+=(--additional-confounds "$template"); done
 
