@@ -438,6 +438,10 @@ def main(argv=None):
         parser.add_argument('--retry-rejected',action='store_true')
         parser.add_argument('project',nargs='?',type=Path)
         args = parser.parse_args(before)
+        print('\n' + '=' * 99, flush=True)
+        print("ROI extraction from FSL's FEAT", flush=True)
+        print('Started at ' + time.strftime('%a %b %d %I:%M:%S %p %Z %Y'), flush=True)
+        print('=' * 99, flush=True)
         if args.resume_submission:
             if native:
                 parser.error('Resume uses saved extraction settings; do not supply native options')
