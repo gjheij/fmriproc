@@ -167,6 +167,7 @@ INT_LOWER=""              # lower bound for call_winsorize
 INT_UPPER=""              # upper bound for call_winsorize
 FAST_LBLS="${DIR_DATA_DERIV}/fmriprep" # spinoza_extractregions
 dry_run=""
+feat_extract=0             # module 28: ROI extraction instead of GLM estimation
 # use long options in bash:
 # https://stackoverflow.com/questions/402377/using-getopts-to-process-long-and-short-command-line-options
 declare -a array
@@ -258,6 +259,9 @@ while getopts ":-:om:f:s:h:n:t:l:v:p:x:u:r:e:i:c:k:j:q:a:d:w:y:" arg; do
         dry-run)
           dry_run="--dry-run"
           ;;          
+        extract)
+          feat_extract=1
+          ;;
         fix-hrf)
           FIX_FLAG="--fix-hrf"
           ;;
@@ -2577,10 +2581,11 @@ if [[ $? -eq 0 ]]; then
     featreg_project_root="${DIR_DATA_HOME}"
   fi
 
-  feat_level="${WHICH_MOD:-1}"
   if [[ ! -z "$FOLDS_FLAG" ]]; then
     featreg_dir=$(echo "$FOLDS_FLAG" | sed 's/^-f //')
   else
+
+    feat_level="${WHICH_MOD:-1}"
     if [[ ! "${feat_level}" =~ ^[12]$ ]]; then
       echo
       print_line -
@@ -2668,7 +2673,7 @@ echo ${FLAG_executeModule} | grep -q ${module}
 if [[ $? -eq 0 ]]; then
 
   if [[ ${HELP} -eq 1 ]]; then
-    spinoza_feat --help
+    if [[ "$feat_extract" -eq 1 ]]; then spinoza_featextract --help; else spinoza_feat --help; fi
     exit 0
   fi
 
@@ -2708,10 +2713,11 @@ if [[ $? -eq 0 ]]; then
     feat_project_root="${DIR_DATA_HOME}"
   fi
 
-  cmd=(
-    spinoza_feat
-    -l "$feat_level"
-  )
+  if [[ "$feat_extract" -eq 1 ]]; then
+    cmd=(spinoza_featextract -l "$feat_level")
+  else
+    cmd=(spinoza_feat -l "$feat_level")
+  fi
 
   # Wrapper-level selectors/settings.
   if [[ -n ${SUB:-} ]]; then
@@ -2731,6 +2737,8 @@ if [[ $? -eq 0 ]]; then
   [[ -n ${run_local:-} ]] && cmd+=(--local)
   [[ -n ${dry_run:-} ]] && cmd+=(--dry-run)
 
+  if [[ "$feat_extract" -eq 1 && -n ${OW:-} ]]; then cmd+=(--overwrite); fi
+
   # The project root is the final wrapper argument before '--'.
   cmd+=("$feat_project_root" --)
 
@@ -2740,7 +2748,7 @@ if [[ $? -eq 0 ]]; then
   fi
 
   # call_feat (level 1) has no --session option; call_feat2/3 do.
-  if [[ "$feat_level" != 1 && -n ${SES:-} ]]; then
+  if [[ ( "$feat_level" != 1 || "$feat_extract" -eq 1 ) && -n ${SES:-} ]]; then
     cmd+=(--session "$SES")
   fi
 
@@ -2749,7 +2757,7 @@ if [[ $? -eq 0 ]]; then
     cmd+=(--run "$runs_value")
   fi
 
-  [[ -n ${OW:-} ]] && cmd+=(--overwrite)
+  if [[ "$feat_extract" -eq 0 && -n ${OW:-} ]]; then cmd+=(--overwrite); fi
 
   # -x is the escape hatch for native options that do not have a dedicated
   # master flag. Parse it as shell words so quoted contrasts/group contrasts

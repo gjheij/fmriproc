@@ -192,7 +192,7 @@ def submit(state, state_path, argv, kind, **details):
     return receipt
 
 
-def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=False):
+def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=False, queue_override=None):
     state_path = Path(state_path).resolve()
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -229,15 +229,38 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=
         if fingerprints(config) != current['fingerprints']:
             raise RuntimeError('Runner, job list or merge script changed; refusing to resume')
         folder = state_path.parent
+        workflow = config.get('workflow', 'FEAT')
+        merge_label = config.get('merge_label', 'manifest merge')
+        if queue_override:
+            config['queue'] = queue_override
+            write_json(state_path, current)
+            log(folder, 'Partition for future submissions: ' + queue_override)
         if retry_failed and current.get('merge_id'):
-            raise RuntimeError('A manifest merge was already submitted; inspect its state before retrying')
+            if not config.get('allow_merge_retry'):
+                raise RuntimeError('A manifest merge was already submitted; inspect its state before retrying')
+            queue = queue_snapshot()
+            refresh(states, queue)
+            if failed_tasks(current):
+                merge_id = current['merge_id']
+                status = queue.get(merge_id, current.get('merge_terminal', 'UNKNOWN'))
+                if status == 'PENDING':
+                    command(['scancel', merge_id])
+                elif status not in TERMINAL - {'COMPLETED'}:
+                    raise RuntimeError('Cannot safely replace merge job ' + merge_id + ': ' + status)
+                current.setdefault('previous_merges', []).append(dict(id=merge_id, status=status))
+                current.pop('merge_id', None)
+                current.pop('merge_terminal', None)
+                current['status'] = 'dispatching'
+                write_json(state_path, current)
+            else:
+                retry_failed = False
         if current.get('status') == 'submitted' and not retry_failed and not current.get('retry_queue'):
             log(folder, 'All tasks already submitted; no new jobs queued')
             return
-        log(folder, f"Dispatching {config['count']} FEAT tasks; concurrency={config['max_running']}; "
+        log(folder, f"Dispatching {config['count']} {workflow} tasks; concurrency={config['max_running']}; "
                     f"array cap={config['array_cap']}; MaxSubmitJobs={config['max_submitted']}")
         log(folder, 'Log directory: ' + str(folder))
-        log(folder, 'Resume command: spinoza_feat --resume-submission ' + str(folder))
+        log(folder, 'Resume command: ' + config.get('resume_command', 'spinoza_feat') + ' --resume-submission ' + str(folder))
         last_wait = None
         retry_initialized = False
         submission_cap = config['array_cap']
@@ -254,7 +277,7 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=
                 retry_initialized = True
             failures = failed_tasks(current)
             if failures:
-                raise RuntimeError('FEAT tasks failed; stopping further submissions: ' + '; '.join(failures))
+                raise RuntimeError(workflow + ' tasks failed; stopping further submissions: ' + '; '.join(failures))
             retries = sorted(current.get('retry_queue', []), key=lambda entry: entry['row'])
             if current['offset'] == config['count'] and not retries:
                 break
@@ -310,7 +333,7 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=
                     write_json(state['_path'], state)
                 failures = failed_tasks(current)
                 if failures:
-                    raise RuntimeError('FEAT tasks failed before manifest merge: ' + '; '.join(failures))
+                    raise RuntimeError(workflow + ' tasks failed before ' + merge_label + ': ' + '; '.join(failures))
                 # Failed originals replaced by retries require task-specific dependencies.
                 dependencies = merge_dependencies(current)
                 argv = ['sbatch', '--parsable', '--partition=' + config['queue'],
@@ -322,11 +345,11 @@ def dispatch(state_path, cache_dir, poll=30, retry_failed=False, retry_rejected=
                     jid = submit(current, state_path, argv + [config['merge_runner']], 'merge')
                 except SubmissionQuotaError as error:
                     if str(error) != last_merge_error:
-                        log(folder, f'Slurm submission quota full; waiting {poll} s before manifest merge. {error}')
+                        log(folder, f'Slurm submission quota full; waiting {poll} s before {merge_label}. {error}')
                         last_merge_error = str(error)
                     time.sleep(poll)
                     continue
-                log(folder, f'Submitted manifest merge job {jid}; dependencies={dependencies}')
+                log(folder, f'Submitted {merge_label} job {jid}; dependencies={dependencies}')
                 break
         current['status'] = 'submitted'
         write_json(state_path, current)

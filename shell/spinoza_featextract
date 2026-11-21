@@ -1,0 +1,523 @@
+#!/usr/bin/env python3
+"""Reproducible subject-wise FEAT ROI extraction, locally or through Slurm.
+
+Usage:
+  spinoza_featextract -l 2 -m 8 -q intelsr_short /data/study -- [call_featextract options]
+  spinoza_featextract --local -m 4 /data/study -- [call_featextract options]
+  spinoza_featextract --resume-submission /path/to/submission [--retry-failed]
+
+Slurm is the default; --sge is an explicit alias. --max-running controls worker
+processes, --cpus controls CPUs per worker. Each subject gets all selected runs,
+contrasts and ROIs. Level-3 work is split by analysis stream and group contrast.
+Workers publish private validated fragments; only the merge publishes --output.
+"""
+import argparse
+from collections import OrderedDict
+import csv
+import fcntl
+import hashlib
+import importlib.metadata
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+if not (HERE / '_featextract.py').is_file():
+    sys.path.insert(0, str(HERE.parent / 'bin'))
+import _featextract as core
+import spinoza_feat_dispatch as scheduler
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def file_hash(path):
+    result = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            result.update(block)
+    return result.hexdigest()
+
+
+def identity(path):
+    path = Path(path).absolute()
+    stat = path.stat()
+    return dict(path=str(path), resolved_path=str(path.resolve()), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
+
+
+def check_inputs(items):
+    for item in items:
+        if identity(item['path']) != item:
+            raise RuntimeError('Input changed since planning: ' + item['path'])
+
+
+def versions():
+    return dict(python=sys.version, numpy=core.np.__version__, nibabel=core.nib.__version__,
+                scipy=importlib.metadata.version('scipy'))
+
+
+def replace_option(argv, option, value):
+    result = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == option:
+            index += 2
+        elif token.startswith(option + '='):
+            index += 1
+        else:
+            result.append(token)
+            index += 1
+    return result + [option, str(value)]
+
+
+def load_plan(path):
+    path = Path(path).resolve()
+    plan = json.loads(path.read_text())
+    if digest(plan['spec']) != plan['plan_id']:
+        raise RuntimeError('Extraction plan settings changed; refusing to resume')
+    if versions() != plan['spec']['versions']:
+        raise RuntimeError('Python/numerical package versions differ from the saved plan')
+    for filename, expected in plan['code'].items():
+        if file_hash(path.parent / filename) != expected:
+            raise RuntimeError('Snapshot code changed: ' + filename)
+    return plan
+
+
+def key_for(row, fields):
+    return tuple(str(row.get(field, '') or '') for field in fields)
+
+
+def read_fragment(plan, job, path):
+    with Path(path).open(newline='', encoding='utf-8') as stream:
+        reader = csv.DictReader(stream, delimiter='\t')
+        if reader.fieldnames != plan['output_fields']:
+            raise RuntimeError('Fragment column schema differs: ' + str(path))
+        rows = list(reader)
+    expected = {tuple(plan['expected'][i]): i for i in job['expected_indices']}
+    if len(rows) != len(expected):
+        raise RuntimeError('Fragment row coverage differs: ' + str(path))
+    found = set()
+    indexed = []
+    for row in rows:
+        key = key_for(row, plan['key_fields'])
+        if key not in expected or key in found:
+            raise RuntimeError('Unexpected or duplicate extraction row: ' + str(path))
+        if row['status'] not in ('ok', 'empty_roi') or (plan['strict'] and row['status'] != 'ok'):
+            raise RuntimeError('Unsuccessful extraction row: ' + str(path))
+        found.add(key)
+        indexed.append((expected[key], row))
+    return indexed
+
+
+def completed(plan, job, folder):
+    marker = folder / 'complete.json'
+    output = folder / 'results.tsv'
+    if not marker.is_file() or not output.is_file():
+        return False
+    try:
+        saved = json.loads(marker.read_text())
+        if saved.get('plan_id') != plan['plan_id'] or saved.get('sha256') != file_hash(output):
+            return False
+        read_fragment(plan, job, output)
+    except (ValueError, RuntimeError):
+        return False
+    return True
+
+
+def worker(plan_path, index):
+    plan_path = Path(plan_path).resolve()
+    plan = load_plan(plan_path)
+    os.chdir(plan['spec']['cwd'])
+    job = plan['jobs'][index]
+    folder = plan_path.parent / job['folder']
+    with (folder / 'worker.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('Another worker owns ' + job['name'])
+        check_inputs(job['inputs'])
+        if completed(plan, job, folder):
+            print('Reusing completed extraction: ' + job['name'], flush=True)
+            return
+        for variable in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
+            os.environ[variable] = str(plan['cpus'])
+        temporary = folder / ('results.' + str(os.getpid()) + '.tmp.tsv')
+        argv = replace_option(plan['spec']['argv'], '--manifest', folder / 'manifest.tsv')
+        argv = replace_option(argv, '--output', temporary)
+        if plan.get('save_masks'):
+            argv = replace_option(argv, '--save-masks', Path(plan['save_masks']) / plan['plan_id'] / folder.name)
+        print('Extracting ' + job['name'], flush=True)
+        try:
+            core.main(argv)
+            read_fragment(plan, job, temporary)
+            check_inputs(job['inputs'])
+            temporary.replace(folder / 'results.tsv')
+            scheduler.write_json(folder / 'complete.json', dict(
+                plan_id=plan['plan_id'], sha256=file_hash(folder / 'results.tsv'),
+                rows=len(job['expected_indices']), completed=time.time()))
+        finally:
+            temporary.unlink(missing_ok=True)
+
+
+def final_valid(output, plan_id):
+    marker = Path(str(output) + '.provenance.json')
+    if not Path(output).is_file() or not marker.is_file():
+        return False
+    try:
+        saved = json.loads(marker.read_text())
+    except ValueError:
+        return False
+    return saved.get('plan_id') == plan_id and saved.get('sha256') == file_hash(output)
+
+
+def merge(plan_path):
+    plan_path = Path(plan_path).resolve()
+    plan = load_plan(plan_path)
+    os.chdir(plan['spec']['cwd'])
+    output = Path(plan['spec']['output'])
+    claim_path = Path(str(output) + '.extract-claim.json')
+    with Path(str(output) + '.extract.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        check_inputs(plan['spec']['inputs'])
+        if claim_path.is_file():
+            claim = json.loads(claim_path.read_text())
+            if claim.get('plan') != str(plan_path):
+                raise RuntimeError('Another extraction owns the final output')
+        elif not final_valid(output, plan['plan_id']):
+            raise RuntimeError('Output claim is absent; refusing unclaimed publication')
+        indexed = []
+        for job in plan['jobs']:
+            folder = plan_path.parent / job['folder']
+            if not completed(plan, job, folder):
+                raise RuntimeError('Missing completed extraction fragment: ' + job['name'])
+            indexed.extend(read_fragment(plan, job, folder / 'results.tsv'))
+        if sorted(i for i, _ in indexed) != list(range(len(plan['expected']))):
+            raise RuntimeError('Merged extraction does not cover the frozen plan exactly once')
+        descriptor, filename = tempfile.mkstemp(prefix='.' + output.name + '.', suffix='.tmp', dir=output.parent)
+        temporary = Path(filename)
+        try:
+            with os.fdopen(descriptor, 'w', newline='') as stream:
+                writer = csv.DictWriter(stream, fieldnames=plan['output_fields'], delimiter='\t')
+                writer.writeheader()
+                writer.writerows(row for _, row in sorted(indexed))
+                stream.flush()
+                os.fsync(stream.fileno())
+            check_inputs(plan['spec']['inputs'])
+            temporary.replace(output)
+            scheduler.write_json(str(output) + '.provenance.json', dict(
+                plan_id=plan['plan_id'], plan=str(plan_path), sha256=file_hash(output),
+                rows=len(indexed), jobs=len(plan['jobs']), spec=plan['spec'], completed=time.time()))
+            claim_path.unlink(missing_ok=True)
+        finally:
+            temporary.unlink(missing_ok=True)
+    scheduler.log(plan_path.parent, f'Merged {len(indexed)} ROI rows into {output}')
+
+
+def preflight(native, level):
+    args = core.arguments(native)
+    rows, fields = core.selected_manifest(args)
+    fields = list(dict.fromkeys(fields + [key for row in rows for key in row]))
+    levels = {'3' if row.get('group_dir') else '2' if row.get('second_level_dir') else '1' for row in rows}
+    if len(levels) != 1:
+        raise ValueError('Extraction manifest selection mixes analysis levels')
+    detected = levels.pop()
+    if level is not None and str(level) != detected:
+        raise ValueError(f'--level {level} differs from selected manifest level {detected}')
+    if detected == '3' and '{subject}' in args.roi:
+        raise ValueError('Level-3 extraction needs a common-space ROI, not a {subject} template')
+    key_fields = [field for field in fields if field not in core.RESULT_FIELDS]
+    key_fields += ['roi_id', 'roi_type', 'roi_file', 'statistic', 'stat_file', 'analysis_mask_file', 'registration_mode']
+    key_fields = list(dict.fromkeys(key_fields))
+    all_inputs = {str(args.manifest.resolve()): identity(args.manifest)}
+    groups = OrderedDict()
+    roi_cache = {}
+    expected, seen = [], set()
+    for row_index, row in enumerate(rows):
+        if detected in ('1', '2'):
+            if not row.get('subject'):
+                raise ValueError('Subject-wise extraction requires subject labels')
+            group = ('subject', row['subject'])
+        else:
+            group = tuple(row.get(c, '') for c in ('task', 'canonical_name', 'group_contrast', 'desc', 'space',
+                'session', 'acquisition', 'direction', 'echo', 'reconstruction', 'part', 'resolution', 'density', 'psc_reference_id'))
+        if group not in groups:
+            groups[group] = dict(name=' / '.join(v for v in group if v), row_indices=[], expected_indices=[], inputs={})
+        job = groups[group]
+        roi = core.resolve_template(args.roi, row)
+        stat, mask = core.statistical_inputs(row, args)
+        paths = [args.manifest, roi, stat] + ([mask] if mask is not None else [])
+        # Preserve available normalization/analysis provenance as part of the snapshot.
+        if row.get('psc_provenance_file'):
+            paths.append(Path(row['psc_provenance_file']))
+        directory = row.get('group_dir') or row.get('second_level_dir') or row.get('feat_dir')
+        if directory and (Path(directory) / 'provenance.json').is_file():
+            paths.append(Path(directory) / 'provenance.json')
+        for path in paths:
+            item = identity(path)
+            if not Path(item['path']).is_file():
+                raise ValueError('Input is not a regular file: ' + item['path'])
+            all_inputs[item['path']] = item
+            job['inputs'][item['path']] = item
+        if str(roi) not in roi_cache:
+            roi_cache[str(roi)] = core.nib.load(str(roi))
+        definitions = core.roi_definitions(args, roi_cache[str(roi)])
+        stat_img = core.load_3d(stat)
+        if mask is not None:
+            mask_img = core.load_3d(mask)
+            if mask_img.shape != stat_img.shape or not core.np.allclose(mask_img.affine, stat_img.affine, rtol=0., atol=1e-5):
+                raise ValueError('Analysis mask grid differs from statistics: ' + str(mask))
+        job['row_indices'].append(row_index)
+        for roi_id, _, _ in definitions:
+            record = dict(row, roi_id=roi_id, roi_type=args.roi_type, roi_file=str(roi), statistic=args.stat,
+                          stat_file=str(stat), analysis_mask_file=str(mask) if mask else '', registration_mode=args.registration_mode)
+            key = key_for(record, key_fields)
+            if key in seen:
+                raise ValueError('Duplicate selected manifest/ROI output identity')
+            seen.add(key)
+            job['expected_indices'].append(len(expected))
+            expected.append(list(key))
+    return args, rows, fields, detected, list(groups.values()), expected, key_fields, list(all_inputs.values())
+
+
+def slurm_limits():
+    text = scheduler.command(['scontrol', 'show', 'config'])
+    match = re.search(r'^\s*MaxArraySize\s*=\s*(\d+)', text, re.M)
+    if not match or int(match[1]) < 2:
+        raise ValueError('Cannot resolve a valid one-based Slurm array capacity')
+    cap = int(match[1]) - 1
+    match = re.search(r'\bmax_array_tasks=(\d+)', text)
+    if match:
+        cap = min(cap, int(match[1]))
+    if cap < 1:
+        raise ValueError('Slurm arrays are disabled')
+    submitted = 50
+    try:
+        text = scheduler.command(['sacctmgr', '-n', '-P', 'show', 'assoc', 'where',
+                                  'user=' + os.environ.get('USER', ''), 'format=MaxSubmitJobs'])
+        limits = [int(line.split('|')[0]) for line in text.splitlines() if line.split('|')[0].isdigit() and int(line.split('|')[0]) > 0]
+        if limits:
+            submitted = min(limits)
+    except (OSError, subprocess.CalledProcessError):
+        print('Cannot query MaxSubmitJobs; using conservative fallback 50', file=sys.stderr)
+    return cap, submitted
+
+
+def cache_root():
+    return Path(os.environ.get('FMRIPROC_FEAT_STATE_DIR',
+                str(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'fmriproc' / 'feat')))
+
+
+def run_local(plan_path, plan):
+    with (plan_path.parent / 'local_dispatch.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('Another local dispatcher owns this extraction snapshot')
+        _run_local(plan_path, plan)
+
+
+def _run_local(plan_path, plan):
+    running = []
+    failed = []
+    waiting = list(range(len(plan['jobs'])))
+    try:
+        while waiting or running:
+            while waiting and len(running) < plan['max_running']:
+                index = waiting.pop(0)
+                job = plan['jobs'][index]
+                folder = plan_path.parent / job['folder']
+                check_inputs(job['inputs'])
+                if completed(plan, job, folder):
+                    continue
+                attempt = len(list(folder.glob('attempt-*.out'))) + 1
+                log_path = folder / f'attempt-{attempt:03d}.out'
+                stream = log_path.open('w')
+                env = os.environ.copy()
+                for variable in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS'):
+                    env[variable] = str(plan['cpus'])
+                process = subprocess.Popen([plan['python'], str(plan_path.parent/'worker.py'), '--worker',
+                                            str(plan_path), str(index)], stdout=stream, stderr=subprocess.STDOUT, env=env)
+                running.append((index, process, stream))
+                scheduler.log(plan_path.parent, f'Started {job["name"]}; log: {log_path}')
+            remaining = []
+            for index, process, stream in running:
+                status = process.poll()
+                if status is None:
+                    remaining.append((index, process, stream))
+                else:
+                    stream.close()
+                    if status:
+                        failed.append(index)
+            running = remaining
+            if running:
+                time.sleep(.1)
+    except BaseException:
+        for _, process, stream in running:
+            process.terminate()
+        for _, process, stream in running:
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill(); process.wait()
+            stream.close()
+        raise
+    if failed:
+        raise RuntimeError(f'{len(failed)} extraction workers failed; inspect the printed logs and resume this snapshot')
+    merge(plan_path)
+
+
+def resume(folder, args):
+    plan_path = Path(folder).resolve() / 'extraction_plan.json'
+    plan = load_plan(plan_path)
+    if plan.get('preview'):
+        raise RuntimeError('This is a dry-run preview; rerun the original command without --dry-run')
+    check_inputs(plan['spec']['inputs'])
+    scheduler.log(plan_path.parent, 'Log directory: ' + str(plan_path.parent))
+    if final_valid(plan['spec']['output'], plan['plan_id']):
+        scheduler.log(plan_path.parent, 'Reusing verified final extraction output')
+        return
+    if plan['mode'] == 'local':
+        if args.retry_failed or args.retry_rejected:
+            print('Local resume automatically retries incomplete workers', file=sys.stderr)
+        run_local(plan_path, plan)
+    else:
+        scheduler.dispatch(plan_path.parent/'dispatch_state.json', cache_root(), retry_failed=args.retry_failed,
+                           retry_rejected=args.retry_rejected, queue_override=args.queue)
+
+
+def initialize_dispatch(folder, plan_path, args, level, jobs):
+    cap,submitted=slurm_limits()
+    runner=folder/'runner.sh';merger=folder/'merge.sh';queue=args.queue or os.environ.get('SGE_QUEUE_LONG','main')
+    runner.write_text('#!/usr/bin/env bash\nset -euo pipefail\n' +\
+                      'export ' + ' '.join(f'{name}={args.cpus}' for name in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS')) + '\nindex=$(( ${FEAT_BATCH_OFFSET:-0} + ${SLURM_ARRAY_TASK_ID} - 1 ))\nexec '+
+                      shlex.join([sys.executable,str(folder/'worker.py'),'--worker',str(plan_path)])+' "$index"\n')
+    merger.write_text('#!/usr/bin/env bash\nset -euo pipefail\nexec '+
+                      shlex.join([sys.executable,str(folder/'worker.py'),'--merge',str(plan_path)])+'\n')
+    runner.chmod(0o755);merger.chmod(0o755)
+    jobs_file=folder/f'spinoza_featextract_jobs.txt';jobs_file.write_text(''.join(f'{i}\n' for i in range(len(jobs))))
+    config=dict(count=len(jobs),max_running=args.max_running,max_submitted=submitted,
+                max_queued=args.max_queued or submitted,array_cap=cap,queue=queue,cpus=args.cpus,
+                job_name='featExtractL'+level,runner=str(runner),jobs_file=str(jobs_file),merge_runner=str(merger),
+                workflow='ROI extraction',merge_label='ROI table merge',resume_command='spinoza_featextract',
+                allow_merge_retry=True,sbatch_environment={k:v for k,v in os.environ.items() if k.startswith('SBATCH_')})
+    scheduler.write_json(folder/'dispatch_state.json',dict(config=config,fingerprints=scheduler.fingerprints(config),
+                                                           offset=0,waves=[],status='dispatching'))
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    try:
+        if argv and argv[0] == '--worker':
+            worker(Path(argv[1]), int(argv[2])); return 0
+        if argv and argv[0] == '--merge':
+            merge(Path(argv[1])); return 0
+        before, native = (argv[:argv.index('--')], argv[argv.index('--')+1:]) if '--' in argv else (argv, [])
+        parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+        parser.add_argument('-l','--level',choices=['1','2','3'])
+        parser.add_argument('-m','--max-running',type=int,default=8)
+        parser.add_argument('-j','--cpus',type=int,default=1)
+        parser.add_argument('-q','--queue')
+        parser.add_argument('-s','--subject',action='append',default=[])
+        parser.add_argument('--local',action='store_true')
+        parser.add_argument('--sge','--slurm',action='store_true')
+        parser.add_argument('--dry-run',action='store_true')
+        parser.add_argument('--overwrite',action='store_true',help='Allow replacing a previous final TSV after all workers succeed')
+        parser.add_argument('--max-queued',type=int)
+        parser.add_argument('--resume-submission',type=Path)
+        parser.add_argument('--retry-failed',action='store_true')
+        parser.add_argument('--retry-rejected',action='store_true')
+        parser.add_argument('project',nargs='?',type=Path)
+        args = parser.parse_args(before)
+        if args.resume_submission:
+            if native:
+                parser.error('Resume uses saved extraction settings; do not supply native options')
+            resume(args.resume_submission,args); return 0
+        if args.retry_failed or args.retry_rejected:
+            parser.error('Retry options require --resume-submission')
+        if not args.project or not native:
+            parser.error('Provide a project root and call_featextract options after --')
+        if min(args.max_running,args.cpus) < 1 or (args.max_queued is not None and args.max_queued < 1):
+            parser.error('Concurrency, CPUs and queue limits must be positive')
+        if args.local and args.sge:
+            parser.error('Choose either --local or --sge')
+        project = args.project.resolve()
+        for subject in args.subject:
+            native += ['--subject',subject]
+        extraction, rows, fields, level, jobs, expected, key_fields, inputs = preflight(native,args.level)
+        output = extraction.output.resolve()
+        spec = dict(argv=native,cwd=str(Path.cwd()),output=str(output),inputs=sorted(inputs,key=lambda i:i['path']),
+                    manifest_sha256=file_hash(extraction.manifest),versions=versions(),
+                    core_sha256=file_hash(core.__file__),worker_sha256=file_hash(__file__))
+        plan_id = digest(spec)
+        logs = project/'code'/'logs'
+        logs.mkdir(parents=True,exist_ok=True)
+        folder = Path(tempfile.mkdtemp(prefix=f'spinoza_featextract_L{level}_submission.',dir=logs))
+        plan_path = folder/'extraction_plan.json'
+        output.parent.mkdir(parents=True,exist_ok=True)
+        claim_path = Path(str(output)+'.extract-claim.json')
+        with Path(str(output)+'.extract.lock').open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX)
+            if not args.dry_run and final_valid(output,plan_id):
+                scheduler.log(folder,'Reusing verified final extraction output: '+str(output)); return 0
+            if not args.dry_run and claim_path.is_file():
+                existing=json.loads(claim_path.read_text())
+                if existing.get('plan_id')==plan_id:
+                    scheduler.log(folder,'Resuming existing extraction: '+existing['plan'])
+                    fcntl.flock(lock,fcntl.LOCK_UN)
+                    resume(Path(existing['plan']).parent,args); return 0
+                raise RuntimeError('Another extraction snapshot owns this output; resume '+existing['plan'])
+            if not args.dry_run and output.exists() and not args.overwrite:
+                raise RuntimeError('Output already exists without matching provenance; use wrapper --overwrite')
+            for source,name in [(Path(__file__),'worker.py'),(Path(core.__file__),'_featextract.py'),
+                                (Path(scheduler.__file__),'spinoza_feat_dispatch.py')]:
+                shutil.copyfile(source,folder/name)
+            code={name:file_hash(folder/name) for name in ['worker.py','_featextract.py','spinoza_feat_dispatch.py']}
+            for index,job in enumerate(jobs):
+                job['folder']=f'job-{index+1:04d}'
+                job_dir=folder/job['folder'];job_dir.mkdir()
+                job_rows=[rows[i] for i in job.pop('row_indices')]
+                with (job_dir/'manifest.tsv').open('w',newline='') as stream:
+                    writer=csv.DictWriter(stream,fieldnames=fields,delimiter='\t');writer.writeheader();writer.writerows(job_rows)
+                job['inputs']=list(job['inputs'].values())+[identity(job_dir/'manifest.tsv')]
+            plan=dict(plan_id=plan_id,spec=spec,jobs=jobs,expected=expected,key_fields=key_fields,
+                      output_fields=core.output_columns(fields),strict=extraction.strict,code=code,
+                      cpus=args.cpus,max_running=args.max_running,python=sys.executable,
+                      mode='local' if args.local else 'slurm',preview=args.dry_run,
+                      save_masks=str(extraction.save_masks.resolve()) if extraction.save_masks else None)
+            scheduler.write_json(plan_path,plan)
+            if not args.dry_run:
+                if not args.local:
+                    initialize_dispatch(folder,plan_path,args,level,jobs)
+                scheduler.write_json(claim_path,dict(plan_id=plan_id,plan=str(plan_path)))
+        scheduler.log(folder,f'Extraction plan: {len(rows)} manifest records, {len(jobs)} workers, {len(expected)} ROI rows')
+        scheduler.log(folder,'Log directory: '+str(folder))
+        scheduler.log(folder,'Output: '+str(output))
+        scheduler.log(folder,'Resume command: spinoza_featextract --resume-submission '+str(folder))
+        if args.dry_run:
+            print('DRY RUN: no workers or merge submitted'); return 0
+        if args.local:
+            run_local(plan_path,plan); return 0
+        scheduler.dispatch(folder/'dispatch_state.json',cache_root())
+        return 0
+    except (OSError,ValueError,RuntimeError,subprocess.CalledProcessError) as error:
+        print('ERROR: '+str(error),file=sys.stderr)
+        if isinstance(error,subprocess.CalledProcessError) and error.stderr:
+            print(error.stderr.strip(),file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print('Interrupted; resume the saved submission to finish extraction',file=sys.stderr)
+        return 130
+
+
+if __name__=='__main__':
+    sys.exit(main())

@@ -24,6 +24,7 @@
 --docker
 --dog
 --dry-run
+--extract
 --fast
 --fd
 --fit
