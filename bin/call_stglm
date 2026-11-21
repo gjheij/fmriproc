@@ -86,8 +86,8 @@ Options:
                             --additional-confounds files remain available.
                             Unless -c is explicitly set, CPUs default to 1
 
-  --drop-invalid           Explicitly exclude out-of-grid GLMsingle events;
-                            save their original timing and exclusion reasons.
+  --drop-invalid           Exclude out-of-grid GLMsingle events and events with
+                            less than 8 s after their rounded onset; save reasons.
   --stim-duration <sec>     Common GLMsingle stimulus duration. Default = 0
   --event-duration <rule>   Repeatable PATTERN=SECONDS validation; mixed durations
                             are unsupported by the GLMsingle API.
