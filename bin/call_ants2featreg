@@ -730,6 +730,29 @@ outputs = [target / path.name for path in images] + [mask_output]
 if (source / "normalization.json").is_file():
     inputs.append(source / "normalization.json")
 transforms = [Path(value) for value in sys.argv[4].split(",") if value]
+# The wrapper removes its generated identity after registration. Keep a durable
+# copy beside the provenance instead of recording a disappearing /tmp input.
+import hashlib
+import re
+import shutil
+for index, path in enumerate(transforms):
+    if re.fullmatch(r"spinoza_featreg_identity\.[A-Za-z0-9]+\.txt", path.name):
+        contents = path.read_bytes()
+        directory = target / ".registration_transforms"
+        directory.mkdir(exist_ok=True)
+        retained = directory / ("identity-" + hashlib.sha256(contents).hexdigest() + ".txt")
+        if not retained.is_file():
+            fd, temporary = tempfile.mkstemp(prefix=".identity.", dir=directory)
+            os.close(fd)
+            try:
+                shutil.copy2(path, temporary)
+                os.replace(temporary, retained)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
+        elif retained.read_bytes() != contents:
+            raise SystemExit("Retained identity transform is corrupt: " + str(retained))
+        transforms[index] = retained
 units = "psc" if source.name == "psc" else "raw"
 reference_id = ""
 source_provenance = source / "normalization.json" if source.name == "psc" else source.parent / "provenance.json"

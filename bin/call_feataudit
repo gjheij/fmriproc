@@ -57,7 +57,7 @@ def exists(raw, label, issues):
         issues.append(label + ': empty file ' + str(raw))
 
 
-def audit_manifest(path, units=None, registered=False, subdir='reg_standard'):
+def audit_manifest(path, units=None, registered=False, subdir='reg_standard', allow_legacy_temp_identity=False):
     with Path(path).open(newline='', encoding='utf-8-sig') as stream:
         rows = list(csv.DictReader(stream, delimiter='\t'))
     output = []
@@ -138,6 +138,7 @@ def audit_manifest(path, units=None, registered=False, subdir='reg_standard'):
                         issues.append('Unreadable analysis provenance: ' + str(error))
         if first and row.get('run_label') and directory and (Path(directory).parent / 'work' / str(row.get('run_label', '')) / 'feat_pending.json').is_file():
             issues.append('FEAT completion is still marked pending')
+        legacy_notes = []
         if registered and directory:
             registered_dir = Path(directory) / subdir
             stats = registered_dir / ('psc' if is_psc else 'stats')
@@ -160,11 +161,19 @@ def audit_manifest(path, units=None, registered=False, subdir='reg_standard'):
                     for raw in sources:
                         if raw and inputs.get(str(Path(raw).resolve())) != identity(raw):
                             issues.append('Stale registered PSC input: ' + raw)
-                    for saved in [registration['template'], *registration['transforms'], *registration['outputs']]:
+                    for saved in [registration['template'], *registration['outputs']]:
                         check_identity(saved, 'registered provenance', issues)
+                    for saved in registration['transforms']:
+                        raw = saved.get('path', '') if isinstance(saved, dict) else ''
+                        if (allow_legacy_temp_identity and raw
+                                and re.fullmatch(r'spinoza_featreg_identity\.[A-Za-z0-9]+\.txt', Path(raw).name)
+                                and not Path(raw).exists()):
+                            legacy_notes.append('Legacy temporary identity unavailable (explicitly allowed): ' + raw)
+                        else:
+                            check_identity(saved, 'registered provenance', issues)
                 except (OSError, ValueError, KeyError, TypeError) as error:
                     issues.append('Missing/invalid registered PSC provenance: ' + str(error))
-        output.append(result('manifest', 'FAIL' if issues else 'PASS', '; '.join(issues),
+        output.append(result('manifest', 'FAIL' if issues else 'PASS', '; '.join(issues + legacy_notes),
             subject=row.get('subject', ''), run=row.get('run', ''),
             canonical_name=row.get('canonical_name', row.get('contrast_name', '')),
             effect_units=chosen, psc_reference_id=row.get('psc_reference_id', ''),
@@ -279,6 +288,8 @@ def main(argv=None):
     parser.add_argument('--input-units',choices=['raw','psc'])
     parser.add_argument('--registration-mode',choices=['native','reg-standard'],default='native')
     parser.add_argument('--registered-subdir',default='reg_standard')
+    parser.add_argument('--allow-legacy-temp-identity',action='store_true',
+        help='Allow missing spinoza_featreg_identity.*.txt transforms from older registrations; report the provenance limitation')
     parser.add_argument('--submission-dir',type=Path)
     parser.add_argument('--job-id',action='append',default=[],help='Array/job IDs; repeat or comma-separate (for stages without dispatcher state)')
     parser.add_argument('--expected-tasks',type=int,help='Expected total task count for --job-id accounting checks')
@@ -290,7 +301,7 @@ def main(argv=None):
     rows=None
     if args.manifest:
         try:
-            output,rows=audit_manifest(args.manifest,args.input_units,args.registration_mode=='reg-standard',args.registered_subdir)
+            output,rows=audit_manifest(args.manifest,args.input_units,args.registration_mode=='reg-standard',args.registered_subdir,args.allow_legacy_temp_identity)
             reports.extend(output)
         except (OSError,ValueError,KeyError,TypeError) as error:
             reports.append(result('manifest','FAIL',str(error),path=str(args.manifest)))
@@ -314,6 +325,9 @@ def main(argv=None):
     counts=Counter(row['status'] for row in reports)
     print('; '.join(f'{name}={counts[name]}' for name in ['PASS','FAIL','WAIT','UNKNOWN']))
     print('Report:',args.report.resolve())
+    legacy_count=sum('Legacy temporary identity unavailable' in row['details'] for row in reports)
+    if legacy_count:
+        print(f'WARNING: {legacy_count} record(s) accepted without the deleted legacy identity transform; see report details. Other provenance checks remain active.')
     for row in [r for r in reports if r['status']!='PASS'][:20]:
         print(f"{row['status']} {row['kind']} subject={row.get('subject','')} run={row.get('run','')} "
               f"contrast={row.get('canonical_name','')} job={row.get('job_id','')}: {row['details']}")
