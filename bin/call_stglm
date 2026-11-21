@@ -82,10 +82,16 @@ Options:
                               --desc pybest --no-confounds
 
   --glm-single              run GLMsingle instead of standard LSA/LSS estimation.
-                            Confounds are disabled by stGLM/GLMdenoise.
+                            Automatic confound selection is disabled; explicit
+                            --additional-confounds files remain available.
                             Unless -c is explicitly set, CPUs default to 1
 
-  --stim-duration <sec>     GLMsingle stimulus duration. Default = 0
+  --stim-duration <sec>     Common GLMsingle stimulus duration. Default = 0
+  --event-duration <rule>   Repeatable PATTERN=SECONDS validation; mixed durations
+                            are unsupported by the GLMsingle API.
+  --additional-confounds <path>
+                            Repeatable GLMsingle TSV template with raw BIDS
+                            {subject}, {session}, {task}, {run} labels.
   --fd-threshold <mm>       framewise-displacement threshold. Default = 0.2
   --gm-threshold <value>    GM probability threshold. Default = 0.5
   --tsnr-regress-poly <n>   polynomial detrending order for tSNR. Default = 2
@@ -161,6 +167,8 @@ clean_run=0
 evs=()
 
 stim_duration="0"
+event_durations=()
+additional_confounds=()
 fd_threshold="0.2"
 gm_threshold="0.5"
 tsnr_regress_poly="2"
@@ -281,6 +289,16 @@ while [[ $# -gt 0 ]]; do
     --clean)
       clean_run=1
       shift
+      ;;
+
+    --event-duration)
+      event_durations+=("$2")
+      shift 2
+      ;;
+
+    --additional-confounds)
+      additional_confounds+=("$2")
+      shift 2
       ;;
 
     --stim-duration)
@@ -527,6 +545,9 @@ for sub_id in ${subjects}; do
     --gm-threshold "${gm_threshold}"
     --tsnr-regress-poly "${tsnr_regress_poly}"
   )
+
+  for rule in "${event_durations[@]}"; do cmd+=(--event-duration "$rule"); done
+  for template in "${additional_confounds[@]}"; do cmd+=(--additional-confounds "$template"); done
 
   if [[ -n "${deriv_dir}" ]]; then
     cmd+=(--deriv-dir "${deriv_dir}")

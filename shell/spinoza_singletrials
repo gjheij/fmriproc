@@ -44,6 +44,9 @@ Pass-through:
     --no-confounds
     --pybest
     --glm-single
+    --stim-duration 0
+    --additional-confounds '/data/sub-{subject}/run-{run}_physio.tsv'
+    --event-duration 'US_*=0'
     -f /path/to/config.json
 
   Native stglm arguments can still be passed through call_stglm by adding a
@@ -252,6 +255,8 @@ if [[ -z "${work_dir}" ]]; then
 fi
 
 mkdir -p "${work_dir}"
+work_dir="$(mktemp -d "${work_dir}/spinoza_singletrials_submission.XXXXXX")"
+echo "Log directory: ${work_dir}"
 
 subject_file="${work_dir}/stglm_subjects.txt"
 #-----------------------------------------------------------------------------
@@ -345,6 +350,7 @@ runner="${work_dir}/stglm_array_runner.sh"
 
 cat > "${runner}" <<EOF_RUNNER
 #!/usr/bin/env bash
+set -euo pipefail
 source "${SETUP_FILE}"
 source call_bashhelper
 
