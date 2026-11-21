@@ -325,10 +325,25 @@ def main(argv=None):
     counts=Counter(row['status'] for row in reports)
     print('; '.join(f'{name}={counts[name]}' for name in ['PASS','FAIL','WAIT','UNKNOWN']))
     print('Report:',args.report.resolve())
+    failed_subjects = Counter(
+        row['subject'] for row in reports
+        if row['status'] == 'FAIL' and row.get('subject')
+    )
+    if failed_subjects:
+        subjects = sorted(failed_subjects)
+        print('Subjects needing repair: ' + ','.join(subjects))
+        print('Subject selector: -s ' + ','.join(subjects))
+        for subject in subjects:
+            print(f"  sub-{subject.removeprefix('sub-')}: {failed_subjects[subject]} failed audit record(s)")
+    else:
+        print('Subjects needing repair: none identified')
     legacy_count=sum('Legacy temporary identity unavailable' in row['details'] for row in reports)
     if legacy_count:
         print(f'WARNING: {legacy_count} record(s) accepted without the deleted legacy identity transform; see report details. Other provenance checks remain active.')
-    for row in [r for r in reports if r['status']!='PASS'][:20]:
+    nonpassing = [row for row in reports if row['status'] != 'PASS']
+    if len(nonpassing) > 20:
+        print(f'Showing first 20 of {len(nonpassing)} non-passing records; the subject list above is complete for this report.')
+    for row in nonpassing[:20]:
         print(f"{row['status']} {row['kind']} subject={row.get('subject','')} run={row.get('run','')} "
               f"contrast={row.get('canonical_name','')} job={row.get('job_id','')}: {row['details']}")
     return 0 if reports and all(row['status']=='PASS' for row in reports) else 1
