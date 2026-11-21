@@ -585,6 +585,18 @@ case "${feat_level}" in
     ;;
 esac
 
+# Apply subject selection before dry-run reporting and SLURM submission, so
+# unselected units never enter the queue or receive --overwrite.
+selected_feat_dirs=()
+for unit in "${feat_dirs[@]}"; do
+  unit_name="$(basename "${unit}")"
+  if [[ "${unit_name}" =~ ^sub-([^_.]+)(_|\.) ]]; then
+    subject_requested "${BASH_REMATCH[1]}" || continue
+    selected_feat_dirs+=("${unit}")
+  fi
+done
+feat_dirs=("${selected_feat_dirs[@]}")
+
 if [[ ${#feat_dirs[@]} -eq 0 ]]; then
   if [[ "${feat_level}" -eq 1 ]]; then
     expected="sub-*.feat"
@@ -749,6 +761,7 @@ EOF
   esac
 
   [[ ${overwrite} -eq 1 ]] && echo '  --overwrite' >> "${runner}"
+  [[ -z "${sub}" ]] || printf '  -s %q\n' "${sub}" >> "${runner}"
 
   printf '  --tpl-home %q\n' "${tpl_home}" >> "${runner}"
   printf '  --tpl-space %q\n' "${tpl_space}" >> "${runner}"
