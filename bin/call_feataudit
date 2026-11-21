@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""Audit FEAT manifests and Slurm outcomes; no neuroimaging dependencies required.
+
+Examples:
+  call_feataudit --manifest /data/feat/level1/contrast_manifest.tsv --input-units psc --report psc_audit.tsv
+  call_feataudit --submission-dir /data/code/logs/spinoza_feat_L2_submission.ABC123 --report jobs_audit.tsv
+  call_feataudit --job-id 123456 --expected-tasks 40 --report registration_audit.tsv
+
+Exit 0 requires all checked records to pass. Missing accounting remains UNKNOWN.
+This checks file presence and saved file identities, not scientific model validity
+or voxel-by-voxel conversion arithmetic. Keep --input-units psc for PSC preflight.
+"""
+import argparse
+from collections import Counter
+import csv
+import getpass
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+TERMINAL = {'COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'OUT_OF_MEMORY',
+            'NODE_FAIL', 'PREEMPTED', 'BOOT_FAIL', 'DEADLINE', 'REVOKED'}
+FIELDS = ['kind', 'status', 'subject', 'run', 'canonical_name', 'effect_units',
+          'psc_reference_id', 'job_id', 'queue_row', 'path', 'details']
+
+
+def result(kind, status, details='', **values):
+    return dict(kind=kind, status=status, details=details, **values)
+
+
+def identity(path):
+    path = Path(path).resolve()
+    stat = path.stat()
+    return dict(path=str(path), size=stat.st_size, mtime_ns=stat.st_mtime_ns)
+
+
+def check_identity(saved, label, issues):
+    if not isinstance(saved, dict) or not saved.get('path'):
+        issues.append(label + ': missing saved identity')
+        return
+    try:
+        if identity(saved['path']) != saved:
+            issues.append(label + ': stale file ' + saved['path'])
+    except OSError:
+        issues.append(label + ': missing file ' + str(saved['path']))
+
+
+def exists(raw, label, issues):
+    if not raw:
+        issues.append('Missing manifest field: ' + label)
+    elif not Path(raw).is_file():
+        issues.append(label + ': missing file ' + str(raw))
+    elif Path(raw).stat().st_size == 0:
+        issues.append(label + ': empty file ' + str(raw))
+
+
+def audit_manifest(path, units=None, registered=False, subdir='reg_standard'):
+    with Path(path).open(newline='', encoding='utf-8-sig') as stream:
+        rows = list(csv.DictReader(stream, delimiter='\t'))
+    output = []
+    selected = []
+    cache = {}
+    for number, row in enumerate(rows, 1):
+        first = bool(row.get('feat_dir')) and not row.get('second_level_dir') and not row.get('group_dir')
+        stored_units = row.get('effect_units') or 'raw'
+        chosen = units or stored_units
+        if not first and units and stored_units != units:
+            continue
+        selected.append(row)
+        issues = []
+        directory = row.get('group_dir') or row.get('second_level_dir') or row.get('feat_dir') or ''
+        if not directory:
+            issues.append('Missing analysis directory')
+        is_psc = first and chosen == 'psc'
+        if is_psc:
+            required = ['psc_cope_file', 'psc_varcope_file', 'psc_mask_file',
+                        'psc_reference_id', 'psc_provenance_file']
+            for column in required:
+                if not row.get(column):
+                    issues.append('Missing manifest field: ' + column)
+            for column in ['psc_cope_file', 'psc_varcope_file', 'psc_mask_file']:
+                if row.get(column):
+                    exists(row[column], column, issues)
+            marker = row.get('psc_provenance_file')
+            if marker:
+                try:
+                    if marker not in cache:
+                        cache[marker] = json.loads(Path(marker).read_text())
+                    saved = cache[marker]
+                    key = str(int(float(row['cope'])))
+                    for field, leaf in [('psc_cope_file','cope'+key+'.nii.gz'),
+                                        ('psc_varcope_file','varcope'+key+'.nii.gz'),
+                                        ('psc_mask_file','mask.nii.gz')]:
+                        if row.get(field) and Path(row[field]).resolve() != (Path(directory)/'psc'/leaf).resolve():
+                            issues.append(field + ': path differs from its FEAT contrast')
+                    item = saved.get('contrasts', {}).get(key)
+                    if not item:
+                        issues.append('PSC provenance lacks contrast ' + key)
+                    else:
+                        reference = item.get('reference_id', saved.get('reference_id'))
+                        if row.get('psc_reference_id') != reference:
+                            issues.append('PSC reference differs between manifest and provenance')
+                        for name in ['mean_func', 'source_mask', 'design']:
+                            check_identity(saved.get(name), name, issues)
+                        for name in ['cope_file', 'varcope_file']:
+                            record = item.get('inputs', {}).get(name)
+                            check_identity(record, name, issues)
+                            if record and row.get(name) and str(Path(row[name]).resolve()) != record.get('path'):
+                                issues.append(name + ': manifest differs from provenance source')
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    issues.append('Unreadable/invalid PSC provenance: ' + str(error))
+        else:
+            for name in ['cope_file', 'varcope_file', 'tstat_file', 'zstat_file']:
+                if name in ('cope_file', 'varcope_file') or row.get(name):
+                    exists(row.get(name), name, issues)
+            mask = row.get('mask_file') or str(Path(directory) / 'mask.nii.gz')
+            exists(mask, 'mask_file', issues)
+            if chosen == 'psc' and not row.get('psc_reference_id'):
+                issues.append('Missing manifest field: psc_reference_id')
+            if not first and directory:
+                provenance = Path(directory) / 'provenance.json'
+                if not provenance.is_file():
+                    issues.append('Missing analysis provenance: ' + str(provenance))
+                else:
+                    try:
+                        saved = json.loads(provenance.read_text())
+                        for file_identity in saved.get('files', []):
+                            check_identity(file_identity, 'analysis input', issues)
+                        inputs = saved.get('inputs', [])
+                        if chosen == 'psc' and inputs:
+                            refs = {item.get('psc_reference_id', '') for item in inputs}
+                            if refs != {row.get('psc_reference_id', '')}:
+                                issues.append('Analysis PSC references differ from manifest')
+                    except (OSError, ValueError) as error:
+                        issues.append('Unreadable analysis provenance: ' + str(error))
+        if first and row.get('run_label') and directory and (Path(directory).parent / 'work' / str(row.get('run_label', '')) / 'feat_pending.json').is_file():
+            issues.append('FEAT completion is still marked pending')
+        if registered and directory:
+            registered_dir = Path(directory) / subdir
+            stats = registered_dir / ('psc' if is_psc else 'stats')
+            for name in ['cope_file', 'varcope_file']:
+                raw = row.get('psc_' + name) if is_psc else row.get(name)
+                if raw:
+                    exists(str(stats / Path(raw).name), 'registered_' + name, issues)
+            exists(str((registered_dir / 'psc' if is_psc else registered_dir) / 'mask.nii.gz'), 'registered_mask', issues)
+            exists(str(Path(directory) / 'reg' / 'standard.nii.gz'), 'standard_reference', issues)
+            if chosen == 'psc':
+                marker = stats / 'registration.json'
+                try:
+                    registration = json.loads(marker.read_text())
+                    inputs = {item['path']: item for item in registration['inputs']}
+                    if is_psc:
+                        sources = [row.get(name) for name in ['psc_cope_file', 'psc_varcope_file', 'psc_mask_file', 'psc_provenance_file']]
+                    else:
+                        sources = [row.get('cope_file'), row.get('varcope_file'),
+                                   str(Path(directory)/'mask.nii.gz'), str(Path(directory)/'provenance.json')]
+                    for raw in sources:
+                        if raw and inputs.get(str(Path(raw).resolve())) != identity(raw):
+                            issues.append('Stale registered PSC input: ' + raw)
+                    for saved in [registration['template'], *registration['transforms'], *registration['outputs']]:
+                        check_identity(saved, 'registered provenance', issues)
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    issues.append('Missing/invalid registered PSC provenance: ' + str(error))
+        output.append(result('manifest', 'FAIL' if issues else 'PASS', '; '.join(issues),
+            subject=row.get('subject', ''), run=row.get('run', ''),
+            canonical_name=row.get('canonical_name', row.get('contrast_name', '')),
+            effect_units=chosen, psc_reference_id=row.get('psc_reference_id', ''),
+            queue_row=number, path=directory))
+    if not selected:
+        output.append(result('manifest', 'FAIL', 'No matching manifest records', path=str(path)))
+    return output, selected
+
+
+def command(argv):
+    return subprocess.run(argv, check=True, capture_output=True, text=True).stdout
+
+
+def scheduler_snapshot(ids):
+    queue = {}
+    for line in command(['squeue', '-r', '-h', '-u', os.environ.get('USER') or getpass.getuser(),
+                         '--states=all', '-o', '%i|%T']).splitlines():
+        fields = line.strip().split('|')
+        if len(fields) == 2:
+            queue[fields[0]] = fields[1].split()[0].rstrip('+')
+    accounting = {}
+    for line in command(['sacct', '-n', '-X', '-P', '--array', '--starttime=1970-01-01',
+                         '-j', ','.join(ids), '--format=JobID%64,State%40,ExitCode%20']).splitlines():
+        fields = line.strip().split('|')
+        if len(fields) >= 3 and fields[1].strip():
+            accounting[fields[0]] = (fields[1].split()[0].rstrip('+'), fields[2].strip())
+    return queue, accounting
+
+
+def audit_jobs(submission=None, ids=(), expected=None):
+    output = []
+    tasks = {}
+    if submission:
+        state_path = Path(submission) / 'dispatch_state.json'
+        state = json.loads(state_path.read_text())
+        if state.get('pending_submission'):
+            output.append(result('submission', 'UNKNOWN', 'Unreconciled sbatch attempt', path=str(state_path)))
+        if state.get('retry_queue'):
+            output.append(result('submission', 'WAIT', 'Failed rows still awaiting replacement', path=str(state_path)))
+        count = state['config']['count']
+        covered = set()
+        for wave in state['waves']:
+            for index in range(1, wave['count'] + 1):
+                if str(index) in wave.get('replacements', {}):
+                    continue
+                row = wave['offset'] + index
+                if row in covered:
+                    output.append(result('submission', 'FAIL', 'Duplicate unreplaced attempts for queue row', queue_row=row))
+                if not 1 <= row <= count:
+                    output.append(result('submission', 'FAIL', 'Assigned row is outside planned range', queue_row=row))
+                covered.add(row)
+                tasks[f"{wave['id']}_{index}"] = row
+        missing = sorted(set(range(1, count + 1)) - covered)
+        if missing:
+            output.append(result('submission', 'WAIT', f'{len(missing)} planned rows have no assigned job; first: {missing[:10]}'))
+        if state.get('merge_id'):
+            tasks[state['merge_id']] = 'manifest merge'
+        elif state['config'].get('merge_runner'):
+            output.append(result('submission', 'WAIT', 'Manifest merge not yet submitted'))
+        ids = sorted({task.split('_')[0] for task in tasks})
+    if not ids:
+        output.append(result('slurm', 'UNKNOWN', 'No submitted job IDs available'))
+        return output
+    queue, accounting = scheduler_snapshot(ids)
+    if not submission:
+        for jid in ids:
+            found = {task for task in set(queue) | set(accounting) if re.fullmatch(re.escape(jid) + r'_[0-9]+', task)}
+            tasks.update({task: '' for task in found or {jid}})
+        if expected is not None and len(tasks) != expected:
+            output.append(result('slurm', 'FAIL', f'Expected {expected} tasks; found {len(tasks)} task records'))
+    for task, row in sorted(tasks.items()):
+        state, exit_code = accounting.get(task, ('UNKNOWN', ''))
+        if task in queue and queue[task] not in TERMINAL:
+            state, exit_code = queue[task], ''
+        status = ('PASS' if state == 'COMPLETED' and exit_code == '0:0' else
+                  'FAIL' if state in TERMINAL else 'UNKNOWN' if state == 'UNKNOWN' else 'WAIT')
+        output.append(result('slurm', status, f'{state}; ExitCode={exit_code or "unavailable"}', job_id=task, queue_row=row))
+    return output
+
+
+def check_plan_coverage(submission, rows):
+    state = json.loads((Path(submission) / 'dispatch_state.json').read_text())
+    path = Path(state['config']['jobs_file'])
+    columns = (['subject', 'run'] if '_L1_' in path.name else
+               ['subject', 'session', 'task', 'canonical_name'] if '_L2_' in path.name else
+               ['task', 'canonical_name'] if '_L3_' in path.name else None)
+    if columns is None:
+        return [result('coverage', 'UNKNOWN', 'Cannot infer planned job columns from ' + path.name)]
+    def normalized(column, value):
+        value = str(value or '')
+        if column in ('subject','session','run'):
+            value = re.sub(r'^(sub|ses|run)-', '', value)
+            if value.isdigit():
+                return str(int(value))
+        return value
+    keys = {tuple(normalized(c, row.get(c, '')) for c in columns) for row in rows}
+    output = []
+    for index, line in enumerate(path.read_text().splitlines(), 1):
+        values = line.split('\t')
+        if len(values) != len(columns):
+            output.append(result('coverage','UNKNOWN','Unexpected job-list format',queue_row=index))
+        elif tuple(normalized(c,v) for c,v in zip(columns,values)) not in keys:
+            output.append(result('coverage','FAIL','Planned job has no manifest record: '+line,queue_row=index))
+    if not output:
+        output.append(result('coverage','PASS','Every planned job key is represented in the selected manifest'))
+    return output
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--manifest',type=Path)
+    parser.add_argument('--input-units',choices=['raw','psc'])
+    parser.add_argument('--registration-mode',choices=['native','reg-standard'],default='native')
+    parser.add_argument('--registered-subdir',default='reg_standard')
+    parser.add_argument('--submission-dir',type=Path)
+    parser.add_argument('--job-id',action='append',default=[],help='Array/job IDs; repeat or comma-separate (for stages without dispatcher state)')
+    parser.add_argument('--expected-tasks',type=int,help='Expected total task count for --job-id accounting checks')
+    parser.add_argument('--report',type=Path,required=True)
+    args = parser.parse_args(argv)
+    if not (args.manifest or args.submission_dir or args.job_id):
+        parser.error('Specify --manifest, --submission-dir or --job-id')
+    reports=[]
+    rows=None
+    if args.manifest:
+        try:
+            output,rows=audit_manifest(args.manifest,args.input_units,args.registration_mode=='reg-standard',args.registered_subdir)
+            reports.extend(output)
+        except (OSError,ValueError,KeyError,TypeError) as error:
+            reports.append(result('manifest','FAIL',str(error),path=str(args.manifest)))
+    if args.submission_dir or args.job_id:
+        try:
+            ids=[part for value in args.job_id for part in value.split(',') if part]
+            if ids and any(not re.fullmatch(r'[0-9]+',jid) for jid in ids):
+                raise ValueError('--job-id requires numeric parent/job IDs')
+            reports.extend(audit_jobs(args.submission_dir,ids,args.expected_tasks))
+            if args.submission_dir and rows is not None:
+                reports.extend(check_plan_coverage(args.submission_dir,rows))
+        except (OSError,ValueError,KeyError,TypeError,subprocess.CalledProcessError) as error:
+            detail=str(error)
+            if isinstance(error,subprocess.CalledProcessError):
+                detail+=' '+(error.stderr or '').strip()
+            reports.append(result('slurm','UNKNOWN',detail))
+    args.report.parent.mkdir(parents=True,exist_ok=True)
+    with args.report.open('w',newline='') as stream:
+        writer=csv.DictWriter(stream,fieldnames=FIELDS,delimiter='\t',extrasaction='ignore')
+        writer.writeheader();writer.writerows(reports)
+    counts=Counter(row['status'] for row in reports)
+    print('; '.join(f'{name}={counts[name]}' for name in ['PASS','FAIL','WAIT','UNKNOWN']))
+    print('Report:',args.report.resolve())
+    for row in [r for r in reports if r['status']!='PASS'][:20]:
+        print(f"{row['status']} {row['kind']} subject={row.get('subject','')} run={row.get('run','')} "
+              f"contrast={row.get('canonical_name','')} job={row.get('job_id','')}: {row['details']}")
+    return 0 if reports and all(row['status']=='PASS' for row in reports) else 1
+
+
+if __name__=='__main__':
+    sys.exit(main())
