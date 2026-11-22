@@ -64,6 +64,10 @@ Optional:
 
   --evs <ev1,ev2,...>       comma-separated trial types to include
   --run-mode <mode>         loop | concat. Default = loop
+  --run|--runs <IDs...>     Select runs before BOLD/events matching, e.g.:
+                            --run 01 03 04 or --run 01,03,04
+                            Default = all runs. BOLD runs without events are skipped
+                            with a warning; ambiguous event matches still fail.
   --hrf <basis>             dgamma | dgamma_with_derivs | flobs.
                             Default = dgamma
   --lss-mode <mode>         cond | nuis. Default = cond
@@ -169,6 +173,7 @@ glm_single=0
 config_file=""
 clean_run=0
 evs=()
+selected_runs=()
 
 stim_duration="0"
 event_durations=()
@@ -247,6 +252,26 @@ while [[ $# -gt 0 ]]; do
       IFS=', ' read -r -a evs <<< "$2"
       unset IFS
       shift 2
+      ;;
+
+    --run|--runs)
+      shift
+      while [[ $# -gt 0 && "$1" != -* ]]; do
+        IFS=',' read -r -a run_values <<< "$1"
+        for run_value in "${run_values[@]}"; do
+          run_value="${run_value#run-}"
+          if [[ ! "$run_value" =~ ^[0-9]+$ || ! "$run_value" =~ [1-9] ]]; then
+            print_error_msg "$(basename "${0}")" "input" "Invalid run index: ${run_value}"
+            exit 1
+          fi
+          selected_runs+=("$run_value")
+        done
+        shift
+      done
+      if [[ ${#selected_runs[@]} -eq 0 ]]; then
+        print_error_msg "$(basename "${0}")" "input" "--run expects at least one run index"
+        exit 1
+      fi
       ;;
 
     --run-mode)
@@ -571,6 +596,7 @@ for sub_id in ${subjects}; do
   [[ "${export_only}" -eq 0 ]] || cmd+=(--export-only)
   [[ "${split_trial_types}" -eq 0 ]] || cmd+=(--split-trial-types)
   [[ "${drop_invalid}" -eq 0 ]] || cmd+=(--drop-invalid)
+  [[ ${#selected_runs[@]} -eq 0 ]] || cmd+=(--run "${selected_runs[@]}")
   for rule in "${event_durations[@]}"; do cmd+=(--event-duration "$rule"); done
   for template in "${additional_confounds[@]}"; do cmd+=(--additional-confounds "$template"); done
 

@@ -38,6 +38,7 @@ Pass-through:
     --confounds-suffix timeseries
     --evs CSm,CSpu,CSpr,USp
     --run-mode loop
+    --run 01 03 04
     --hrf dgamma
     --lss-mode cond
     --clean
