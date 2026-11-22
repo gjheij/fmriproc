@@ -184,7 +184,7 @@ def main(argv=None):
             settings['overwrite'] = args.overwrite or bool(settings.get('overwrite', False))
             resolved.setdefault('decoding_settings', {}).setdefault('parallel', {})['n_jobs'] = args.cpus
             settings['tmp_dir'] = str(project_path(settings.get('tmp_dir') or '.cache/panic', project) / submission.name / subject)
-            if resolved.get('roi_dict') is None:
+            if 'roi_dict' not in resolved:
                 roi = project / 'derivatives/rois' / subject
                 resolved['roi_dict'] = str(roi / args.roi_base if '--searchlight' in run_args else roi)
             elif isinstance(resolved['roi_dict'], str):
