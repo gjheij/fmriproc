@@ -2581,11 +2581,11 @@ if [[ $? -eq 0 ]]; then
     featreg_project_root="${DIR_DATA_HOME}"
   fi
 
-  feat_level="${WHICH_MOD:-1}"
   if [[ ! -z "$FOLDS_FLAG" ]]; then
     featreg_dir=$(echo "$FOLDS_FLAG" | sed 's/^-f //')
   else
 
+    feat_level="${WHICH_MOD:-1}"
     if [[ ! "${feat_level}" =~ ^[12]$ ]]; then
       echo
       print_line -
@@ -2931,7 +2931,8 @@ if [[ $? -eq 0 ]]; then
   print_module_start "${module}" "Multivariate decoding with PANIC"
 
   # spinoza_decoding has wrapper-level options before '--' and forwards
-  # call_panic/PANIC arguments after '--'. Keep these namespaces separate.
+  # Native PANIC config/arguments after '--'. YAML source, method and ROIs
+  # are retained; the launcher discovers subjects from its beta_dir.
   #
   # master mappings used by this module:
   #   -s <sub>       -> subject selector
@@ -2945,7 +2946,9 @@ if [[ $? -eq 0 ]]; then
   #   -x '<args>'    -> arguments passed to call_panic after '--'
   #
   # Examples for -x:
-  #   -x '-f /project/config.yml --searchlight'
+  #   -x '-f /project/code/panic_coglearn7t.yml'
+  # CogLearn7T example: -m 30 -s 01 -j 1 -l 1 -q intelsr_short
+  #   -x '-f /project/code/panic_coglearn7t.yml --set decoding_settings.n_permutations=5'
   #
   #   -x '-f /project/config.yml --searchlight
   #       -x "decoding_settings.n_permutations=1000,
