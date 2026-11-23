@@ -92,6 +92,11 @@ Options:
 
   --export-only            Export completed GLMsingle models without refitting.
   --split-trial-types      Also write per-run/condition 4D trial beta images.
+  --export-residuals       Reconstruct run-wise TYPE-D taskpoly/fullnuisance
+                            residuals. Use with --export-only for existing fits.
+  --residual-units <type>  beta | input. Default = beta-compatible voxel scaling.
+  --residual-chunk-voxels <n>
+                            Reconstruction block size. Default = 2048.
   --drop-invalid           Exclude out-of-grid GLMsingle events and events with
                             less than 8 s after their rounded onset; save reasons.
   --stim-duration <sec>     Common GLMsingle stimulus duration. Default = 0
@@ -181,6 +186,9 @@ additional_confounds=()
 drop_invalid=0
 export_only=0
 split_trial_types=0
+export_residuals=0
+residual_units="beta"
+residual_chunk_voxels="2048"
 fd_threshold="0.2"
 gm_threshold="0.5"
 tsnr_regress_poly="2"
@@ -328,6 +336,18 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
 
+    --export-residuals)
+      export_residuals=1
+      shift
+      ;;
+    --residual-units)
+      residual_units="$2"
+      shift 2
+      ;;
+    --residual-chunk-voxels)
+      residual_chunk_voxels="$2"
+      shift 2
+      ;;
     --split-trial-types)
       split_trial_types=1
       shift
@@ -595,6 +615,9 @@ for sub_id in ${subjects}; do
 
   [[ "${export_only}" -eq 0 ]] || cmd+=(--export-only)
   [[ "${split_trial_types}" -eq 0 ]] || cmd+=(--split-trial-types)
+  if [[ "${export_residuals}" -eq 1 ]]; then
+    cmd+=(--export-residuals --residual-units "${residual_units}" --residual-chunk-voxels "${residual_chunk_voxels}")
+  fi
   [[ "${drop_invalid}" -eq 0 ]] || cmd+=(--drop-invalid)
   [[ ${#selected_runs[@]} -eq 0 ]] || cmd+=(--run "${selected_runs[@]}")
   for rule in "${event_durations[@]}"; do cmd+=(--event-duration "$rule"); done

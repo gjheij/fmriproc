@@ -44,6 +44,16 @@ print_cmd() { printf '%q ' "$@"; printf '\\n'; }
         for values in (['--run'], ['--run', 'abc'], ['--run', '0']):
             self.assertNotEqual(self.invoke(values).returncode, 0)
 
+    def test_residual_recovery_options_reach_native_stglm(self):
+        result = self.invoke(['--export-only', '--export-residuals', '--residual-units', 'input',
+                              '--residual-chunk-voxels', '512'])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        argv = shlex.split(result.stdout.strip().splitlines()[-1])
+        self.assertIn('--export-only', argv)
+        self.assertIn('--export-residuals', argv)
+        self.assertEqual(argv[argv.index('--residual-units')+1], 'input')
+        self.assertEqual(argv[argv.index('--residual-chunk-voxels')+1], '512')
+
 
 if __name__ == '__main__':
     unittest.main()

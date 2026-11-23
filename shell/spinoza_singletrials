@@ -48,6 +48,7 @@ Pass-through:
     --stim-duration 0
     --additional-confounds '/data/sub-{subject}/run-{run}_physio.tsv'
     --event-duration 'US_*=0'
+    --export-only --export-residuals
     -f /path/to/config.json
 
   Native stglm arguments can still be passed through call_stglm by adding a
